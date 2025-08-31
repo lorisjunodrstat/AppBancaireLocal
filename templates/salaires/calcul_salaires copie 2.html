@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% set mois_noms = {
+1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril',
+5: 'Mai', 6: 'Juin', 7: 'Juillet', 8: 'Août',
+9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'
+} %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Calcul des salaires</h2>
+
+        <div class="d-flex align-items-center">
+            <!-- Filtre d'année -->
+            <div class="me-3">
+                <label class="form-label me-2">Année:</label>
+                <div class="btn-group">
+                    {% for year in years %}
+                    <a href="{{ url_for('salaires', annee=year) }}"
+                        class="btn btn-outline-primary {% if current_annee == year %}active{% endif %}">
+                        {{ year }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Bouton voir le contrat -->
+            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#contratModal">
+                <i class="fas fa-file-contract me-1"></i> Voir le contrat
+            </button>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="m-0">Résultats pour {{ current_annee }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mois</th>
+                            <th>Heures réelles</th>
+                            <th>Heures hebdo</th>
+                            <th>Salaire calculé</th>
+                            <th>Salaire versé</th>
+                            <th>Acompte 25</th>
+                            <th>Acompte 10</th>
+                            <th>Acompte 25 estimé</th>
+                            <th>Acompte 10 estimé</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mois in range(1, 13) %}
+                        {% set data = salaires_par_mois.get(mois) %}
+                        <tr>
+                            <td>{{ mois_noms[mois] }}</td>
+
+                            <td>
+                                {% if data and data.heures_reelles is not none %}
+                                {{ "%.2f"|format(data.heures_reelles) }}
+                                {% else %}
+                                0.00
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if data and data['heures_reelles'] is not none %}
+                                {{ "%.2f"|format(data['heures_reelles']) }}
+                                {% else %}
+                                {{ contrat_actuel.heures_hebdo if contrat_actuel else 38.0 }}
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if data and data.salaire_calcule is not none %}
+                                {{ "%.2f"|format(data.salaire_calcule) }}
+                                {% else %}
+                                0.00
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if data and data.salaire_verse is not none %}
+                                {{ "%.2f"|format(data.salaire_verse) }}
+                                {% else %}
+                                0.00
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if data and data.acompte_25 is not none %}
+                                {{ "%.2f"|format(data.acompte_25) }}
+                                {% else %}
+                                0.00
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if data and data.acompte_10 is not none %}
+                                {{ "%.2f"|format(data.acompte_10) }}
+                                {% else %}
+                                0.00
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if data and data.acompte_25_estime is not none %}
+                                {{ "%.2f"|format(data.acompte_25_estime) }}
+                                {% else %}
+                                0.00
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if data and data.acompte_10_estime is not none %}
+                                {{ "%.2f"|format(data.acompte_10_estime) }}
+                                {% else %}
+                                0.00
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if data and data.difference is not none %}
+                                {{ "%.2f"|format(data.difference) }}
+                                {% else %}
+                                0.00
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                    <tfoot class="table-active fw-bold">
+                        <tr>
+                            <th>Total</th>
+                            <th>{{ "%.2f"|format(totaux.total_heures_reelles) }}</th>
+                            <th></th>
+                            <th>{{ "%.2f"|format(totaux.total_salaire_calcule) }} CHF</th>
+                            <th>{{ "%.2f"|format(totaux.total_salaire_verse) }} CHF</th>
+                            <th>{{ "%.2f"|format(totaux.total_acompte_25) }}</th>
+                            <th>{{ "%.2f"|format(totaux.total_acompte_10) }}</th>
+                            <th>{{ "%.2f"|format(totaux.total_acompte_25_estime) }}</th>
+                            <th>{{ "%.2f"|format(totaux.total_acompte_10_estime) }}</th>
+                            <th>{{ "%.2f"|format(totaux.total_difference) }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour afficher le contrat -->
+<div class="modal fade" id="contratModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Contrat utilisé pour les calculs</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if contrat_actuel %}
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Heures hebdomadaires:</label>
+                                <p>{{ contrat_actuel.heures_hebdo }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Salaire horaire:</label>
+                                <p>{{ "%.2f"|format(contrat_actuel.salaire_horaire) }} CHF</p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Date de début:</label>
+                                <p>{{ contrat_actuel.date_debut }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Date de fin:</label>
+                                <p>{{ contrat_actuel.date_fin if contrat_actuel.date_fin else 'Indéterminée' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Jour d'estimation:</label>
+                                <p>{{ contrat_actuel.jour_estimation_salaire }} du mois</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Versements:</label>
+                                <p>
+                                    {% if contrat_actuel.versement_10 %}10{% endif %}
+                                    {% if contrat_actuel.versement_10 and contrat_actuel.versement_25 %}, {% endif %}
+                                    {% if contrat_actuel.versement_25 %}25{% endif %}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Ce contrat est utilisé pour tous les calculs de salaire et de simulation.
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">Aucun contrat disponible.</div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <a href="{{ url_for('gestion_contrat') }}" class="btn btn-primary">
+                    <i class="fas fa-edit me-1"></i> Modifier le contrat
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="container">
+        <div class="page-title">
+            <h1>{% if categorie %}Modifier{% else %}Nouvelle{% endif %} Catégorie Comptable</h1>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                Informations de la catégorie
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="numero" class="form-label">Numéro*</label>
+                            <input type="text" class="form-control" id="numero" name="numero" 
+                                   value="{{ categorie.numero if categorie else '' }}" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="nom" class="form-label">Nom*</label>
+                            <input type="text" class="form-control" id="nom" name="nom" 
+                                   value="{{ categorie.nom if categorie else '' }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="groupe" class="form-label">Groupe</label>
+                            <select class="form-select" id="groupe" name="groupe">
+                                <option value="">Aucun groupe</option>
+                                {% for cat in categories %}
+                                    {% if cat.type_compte == 'Groupe' %}
+                                    <option value="{{ cat.id }}" {% if categorie and categorie.groupe == cat.id %}selected{% endif %}>
+                                        {{ cat.numero }} - {{ cat.nom }}
+                                    </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col">
+                            <label for="type_compte" class="form-label">Type de compte*</label>
+                            <select class="form-select" id="type_compte" name="type_compte" required>
+                                {% for type in types_compte %}
+                                <option value="{{ type }}" {% if categorie and categorie.type_compte == type %}selected{% endif %}>
+                                    {{ type }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="form-group">
+                            <label for="compte_systeme" class="form-label">Compte système</label>
+                            <input type="text" class="form-control" id="compte_systeme" name="compte_systeme" 
+                                   value="{{ categorie.compte_systeme if categorie else '' }}">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="compte_associe" class="form-label">Compte associé</label>
+                            <input type="text" class="form-control" id="compte_associe" name="compte_associe" 
+                                   value="{{ categorie.compte_associe if categorie else '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row-mb-3">
+                        <div class="col">
+                            <label for="type_tva" class="form-label">Type de TVA</label>
+                            <select class="form-select" id="type_tva" name="type_tva">
+                                {% for type in types_tva %}
+                                <option value="{{ type }}" {% if categorie and categorie.type_tva == type %}selected{% endif %}>
+                                    {{ type if type else 'Aucun' }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="actions">
+                        <div class="row g-2">
+                            {% if categorie %}
+                            <div class="col-12 col-md-4">
+                                <a href="{{ url_for('liste_categories_comptables') }}" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-arrow-left me-2"></i> Retour
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="{{ url_for('delete_categorie', categorie_id=categorie.id) }}" class="btn btn-outline-danger w-100">
+                                    <i class="bi bi-trash me-2"></i> Supprimer
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <button type="submit" class="btn btn-primary-custom w-100">
+                                    <i class="bi bi-save me-2"></i> Enregistrer
+                                </button>
+                            </div>
+                            {% else %}
+                            <div class="col-12 col-md-6">
+                                <a href="{{ url_for('liste_categories_comptables') }}" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-arrow-left me-2"></i> Retour
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-save me-2"></i> Enregistrer
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block scripts %}
+    <script>
+        // Script pour améliorer l'expérience utilisateur
+        document.addEventListener('DOMContentLoaded', function() {
+            // Validation basique du formulaire
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                const numero = document.getElementById('numero').value;
+                const nom = document.getElementById('nom').value;
+                const typeCompte = document.getElementById('type_compte').value;
+                
+                if (!numero || !nom || !typeCompte) {
+                    e.preventDefault();
+                    alert('Veuillez remplir tous les champs obligatoires (*)');
+                }
+            });
+            
+            // Aide contextuelle pour les types de TVA
+            const typeTvaSelect = document.getElementById('type_tva');
+            if (typeTvaSelect) {
+                typeTvaSelect.addEventListener('change', function() {
+                    const helpTexts = {
+                        '': 'Aucun type de TVA spécifique',
+                        'sales_tax': 'Taxe sur les ventes',
+                        'pre_tax_material': 'Taxe préalable sur le matériel',
+                        'pre_tax_investment': 'Taxe préalable sur les investissements'
+                    };
+                    
+                    // Afficher une info-bulle ou un texte d'aide selon la sélection
+                    console.log('Type TVA sélectionné:', this.value, '-', helpTexts[this.value]);
+                });
+            }
+        });
+    </script>
+{% endblock %}

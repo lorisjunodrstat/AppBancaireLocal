@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block title %}Nouveau compte bancaire{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header banking-nav text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Créer un nouveau compte bancaire
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('banking_nouveau_compte') }}" novalidate>
+                    <div class="row">
+                        <!-- Informations de base -->
+                        <div class="col-md-6">
+                            <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Informations générales</h5>
+                            
+                            <div class="mb-3">
+                                <label for="banque_id" class="form-label">
+                                    <i class="fas fa-university me-1"></i>Banque *
+                                </label>
+                                <select class="form-select" id="banque_id" name="banque_id" required>
+                                    <option value="">Choisir une banque</option>
+                                    {% for banque in banques %}
+                                    <option value="{{ banque.id }}" 
+                                            data-couleur="{{ banque.couleur }}"
+                                            {{ 'selected' if request.form.banque_id == banque.id|string else '' }}>
+                                        {{ banque.nom }} ({{ banque.code_banque }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="nom_compte" class="form-label">
+                                    <i class="fas fa-tag me-1"></i>Nom du compte *
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="nom_compte" 
+                                       name="nom_compte" 
+                                       placeholder="Ex: Compte courant principal"
+                                       required
+                                       maxlength="100"
+                                       value="{{ request.form.nom_compte if request.form else '' }}">
+                                <div class="form-text">
+                                    Donnez un nom descriptif à votre compte
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="type_compte" class="form-label">
+                                    <i class="fas fa-list me-1"></i>Type de compte *
+                                </label>
+                                <select class="form-select" id="type_compte" name="type_compte" required>
+                                    <option value="">Sélectionner le type</option>
+                                    <option value="courant" {{ 'selected' if request.form.type_compte == 'courant' else '' }}>
+                                        Compte courant
+                                    </option>
+                                    <option value="epargne" {{ 'selected' if request.form.type_compte == 'epargne' else '' }}>
+                                        Compte d'épargne
+                                    </option>
+                                    <option value="joint" {{ 'selected' if request.form.type_compte == 'joint' else '' }}>
+                                        Compte joint
+                                    </option>
+                                    <option value="professionnel" {{ 'selected' if request.form.type_compte == 'professionnel' else '' }}>
+                                        Compte professionnel
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="solde" class="form-label">
+                                            <i class="fas fa-coins me-1"></i>Solde
+                                        </label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="solde" 
+                                               name="solde" 
+                                               step="0.01" 
+                                               min="0"
+                                               placeholder="0.00"
+                                               value="{{ request.form.solde if request.form else '0.00' }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="devise" class="form-label">Devise</label>
+                                        <select class="form-select" id="devise" name="devise">
+                                            <option value="CHF" {{ 'selected' if request.form.devise == 'CHF' else '' }}>CHF</option>
+                                            <option value="EUR" {{ 'selected' if request.form.devise == 'EUR' else '' }}>EUR</option>
+                                            <option value="USD" {{ 'selected' if request.form.devise == 'USD' else '' }}>USD</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="solde" class="form-label">
+                                            <i class="fas fa-coins me-1"></i>Solde initial
+                                        </label>
+                                        <input type="number" class="form-control" id="solde_initial" name="solde_initial" step="0.01" min="0" placeholder="0.00"
+                                            value="{{ request.form.solde_initial if request.form else '0.00' }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="devise" class="form-label">Devise</label>
+                                        <select class="form-select" id="devise" name="devise">
+                                            <option value="CHF" {{ 'selected' if request.form.devise=='CHF' else '' }}>CHF</option>
+                                            <option value="EUR" {{ 'selected' if request.form.devise=='EUR' else '' }}>EUR</option>
+                                            <option value="USD" {{ 'selected' if request.form.devise=='USD' else '' }}>USD</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Détails bancaires -->
+                        <div class="col-md-6">
+                            <h5 class="mb-3"><i class="fas fa-credit-card me-2"></i>Détails bancaires</h5>
+                            
+                            <div class="mb-3">
+                                <label for="numero_compte" class="form-label">
+                                    <i class="fas fa-hashtag me-1"></i>Numéro de compte *
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="numero_compte" 
+                                       name="numero_compte" 
+                                       placeholder="Ex: 1234567890"
+                                       required
+                                       maxlength="50"
+                                       value="{{ request.form.numero_compte if request.form else '' }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="iban" class="form-label">
+                                    <i class="fas fa-globe me-1"></i>IBAN
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="iban" 
+                                       name="iban" 
+                                       placeholder="CH93 0076 2011 6238 5295 7"
+                                       maxlength="34"
+                                       value="{{ request.form.iban if request.form else '' }}">
+                                <div class="form-text">
+                                    Format international pour les virements
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="bic" class="form-label">
+                                    <i class="fas fa-code me-1"></i>BIC/SWIFT
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="bic" 
+                                       name="bic" 
+                                       placeholder="Ex: UBSWCHZH80A"
+                                       maxlength="11"
+                                       value="{{ request.form.bic if request.form else '' }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="date_ouverture" class="form-label">
+                                    <i class="fas fa-calendar me-1"></i>Date d'ouverture
+                                </label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="date_ouverture" 
+                                       name="date_ouverture"
+                                       value="{{ request.form.date_ouverture if request.form else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Aperçu du compte -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h5 class="mb-3"><i class="fas fa-eye me-2"></i>Aperçu du compte</h5>
+                            <div class="card" id="compte-preview" style="border-left: 4px solid #007bff; display: none;">
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <h6 class="mb-1" id="preview-nom">Nom du compte</h6>
+                                            <p class="text-muted mb-0">
+                                                <span id="preview-banque">Banque</span> • 
+                                                <span id="preview-type">Type</span>
+                                            </p>
+                                            <small class="text-muted" id="preview-numero">Numéro: </small>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <h4 class="mb-0" id="preview-solde">0.00 CHF</h4>
+                                            <small class="text-muted">Solde initial</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Boutons d'action -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('banking_dashboard') }}" class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Créer le compte
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Aide -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>
+                    Aide pour créer un compte
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-check-circle text-success me-2"></i>Informations obligatoires</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-dot-circle text-primary me-2"></i>Sélectionner une banque</li>
+                            <li><i class="fas fa-dot-circle text-primary me-2"></i>Donner un nom au compte</li>
+                            <li><i class="fas fa-dot-circle text-primary me-2"></i>Choisir le type de compte</li>
+                            <li><i class="fas fa-dot-circle text-primary me-2"></i>Indiquer le numéro de compte</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-lightbulb text-warning me-2"></i>Conseils</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-dot-circle text-warning me-2"></i>L'IBAN facilite les virements internationaux</li>
+                            <li><i class="fas fa-dot-circle text-warning me-2"></i>Le solde initial peut être ajusté plus tard</li>
+                            <li><i class="fas fa-dot-circle text-warning me-2"></i>Vous pourrez créer des sous-comptes d'épargne</li>
+                            <li><i class="fas fa-dot-circle text-warning me-2"></i>Toutes les données sont stockées en Suisse</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const preview = document.getElementById('compte-preview');
+    
+    // Éléments du formulaire
+    const banqueSelect = document.getElementById('banque_id');
+    const nomCompte = document.getElementById('nom_compte');
+    const typeCompte = document.getElementById('type_compte');
+    const numeroCompte = document.getElementById('numero_compte');
+    const solde = document.getElementById('solde');
+    const devise = document.getElementById('devise');
+    
+    // Éléments de l'aperçu
+    const previewNom = document.getElementById('preview-nom');
+    const previewBanque = document.getElementById('preview-banque');
+    const previewType = document.getElementById('preview-type');
+    const previewNumero = document.getElementById('preview-numero');
+    const previewSolde = document.getElementById('preview-solde');
+    
+    // Fonction pour mettre à jour l'aperçu
+    function updatePreview() {
+        let showPreview = false;
+        
+        if (nomCompte.value.trim()) {
+            previewNom.textContent = nomCompte.value.trim();
+            showPreview = true;
+        }
+        
+        if (banqueSelect.value) {
+            const selectedOption = banqueSelect.options[banqueSelect.selectedIndex];
+            previewBanque.textContent = selectedOption.text.split(' (')[0];
+            
+            // Changer la couleur de la bordure
+            const couleur = selectedOption.dataset.couleur || '#007bff';
+            preview.style.borderLeftColor = couleur;
+            preview.style.borderColor = couleur;
+            showPreview = true;
+        }
+        
+        if (typeCompte.value) {
+            previewType.textContent = typeCompte.options[typeCompte.selectedIndex].text;
+            showPreview = true;
+        }
+        
+        if (numeroCompte.value.trim()) {
+            previewNumero.textContent = 'Numéro: ' + numeroCompte.value.trim();
+            showPreview = true;
+        }
+        
+        const soldeValue = parseFloat(solde.value) || 0;
+        const deviseValue = devise.value || 'CHF';
+        previewSolde.textContent = soldeValue.toFixed(2) + ' ' + deviseValue;
+        
+        preview.style.display = showPreview ? 'block' : 'none';
+    }
+    
+    // Écouter les changements sur tous les champs
+    [banqueSelect, nomCompte, typeCompte, numeroCompte, solde, devise].forEach(element => {
+        element.addEventListener('input', updatePreview);
+        element.addEventListener('change', updatePreview);
+    });
+    
+    // Validation en temps réel
+    nomCompte.addEventListener('input', function() {
+        if (this.value.trim().length >= 3) {
+            this.classList.add('is-valid');
+            this.classList.remove('is-invalid');
+        } else {
+            this.classList.add('is-invalid');
+            this.classList.remove('is-valid');
+        }
+    });
+    
+    numeroCompte.addEventListener('input', function() {
+        if (this.value.trim().length >= 3) {
+            this.classList.add('is-valid');
+            this.classList.remove('is-invalid');
+        } else {
+            this.classList.add('is-invalid');
+            this.classList.remove('is-valid');
+        }
+    });
+    
+    // Validation IBAN simple
+    const ibanInput = document.getElementById('iban');
+    ibanInput.addEventListener('input', function() {
+        const iban = this.value.replace(/\s/g, '').toUpperCase();
+        if (iban.length === 0) {
+            this.classList.remove('is-valid', 'is-invalid');
+        } else if (iban.length >= 15 && iban.length <= 34 && /^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(iban)) {
+            this.classList.add('is-valid');
+            this.classList.remove('is-invalid');
+        } else {
+            this.classList.add('is-invalid');
+            this.classList.remove('is-valid');
+        }
+    });
+    
+    // Validation avant soumission
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Vérifications obligatoires
+        if (!banqueSelect.value) {
+            banqueSelect.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (nomCompte.value.trim().length < 3) {
+            nomCompte.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (!typeCompte.value) {
+            typeCompte.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (numeroCompte.value.trim().length < 3) {
+            numeroCompte.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Veuillez corriger les erreurs dans le formulaire.');
+        }
+    });
+    
+    // Focus automatique sur le premier champ
+    banqueSelect.focus();
+    
+    // Mise à jour initiale de l'aperçu
+    updatePreview();
+});
+</script>
+{% endblock %}

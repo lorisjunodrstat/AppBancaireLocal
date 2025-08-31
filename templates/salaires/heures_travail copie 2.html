@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Messages flash côté serveur -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div id="flash-container">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="card mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h5 class="m-0 font-weight-bold">Encodage des heures de travail</h5>
+        </div>
+        <div class="card-body">
+            <form id="heures-form" method="POST" action="{{ url_for('heures_travail') }}">
+                <input type="hidden" name="action" id="form-action" value="">
+
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Mois</label>
+                        <select class="form-select" id="filter-mois" name="mois">
+                            {% for month in range(1, 13) %}
+                            <option value="{{ month }}" {% if current_mois==month %}selected{% endif %}>
+                                {{ get_month_name(month) }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Semaine</label>
+                        <select class="form-select" id="filter-semaine" name="semaine">
+                            <option value="0" {% if current_semaine==0 %}selected{% endif %}>Toutes</option>
+                            {% for week in range(1, 53) %}
+                            <option value="{{ week }}" {% if current_semaine==week %}selected{% endif %}>
+                                Semaine {{ week }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Mode</label>
+                        <select class="form-select" id="mode-saisie" name="mode">
+                            <option value="reel" {% if current_mode=='reel' %}selected{% endif %}>Heures réelles
+                            </option>
+                            <option value="simule" {% if current_mode=='simule' %}selected{% endif %}>Heures simulées
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-info w-100">
+                            <i class="fas fa-filter me-1"></i> Appliquer
+                        </button>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mb-3">
+                    <div>
+                        <button type="submit" name="save_all" class="btn btn-success me-2">
+                            <i class="fas fa-save me-1"></i> Tout enregistrer
+                        </button>
+                        <button type="submit" name="reset_all" class="btn btn-warning">
+                            <i class="fas fa-undo me-1"></i> Tout effacer
+                        </button>
+                    </div>
+                    <div>
+                        <button type="button" id="simuler-btn" class="btn btn-primary">
+                            <i class="fas fa-calculator me-1"></i> Simuler
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Jour</th>
+                                <th>Matin (Début)</th>
+                                <th>Matin (Fin)</th>
+                                <th>Après-midi (Début)</th>
+                                <th>Après-midi (Fin)</th>
+                                <th>Total Heures</th>
+                                <th>Vacances</th>
+                                <th class="actions-header">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for semaine_num, semaine_data in semaines.items() %}
+                            {% for jour in semaine_data.jours %}
+                            <tr class="{% if jour.vacances %}vacation-row{% endif %}">
+                                <td>{{ jour.date | format_date }}</td>
+                                <td>{{ jour.nom_jour }}</td>
+                                <td>
+                                    <input type="time" class="form-control" name="h1d_{{ jour.date }}"
+                                        value="{{ jour.h1d if jour.h1d else '' }}">
+                                </td>
+                                <td>
+                                    <input type="time" class="form-control" name="h1f_{{ jour.date }}"
+                                        value="{{ jour.h1f if jour.h1f else '' }}">
+                                </td>
+                                <td>
+                                    <input type="time" class="form-control" name="h2d_{{ jour.date }}"
+                                        value="{{ jour.h2d if jour.h2d else '' }}">
+                                </td>
+                                <td>
+                                    <input type="time" class="form-control" name="h2f_{{ jour.date }}"
+                                        value="{{ jour.h2f if jour.h2f else '' }}">
+                                </td>
+                                <td class="total-cell">
+                                    {{ jour.total_h | round(2) }}
+                                </td>
+                                <td>
+                                    <input type="checkbox" class="form-check-input" name="vacances_{{ jour.date }}" {%
+                                        if jour.vacances %}checked{% endif %}>
+                                </td>
+                                <td>
+                                    <div class="d-flex">
+                                        <button type="submit" name="save_line" value="{{ jour.date }}"
+                                            class="btn btn-primary btn-sm me-1">
+                                            <i class="fas fa-save"></i>
+                                        </button>
+                                        <button type="submit" name="reset_line" value="{{ jour.date }}"
+                                            class="btn btn-warning btn-sm">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-info">
+                                <td colspan="6" class="text-end fw-bold">Total semaine {{ semaine_num }}:</td>
+                                <td class="total-cell">{{ semaine_data.total | round(2) }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                            <tr class="table-{{ 'success' if semaine_data.solde >= 0 else 'danger' }}">
+                                <td colspan="6" class="text-end fw-bold">
+                                    Solde ({{ heures_hebdo_contrat }}h contrat):
+                                </td>
+                                <td class="total-cell">{{ semaine_data.solde | round(2) }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="6" class="text-end fw-bold">Total général:</td>
+                                <td class="total-cell">{{ total_general | round(2) }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="submit" name="save" class="btn btn-success me-2">
+                        <i class="fas fa-save me-1"></i> Enregistrer
+                    </button>
+                    <a href="{{ url_for('heures_travail', mois=current_mois, semaine=current_semaine, mode=current_mode) }}"
+                        class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i> Annuler
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Simulation des heures
+        document.getElementById('simuler-btn').addEventListener('click', function () {
+            const rows = document.querySelectorAll('tbody tr:not(.table-info):not(.table-success):not(.table-danger)');
+            rows.forEach(row => {
+                const vacanceCheck = row.querySelector('input[name^="vacances_"]');
+                if (!vacanceCheck.checked) {
+                    row.querySelector('input[name^="h1d_"]').value = '08:00';
+                    row.querySelector('input[name^="h1f_"]').value = '12:00';
+                    row.querySelector('input[name^="h2d_"]').value = '13:00';
+                    row.querySelector('input[name^="h2f_"]').value = '17:00';
+                }
+            });
+
+            // Soumettre le formulaire après simulation
+            document.getElementById('form-action').value = 'simuler';
+            document.getElementById('heures-form').submit();
+        });
+    });
+</script>
+{% endblock %}

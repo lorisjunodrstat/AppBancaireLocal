@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Transfert Compte/Sous-Compte{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Transfert entre compte et sous-compte</h2>
+
+    <!-- Messages Flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show mb-4" role="alert">
+                <strong>{{ "Succès!" if category == "success" else "Erreur!" }}</strong> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if sous_comptes|length == 0 %}
+    <div class="alert alert-warning">
+        <h4 class="alert-heading">Aucun sous-compte disponible</h4>
+        <p>Vous n'avez aucun sous-compte associé à vos comptes. Veuillez d'abord créer un sous-compte avant d'effectuer un
+            transfert.</p>
+    </div>
+    {% else %}
+    <form method="POST" action="{{ url_for('banking_transfert_compte_sous_compte') }}" class="needs-validation" novalidate>
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="compte_id" class="form-label">Compte principal*</label>
+                <select class="form-select" name="compte_id" id="compte_id" required onchange="updateSousComptes()">
+                    <option value="" disabled selected>-- Choisir un compte --</option>
+                    {% for compte in comptes %}
+                    <option value="{{ compte.id }}">
+                        {{ compte.nom_banque }} - {{ compte.nom_compte }} ({{ compte.solde }} {{ compte.devise }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label for="sous_compte_id" class="form-label">Sous-compte*</label>
+                <select class="form-select" name="sous_compte_id" id="sous_compte_id" required>
+                    <option value="" disabled selected>-- Choisissez d'abord un compte --</option>
+                    {% for sous_compte in sous_comptes %}
+                    <option value="{{ sous_compte.id }}" data-compte-id="{{ sous_compte.compte_principal_id }}" class="sous-compte-option">
+                        {{ sous_compte.nom_sous_compte }} ({{ sous_compte.solde }} {{ sous_compte.devise }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="direction" class="form-label">Direction du transfert*</label>
+                <select class="form-select" name="direction" id="direction" required>
+                    <option value="compte_vers_sous">Compte → Sous-compte</option>
+                    <option value="sous_vers_compte">Sous-compte → Compte</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label for="montant" class="form-label">Montant*</label>
+                <div class="input-group">
+                    <input type="text" name="montant" id="montant" class="form-control"
+                        value="{{ request.form.get('montant', '') }}" required pattern="^\d+([.,]\d{1,2})?$"
+                        placeholder="Ex: 150.50">
+                    <span class="input-group-text">CHF</span>
+                </div>
+                <div class="invalid-feedback">
+                    Format invalide. Ex: 150 ou 150.50
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <label for="commentaire" class="form-label">Commentaire (optionnel)</label>
+                <textarea name="commentaire" id="commentaire" class="form-control" maxlength="255"
+                    placeholder="Description du transfert">{{ request.form.get('commentaire', '') }}</textarea>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <a href="{{ url_for('banking_transfert') }}" class="btn btn-secondary me-md-2">Retour aux transferts</a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                Valider le transfert
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<script>
+    // Validation basique côté client
+    (function () {
+        'use strict';
+        const forms = document.querySelectorAll('.needs-validation');
+
+        Array.from(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+
+    // Filtrer les sous-comptes en fonction du compte sélectionné
+    function updateSousComptes() {
+        const compteId = document.getElementById('compte_id').value;
+        const sousCompteSelect = document.getElementById('sous_compte_id');
+        const sousCompteOptions = document.querySelectorAll('.sous-compte-option');
+        
+        // Réinitialiser le sélecteur de sous-compte
+        sousCompteSelect.innerHTML = '<option value="" disabled selected>-- Choisir un sous-compte --</option>';
+        
+        // Afficher uniquement les sous-comptes associés au compte sélectionné
+        sousCompteOptions.forEach(option => {
+            if (option.getAttribute('data-compte-id') === compteId) {
+                sousCompteSelect.appendChild(option.cloneNode(true));
+            }
+        });
+        
+        // Si aucun sous-compte n'est disponible
+        if (sousCompteSelect.options.length === 1) {
+            const noOption = document.createElement('option');
+            noOption.value = "";
+            noOption.disabled = true;
+            noOption.selected = true;
+            noOption.textContent = "Aucun sous-compte disponible";
+            sousCompteSelect.appendChild(noOption);
+        }
+    }
+
+    // Initialiser le formulaire
+    document.addEventListener('DOMContentLoaded', function() {
+        // Si un compte est déjà sélectionné (après soumission avec erreur)
+        const selectedCompte = document.getElementById('compte_id').value;
+        if (selectedCompte) {
+            updateSousComptes();
+            
+            // Sélectionner le sous-compte précédemment choisi
+            const selectedSousCompte = "{{ request.form.get('sous_compte_id', '') }}";
+            if (selectedSousCompte) {
+                setTimeout(() => {
+                    document.getElementById('sous_compte_id').value = selectedSousCompte;
+                }, 100);
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journal Comptable</title>
+    <style>
+        /* Styles de base */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1, h2 {
+            color: #2c3e50;
+        }
+        
+        /* Filtres */
+        .filters {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            font-size: 14px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        select, input, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        /* Tableau */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #2c3e50;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .montant {
+            text-align: right;
+            font-family: monospace;
+        }
+        
+        .depense {
+            color: #e74c3c;
+        }
+        
+        .recette {
+            color: #27ae60;
+        }
+        
+        /* Compte de résultat */
+        .compte-resultat {
+            margin-top: 40px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        
+        .compte-section {
+            margin-bottom: 20px;
+        }
+        
+        .compte-section h3 {
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        
+        .compte-total {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 8px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Journal Comptable</h1>
+    
+    <!-- Filtres -->
+    <div class="filters">
+        <div class="filter-group">
+            <label for="annee">Année</label>
+            <select id="annee">
+                {% for annee in annees %}
+                <option value="{{ annee }}" {% if annee == annee_courante %}selected{% endif %}>{{ annee }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="categorie">Catégorie</label>
+            <select id="categorie">
+                <option value="">Toutes les catégories</option>
+                {% for categorie in categories %}
+                <option value="{{ categorie.id }}">{{ categorie.numero }} - {{ categorie.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="type">Type</label>
+            <select id="type">
+                <option value="">Tous les types</option>
+                <option value="depense">Dépenses</option>
+                <option value="recette">Recettes</option>
+            </select>
+        </div>
+        
+        <button id="appliquer-filtres">Appliquer</button>
+    </div>
+    
+    <!-- Tableau des écritures -->
+    <h2>Écritures comptables</h2>
+    <div id="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Compte</th>
+                    <th>Catégorie</th>
+                    <th>Description</th>
+                    <th>Montant</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ecriture in ecritures %}
+                <tr>
+                    <td>{{ ecriture.date_ecriture.strftime('%d.%m.%Y') if ecriture.date_ecriture else '' }}</td>
+                    <td>{{ ecriture.compte_bancaire_nom or '' }}</td>
+                    <td>{{ ecriture.categorie_numero or '' }} {{ ecriture.categorie_nom or '' }}</td>
+                    <td>{{ ecriture.description or '' }}</td>
+                    <td class="montant {% if ecriture.type_ecriture == 'depense' %}depense{% else %}recette{% endif %}">
+                        {{ "%.2f"|format(ecriture.montant) }} {{ ecriture.devise or 'CHF' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Compte de résultat -->
+    <div class="compte-resultat">
+        <h2>Compte de résultat</h2>
+        
+        <div class="compte-section">
+            <h3>Produits</h3>
+            <div id="produits">
+                <!-- Rempli dynamiquement -->
+            </div>
+            <div class="compte-total" id="total-produits">Total produits: CHF 0.00</div>
+        </div>
+        
+        <div class="compte-section">
+            <h3>Charges</h3>
+            <div id="charges">
+                <!-- Rempli dynamiquement -->
+            </div>
+            <div class="compte-total" id="total-charges">Total charges: CHF 0.00</div>
+        </div>
+        
+        <div class="compte-total" id="resultat">Résultat: CHF 0.00</div>
+    </div>
+    
+    <!-- Minimal JavaScript pour les requêtes AJAX -->
+    <script>
+        document.getElementById('appliquer-filtres').addEventListener('click', function() {
+            const annee = document.getElementById('annee').value;
+            const categorieId = document.getElementById('categorie').value;
+            const typeEcriture = document.getElementById('type').value;
+            
+            const dateFrom = `${annee}-01-01`;
+            const dateTo = `${annee}-12-31`;
+            
+            // Requête pour les écritures
+            let url = `/api/ecritures?date_from=${dateFrom}&date_to=${dateTo}`;
+            if (categorieId) url += `&categorie_id=${categorieId}`;
+            if (typeEcriture) url += `&type_ecriture=${typeEcriture}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.querySelector('table tbody');
+                    tbody.innerHTML = '';
+                    
+                    data.forEach(ecriture => {
+                        const row = document.createElement('tr');
+                        
+                        // Formatage de la date
+                        const date = new Date(ecriture.date_ecriture);
+                        const dateStr = date.toLocaleDateString('fr-CH');
+                        
+                        row.innerHTML = `
+                            <td>${dateStr}</td>
+                            <td>${ecriture.compte_bancaire_nom || ''}</td>
+                            <td>${ecriture.categorie_numero || ''} ${ecriture.categorie_nom || ''}</td>
+                            <td>${ecriture.description || ''}</td>
+                            <td class="montant ${ecriture.type_ecriture === 'depense' ? 'depense' : 'recette'}">
+                                ${ecriture.montant.toFixed(2)} ${ecriture.devise || 'CHF'}
+                            </td>
+                        `;
+                        
+                        tbody.appendChild(row);
+                    });
+                });
+            
+            // Requête pour le compte de résultat
+            fetch(`/api/compte_resultat?date_from=${dateFrom}&date_to=${dateTo}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Produits
+                    const produitsDiv = document.getElementById('produits');
+                    produitsDiv.innerHTML = '';
+                    
+                    data.produits.forEach(produit => {
+                        const p = document.createElement('p');
+                        p.innerHTML = `<strong>${produit.categorie_numero} ${produit.categorie_nom}:</strong> CHF ${produit.montant.toFixed(2)}`;
+                        produitsDiv.appendChild(p);
+                    });
+                    
+                    document.getElementById('total-produits').textContent = 
+                        `Total produits: CHF ${data.total_produits.toFixed(2)}`;
+                    
+                    // Charges
+                    const chargesDiv = document.getElementById('charges');
+                    chargesDiv.innerHTML = '';
+                    
+                    data.charges.forEach(charge => {
+                        const p = document.createElement('p');
+                        p.innerHTML = `<strong>${charge.categorie_numero} ${charge.categorie_nom}:</strong> CHF ${charge.montant.toFixed(2)}`;
+                        chargesDiv.appendChild(p);
+                    });
+                    
+                    document.getElementById('total-charges').textContent = 
+                        `Total charges: CHF ${data.total_charges.toFixed(2)}`;
+                    
+                    // Résultat
+                    document.getElementById('resultat').textContent = 
+                        `Résultat: CHF ${data.resultat.toFixed(2)}`;
+                });
+        });
+    </script>
+</body>
+</html>

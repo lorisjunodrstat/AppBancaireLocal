@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord bancaire{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-university me-2"></i>Mes Comptes Bancaires</h1>
+            <div class="btn-group">
+                <a href="{{ url_for('banking_nouveau_compte') }}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>Nouveau compte
+                </a>
+                <a href="{{ url_for('banking_statistiques') }}" class="btn btn-info">
+                    <i class="fas fa-chart-pie me-2"></i>Statistiques
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistiques générales -->
+        {% if stats %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title">Patrimoine Total</h6>
+                                <h3 class="mb-0">{{ "%.2f"|format(stats.patrimoine_total) }} CHF</h3>
+                            </div>
+                            <div class="ms-3">
+                                <i class="fas fa-coins fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title">Épargne Totale</h6>
+                                <h3 class="mb-0">{{ "%.2f"|format(stats.epargne_totale) }} CHF</h3>
+                                <small>{{ "%.1f"|format(stats.progression_epargne) }}% des objectifs</small>
+                            </div>
+                            <div class="ms-3">
+                                <i class="fas fa-piggy-bank fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title">Comptes</h6>
+                                <h3 class="mb-0">{{ stats.nb_comptes }}</h3>
+                                <small>{{ stats.nb_banques }} banque(s)</small>
+                            </div>
+                            <div class="ms-3">
+                                <i class="fas fa-university fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title">Sous-comptes</h6>
+                                <h3 class="mb-0">{{ stats.nb_sous_comptes }}</h3>
+                                <small>{{ stats.nb_transactions_mois }} transactions/mois</small>
+                            </div>
+                            <div class="ms-3">
+                                <i class="fas fa-wallet fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions rapides -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Actions rapides</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-2">
+                                <a href="{{ url_for('banking_transfert') }}" class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-exchange-alt me-2"></i>Effectuer un transfert
+                                </a>
+                            </div>
+                            
+                            <div class="col-md-4 mb-2">
+                                <a href="{{ url_for('banking_statistiques') }}" class="btn btn-outline-info w-100">
+                                    <i class="fas fa-chart-line me-2"></i>Voir statistiques
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des comptes -->
+        {% if comptes %}
+            {% for compte in comptes %}
+            <div class="card mb-4">
+                <div class="card-header" style="background-color: {{ compte.couleur_banque }}; color: white;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-0">
+                                <i class="fas fa-university me-2"></i>
+                                {{ compte.nom_compte }} - {{ compte.nom_banque }}
+                            </h5>
+                            <small>{{ compte.type_compte|title }} • {{ compte.numero_compte }}</small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <h4 class="mb-0">{{ "%.2f"|format(compte.solde_total) }} {{ compte.devise }}</h4>
+                            <small>Solde total (avec épargne)</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Informations du compte principal -->
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-credit-card me-2"></i>Compte principal</h6>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>Solde disponible:</span>
+                                    <strong>{{ "%.2f"|format(compte.solde) }} {{ compte.devise }}</strong>
+                                </div>
+                                {% if compte.iban %}
+                                <div class="d-flex justify-content-between">
+                                    <span>IBAN:</span>
+                                    <code class="small">{{ compte.iban }}</code>
+                                </div>
+                                {% endif %}
+                                <div class="d-flex justify-content-between">
+                                    <span>Ouvert le:</span>
+                                    <span>{{ compte.date_ouverture.strftime('%d/%m/%Y') if compte.date_ouverture else 'N/A' }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>Détails
+                                </a>
+                                <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id, user_id = current_user.id) }}" class="btn btn-outline-success">
+                                    <i class="fas fa-plus me-1"></i>Épargne
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Sous-comptes d'épargne -->
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-piggy-bank me-2"></i>Épargne ({{ compte.sous_comptes|length }})</h6>
+                            {% if compte.sous_comptes %}
+                                {% for sous_compte in compte.sous_comptes[:3] %}
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-{{ sous_compte.icone }} me-2" style="color: {{ sous_compte.couleur }};"></i>
+                                            <div>
+                                                <strong>{{ sous_compte.nom_sous_compte }}</strong>
+                                                <div class="small text-muted">{{ "%.2f"|format(sous_compte.solde) }} CHF</div>
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            {% if sous_compte.objectif_montant %}
+                                            <div class="progress" style="width: 80px; height: 8px;">
+                                                <div class="progress-bar" 
+                                                     style="width: {{ sous_compte.pourcentage_objectif }}%; background-color: {{ sous_compte.couleur }};">
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">{{ "%.1f"|format(sous_compte.pourcentage_objectif) }}%</small>
+                                            {% else %}
+                                            <span class="badge bg-secondary">Libre</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                
+                                {% if compte.sous_comptes|length > 3 %}
+                                <div class="text-center">
+                                    <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        Voir les {{ compte.sous_comptes|length - 3 }} autres...
+                                    </a>
+                                </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="text-center text-muted py-3">
+                                    <i class="fas fa-plus-circle fa-2x mb-2"></i>
+                                    <p>Aucune épargne configurée</p>
+                                    <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}" class="btn btn-sm btn-outline-success">
+                                        Créer la première épargne
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Aucun compte -->
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-university fa-4x text-muted"></i>
+                </div>
+                <h3 class="text-muted">Aucun compte bancaire configuré</h3>
+                <p class="text-muted mb-4">Commencez par ajouter votre premier compte pour gérer vos finances.</p>
+                <a href="{{ url_for('banking_nouveau_compte') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus me-2"></i>Ajouter le premier compte
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- Répartition par banque -->
+        {% if repartition %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>
+                            Répartition par banque
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for item in repartition %}
+                            <div class="col-md-4 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                             style="width: 40px; height: 40px; background-color: {{ item.couleur }};">
+                                            <i class="fas fa-university text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-0">{{ item.nom_banque }}</h6>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">{{ item.nb_comptes }} compte(s)</span>
+                                            <strong>{{ "%.2f"|format(item.montant_total) }} CHF</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal pour transfert rapide -->
+<div class="modal fade" id="transfertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    Transfert rapide
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('banking_transfert') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Compte source</label>
+                        <select name="compte_id" class="form-select" required>
+                            <option value="">Sélectionner un compte</option>
+                            {% for compte in comptes %}
+                            <option value="{{ compte.id }}">{{ compte.nom_compte }} ({{ "%.2f"|format(compte.solde) }} CHF)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Vers le sous-compte</label>
+                        <select name="sous_compte_id" class="form-select" required>
+                            <option value="">Sélectionner d'abord un compte</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Montant (CHF)</label>
+                        <input type="number" name="montant" class="form-control" step="0.01" min="0.01" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description (optionnel)</label>
+                        <input type="text" name="description" class="form-control" placeholder="Ex: Épargne mensuelle">
+                    </div>
+                    
+                    <input type="hidden" name="type_transfert" value="vers_sous_compte">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-paper-plane me-2"></i>Effectuer le transfert
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Transfert rapide modal
+function ouvrirTransfertModal(compteId, sousCompteId) {
+    const modal = new bootstrap.Modal(document.getElementById('transfertModal'));
+    if (compteId) {
+        document.querySelector('[name="compte_id"]').value = compteId;
+        chargerSousComptes(compteId);
+    }
+    if (sousCompteId) {
+        setTimeout(() => {
+            document.querySelector('[name="sous_compte_id"]').value = sousCompteId;
+        }, 500);
+    }
+    modal.show();
+}
+
+// Charger les sous-comptes selon le compte sélectionné
+document.querySelector('[name="compte_id"]').addEventListener('change', function() {
+    const compteId = this.value;
+    chargerSousComptes(compteId);
+});
+
+function chargerSousComptes(compteId) {
+    const sousCompteSelect = document.querySelector('[name="sous_compte_id"]');
+    sousCompteSelect.innerHTML = '<option value="">Chargement...</option>';
+    
+    if (!compteId) {
+        sousCompteSelect.innerHTML = '<option value="">Sélectionner d\'abord un compte</option>';
+        return;
+    }
+    
+    fetch(`/api/banking/sous-comptes/${compteId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.sous_comptes.length > 0) {
+                sousCompteSelect.innerHTML = '<option value="">Choisir un sous-compte</option>';
+                data.sous_comptes.forEach(sc => {
+                    const option = document.createElement('option');
+                    option.value = sc.id;
+                    option.textContent = `${sc.nom_sous_compte} (${sc.solde.toFixed(2)} CHF)`;
+                    sousCompteSelect.appendChild(option);
+                });
+            } else {
+                sousCompteSelect.innerHTML = '<option value="">Aucun sous-compte disponible</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des sous-comptes:', error);
+            sousCompteSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+        });
+}
+
+// Animation des barres de progression
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar');
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.width = width;
+            bar.style.transition = 'width 1s ease-in-out';
+        }, 100);
+    });
+});
+</script>
+{% endblock %}

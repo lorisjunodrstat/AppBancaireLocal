@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sous_compte.nom_sous_compte }} - {{ compte.nom_compte }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- En-tête du sous-compte -->
+        <div class="card mb-4" style="border-top: 4px solid {{ sous_compte.couleur }};">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center me-3"
+                                style="width: 50px; height: 50px; background-color: {{ sous_compte.couleur }};">
+                                <i class="fas fa-{{ sous_compte.icone }} text-white fa-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="mb-0">{{ sous_compte.nom_sous_compte }}</h2>
+                                <p class="text-muted mb-0">{{ compte.nom_compte }} • {{ compte.nom_banque }}</p>
+                            </div>
+                        </div>
+
+                        <p class="text-muted">{{ sous_compte.description or 'Aucune description fournie' }}</p>
+                    </div>
+
+                    <div class="col-md-4 text-end">
+                        <div class="mb-2">
+                            <small class="text-muted">Solde épargne</small>
+                            <h3 class="mb-0">{{ "%.2f"|format(sous_compte.solde) }} {{ compte.devise }}</h3>
+                        </div>
+                        {% if sous_compte.objectif_montant %}
+                        <div class="mb-3">
+                            <small class="text-muted">Objectif</small>
+                            <h4 class="mb-0 text-success">{{ "%.2f"|format(sous_compte.objectif_montant) }} {{
+                                compte.devise }}</h4>
+                        </div>
+                        {% endif %}
+
+                        <div class="btn-group">
+                            <a href="#" class="btn btn-primary btn-sm"
+                                onclick="transfertRapide({{ compte.id }}, {{ sous_compte.id }}, 'depuis')">
+                                <i class="fas fa-arrow-left me-1"></i>Retirer
+                            </a>
+                            <a href="#" class="btn btn-success btn-sm"
+                                onclick="transfertRapide({{ compte.id }}, {{ sous_compte.id }}, 'vers')">
+                                <i class="fas fa-arrow-right me-1"></i>Alimenter
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progression vers objectif -->
+        {% if sous_compte.objectif_montant %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-bullseye me-2"></i>Progression de l'objectif</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-2 d-flex justify-content-between">
+                    <span>Objectif: {{ "%.0f"|format(sous_compte.objectif_montant) }} {{ compte.devise }}</span>
+                    <span>{{ "%.1f"|format(sous_compte.pourcentage_objectif) }}%</span>
+                </div>
+                <div class="progress" style="height: 10px;">
+                    <div class="progress-bar"
+                        style="width: {{ sous_compte.pourcentage_objectif }}%; background-color: {{ sous_compte.couleur }};">
+                    </div>
+                </div>
+                {% if sous_compte.date_objectif %}
+                <p class="text-muted small mt-2">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Objectif prévu le {{ sous_compte.date_objectif.strftime('%d/%m/%Y') }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Historique des transactions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-history me-2"></i>Historique des mouvements</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if mouvements %}
+                <div class="list-group list-group-flush">
+                    {% for mouvement in mouvements %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>
+                                    {% if mouvement.type_transaction == 'vers_sous_compte' or mouvement.montant > 0 %}
+                                    <span class="text-success">+ {{ "%.2f"|format(mouvement.montant) }} {{ compte.devise
+                                        }}</span>
+                                    {% else %}
+                                    <span class="text-danger">- {{ "%.2f"|format(mouvement.montant|abs) }} {{
+                                        compte.devise }}</span>
+                                    {% endif %}
+                                </strong>
+                                <div class="text-muted small">
+                                    {{ mouvement.date_transaction.strftime('%d/%m/%Y %H:%M') }}
+                                    {% if mouvement.description %}
+                                    <br>{{ mouvement.description }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div>
+                                {% if mouvement.type_transaction == 'vers_sous_compte' or mouvement.montant > 0 %}
+                                <span class="badge bg-success">Alimentation</span>
+                                {% else %}
+                                <span class="badge bg-danger">Retrait</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">Aucun mouvement pour ce sous-compte</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour au compte principal
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal transfert rapide -->
+<div class="modal fade" id="transfertRapideModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="transfertModalTitle"><i class="fas fa-exchange-alt me-2"></i>Transfert
+                    rapide</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('banking_transfert') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Montant (CHF)</label>
+                        <input type="number" name="montant" class="form-control" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (optionnel)</label>
+                        <input type="text" name="description" class="form-control" placeholder="Ex: Épargne mensuelle">
+                    </div>
+                    <input type="hidden" name="compte_id" value="{{ compte.id }}">
+                    <input type="hidden" name="sous_compte_id" id="modalSousCompteId">
+                    <input type="hidden" name="type_transfert" id="modalTypeTransfert">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success"><i
+                            class="fas fa-paper-plane me-2"></i>Valider</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function transfertRapide(compteId, sousCompteId, direction) {
+        document.getElementById('modalSousCompteId').value = sousCompteId;
+        document.getElementById('modalTypeTransfert').value = direction === 'vers' ? 'vers_sous_compte' : 'depuis_sous_compte';
+        document.getElementById('transfertModalTitle').innerHTML =
+            (direction === 'vers' ? '<i class="fas fa-arrow-right me-2"></i>Alimenter' : '<i class="fas fa-arrow-left me-2"></i>Retirer') + ' l\'épargne';
+        var modal = new bootstrap.Modal(document.getElementById('transfertRapideModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}

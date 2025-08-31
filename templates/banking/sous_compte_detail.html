@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sous_compte.nom_sous_compte }} - {{ compte.nom_compte }}{% endblock %}
+<style>
+
+</style>
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Navigation -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour au compte principal
+                </a>
+            </div>
+        </div>
+        <!-- En-tête du sous-compte -->
+        <div class="card mb-4" style="border-top: 4px solid {{ sous_compte.couleur }};">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center me-3"
+                                style="width: 50px; height: 50px; background-color: {{ sous_compte.couleur }};">
+                                <i class="fas fa-{{ sous_compte.icone }} text-white fa-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="mb-0">{{ sous_compte.nom_sous_compte }}</h2>
+                                <p class="text-muted mb-0">{{ compte.nom_compte }} • {{ compte.nom_banque }}</p>
+                            </div>
+                        </div>
+
+                        <p class="text-muted">{{ sous_compte.description or 'Aucune description fournie' }}</p>
+                    </div>
+
+                    <div class="col-md-4 text-end">
+                        <div class="mb-2">
+                            <small class="text-muted">Solde épargne</small>
+                            <h3 class="mb-0">{{ "%.2f"|format(sous_compte.solde) }} {{ compte.devise }}</h3>
+                        </div>
+                        {% if sous_compte.objectif_montant %}
+                        <div class="mb-3">
+                            <small class="text-muted">Objectif</small>
+                            <h4 class="mb-0 text-success">{{ "%.2f"|format(sous_compte.objectif_montant) }} {{
+                                compte.devise }}</h4>
+                        </div>
+                        {% endif %}
+
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#modalRetraitSousCompte{{ sous_compte.id }}">
+                                <i class="fas fa-arrow-left me-1"></i>Retirer
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#modalAlimentationSousCompte{{ sous_compte.id }}">
+                                <i class="fas fa-arrow-right me-1"></i>Alimenter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progression vers objectif -->
+        {% if sous_compte.objectif_montant and sous_compte.objectif_montant > 0 %}
+        {% set pourcentage_objectif = (sous_compte.solde / sous_compte.objectif_montant * 100) %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-bullseye me-2"></i>Progression de l'objectif</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-2 d-flex justify-content-between">
+                    <span>Objectif: {{ "%.0f"|format(sous_compte.objectif_montant) }} {{ compte.devise }} : il manque
+                        <strong>{{ "%.2f"|format(sous_compte.objectif_montant - sous_compte.solde) }} {{ compte.devise
+                            }}</strong> </span>
+                    <span>{{ "%.1f"|format(pourcentage_objectif) }}%</span>
+                </div>
+                <div class="progress" style="height: 10px;">
+                    <div class="progress-bar"
+                        style="width: {{ pourcentage_objectif }}%; background-color: {{ sous_compte.couleur }};"></div>
+                </div>
+                {% if sous_compte.date_objectif %}
+                <p class="text-muted small mt-2">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Objectif prévu le {{ sous_compte.date_objectif.strftime('%d/%m/%Y') }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Historique des transactions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-exchange-alt me-2"></i>Historique des transactions</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if mouvements %}
+                
+                <div class="list-group list-group-flush">
+                    {% for transaction in mouvements %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>
+                                    {% if transaction.type_transaction == 'transfert_compte_vers_sous' %}
+                                    + {{ "%.2f"|format(transaction.montant) }} {{ compte.devise }}
+                                    {% elif transaction.type_transaction == 'transfert_sous_vers_compte' %}
+                                    - {{ "%.2f"|format(transaction.montant) }} {{ compte.devise }}
+                                    {% endif %}
+                                </strong>
+                                <div class="text-muted small">
+                                    {{ transaction.date_transaction.strftime('%d/%m/%Y %H:%M') }} {% if transaction.solde_apres %} {{ transaction.solde_apres }} {% endif %}
+                                    {% if transaction.commentaire %}
+                                    <br>{{ transaction.commentaire }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div>
+                                {% if transaction.type_transaction == 'transfert_compte_vers_sous' %}
+                                <span class="badge bg-success">Alimentation</span>
+                                {% elif transaction.type_transaction == 'transfert_sous_vers_compte' %}
+                                <span class="badge bg-danger">Retrait</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">Aucune transaction pour ce sous-compte</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header">
+                Visualisation des données de solde
+            </div>
+            <div class="card-body">
+                <style>
+                    .graph-container {
+                        height: 400px;
+                        position: relative;
+                        border-bottom: 2px solid #95a5a6;
+                        border-left: 2px solid #95a5a6;
+                        margin-left: 20px;
+                        #margin: 20px 120px 40px 0;
+                        background: linear-gradient(to top, #f1f8ff 0%, transparent 100%);
+                    }
+                
+                    .data-point {
+                        position: absolute;
+                        bottom: 0;
+                        border-radius: 50%;
+                        background: #3498db;
+                        transform: translateX(-50%);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        color: red;
+                        font-weight: bold;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                    }
+                
+                    .data-point:hover {
+                        background: red;
+                        box-shadow: 0 10px 10px rgba(50, 9, 8, 0.3);
+                        z-index: 10;
+                        height: 50px;
+                        border-radius: 100;
+
+                    }
+                
+                    .point-value {
+                        font-size: 12px;
+                    }
+                
+                    .y-axis {
+                        position: absolute;
+                        left: -40px;
+                        top: 0;
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        padding: 10px 5px;
+                        font-size: 12px;
+                        color: #7f8c8d;
+                    }
+                
+                    .grid-line {
+                        position: absolute;
+                        left: 0;
+                        width: 100%;
+                        height: 1px;
+                        background: rgba(149, 165, 166, 0.3);
+                    }
+                </style>
+                {% if sous_compte.objectif_montant %}
+                    {% set max_value = sous_compte.objectif_montant|float %}
+                    {% set min_value = 0 %}
+                {% else %}
+                    {% set min_value = 0.0 %}
+                    {% set max_value = [100.0]|max %}
+                    {% for m in mouvements %}
+                        {% if m.solde_apres|float > max_value %}
+                            {% set max_value = m.solde_apres|float %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+        
+                <div class="graph-container">
+                    <!-- Axe Y avec labels -->
+                    <div class="y-axis">
+                        <span>{{ max_value }}</span>
+                        <span>{{ (max_value * 0.75)|round(2) }}</span>
+                        <span>{{ (max_value * 0.5)|round(2) }}</span>
+                        <span>{{ (max_value * 0.25)|round(2) }}</span>
+                        <span>0</span>
+                    </div>
+        
+                    <!-- Lignes de grille -->
+                    {% for i in range(1, 5) %}
+                    <div class="grid-line" style="bottom: {{ i * 20 }}%;"></div>
+                    {% endfor %}
+        
+                    <!-- Points de données -->
+                    {% for m in mouvements %}
+                    <div class="data-point" style="position: absolute; 
+                                        left: {{ loop.index0 * (100 / (mouvements|length - 1)) if mouvements|length > 1 else 50 }}%; 
+                                        bottom: {{ (m.solde_apres|float / max_value * 100) if max_value > 0 else 0 }}%; 
+                                        transform: translate(-50%, 50%);
+                                        width: 10px;
+                                        height: 10px;
+                                        background-color: #007bff;
+                                        border-radius: 50%;
+                                        z-index: 2;">
+                        <span class="point-value"
+                            style="position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; font-size: 10px; white-space: nowrap; display: none;">{{
+                            m.solde_apres }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+        
+                <!-- Axe X avec labels -->
+                <div class="x-axis" style="display: flex; justify-content: space-between; margin-left: 40px; margin-top: 10px;">
+                    {% for m in mouvements %}
+                    {% if loop.index0 % 5 == 0 or loop.last %}
+                    <div class="x-label"
+                        style="text-align: center; font-size:10px; translateX(-50%); margin-left: {{ (100 / (mouvements|length - 1)) * loop.index0 if mouvements|length > 1 else 0 }}%;">
+                        {{ m.date_transaction.strftime('%Y-%m-%d') if m.date_transaction is defined and m.date_transaction else 'rien' }}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+        
+                <!-- Légende -->
+                <div class="legend" style="display: flex; justify-content: center; margin-top: 20px;">
+                    <div class="legend-item" style="display: flex; align-items: center; margin: 0 10px;">
+                        <div class="legend-color"
+                            style="width: 10px; height: 10px; background-color: #007bff; border-radius: 50%; margin-right: 5px;"></div>
+                        <span>Solde (position proportionnelle)</span>
+                    </div>
+                </div>
+                
+                <!-- Informations -->
+                <div class="controls" style="margin-top: 20px;">
+                    <div class="info-panel" style="display: flex; justify-content: space-around;">
+                        <div class="info-item">
+                            <div>Nombre de points</div>
+                            <div class="info-value">{{ mouvements|length }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div>Valeur max</div>
+                            <div class="info-value">{{ "%.2f"|format(max_value) }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div>Valeur min</div>
+                            <div class="info-value">{{ min_value }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tableau de données -->
+                <table class="data-table table table-striped" style="width: 100%; margin-top: 20px;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Solde</th>
+                            <th>Pourcentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in mouvements %}
+                        <tr>
+                            <td>{{ m.date_transaction }}</td>
+                            <td>{{ "%.2f"|format(m.solde_apres) }}</td>
+                            <td>{{ "%.1f"|format(m.solde_apres|float / max_value * 100) if max_value > 0 else 0 }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Modal pour retrait -->
+<div class="modal fade" id="modalRetraitSousCompte{{ sous_compte.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-arrow-left me-2"></i>Retirer du sous-compte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('banking_transfert') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Montant ({{ compte.devise }})</label>
+                        <input type="number" name="montant" class="form-control" step="0.01" min="0.01"
+                            max="{{ sous_compte.solde }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (optionnel)</label>
+                        <input type="text" name="description" class="form-control"
+                            placeholder="Ex: Retrait pour dépenses">
+                    </div>
+                    <input type="hidden" name="compte_id" value="{{ compte.id }}">
+                    <input type="hidden" name="sous_compte_id" value="{{ sous_compte.id }}">
+                    <input type="hidden" name="type_transfert" value="depuis_sous_compte">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-2"></i>Valider le
+                        retrait</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour alimentation -->
+<div class="modal fade" id="modalAlimentationSousCompte{{ sous_compte.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-arrow-right me-2"></i>Alimenter le sous-compte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('banking_transfert') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Montant ({{ compte.devise }})</label>
+                        <input type="number" name="montant" class="form-control" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (optionnel)</label>
+                        <input type="text" name="description" class="form-control" placeholder="Ex: Épargne mensuelle">
+                    </div>
+                    <input type="hidden" name="compte_id" value="{{ compte.id }}">
+                    <input type="hidden" name="sous_compte_id" value="{{ sous_compte.id }}">
+                    <input type="hidden" name="type_transfert" value="vers_sous_compte">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-2"></i>Valider
+                        l'alimentation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Validation basique côté client
+    (function () {
+        'use strict';
+        const forms = document.querySelectorAll('.needs-validation');
+
+        Array.from(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+</script>
+<script>
+    // Ajouter l'interactivité au survol des points
+    document.addEventListener('DOMContentLoaded', function () {
+        const points = document.querySelectorAll('.data-point');
+        points.forEach(point => {
+            point.addEventListener('mouseover', function () {
+                this.style.transform = 'translate(-50%, 50%) scale(1.2)';
+            });
+            point.addEventListener('mouseout', function () {
+                this.style.transform = 'translate(-50%, 50%)';
+            });
+        });
+    });
+</script>
+{% endblock %}

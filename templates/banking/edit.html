@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Modifier la Banque</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="nom" class="form-label">Nom</label>
+            <input type="text" class="form-control" name="nom" id="nom" value="{{ banque.nom }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="code_banque" class="form-label">Code Banque</label>
+            <input type="text" class="form-control" name="code_banque" id="code_banque" value="{{ banque.code_banque }}"
+                required>
+        </div>
+        <div class="mb-3">
+            <label for="pays" class="form-label">Pays</label>
+            <input type="text" class="form-control" name="pays" id="pays" value="{{ banque.pays }}">
+        </div>
+        <div class="mb-3">
+            <label for="couleur" class="form-label">Couleur</label>
+            <input type="color" class="form-control form-control-color" name="couleur" id="couleur"
+                value="{{ banque.couleur or '#000000' }}">
+        </div>
+        <div class="mb-3">
+            <label for="site_web" class="form-label">Site Web</label>
+            <input type="url" class="form-control" name="site_web" id="site_web" value="{{ banque.site_web }}">
+        </div>
+        <div class="mb-3">
+            <label for="logo_url" class="form-label">Logo URL</label>
+            <input type="url" class="form-control" name="logo_url" id="logo_url" value="{{ banque.logo_url }}">
+        </div>
+        <button type="submit" class="btn btn-success">Modifier</button>
+        <a href="{{ url_for('liste_banques') }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

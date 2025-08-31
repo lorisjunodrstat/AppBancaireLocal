@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Effectuer une transaction</h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flashes">
+        {% for category, msg in messages %}
+          <li class="{{ category }}">{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form action="{{ url_for('banking_transaction') }}" method="post">
+
+
+    <div class="form-group">
+      <label for="compte_id">Compte principal :</label>
+      <select id="compte_id" name="compte_id" class="form-control" required>
+        <option value="" disabled selected>Choisissez un compte</option>
+        {% for compte in comptes %}
+          <option value="{{ compte.id }}">{{ compte.nom }} (solde : {{ compte.solde }} CHF)</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="type_transaction">Type :</label>
+      <select id="type_transaction" name="type_transaction" class="form-control" required>
+        <option value="depot">Dépôt</option>
+        <option value="retrait">Retrait</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="montant">Montant (CHF) :</label>
+      <input id="montant" name="montant" type="number" step="0.01" min="0.01" class="form-control" required>
+    </div>
+
+    <div class="form-group">
+      <label for="description">Description (facultative) :</label>
+      <input id="description" name="description" type="text" maxlength="255" class="form-control">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Valider</button>
+  </form>
+{% endblock %}

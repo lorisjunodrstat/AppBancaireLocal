@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include 'comptabilite/nouveau_contact_modal.html' %}
+<div class="container mt-4">
+    <h2>{% if ecriture %}Modifier{% else %}Nouvelle{% endif %} écriture</h2>
+
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-file-invoice"></i> Détails de l'écriture
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="date_ecriture" class="form-label"><i class="far fa-calendar-days"> </i> Date</label>
+                        <input type="date" class="form-control" id="date_ecriture" name="date_ecriture"
+                            value="{{ ecriture.date_ecriture if ecriture else transaction_data.date_ecriture if transaction_data else '' }}"
+                            required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="type_ecriture" class="form-label">Type</label>
+                        <select class="form-select" id="type_ecriture" name="type_ecriture" required>
+                            <option value="depense" {% if (ecriture and ecriture.type_ecriture=='depense' ) or
+                                (transaction_data and transaction_data.type_ecriture=='depense' ) %}selected{% endif %}>
+                                Dépense
+                            </option>
+                            <option value="recette" {% if (ecriture and ecriture.type_ecriture=='recette' ) or
+                                (transaction_data and transaction_data.type_ecriture=='recette' ) %}selected{% endif %}>
+                                Recette
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="compte_bancaire_id" class="form-label">Compte bancaire</label>
+                        <select class="form-select" id="compte_bancaire_id" name="compte_bancaire_id" required>
+                            {% for compte in comptes %}
+                            <option value="{{ compte.id }}" {% if (ecriture and ecriture.compte_bancaire_id==compte.id)
+                                or (transaction_data and transaction_data.compte_bancaire_id==compte.id) %}selected{%
+                                endif %}>
+                                {{ compte.nom_compte }} ({{ compte.nom_banque }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="categorie_id" class="form-label">Catégorie comptable</label>
+                        <select class="form-select" id="categorie_id" name="categorie_id" required>
+                            {% for categorie in categories %}
+                            <option value="{{ categorie.id }}" {% if ecriture and ecriture.categorie_id==categorie.id
+                                %}selected{% endif %}>
+                                {{ categorie.numero }} - {{ categorie.nom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="montant" class="form-label">Montant</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" class="form-control" id="montant" name="montant"
+                                value="{% if ecriture %}{{ '%.2f'|format(ecriture.montant) }}{% elif transaction_data %}{{ transaction_data.montant }}{% endif %}"
+                                required>
+                            <span class="input-group-text">CHF</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="tva_taux" class="form-label">TVA (%)</label>
+                        <input type="number" step="0.1" class="form-control" id="tva_taux" name="tva_taux"
+                            value="{% if ecriture and ecriture.tva_taux is not none %}{{ '%.1f'|format(ecriture.tva_taux) }}{% else %}7.7{% endif %}">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="2">
+                        {%- if ecriture -%}
+                            {{ ecriture.description }}
+                        {%- elif transaction_data -%}
+                            {{ transaction_data.description }}
+                        {%- endif -%}
+                    </textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="reference" class="form-label">Référence</label>
+                    <input type="text" class="form-control" id="reference" name="reference"
+                        value="{{ ecriture.reference if ecriture else '' }}">
+                </div>
+                <div class="row mb-3 align-items-end">
+                    <div class="col-md-8">
+                        <label for="id_contact" class="form-label">Contact</label>
+                        <select class="form-select" id="id_contact" name="id_contact">
+                            <option value="" {% if (ecriture and not ecriture.id_contact) or (not ecriture) %}selected{% endif %}>
+                                Contact à sélectionner
+                            </option>
+                            {% for contact in contacts %}
+                            <option value="{{ contact.id_contact }}" {% if ecriture and ecriture.id_contact==contact.id_contact
+                                %}selected{% endif %}>
+                                {{ contact.nom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal"
+                            data-bs-target="#nouveauContactModal">
+                            <i class="fas fa-plus"></i> Nouveau Contact
+                        </button>
+                    </div>
+                </div>
+                    
+
+                <div class="mb-3">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select class="form-select form-select-sm" id="statut" name="statut">
+                        {% for statut in statuts_disponibles %}
+                        <option value="{{ statut.value }}" {% if (ecriture and ecriture.statut==statut.value) or (not
+                            ecriture and statut.value=='pending' ) %}selected{% endif %}>
+                            {{ statut.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if transaction_id %}
+                <input type="hidden" name="transaction_id" value="{{ transaction_id }}">
+                {% endif %}
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('liste_ecritures') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Retour
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Calcul automatique de la TVA
+    document.getElementById('montant').addEventListener('input', function () {
+        updateTvaMontant();
+    });
+    document.getElementById('tva_taux').addEventListener('input', function () {
+        updateTvaMontant();
+    });
+
+    function updateTvaMontant() {
+        const montant = parseFloat(document.getElementById('montant').value) || 0;
+        const taux = parseFloat(document.getElementById('tva_taux').value) || 0;
+        const tvaMontant = montant * taux / 100;
+        // Assurez-vous d'avoir un élément avec l'id 'tva_montant_display' dans votre template
+        if (document.getElementById('tva_montant_display')) {
+            document.getElementById('tva_montant_display').textContent = tvaMontant.toFixed(2);
+        }
+    }
+</script>
+{% endblock %}

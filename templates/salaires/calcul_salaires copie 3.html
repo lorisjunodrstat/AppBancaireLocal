@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% set mois_noms = {
+1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril',
+5: 'Mai', 6: 'Juin', 7: 'Juillet', 8: 'Août',
+9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'
+} %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Calcul des salaires</h2>
+
+        <div class="d-flex align-items-center">
+            <!-- Filtre d'année -->
+            <div class="me-3">
+                <label class="form-label me-2">Année:</label>
+                <div class="btn-group">
+                    {% for year in years %}
+                    <a href="{{ url_for('calcul_salaires', annee=year) }}"
+                        class="btn btn-outline-primary {% if annee_courante == year %}active{% endif %}">
+                        {{ year }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Bouton voir le contrat -->
+            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#contratModal">
+                <i class="fas fa-file-contract me-1"></i> Voir le contrat
+            </button>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="m-0">Résultats pour {{ annee_courante }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light text-center">
+                        <tr>
+                            <th rowspan="2">Mois</th>
+                            <th rowspan="2">Heures réelles</th>
+                            <th rowspan="2">Heures hebdo</th>
+                            <th colspan="2">Salaire</th>
+                            <th colspan="4">Acomptes</th>
+                            <th colspan="2">Simulation</th>
+                            <th rowspan="2">Actions</th> <!-- Nouvelle colonne Actions -->
+                        </tr>
+                        <tr>
+                            <th>Calculé</th>
+                            <th>Versé</th>
+                            <th>25</th>
+                            <th>10</th>
+                            <th>25 estimé</th>
+                            <th>10 estimé</th>
+                            <th>Différence</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mois in range(1, 13) %}
+                        {% set data = salaires_par_mois.get(mois) %}
+                        <tr>
+                            <td class="text-center">{{ mois_noms[mois] }}</td>
+
+                            <!-- Heures réelles -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.heures_reelles) if data and data.heures_reelles is not none else
+                                '0.00' }}
+                            </td>
+
+                            <!-- Heures hebdomadaires -->
+                            <td class="text-center">
+                                {% if data and 'heures_hebdomadaires' in data and data.heures_hebdomadaires is not none
+                                %}
+                                {{ "%.2f"|format(data.heures_hebdomadaires) }}
+                                {% else %}
+                                {{ contrat_actuel.heures_hebdo if contrat_actuel else 38.0 }}
+                                {% endif %}
+                            </td>
+
+                            <!-- Salaire calculé -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.salaire_calcule) if data and data.salaire_calcule is not none else
+                                '0.00' }}
+                            </td>
+
+                            <!-- Salaire versé -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.salaire_verse) if data and data.salaire_verse is not none else
+                                '0.00' }}
+                            </td>
+
+                            <!-- Acompte 25 -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.acompte_25) if data and data.acompte_25 is not none else '0.00' }}
+                            </td>
+
+                            <!-- Acompte 10 -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.acompte_10) if data and data.acompte_10 is not none else '0.00' }}
+                            </td>
+
+                            <!-- Acompte 25 estimé -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.acompte_25_estime) if data and data.acompte_25_estime is not none
+                                else '0.00' }}
+                            </td>
+
+                            <!-- Acompte 10 estimé -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.acompte_10_estime) if data and data.acompte_10_estime is not none
+                                else '0.00' }}
+                            </td>
+
+                            <!-- Différence -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.difference) if data and data.difference is not none else '0.00' }}
+                            </td>
+
+                            <!-- Différence % -->
+                            <td class="text-center">
+                                {{ "%.2f"|format(data.difference_pourcent) if data and data.difference_pourcent is not
+                                none else '0.00' }}%
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                                    data-bs-target="#editModal" data-mois="{{ mois }}" data-annee="{{ annee_courante }}"
+                                    data-salaire-verse="{{ data.salaire_verse if data and data.salaire_verse is not none else 0 }}"
+                                    data-acompte-25="{{ data.acompte_25 if data and data.acompte_25 is not none else 0 }}"
+                                    data-acompte-10="{{ data.acompte_10 if data and data.acompte_10 is not none else 0 }}">
+                                    <i class="fas fa-edit"></i> Modifier
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                    <tfoot class="table-active fw-bold text-end">
+                        <tr>
+                            <th class="text-start">Total</th>
+                            <th>{{ "%.2f"|format(totaux.total_heures_reelles) }}</th>
+                            <th></th>
+                            <th>{{ "%.2f"|format(totaux.total_salaire_calcule) }} CHF</th>
+                            <th>{{ "%.2f"|format(totaux.total_salaire_verse) }} CHF</th>
+                            <th>{{ "%.2f"|format(totaux.total_acompte_25) }}</th>
+                            <th>{{ "%.2f"|format(totaux.total_acompte_10) }}</th>
+                            <th>{{ "%.2f"|format(totaux.total_acompte_25_estime) }}</th>
+                            <th>{{ "%.2f"|format(totaux.total_acompte_10_estime) }}</th>
+                            <th colspan="2"></th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour afficher le contrat -->
+<!-- Modal pour afficher le contrat -->
+<div class="modal fade" id="contratModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Contrat utilisé pour les calculs</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Heures hebdomadaires:</label>
+                                <p>{{ contrat_actuel.heures_hebdo }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Salaire horaire:</label>
+                                <p>{{ contrat_actuel.salaire_horaire }} CHF</p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Date de début:</label>
+                                <p>{{ contrat_actuel.date_debut }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Date de fin:</label>
+                                <p>{{ contrat_actuel.date_fin if contrat_actuel.date_fin else 'Indéterminée' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Jour d'estimation:</label>
+                                <p>{{ contrat_actuel.jour_estimation_salaire }} du mois</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Versements:</label>
+                                <p>
+                                    {% if contrat_actuel.versement_10 %}10{% endif %}
+                                    {% if contrat_actuel.versement_10 and contrat_actuel.versement_25 %}, {% endif %}
+                                    {% if contrat_actuel.versement_25 %}25{% endif %}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Ce contrat est utilisé pour tous les calculs de salaire et de simulation.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <a href="{{ url_for('gestion_contrat') }}" class="btn btn-primary">
+                    <i class="fas fa-edit me-1"></i> Modifier le contrat
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour modifier les valeurs -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Modifier les valeurs réelles</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <form id="editForm" method="POST" action="{{ url_for('update_salaire') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="mois" id="editMois">
+                    <input type="hidden" name="annee" id="editAnnee">
+
+                    <div class="mb-3">
+                        <label class="form-label">Salaire versé (CHF)</label>
+                        <input type="number" step="0.01" class="form-control" name="salaire_verse"
+                            id="editSalaireVerse">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Acompte du 25 (CHF)</label>
+                        <input type="number" step="0.01" class="form-control" name="acompte_25" id="editAcompte25">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Acompte du 10 (CHF)</label>
+                        <input type="number" step="0.01" class="form-control" name="acompte_10" id="editAcompte10">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialiser tous les tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Gestion de la modale d'édition
+        const editModal = document.getElementById('editModal');
+        if (editModal) {
+            editModal.addEventListener('show.bs.modal', function (event) {
+                try {
+                    const button = event.relatedTarget;
+                    if (!button) return;
+
+                    // Récupérer les données
+                    const mois = button.getAttribute('data-mois');
+                    const annee = button.getAttribute('data-annee');
+                    const salaireVerse = button.getAttribute('data-salaire-verse') || '0';
+                    const acompte25 = button.getAttribute('data-acompte-25') || '0';
+                    const acompte10 = button.getAttribute('data-acompte-10') || '0';
+
+                    // Mettre à jour les champs
+                    document.getElementById('editMois').value = mois;
+                    document.getElementById('editAnnee').value = annee;
+                    document.getElementById('editSalaireVerse').value = parseFloat(salaireVerse).toFixed(2);
+                    document.getElementById('editAcompte25').value = parseFloat(acompte25).toFixed(2);
+                    document.getElementById('editAcompte10').value = parseFloat(acompte10).toFixed(2);
+
+                    // Mettre à jour le titre
+                    const moisNoms = {
+                        '1': 'Janvier', '2': 'Février', '3': 'Mars', '4': 'Avril',
+                        '5': 'Mai', '6': 'Juin', '7': 'Juillet', '8': 'Août',
+                        '9': 'Septembre', '10': 'Octobre', '11': 'Novembre', '12': 'Décembre'
+                    };
+
+                    const titleElement = editModal.querySelector('.modal-title');
+                    if (titleElement) {
+                        titleElement.textContent =
+                            `Modifier les valeurs pour ${moisNoms[mois] || 'Mois inconnu'} ${annee}`;
+                    }
+                } catch (error) {
+                    console.error('Erreur dans le modal:', error);
+                }
+            });
+        }
+    });
+</script>
+
+{% endblock %}

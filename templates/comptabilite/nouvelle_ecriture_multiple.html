@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Nouvelles écritures multiples</h2>
+
+    <form method="post">
+        {% if form %}
+        {{ form.hidden_tag() }}
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Saisie des écritures comptables</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="ecritures-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Compte bancaire</th>
+                                <th>Catégorie</th>
+                                <th>Montant (CHF)</th>
+                                <th>TVA (%)</th>
+                                <th>Description</th>
+                                <th>Référence</th>
+                                <th>Statut</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for i in range(1) %}
+                            <tr>
+                                <td>
+                                    <input type="date" class="form-control form-control-sm" name="date_ecriture[]"
+                                        value="{{ current_date }}" required>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" name="type_ecriture[]" required>
+                                        <option value="depense">Dépense</option>
+                                        <option value="recette">Recette</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" name="compte_bancaire_id[]" required>
+                                        <option value="">Sélectionner...</option>
+                                        {% for compte in comptes %}
+                                        <option value="{{ compte.id }}">
+                                            {{ compte.nom_compte }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" name="categorie_id[]" required>
+                                        <option value="">Sélectionner...</option>
+                                        {% for categorie in categories %}
+                                        <option value="{{ categorie.id }}">
+                                            {{ categorie.numero }} - {{ categorie.nom }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" class="form-control form-control-sm"
+                                        name="montant[]" required>
+                                </td>
+                                <td>
+                                    <input type="number" step="0.1" class="form-control form-control-sm"
+                                        name="tva_taux[]" value="7.7">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" name="description[]">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" name="reference[]">
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" name="statut[]">
+                                        {% for statut in statuts_disponibles %}
+                                        <option value="{{ statut.value }}" {% if statut.value=='pending' %}selected{%
+                                            endif %}>
+                                            {{ statut.label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="text-center">
+                                    {% if i > 0 %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                        onclick="removeRow(this)">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3">
+                    <button type="button" class="btn btn-sm btn-success" onclick="addRow()">
+                        <i class="bi bi-plus-circle"></i> Ajouter une ligne
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between mt-3">
+            <a href="{{ url_for('liste_ecritures') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Retour
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> Enregistrer toutes les écritures
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Solution minimaliste en JavaScript pour gérer les lignes -->
+<script>
+    function addRow() {
+        const table = document.getElementById('ecritures-table');
+        const tbody = table.querySelector('tbody');
+        const lastRow = tbody.lastElementChild;
+        const newRow = lastRow.cloneNode(true);
+
+        // Réinitialiser les valeurs
+        newRow.querySelectorAll('input, select').forEach(field => {
+            if (field.type !== 'hidden') {
+                if (field.tagName === 'SELECT') {
+                    field.selectedIndex = 0;
+                } else {
+                    field.value = field.name.includes('tva_taux') ? '7.7' : '';
+                    if (field.type === 'date') {
+                        field.value = '{{ current_date }}';
+                    }
+                }
+            }
+        });
+
+        // S'assurer que le bouton de suppression est visible
+        const removeBtn = newRow.querySelector('.btn-outline-danger');
+        if (removeBtn) {
+            removeBtn.style.display = 'block';
+        } else {
+            const td = newRow.lastElementChild;
+            td.innerHTML = '<button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="bi bi-x-lg"></i></button>';
+        }
+
+        tbody.appendChild(newRow);
+    }
+
+    function removeRow(button) {
+        const row = button.closest('tr');
+        if (document.querySelectorAll('#ecritures-table tbody tr').length > 1) {
+            row.remove();
+        } else {
+            alert('Vous devez garder au moins une écriture.');
+        }
+    }
+</script>
+
+<style>
+    #ecritures-table th,
+    #ecritures-table td {
+        vertical-align: middle;
+    }
+
+    #ecritures-table input,
+    #ecritures-table select {
+        min-width: 120px;
+    }
+
+    .form-select-sm,
+    .form-control-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,510 @@
+<div class="bx-card-container bx-card-container-transparent bx-no-padding">
+    <div class="bx-card">
+        <style>
+    .lgcy .glyphicons.plus, #pageWrapper .glyphicons.plus {
+        color: #00A1DF;
+        background: none;
+        position: absolute;
+        right: -15px;
+    }
+</style>
+<section class="bx-card--nav">
+    <div class="bx-card-container-nav-tabs bx-no-bottom-margin">
+        <div class="grid">
+            <div class="cell">
+                <ul class="nav nav-tabs nav-tabs-bordered">
+                    <li id="showAccountBalanceReport">
+                        <a href="/index.php/accountingReport/showAccountBalanceReport">Feuille de compte</a>                    </li>
+                    <li id="showJournalReport">
+                        <a href="/index.php/accountingReport/showJournalReport">Journal</a>                    </li>
+                    <li id="showOpList">
+                        <a href="/index.php/accountingReport/showOpList">Postes ouverts</a>                    </li>
+
+                    <span id="accountingReportsBeta" class="nav nav-tabs nav-tabs-bordered accounting-reports">
+                        <li id="showIncomeStatement">
+                            <span id="indagia-reports-new-income-statement-enabled-by-customer"></span>
+                            <a href="/index.php/accountingReport/showIncomeStatement">Compte de résultat  plus</a>                            <span class="glyphicons plus">&nbsp;</span>
+                        </li>
+
+                        <li id="showBalanceSheet">
+                            <span id="indagia-reports-new-income-statement-enabled-by-customer"></span>
+                            <a href="/index.php/accountingReport/showBalanceSheet">Bilan plus</a>                            <span class="glyphicons plus">&nbsp;</span>
+                        </li>
+
+                        <li id="showProfitAndLossReport">
+                            <span id="indagia-reports-old-income-statement-enabled-by-customer"></span>
+                            <a href="/index.php/accountingReport/showProfitAndLossReport">Compte de résultat </a>                        </li>
+
+                        <li class="active" id="showBalanceSheetReport">
+                            <span id="indagia-reports-old-balance-sheet-enabled-by-customer"></span>
+                            <a href="/index.php/accountingReport/showBalanceSheetReport">Bilan</a>                        </li>
+
+                        <li id="showProtocolReport">
+                            <a href="/index.php/accountingReport/showProtocolReport">Protocoles</a>                        </li>
+                    </span>
+
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+        <div id="listContainer" class="js-list-holder-68a6e301af45e">
+    <section class="bx-filter-action-container bx-flex-wrap">
+        <div class="bx-flex-block bx-flex-align-top-left">
+            <ul class="nav nav-tabs bx-listFilter-ul" id="tab">
+                                                        <li class="bx-listFilter active">
+                                                                                                        <a class="ajxl" href="/index.php/filter/useFilter/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport/id/empty">Tous<i data-link="/index.php/filter/saveDefaultTab/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport/fId/empty" class="halflings halflings-glyph-pushpin js-set-standard-tab" title="Définir comme onglet par défaut" data-placement="bottom"></i></a>                </li>
+                                            <li class="bx-listFilter ">
+                                                            <a class="ajxl" href="/index.php/filter/useFilter/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport/id/44">Actifs</a>                </li>
+                                            <li class="bx-listFilter ">
+                                                            <a class="ajxl" href="/index.php/filter/useFilter/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport/id/45">Passifs</a>                </li>
+                                            <li class="bx-listFilter ">
+                                                            <a class="ajxl" href="/index.php/filter/useFilter/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport/id/68">Bilan d'ouverture</a>                </li>
+                                            </ul>
+    </div><div class="bx-flex-block bx-flex-align-top-right bx-shrink ">
+    <!-- BEGIN FILTER COLLAPSE BUTTON -->
+                <a class="bx-filter-action-btn js-list-filter-btn " data-toggle="collapse" href=".js-list-filter" rel="tooltip" title="Filtrer">
+            <span class="bx-svg-filter"></span>
+        </a>
+        <!-- END FILTER COLLAPSE BUTTON -->
+
+    <!-- BEGIN FILTER ACTION BUTTONS -->
+            <a class="bx-filter-action-btn" rel="tooltip" title="Télécharger au format PDF et imprimer" href="/index.php/accountingReport/exportBalanceSheetReport/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport"><span class="bx-svg-pdf"></span></a>            <a class="bx-filter-action-btn" rel="tooltip" title="Télécharger au format Excel" onclick="if (!this.getAttribute('disabled')) jq_load_dialog('/index.php/filter/export/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport',{autoOpen:false, bgiframe:false, close:'function() { $(this).dialog(\'destroy\'); }', maxHeight:2000, maxWidth:2024, modal:true, resizable:false, title:'Télécharger au format Excel', width:400},'#jqDialog'); return false;" href="/index.php/filter/export/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport"><span class="bx-svg-xls"></span></a>        <!-- END FILTER ACTION BUTTONS -->
+
+    <!-- BEGIN SEARCH BUTTON -->
+        <!-- END SEARCH BUTTON -->
+</div>    </section>
+
+    <section class="bx-filter-form-container bx-filter-collapse collapse js-list-filter ">
+        <div class="bx-filter-form-collapse">
+            <form method="post" action="/index.php/filter/saveFilter/f/BalanceSheetReportListFilter/m/accountingReport/a/showBalanceSheetReport">
+    <input type="hidden" name="fibu_account_group_filters[_csrf_token]" id="fibu_account_group_filters__csrf_token">        
+<div class="grid grid-gap xs6 sm6 md4">
+    <div class="cell">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_key_date">Bilan au</label>
+ <div class="controls"><div class="input"><div class="input-append datepicker bx-datapicker">
+    <input placeholder="Date" type="text" name="fibu_account_group_filters[key_date]" value="31.12.2025" style="width:80px;" id="fibu_account_group_filters_key_date" class="hasDatepicker">
+    <span class="add-on">
+        <label for="fibu_account_group_filters_key_date">
+            <i class="halflings halflings-glyph-calendar"></i>
+        </label>
+    </span>
+</div>
+<script type="text/javascript">
+    jQuery(document).ready(function(){
+        jQuery("#fibu_account_group_filters_key_date").datepicker({
+            dateFormat: "dd.mm.yy",
+            changeMonth: "1",
+            changeYear: "1",
+            showButtonPanel: "1",
+            currentText: "Aujourd'hui",
+            closeText: "Fermer",
+            yearRange: "c-10:c+10",
+            minDate: null,
+            maxDate: null,
+            showOtherMonths: true,
+            selectOtherMonths: true,
+            monthNamesShort: [
+                "Janvier",
+                "Février",
+                "Mars",
+                "Avril",
+                "Mai",
+                "Juin",
+                "Juillet",
+                "Août",
+                "Septembre",
+                "Octobre",
+                "Novembre",
+                "Décembre"
+            ],
+            /* fix buggy IE focus functionality */
+            fixFocusIE: false,
+            onSelect: function(dateText, inst) {
+                  this.fixFocusIE = true;
+                        $(this).change().focus();
+            },
+            onClose: function(dateText, inst) {
+                  this.fixFocusIE = true;
+                  this.focus();
+            },
+            beforeShow: function(input, inst) {
+                  var result = $.browser.msie ? !this.fixFocusIE : true;
+                  this.fixFocusIE = false;
+                  return result;
+            }
+        });
+    });
+</script></div></div>
+</div>
+    </div>
+    <div class="cell bx-formular-floatCheckbox bx-formular-floatCheckbox-margin">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_only_opening_entries">Afficher uniquement les écritures d'ouverture</label>
+ <div class="controls"><div class="input"><input type="checkbox" name="fibu_account_group_filters[only_opening_entries]" id="fibu_account_group_filters_only_opening_entries"></div></div>
+</div>
+    </div>
+    <div class="cell bx-formular-floatCheckbox bx-formular-floatCheckbox-margin">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_compare_to_last_year">Afficher la comparaison avec l'année précédente</label>
+ <div class="controls"><div class="input"><input type="checkbox" name="fibu_account_group_filters[compare_to_last_year]" id="fibu_account_group_filters_compare_to_last_year"></div></div>
+</div>
+    </div>
+    <div class="cell bx-formular-floatCheckbox bx-formular-floatCheckbox-margin">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_show_zero_values">Afficher les comptes avec des valeurs 0</label>
+ <div class="controls"><div class="input"><input type="checkbox" name="fibu_account_group_filters[show_zero_values]" id="fibu_account_group_filters_show_zero_values"></div></div>
+</div>
+    </div>
+    <div class="cell">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_account_type">Type de compte</label>
+ <div class="controls"><div class="input"><div class="select2-container" id="s2id_fibu_account_group_filters_account_type" style="width: 100%;"><a href="javascript:void(0)" class="select2-choice select2-default" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-3"> </span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><label for="s2id_autogen3" class="select2-offscreen">Type de compte</label><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" role="button" aria-labelledby="select2-chosen-3" id="s2id_autogen3"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen3_search" class="select2-offscreen">Type de compte</label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-3" id="s2id_autogen3_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" id="select2-results-3">   </ul></div></div><select name="fibu_account_group_filters[account_type]" id="fibu_account_group_filters_account_type" title="Type de compte" class="select2-offscreen" tabindex="-1">
+<option value="" selected="selected"></option>
+<option value="3">Compte d'actif</option>
+<option value="4">Compte de passif</option>
+</select></div></div>
+</div>
+    </div>
+    <div class="cell hide" id="balance-sheet-amount-decimals">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_amount_decimals">Nombre de décimales</label>
+ <div class="controls"><div class="input"><div class="select2-container" id="s2id_fibu_account_group_filters_amount_decimals" style="width: 100%;"><a href="javascript:void(0)" class="select2-choice" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-4">2</span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><label for="s2id_autogen4" class="select2-offscreen">Nombre de décimales</label><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" role="button" aria-labelledby="select2-chosen-4" id="s2id_autogen4"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen4_search" class="select2-offscreen">Nombre de décimales</label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-4" id="s2id_autogen4_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" id="select2-results-4">   </ul></div></div><select name="fibu_account_group_filters[amount_decimals]" id="fibu_account_group_filters_amount_decimals" title="Nombre de décimales" class="select2-offscreen" tabindex="-1">
+<option value="0">0</option>
+<option value="1">1</option>
+<option value="2" selected="selected">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+</select></div></div>
+</div>
+    </div>
+</div>
+
+
+<script type="text/javascript">
+    (function ($, window, document, undefined) {
+        $(document).ready(function() {
+            var indagiaStartDate = '2019-01-01';
+            var amountDecimals = '2';
+            var decimalNumberFilter = $("#balance-sheet-amount-decimals");
+            var decimalNumberFilterInput = $("#fibu_account_group_filters_amount_decimals");
+            var datePicker = $("#fibu_account_group_filters_key_date");
+
+            checkFilterVisibility(indagiaStartDate, datePicker.datepicker('getDate'));
+
+            datePicker.datepicker().on('change', function() {
+                checkFilterVisibility(indagiaStartDate, datePicker.datepicker('getDate'));
+            });
+
+            function checkFilterVisibility(indagiaStartDate, date) {
+
+                if (!moment(indagiaStartDate, 'YYYY-MM-DD').isValid()) {
+                    showDecimalNumberFilter();
+                    return;
+                }
+
+                if (moment(date).isAfter(moment(indagiaStartDate, 'YYYY-MM-DD')) || moment(date).isSame(moment(indagiaStartDate, 'YYYY-MM-DD'))) {
+                    hideDecimalNumberFilter();
+                } else {
+                    showDecimalNumberFilter();
+                }
+            }
+
+            function hideDecimalNumberFilter() {
+                if (!decimalNumberFilter.hasClass('hide')) {
+                    decimalNumberFilterInput.val(amountDecimals).trigger('change');
+                    decimalNumberFilter.addClass('hide');
+                }
+            }
+
+            function showDecimalNumberFilter() {
+                if (decimalNumberFilter.hasClass('hide')) {
+                    decimalNumberFilter.removeClass('hide');
+                }
+            }
+        });
+    })(jQuery, window, document);
+</script>
+    <div class="bx-filter-form-container--actions">
+            <button class="btn btn-primary">Appliquer le filtre</button>
+                    <button class="btn" onclick="saveFilter($(this).closest('form')); return false;">Enregistrer le filtre</button>
+            </div></form>        </div>
+    </section>
+
+    <section class="bx-filter-list-container">
+        <table id="dataTable" class="jsTable fibu bx-filter-list-sheet" cellpadding="0" cellspacing="0">
+    <thead>
+    <tr>
+        <td colspan="2">Tous les montants en CHF</td>
+    </tr>
+    <tr>
+        <th>&nbsp;</th>
+                    <th>31.12.2025</th>
+            </tr>
+    </thead>
+    <tbody>
+            <tr class="accountGroup hierarchical_level_1 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/39/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Actifs        </td>
+                <td>&nbsp;</td>
+            </tr>
+                                                                                    <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/40/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Actifs circulants        </td>
+                <td>-315.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/41/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Trésorerie        </td>
+                <td>-340.55</td>
+            </tr>
+                                                                                                                            <tr list_link="/index.php/accountingReport/showJournalReport/resetListView/1/account/77/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31" class="link account account_type_3">
+            <td class="account_text">
+                1020 Banque Postfinance CHF (PostFinance AG)            </td>
+            <td>-340.55</td>
+                    </tr>
+                                                                                                                                                                                                                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/42/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Compte de transfert        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/43/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Créances résultant de la vente de biens et de prestations de services (débiteurs)        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/44/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Autres créances à court terme        </td>
+                <td>25.55</td>
+            </tr>
+                                                                                        <tr list_link="/index.php/accountingReport/showJournalReport/resetListView/1/account/96/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31" class="link account account_type_3">
+            <td class="account_text">
+                1171 Impôt préalable: TVA sur investissements et autres charges, cl. 1/5-8            </td>
+            <td>25.55</td>
+                    </tr>
+                                                                                                                                                                                                                                                                                                                                                                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/45/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Stocks et prestations de services non facturées        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                                                                                        <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/46/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Actifs de régularisation        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/156/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Immobilisations incorporelles        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/47/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Actifs immobilisés        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/48/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Immobilisations corporelles meubles        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                                                                                                                                                                                                                                                                                            <tr class="link accountGroup hierarchical_level_1 end-group" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/39/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+            <td>
+                Total Actifs            </td>
+            <td>-315.00</td>
+                    </tr>
+                <tr class="accountGroup hierarchical_level_1 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/49/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Passifs        </td>
+                <td>&nbsp;</td>
+            </tr>
+                                                                                    <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/50/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Capitaux étrangers à court terme        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/51/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Dettes résultant de l'achat de biens et de prestations de services        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/52/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Dettes à court terme portant intérêt        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/157/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Autres dettes à court terme        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_4 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/53/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           TVA due        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/54/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Passifs de régularisation et provisions à court terme        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/161/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Réserves et bénéfice reporté ou perte net        </td>
+                <td>0.00</td>
+            </tr>
+                                                                <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/55/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Capitaux étrangers à long terme        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/56/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Dettes à long terme portant intérêt        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/57/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Autres dettes à long terme        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/58/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Provisions et postes analogues prévus par la loi        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/59/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Capitaux propres (raison individuelle)        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/60/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Capital propre au début de l’exercice        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/61/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Apports en capital et retraits        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/62/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Privé        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                                                                                                                                                                                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/63/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Bénéfices ou pertes de l'exercice        </td>
+                <td>0.00</td>
+            </tr>
+                                                            <tr class="link accountGroup hierarchical_level_1 end-group" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/49/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+            <td>
+                Total Passifs            </td>
+            <td>0.00</td>
+                    </tr>
+                <tr class="accountGroup hierarchical_level_1 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/64/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Produits nets des ventes de biens et de prestations de services        </td>
+                <td>&nbsp;</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/163/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Vente Sushis à l'emporter        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/164/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Offre realDeals        </td>
+                <td>0.00</td>
+            </tr>
+                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/178/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Vente Eat. Ch        </td>
+                <td>0.00</td>
+            </tr>
+                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/179/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Vente d'alcool        </td>
+                <td>0.00</td>
+            </tr>
+                                                                <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/65/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Produits des ventes de marchandises        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/66/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Produits des ventes de marchandises        </td>
+                <td>0.00</td>
+            </tr>
+                                                                <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/67/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Produits des prestations        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/68/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Produits des prestations        </td>
+                <td>0.00</td>
+            </tr>
+                                                                <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/69/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Autres produits résultant de ventes de biens et de prestations de services        </td>
+                <td>0.00</td>
+            </tr>
+                                    <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/70/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Produits annexes résultant de ventes de biens et de prestations de services        </td>
+                <td>0.00</td>
+            </tr>
+                                            <tr class="accountGroup hierarchical_level_3 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/71/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Autres produits        </td>
+                <td>0.00</td>
+            </tr>
+                                                                                                                                                    <tr class="accountGroup hierarchical_level_2 link" list_link="/index.php/accountingReport/showJournalReport/resetListView/1/fibu_account_group/72/fibu_business_year_choice%5Bfrom%5D/2025-01-01/fibu_business_year_choice%5Bto%5D/2025-12-31">
+        <td>
+           Déductions sur les ventes        </td>
+                <td>0.00</td>
+            </tr>
+                                        </tbody>
+    <tfoot>
+            <tr>
+            <td>Total Produits nets des ventes de biens et de prestations de services avant Pertes</td>
+            <td>0.00</td>
+                    </tr>
+        <tr>
+            <td>Pertes</td>
+            <td>315.00</td>
+                    </tr>
+        
+        <tr class="accountGroup hierarchical_level_1 end-group">
+            <td>Total Produits nets des ventes de biens et de prestations de services</td>
+            <td>315.00</td>
+                    </tr>
+    </tfoot>
+</table>    </section>
+
+    <section class="bx-filter-list-footer-container">
+                    
+<div class="bx-flex-wrap">
+            <div class="bx-flex-block bx-flex-align-middle-left">
+            <div class="bx-filter-list-footer-entry-chooser">
+    </div>        </div>
+        <div class="bx-flex-block bx-flex-align-middle-center">
+                    </div>
+        <div class="bx-flex-block bx-flex-align-middle-right">
+        </div>
+    </div>            </section>
+</div>
+
+<script>
+    $(function(){
+        $('.js-list-holder-68a6e301af45e').bx_filter();
+    });
+</script>    </div>
+</div>

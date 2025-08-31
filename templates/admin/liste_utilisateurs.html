@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Liste des utilisateurs{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Liste des utilisateurs</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, msg in messages %}
+    <div class="alert alert-{{ 'danger' if category=='error' else category }}">
+        {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+    {% if utilisateurs %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Date de création</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in utilisateurs %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.nom }}</td>
+                <td>{{ u.email }}</td>
+                <td>{{ u.date_creation.strftime('%d/%m/%Y') if u.date_creation else '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">Aucun utilisateur actif trouvé.</p>
+    {% endif %}
+</div>
+{% endblock %}

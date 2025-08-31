@@ -1,0 +1,60 @@
+{# Template du modal pour créer un nouveau contact #}
+<div class="modal fade" id="nouveauContactModal" tabindex="-1" aria-labelledby="nouveauContactModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="nouveauContactModalLabel">{% if contact %}Modifier{% else %}Nouveau{% endif %} contact<</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+                <form method="POST" {% if contact %}action="{{ url_for('edit_contact_comptable', contact_id=contact.id_contact) }}" {%
+                                else %}action="{{ url_for('nouveau_contact_comptable', contact=contact) }}" {% endif %}>
+
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nom" class="form-label">Nom *</label>
+                            <input type="text" class="form-control" id="nom" name="nom" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="telephone" class="form-label">Téléphone</label>
+                            <input type="tel" class="form-control" id="telephone" name="telephone">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="pays" class="form-label">Pays</label>
+                            <input type="text" class="form-control" id="pays" name="pays">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="adresse" class="form-label">Adresse</label>
+                        <textarea class="form-control" id="adresse" name="adresse" rows="2"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="code_postal" class="form-label">Code Postal</label>
+                            <input type="text" class="form-control" id="code_postal" name="code_postal">
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label for="ville" class="form-label">Ville</label>
+                            <input type="text" class="form-control" id="ville" name="ville">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer le contact</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

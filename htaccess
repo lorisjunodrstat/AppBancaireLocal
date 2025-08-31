@@ -1,0 +1,62 @@
+# Configuration .htaccess pour application Flask sur Hostpoint
+# Placez ce fichier à la racine de votre domaine
+
+# Redirection vers l'application Flask
+RewriteEngine On
+
+# Redirection des fichiers statiques (CSS, JS, images)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^.*$ - [NC,L]
+
+# Redirection de toutes les autres requêtes vers l'application Flask
+RewriteRule ^(.*)$ /cgi-bin/app.py/$1 [QSA,L]
+
+# Configuration de sécurité
+<Files ".htaccess">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Masquer les fichiers sensibles
+<FilesMatch "\.(py|pyc|pyo|db|sqlite|conf|ini|log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Cache pour les fichiers statiques
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/ico "access plus 1 year"
+    ExpiresByType image/icon "access plus 1 year"
+    ExpiresByType text/plain "access plus 1 month"
+    ExpiresByType application/pdf "access plus 1 month"
+</IfModule>
+
+# Compression Gzip
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+</IfModule>
+
+# Configuration des headers de sécurité
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+    Header always set Referrer-Policy strict-origin-when-cross-origin
+</IfModule>

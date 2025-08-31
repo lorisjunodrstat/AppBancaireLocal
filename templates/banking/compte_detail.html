@@ -1,0 +1,597 @@
+{% extends "base.html" %}
+
+{% block title %}{{ compte.nom_compte }} - {{ compte.nom_banque }}{% endblock %}
+
+{% block content %}
+
+<div class="row" style="background-color: {{ compte.couleur_banque }};margin: top 10px">
+    <div class="col-12">
+        <!-- En-tête du compte -->
+        <div class="card mb-4 border-top" style="border-top: 4px solid {{ compte.couleur_banque }};">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <!-- Informations principales -->
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center me-3"
+                                style="width: 50px; height: 50px; background-color: {{ compte.couleur_banque }};">
+                                <i class="fas fa-university text-white fa-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="mb-0">{{ compte.nom_compte }}</h2>
+                                <p class="text-muted mb-0">{{ compte.nom_banque }} • {{ compte.type_compte|title }}</p>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <small class="text-muted">Numéro de compte :</small>
+                                <div><code>{{ compte.numero_compte }}</code></div>
+                            </div>
+                            {% if compte.iban %}
+                            <div class="col-sm-6">
+                                <small class="text-muted">IBAN :</small>
+                                <div><code>{{ compte.iban }}</code></div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Solde et actions -->
+                    <div class="col-md-4 text-end">
+                        <div class="mb-2">
+                            <small class="text-muted">Solde disponible</small>
+                            <h3 class="mb-0">{{ "%.2f"|format(compte.solde) }} {{ compte.devise }}</h3>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Patrimoine total</small>
+                            <h4 class="mb-0 text-success">{{ "%.2f"|format(solde_total) }} {{ compte.devise }}</h4>
+                        </div>
+
+                        <div class="btn-group">
+                            <a href="{{ url_for('banking_transfert') }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-exchange-alt me-1"></i>Transfert
+                            </a>
+                            <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                                class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-piggy-bank me-1"></i>Épargne
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Sous-comptes d'épargne -->
+            <div class="col-lg-8 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-piggy-bank me-2"></i>Épargnes ({{ sous_comptes|length }})</h5>
+                        <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                            class="btn btn-success btn-sm">
+                            <i class="fas fa-plus me-1"></i>Nouvelle épargne
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        {% if sous_comptes %}
+                        {% for sc in sous_comptes %}
+                            
+                        <div class="card mb-3 shadow-sm">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-2 col-md-1 text-center">
+                                        <i class="fas fa-{{ sc.icone }} fa-2x" style="color: {{ sc.couleur }};"></i>
+                                    </div>
+                                    <div class="col-10 col-md-4">
+                                        <h6 class="mb-1">{{ sc.nom_sous_compte }}</h6>
+                                        <p class="text-muted small mb-0">{{ sc.description or 'Aucune description' }}
+                                        </p>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <h5 class="mb-0">{{ "%.2f"|format(sc.solde) }} {{ compte.devise }}</h5>
+                                        <small class="text-muted">Solde</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        {% if sc.objectif_montant and sc.objectif_montant > 0%}
+                                            {% set pourcentage_objectif = (sc.solde / sc.objectif_montant) * 100 %}
+                                        {% elif sc.objectif_montant is none %}
+                                            {% set pourcentage_objectif = 0 %}
+                                            <div class="mb-2">
+                                                <div class="d-flex justify-content-between small">
+                                                    <span>{{ "%.0f"|format(sc.objectif_montant) }}</span>
+                                                    <span>{{ "%.1f"|format(pourcentage_objectif) }}%</span>
+                                                </div>
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar"
+                                                        style="width: {{ pourcentage_objectif }}%; background-color: {{ sc.couleur }};">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                        {% if sc.date_objectif %}
+                                        <small class="text-muted"><i class="fas fa-calendar me-1"></i>{{
+                                            sc.date_objectif.strftime('%d/%m/%Y') }}</small>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Épargne libre</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-1 text-end">
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                                data-bs-toggle="dropdown"></button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item"
+                                                        href="{{ url_for('banking_sous_compte_detail', sous_compte_id=sc.id) }}"><i
+                                                            class="fas fa-eye me-2"></i>Détails</a></li>
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="transfertRapide({{ compte.id }}, {{ sc.id }})"><i
+                                                            class="fas fa-arrow-right me-2"></i>Alimenter</a></li>
+                                                <li><a class="dropdown-item" href="#"
+                                                        onclick="retraitRapide({{ compte.id }}, {{ sc.id }})"><i
+                                                            class="fas fa-arrow-left me-2"></i>Retirer</a></li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li><a class="dropdown-item text-danger"
+                                                        href="{{ url_for('banking_supprimer_sous_compte', sous_compte_id=sc.id) }}"
+                                                        onclick="return confirm('Supprimer ce sous-compte ?')"><i
+                                                            class="fas fa-trash me-2"></i>Supprimer</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-piggy-bank fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Aucune épargne configurée</h5>
+                            <p class="text-muted">Créez votre première épargne pour commencer à mettre de l'argent de
+                                côté.</p>
+                            <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                                class="btn btn-success"><i class="fas fa-plus me-2"></i>Créer ma première épargne</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activité récente (Transactions + Transferts) -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activité récente</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if mouvements %}
+                        <div class="list-group list-group-flush">
+                            {% for m in mouvements %}
+                            <div class="list-group-item d-flex align-items-center">
+                                <div class="me-3">
+                                    <!-- Icônes améliorées pour différencier les types -->
+                                    {% if m.type_transaction in ['depot', 'retrait', 'transfert_vers_sous_compte',
+                                    'transfert_depuis_sous_compte'] %}
+                                    {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte',
+                                    'transfert_entrant'] %}
+                                    <i class="fas fa-plus-circle text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-minus-circle text-danger"></i>
+                                    {% endif %}
+                                    {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
+                                    'transfert_externe'] %}
+                                    {% if m.type_transaction == 'transfert_entrant' %}
+                                    <i class="fas fa-arrow-down text-success"></i>
+                                    {% elif m.type_transaction == 'transfert_sortant' %}
+                                    <i class="fas fa-arrow-up text-danger"></i>
+                                    {% else %}
+                                    <i class="fas fa-exchange-alt text-primary"></i>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between">
+                                        <h6 class="mb-0">
+                                            {% if m.type_transaction in ['depot', 'retrait',
+                                            'transfert_vers_sous_compte', 'transfert_depuis_sous_compte'] %}
+                                            {% if m.type_transaction == 'depot' %}Dépôt
+                                            {% elif m.type_transaction == 'retrait' %}Retrait
+                                            {% elif m.type_transaction == 'transfert_vers_sous_compte' %}Vers {{
+                                            m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
+                                            {% elif m.type_transaction == 'transfert_depuis_sous_compte' %}Depuis {{
+                                            m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
+                                            {% else %}{{ m.type_transaction|replace('_', ' ')|title }}{% endif %}
+                                            {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
+                                            'transfert_externe'] %}
+                                            {% if m.type_transaction == 'transfert_entrant' %}
+                                            <span class="text-success">Transfert reçu</span>
+                                            {% elif m.type_transaction == 'transfert_sortant' %}
+                                            <span class="text-danger">Transfert envoyé</span>
+                                            {% else %}
+                                            Transfert externe
+                                            {% endif %}
+
+                                            <!-- Afficher statut pour transferts externes -->
+                                            {% if m.statut and m.statut != 'completed' %}
+                                            <span class="badge bg-warning ms-2">{{ m.statut|title }}</span>
+                                            {% endif %}
+
+                                            <!-- Afficher si externe -->
+                                            {% if m.type_transaction == 'transfert_externe' %}
+                                            <small class="text-muted">(externe)</small>
+                                            {% endif %}
+                                            {% endif %}
+                                        </h6>
+                                        <span
+                                            class="{{ 'text-success' if m.montant > 0 else 'text-danger' if m.montant < 0 else 'text-muted' }}">
+                                            {% if m.montant != 0 %}
+                                            {{ '+' if m.montant > 0 else '' }}{{ "%.2f"|format(m.montant) }} {{
+                                            compte.devise }}
+                                            {% else %}
+                                            ⇄ <!-- Symbole pour transfert interne -->
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <small class="text-muted">
+                                        {{ m.date_transaction.strftime('%d/%m/%Y %H:%M') }}
+                                        {% if m.reference %}
+                                        • {{ m.reference }}
+                                        {% endif %}
+                                        <br>
+                                        {% if m.description %}
+                                        {{ m.description }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">Aucune activité récente</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if mouvements|length >= 20 %}
+                    <div class="card-footer text-center">
+                        <a href="#" class="btn btn-outline-primary btn-sm">Voir toute l'activité</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Graphiques -->
+        <!-- Section Graphique : Répartition des soldes -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>Répartition des soldes
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartRepartition" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trésorerie -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Trésorerie - {{ libelle_periode }} </h5>
+
+                        <!-- Sélecteur de période (sans JS) -->
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ libelle_periode }}
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                <li><a class="dropdown-item" href="?periode=mois">Ce mois</a></li>
+                                <li><a class="dropdown-item" href="?periode=trimestre">Ce trimestre</a></li>
+                                <li><a class="dropdown-item" href="?periode=annee">Cette année</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartTresorerie" style="max-height: 250px;"></canvas>
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-success">
+                                    <i class="fas fa-arrow-up me-1"></i>
+                                    Total recettes: {{ "%.2f"|format(total_recettes) }} {{ compte.devise }}
+                                </span>
+                                <span class="text-danger">
+                                    <i class="fas fa-arrow-down me-1"></i>
+                                    Total dépenses: {{ "%.2f"|format(total_depenses) }} {{ compte.devise }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistiques des transferts -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Statistiques des transferts</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Filtrer les mouvements pour obtenir les transferts entrants et sortants -->
+                        {% set transferts_entrants = mouvements|selectattr('type_transaction', 'equalto',
+                        'transfert_entrant')|list %}
+                        {% set transferts_sortants = mouvements|selectattr('type_transaction', 'equalto',
+                        'transfert_sortant')|list %}
+
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="bg-success bg-opacity-10 rounded p-3 mb-2">
+                                    <i class="fas fa-arrow-down text-success fa-2x mb-2"></i>
+                                    <h6 class="text-success mb-0">Reçus</h6>
+                                    <small class="text-muted">{{ transferts_entrants|length }} transferts</small>
+                                    <h5 class="text-success mb-0">
+                                        {{ "%.2f"|format(transferts_entrants|sum(attribute='montant')|float) }} {{
+                                        compte.devise }}
+                                    </h5>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-danger bg-opacity-10 rounded p-3 mb-2">
+                                    <i class="fas fa-arrow-up text-danger fa-2x mb-2"></i>
+                                    <h6 class="text-danger mb-0">Envoyés</h6>
+                                    <small class="text-muted">{{ transferts_sortants|length }} transferts</small>
+                                    <h5 class="text-danger mb-0">
+                                        {{
+                                        "%.2f"|format(transferts_sortants|map(attribute='montant')|map('abs')|sum|float)
+                                        }} {{ compte.devise }}
+                                    </h5>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Solde net des transferts -->
+                        {% set solde_net_transferts = (transferts_entrants|sum(attribute='montant')|float) +
+                        (transferts_sortants|sum(attribute='montant')|float) %}
+                        <div
+                            class="text-center mt-3 p-2 {{ 'bg-success' if solde_net_transferts >= 0 else 'bg-danger' }} bg-opacity-10 rounded">
+                            <small class="text-muted">Solde net des transferts</small>
+                            <h6 class="{{ 'text-success' if solde_net_transferts >= 0 else 'text-danger' }} mb-0">
+                                {{ '+' if solde_net_transferts > 0 else '' }}{{ "%.2f"|format(solde_net_transferts) }}
+                                {{ compte.devise }}
+                            </h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!--Liste des transactions et transferts-->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Liste des Mouvements</h5>
+                    </div>
+                    <div class="card-body">
+                        <nav class="navbar navbar-expand-lg bg-body-tertiary mb-3">
+                            <div class="container-fluid">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                                    aria-expanded="false">
+                                    Trier par
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="?sort=date">Date</a></li>
+                                    <li><a class="dropdown-item" href="?sort=montant">Montant</a></li>
+                                    <li><a class="dropdown-item" href="?sort=type">Type</a></li>
+                                </ul>
+                                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown"
+                                    aria-expanded="false" aria-label="Toggle navigation">
+                                    <span class="navbar-toggler-icon"></span>
+                                </button>
+                                <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                                    <ul class="navbar-nav">
+                                        <li class="nav-item dropdown">
+                                            <a class="nav-link dropdown-toggle" href="#" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                                Filtre par Type
+                                            </a>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="?filter=all">Tous</a></li>
+                                                <li><a class="dropdown-item" href="?filter=transfert">Transferts</a>
+                                                </li>
+                                                <li><a class="dropdown-item" href="?filter=transaction">Transactions</a>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                        <li class="nav-item ms-auto">
+                                            <form class="d-flex" role="search"
+                                                action="{{ url_for('banking_compte_detail', compte_id=compte.id) }}"
+                                                method="GET">
+                                                <input type="hidden" name="periode" value="{{ periode_selectionnee }}">
+                                                <input class="form-control me-2" type="search" placeholder="Rechercher"
+                                                    aria-label="Search" name="search"
+                                                    value="{{ request.args.get('search', '') }}">
+                                                <button class="btn btn-outline-success"
+                                                    type="submit">Rechercher</button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </nav>
+
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Source</th>
+                                        <th>Destination</th>
+                                        <th>Description</th>
+                                        <th class="text-end">Montant</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if mouvements %}
+                                    {% for mv in mouvements %}
+                                    <tr>
+                                        <td>{{ mv.date_transaction.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td>
+                                            <span
+                                                class="badge bg-{{ 'success' if mv.montant > 0 else 'danger' if mv.montant < 0 else 'secondary' }}">
+                                                {{ mv.type_transaction|replace('_', ' ')|title }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if mv.compte_source_nom %}
+                                            {{ mv.compte_source_nom }}
+                                            {% elif mv.sous_compte_source_nom %}
+                                            {{ mv.sous_compte_source_nom }}
+                                            {% elif mv.type_transaction == 'transfert_entrant' %}
+                                            Compte externe
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if mv.compte_dest_nom %}
+                                            {{ mv.compte_dest_nom }}
+                                            {% elif mv.sous_compte_dest_nom %}
+                                            {{ mv.sous_compte_dest_nom }}
+                                            {% elif mv.type_transaction == 'transfert_sortant' %}
+                                            Compte externe
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if mv.reference %}
+                                            {{ mv.reference }}
+                                            {% else %}
+                                            {{ mv.description|default('', true) }}
+                                            {% endif %}
+                                        </td>
+                                        <td
+                                            class="text-end {{ 'text-success' if mv.montant > 0 else 'text-danger' if mv.montant < 0 else 'text-muted' }}">
+                                            {{ '+' if mv.montant > 0 else '' }}{{ "%.2f"|format(mv.montant) }} {{
+                                            compte.devise }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">Aucun mouvement trouvé pour cette
+                                            période.</td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if mouvements|length >= 20 %}
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" tabindex="-1">Précédent</a>
+                                </li>
+                                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                                <li class="page-item">
+                                    <a class="page-link" href="#">Suivant</a>
+                                </li>
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Scripts pour initialiser les graphiques Chart.js
+    document.addEventListener('DOMContentLoaded', function () {
+        // Graphique de répartition des soldes
+        var ctxRepartition = document.getElementById('chartRepartition').getContext('2d');
+        var chartRepartition = new Chart(ctxRepartition, {
+            type: 'pie',
+            data: {
+                labels: ['Solde principal', 'Épargnes'],
+                datasets: [{
+                    data: [{{ compte.solde }}, {{ solde_total - compte.solde }}
+                ],
+            backgroundColor: [
+            '{{ compte.couleur_banque }}',
+            '#28a745'
+        ]
+                }]
+            },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+        });
+
+    // Graphique de trésorerie
+    var ctxTresorerie = document.getElementById('chartTresorerie').getContext('2d');
+    var chartTresorerie = new Chart(ctxTresorerie, {
+        type: 'bar',
+        data: {
+            labels: ['Recettes', 'Dépenses'],
+            datasets: [{
+                label: 'Montant',
+                data: [{{ total_recettes }}, {{ total_depenses }}],
+        backgroundColor: [
+            'rgba(40, 167, 69, 0.7)',
+            'rgba(220, 53, 69, 0.7)'
+        ],
+        borderColor: [
+            'rgba(40, 167, 69, 1)',
+            'rgba(220, 53, 69, 1)'
+        ],
+        borderWidth: 1
+    }]
+            },
+    options: {
+        responsive: true,
+            maintainAspectRatio: false,
+                scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+        });
+    });
+
+    // Fonctions pour les transferts rapides
+    function transfertRapide(compteId, sousCompteId) {
+        // Implémentation de la fonction de transfert rapide
+        console.log("Transfert rapide depuis le compte " + compteId + " vers le sous-compte " + sousCompteId);
+        // Redirection vers le formulaire de transfert avec pré-remplissage
+        window.location.href = "{{ url_for('banking_transfert') }}?source=" + compteId + "&destination_type=sous_compte&destination=" + sousCompteId;
+    }
+
+    function retraitRapide(compteId, sousCompteId) {
+        // Implémentation de la fonction de retrait rapide
+        console.log("Retrait rapide depuis le sous-compte " + sousCompteId + " vers le compte " + compteId);
+        // Redirection vers le formulaire de transfert avec pré-remplissage
+        window.location.href = "{{ url_for('banking_transfert') }}?source_type=sous_compte&source=" + sousCompteId + "&destination=" + compteId;
+    }
+</script>
+{% endblock %}

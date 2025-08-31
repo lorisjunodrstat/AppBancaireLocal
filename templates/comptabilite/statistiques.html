@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Statistiques Financières</h2>
+
+    <!-- Statistiques Globales -->
+    <div class="row text-center mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3">
+                <h5>Solde Total</h5>
+                <h3 class="text-success">{{ stats.total_solde | default('0.00') }} €</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3">
+                <h5>Nombre de Comptes</h5>
+                <h3>{{ stats.nombre_comptes | default('0') }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3">
+                <h5>Total Épargne</h5>
+                <h3 class="text-primary">{{ stats.total_epargne | default('0.00') }} €</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Répartition par Banque -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-light"><h5>Répartition par Banque</h5></div>
+        <div class="card-body">
+            <canvas id="repartitionChart" height="120"></canvas>
+        </div>
+    </div>
+
+    <!-- Évolution de l'Épargne -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-light"><h5>Évolution de l'Épargne (12 derniers mois)</h5></div>
+        <div class="card-body">
+            <canvas id="evolutionChart" height="120"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Charts JS (Chart.js minimal) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Répartition par banque
+    const repartitionCtx = document.getElementById('repartitionChart');
+    new Chart(repartitionCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ repartition|map(attribute='banque')|list|tojson }},
+            datasets: [{
+                data: {{ repartition|map(attribute='montant')|list|tojson }},
+                backgroundColor: ['#007bff','#28a745','#ffc107','#17a2b8','#6f42c1']
+            }]
+        }
+    });
+
+    // Évolution de l'épargne
+    const evolutionCtx = document.getElementById('evolutionChart');
+    new Chart(evolutionCtx, {
+        type: 'line',
+        data: {
+            labels: {{ evolution|map(attribute='mois')|list|tojson }},
+            datasets: [{
+                label: 'Montant (€)',
+                data: {{ evolution|map(attribute='montant')|list|tojson }},
+                fill: true,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                tension: 0.3
+            }]
+        }
+    });
+</script>
+{% endblock %}

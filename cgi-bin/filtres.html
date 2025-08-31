@@ -1,0 +1,235 @@
+<section class="bx-card--nav">
+    <div class="bx-card-container-nav-tabs bx-no-bottom-margin">
+        <div class="grid">
+            <div class="cell">
+                <ul class="nav nav-tabs nav-tabs-bordered">
+                    <li id="showAccountBalanceReport">
+                        <a href="/index.php/accountingReport/showAccountBalanceReport">Feuille de compte</a>                    </li>
+                    <li id="showJournalReport">
+                        <a href="/index.php/accountingReport/showJournalReport">Journal</a>                    </li>
+                    <li id="showOpList">
+                        <a href="/index.php/accountingReport/showOpList">Postes ouverts</a>                    </li>
+
+                    <span id="accountingReportsBeta" class="nav nav-tabs nav-tabs-bordered accounting-reports">
+                        <li id="showIncomeStatement">
+                            <span id="indagia-reports-new-income-statement-enabled-by-customer"></span>
+                            <a href="/index.php/accountingReport/showIncomeStatement">Compte de résultat  plus</a>                            <span class="glyphicons plus">&nbsp;</span>
+                        </li>
+
+                        <li id="showBalanceSheet">
+                            <span id="indagia-reports-new-income-statement-enabled-by-customer"></span>
+                            <a href="/index.php/accountingReport/showBalanceSheet">Bilan plus</a>                            <span class="glyphicons plus">&nbsp;</span>
+                        </li>
+
+                        <li class="active" id="showProfitAndLossReport">
+                            <span id="indagia-reports-old-income-statement-enabled-by-customer"></span>
+                            <a href="/index.php/accountingReport/showProfitAndLossReport">Compte de résultat </a>                        </li>
+
+                        <li id="showBalanceSheetReport">
+                            <span id="indagia-reports-old-balance-sheet-enabled-by-customer"></span>
+                            <a href="/index.php/accountingReport/showBalanceSheetReport">Bilan</a>                        </li>
+
+                        <li id="showProtocolReport">
+                            <a href="/index.php/accountingReport/showProtocolReport">Protocoles</a>                        </li>
+                    </span>
+
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+<section class="bx-filter-action-container bx-flex-wrap">
+    <div class="bx-flex-block bx-flex-align-top-left">
+        <ul class="nav nav-tabs bx-listFilter-ul" id="tab">
+            <li class="bx-listFilter active">
+                <a class="ajxl"
+                    href="/index.php/filter/useFilter/f/ProfitAndLossReportListFilter/m/accountingReport/a/showProfitAndLossReport/id/empty">Tous<i
+                        data-link="/index.php/filter/saveDefaultTab/f/ProfitAndLossReportListFilter/m/accountingReport/a/showProfitAndLossReport/fId/empty"
+                        class="halflings halflings-glyph-pushpin js-set-standard-tab"
+                        title="Définir comme onglet par défaut" data-placement="bottom"></i></a>
+            </li>
+            <li class="bx-listFilter ">
+                <a class="ajxl"
+                    href="/index.php/filter/useFilter/f/ProfitAndLossReportListFilter/m/accountingReport/a/showProfitAndLossReport/id/42">Revenus</a>
+            </li>
+            <li class="bx-listFilter ">
+                <a class="ajxl"
+                    href="/index.php/filter/useFilter/f/ProfitAndLossReportListFilter/m/accountingReport/a/showProfitAndLossReport/id/43">Charges</a>
+            </li>
+        </ul>
+    </div>
+    <div class="bx-flex-block bx-flex-align-top-right bx-shrink ">
+        <!-- BEGIN FILTER COLLAPSE BUTTON -->
+        <a class="bx-filter-action-btn js-list-filter-btn bx-active" data-toggle="collapse" href=".js-list-filter"
+            rel="tooltip" title="" data-original-title="Filtrer">
+            <span class="bx-svg-filter"></span>
+        </a>
+        <!-- END FILTER COLLAPSE BUTTON -->
+
+        <!-- BEGIN FILTER ACTION BUTTONS -->
+        <a class="bx-filter-action-btn" rel="tooltip" title=""
+            href="/index.php/accountingReport/exportProfitAndLossReport/f/ProfitAndLossReportListFilter/m/accountingReport/a/showProfitAndLossReport"
+            data-original-title="Télécharger au format PDF et imprimer"><span class="bx-svg-pdf"></span></a> <a
+            class="bx-filter-action-btn" rel="tooltip" title="Télécharger au format Excel"
+            onclick="if (!this.getAttribute('disabled')) jq_load_dialog('/index.php/filter/export/f/ProfitAndLossReportListFilter/m/accountingReport/a/showProfitAndLossReport',{autoOpen:false, bgiframe:false, close:'function() { $(this).dialog(\'destroy\'); }', maxHeight:2000, maxWidth:2024, modal:true, resizable:false, title:'Télécharger au format Excel', width:400},'#jqDialog'); return false;"
+            href="/index.php/filter/export/f/ProfitAndLossReportListFilter/m/accountingReport/a/showProfitAndLossReport"><span
+                class="bx-svg-xls"></span></a> <!-- END FILTER ACTION BUTTONS -->
+
+        <!-- BEGIN SEARCH BUTTON -->
+        <!-- END SEARCH BUTTON -->
+    </div>
+</section>
+<section class="bx-filter-form-container bx-filter-collapse js-list-filter  in collapse" style="height: auto;">
+        <div class="bx-filter-form-collapse">
+            <form method="post" action="/index.php/filter/saveFilter/f/ProfitAndLossReportListFilter/m/accountingReport/a/showProfitAndLossReport">
+    <input type="hidden" name="fibu_account_group_filters[_csrf_token]" id="fibu_account_group_filters__csrf_token">        <div class="grid grid-gap xs6 sm6 md4">
+    <div class="cell">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_fibu_business_year_choice">Exercice</label>
+ <div class="controls"><div class="input">
+<div id="fibu_account_group_filters_fibu_business_year_choice" style="display:inline-block;">
+    <input type="hidden" name="fibu_account_group_filters[fibu_business_year_choice][from]" value="2025-01-01 00:00:00" id="fibu_account_group_filters_fibu_business_year_choice_from"><input type="hidden" name="fibu_account_group_filters[fibu_business_year_choice][to]" value="2025-12-31 23:59:59" id="fibu_account_group_filters_fibu_business_year_choice_to">
+    <button class="btn  dropdown-toggle" data-toggle="dropdown" type="button"><i class="halflings halflings-glyph-calendar"></i> <span id="fibu_account_group_filters_fibu_business_year_choice_text">01.01.2025 - 31.12.2025</span> <span class="caret"></span></button>
+</div>
+<script type="text/javascript">
+    $(document).ready(function() {
+        moment.locale("fr");
+        $("#fibu_account_group_filters_fibu_business_year_choice").daterangepicker({
+            ranges: {
+                "01.01.2025 - 31.12.2025": [moment('2025-01-01'), moment('2025-12-31')],
+"01.01.2024 - 31.12.2024": [moment('2024-01-01'), moment('2024-12-31')],
+"01.01.2023 - 31.12.2023": [moment('2023-01-01'), moment('2023-12-31')],
+"01.01.2022 - 31.12.2022": [moment('2022-01-01'), moment('2022-12-31')],
+"01.01.2021 - 31.12.2021": [moment('2021-01-01'), moment('2021-12-31')],
+"01.01.2020 - 31.12.2020": [moment('2020-01-01'), moment('2020-12-31')],
+"01.01.2019 - 31.12.2019": [moment('2019-01-01'), moment('2019-12-31')],
+"01.01.2018 - 31.12.2018": [moment('2018-01-01'), moment('2018-12-31')],
+"01.01.2017 - 31.12.2017": [moment('2017-01-01'), moment('2017-12-31')]
+            },
+            opens: "right",
+            format: moment()._locale._longDateFormat.L,
+            startDate: moment("2025-01-01 00:00:00"),
+            endDate: moment("2025-12-31 23:59:59"),
+            locale: {
+                applyLabel: "Appliquer",
+cancelLabel: "Annuler",
+fromLabel: "Du",
+toLabel: "Au",
+customRangeLabel: "Propre"
+            }
+        },
+        function(start, end) {
+            $("#fibu_account_group_filters_fibu_business_year_choice_text").html(start.format(moment()._locale._longDateFormat.L) + " - " + end.format(moment()._locale._longDateFormat.L));
+            $("#fibu_account_group_filters_fibu_business_year_choice_from").val(start.format("YYYY-MM-DD"));
+            $("#fibu_account_group_filters_fibu_business_year_choice_to").val(end.format("YYYY-MM-DD"));
+            $("#fibu_account_group_filters_fibu_business_year_choice_to").change();
+        });
+    });
+    $("#fibu_account_group_filters_fibu_business_year_choice").on("show.daterangepicker", function(ev, picker) {
+        picker.showCalendars();
+    });
+     $("#fibu_account_group_filters_fibu_business_year_choice").on("showCalendar.daterangepicker", function(ev, picker) {
+        if (picker.chosenLabel == "Propre") {
+            picker.container.find(".ranges li").removeClass("active").html();
+            picker.chosenLabel = picker.container.find(".ranges li:last").addClass("active").html();
+        }
+        if (picker.container.find("input[name=daterangepicker_start]").is(":focus")) {
+            picker.container.find("input[name=daterangepicker_start]").select();
+            picker.container.find(".ranges li").removeClass("active").html();
+            picker.chosenLabel = picker.container.find(".ranges li:last").addClass("active").html();
+        } else if (picker.container.find("input[name=daterangepicker_end]").is(":focus")) {
+            picker.container.find("input[name=daterangepicker_end]").select();
+            picker.container.find(".ranges li").removeClass("active").html();
+            picker.chosenLabel = picker.container.find(".ranges li:last").addClass("active").html();
+        }
+    });
+</script>
+</div></div>
+</div>
+    </div>
+    <div class="cell bx-formular-floatCheckbox bx-formular-floatCheckbox-margin">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_compare_to_last_year">Afficher la comparaison avec l'année précédente</label>
+ <div class="controls"><div class="input"><input type="checkbox" name="fibu_account_group_filters[compare_to_last_year]" id="fibu_account_group_filters_compare_to_last_year"></div></div>
+</div>
+    </div>
+    <div class="cell bx-formular-floatCheckbox bx-formular-floatCheckbox-margin">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_show_zero_values">Afficher les comptes avec des valeurs 0</label>
+ <div class="controls"><div class="input"><input type="checkbox" name="fibu_account_group_filters[show_zero_values]" id="fibu_account_group_filters_show_zero_values"></div></div>
+</div>
+    </div>
+    <div class="cell">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_account_type">Type de compte</label>
+ <div class="controls"><div class="input"><div class="select2-container" id="s2id_fibu_account_group_filters_account_type" style="width: 100%;"><a href="javascript:void(0)" class="select2-choice select2-default" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-3"> </span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><label for="s2id_autogen3" class="select2-offscreen">Type de compte</label><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" role="button" aria-labelledby="select2-chosen-3" id="s2id_autogen3"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen3_search" class="select2-offscreen">Type de compte</label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-3" id="s2id_autogen3_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" id="select2-results-3">   </ul></div></div><select name="fibu_account_group_filters[account_type]" id="fibu_account_group_filters_account_type" title="Type de compte" class="select2-offscreen" tabindex="-1">
+<option value="" selected="selected"></option>
+<option value="1">Compte de produits</option>
+<option value="2">Compte de charges</option>
+</select></div></div>
+</div>
+    </div>
+    <div class="cell hide" id="js-amount-decimals">
+        <div class="control-group ">
+ <label class="control-label" for="fibu_account_group_filters_amount_decimals">Nombre de décimales</label>
+ <div class="controls"><div class="input"><div class="select2-container" id="s2id_fibu_account_group_filters_amount_decimals" style="width: 100%;"><a href="javascript:void(0)" class="select2-choice" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-4">2</span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><label for="s2id_autogen4" class="select2-offscreen">Nombre de décimales</label><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" role="button" aria-labelledby="select2-chosen-4" id="s2id_autogen4"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen4_search" class="select2-offscreen">Nombre de décimales</label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-4" id="s2id_autogen4_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" id="select2-results-4">   </ul></div></div><select name="fibu_account_group_filters[amount_decimals]" id="fibu_account_group_filters_amount_decimals" title="Nombre de décimales" class="select2-offscreen" tabindex="-1">
+<option value="0">0</option>
+<option value="1">1</option>
+<option value="2" selected="selected">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+</select></div></div>
+</div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    (function ($, window, document, undefined) {
+        $(document).ready(function() {
+            const indagiaStartDate = '2019-01-01';
+            const amountDecimals = '2';
+            const decimalNumberFilter = $("#js-amount-decimals");
+            const decimalNumberFilterInput = $('#fibu_account_group_filters_amount_decimals');
+            const dateRangePicker = $('#fibu_account_group_filters_fibu_business_year_choice');
+
+            checkFilterVisibility(indagiaStartDate, dateRangePicker.data('daterangepicker'));
+
+            dateRangePicker.on('apply.daterangepicker', function (ev, picker) {
+                checkFilterVisibility(indagiaStartDate, picker);
+            });
+
+            function checkFilterVisibility(indagiaStartDate, picker) {
+                if (!moment(indagiaStartDate, 'YYYY-MM-DD').isValid()) {
+                    showDecimalNumberFilter();
+                    return;
+                }
+
+                if (picker.endDate.isAfter(moment(indagiaStartDate, 'YYYY-MM-DD')) || picker.endDate.isSame(moment(indagiaStartDate, 'YYYY-MM-DD'))) {
+                    hideDecimalNumberFilter();
+                } else {
+                    showDecimalNumberFilter();
+                }
+            }
+
+            function hideDecimalNumberFilter() {
+                if (!decimalNumberFilter.hasClass('hide')) {
+                    decimalNumberFilterInput.val(amountDecimals).trigger('change');
+                    decimalNumberFilter.addClass('hide');
+                }
+            }
+
+            function showDecimalNumberFilter() {
+                if (decimalNumberFilter.hasClass('hide')) {
+                    decimalNumberFilter.removeClass('hide');
+                }
+            }
+        });
+    })(jQuery, window, document);
+</script>
+    <div class="bx-filter-form-container--actions">
+            <button class="btn btn-primary">Appliquer le filtre</button>
+                    <button class="btn" onclick="saveFilter($(this).closest('form')); return false;">Enregistrer le filtre</button>
+            </div></form>        </div>
+    </section>

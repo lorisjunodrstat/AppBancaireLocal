@@ -1,0 +1,85 @@
+<!-- Modal pour transfert vers un sous-compte -->
+<div class="modal fade" id="modalTransfertVersSous" tabindex="-1" aria-labelledby="modalTransfertVersSousLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTransfertVersSousLabel">Transfert vers un sous-compte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formTransfertVersSous">
+                    <div class="mb-3">
+                        <label for="modalCompteSource" class="form-label">Compte source</label>
+                        <select class="form-select" id="modalCompteSource" required>
+                            <option value="" selected disabled>-- Choisir un compte --</option>
+                            {% for compte in comptes_ %}
+                            <option value="{{ compte.id }}" data-solde="{{ compte.solde }}">
+                                {{ compte.nom_banque }} - {{ compte.nom_compte }} ({{ compte.solde }} {{ compte.devise }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalSousCompteDest" class="form-label">Sous-compte destination</label>
+                        <select class="form-select" id="modalSousCompteDest" required>
+                            <option value="" selected disabled>-- Choisir un sous-compte --</option>
+                            {% for sous_compte in sous_comptes_ %}
+                            <option value="{{ sous_compte.id }}" data-compte-id="{{ sous_compte.compte_principal_id }}">
+                                {{ sous_compte.nom_sous_compte }} ({{ sous_compte.solde }} {{ sous_compte.devise }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalMontantVersSous" class="form-label">Montant (CHF)</label>
+                        <input type="number" step="0.01" min="0.01" class="form-control" id="modalMontantVersSous" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalCommentaireVersSous" class="form-label">Commentaire (optionnel)</label>
+                        <textarea class="form-control" id="modalCommentaireVersSous" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" onclick="effectuerTransfertVersSous()">Effectuer le transfert</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // Fonctions minimales pour les transferts
+    function effectuerTransfertVersSous() {
+        const compteId = document.getElementById('modalCompteSource').value;
+        const sousCompteId = document.getElementById('modalSousCompteDest').value;
+        const montant = document.getElementById('modalMontantVersSous').value;
+        const commentaire = document.getElementById('modalCommentaireVersSous').value;
+
+        // Remplir le formulaire principal et le soumettre
+        document.getElementById('compte_id').value = compteId;
+        document.getElementById('sous_compte_id').value = sousCompteId;
+        document.getElementById('direction').value = 'compte_vers_sous';
+        document.getElementById('montant').value = montant;
+        document.getElementById('commentaire').value = commentaire;
+
+        // Soumettre le formulaire
+        document.querySelector('form').submit();
+    }
+
+    function effectuerTransfertDepuisSous() {
+        const sousCompteId = document.getElementById('modalSousCompteSource').value;
+        const compteId = document.getElementById('modalCompteDest').value;
+        const montant = document.getElementById('modalMontantDepuisSous').value;
+        const commentaire = document.getElementById('modalCommentaireDepuisSous').value;
+
+        // Remplir le formulaire principal et le soumettre
+        document.getElementById('compte_id').value = compteId;
+        document.getElementById('sous_compte_id').value = sousCompteId;
+        document.getElementById('direction').value = 'sous_vers_compte';
+        document.getElementById('montant').value = montant;
+        document.getElementById('commentaire').value = commentaire;
+
+        // Soumettre le formulaire
+        document.querySelector('form').submit();
+    }
+</script>

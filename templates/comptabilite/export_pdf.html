@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Compte de résultat {{ annee }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+        h1 { color: #333; text-align: center; font-size: 18px; }
+        h2 { color: #555; font-size: 14px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { background-color: #4472C4; color: white; text-align: left; padding: 5px; }
+        td { padding: 5px; border-bottom: 1px solid #ddd; }
+        .total { background-color: #f2f2f2; font-weight: bold; }
+        .resultat { background-color: {% if stats.resultat >= 0 %}#70AD47{% else %}#FF0000{% endif %}; 
+                   color: white; font-weight: bold; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .header { margin-bottom: 20px; text-align: center; }
+        .footer { margin-top: 30px; font-size: 10px; text-align: center; color: #777; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Compte de résultat {{ annee }}</h1>
+        <p>Période du {{ stats.date_from|format_date }} au {{ stats.date_to|format_date }}</p>
+    </div>
+
+    <h2>PRODUITS</h2>
+    <table>
+        <tr>
+            <th>Numéro</th>
+            <th>Catégorie</th>
+            <th class="text-right">Montant (CHF)</th>
+        </tr>
+        {% for produit in stats.produits if produit.montant %}
+        <tr>
+            <td>{{ produit.numero }}</td>
+            <td>{{ produit.categorie_nom }}</td>
+            <td class="text-right">{{ "%.2f"|format(produit.montant) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total">
+            <td colspan="2">TOTAL PRODUITS</td>
+            <td class="text-right">{{ "%.2f"|format(stats.total_produits) }}</td>
+        </tr>
+    </table>
+
+    <h2>CHARGES</h2>
+    <table>
+        <tr>
+            <th>Numéro</th>
+            <th>Catégorie</th>
+            <th class="text-right">Montant (CHF)</th>
+        </tr>
+        {% for charge in stats.charges if charge.montant %}
+        <tr>
+            <td>{{ charge.numero }}</td>
+            <td>{{ charge.categorie_nom }}</td>
+            <td class="text-right">{{ "%.2f"|format(charge.montant) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total">
+            <td colspan="2">TOTAL CHARGES</td>
+            <td class="text-right">{{ "%.2f"|format(stats.total_charges) }}</td>
+        </tr>
+    </table>
+
+    <table>
+        <tr class="resultat">
+            <td colspan="2">RÉSULTAT {{ annee }}</td>
+            <td class="text-right">{{ "%.2f"|format(stats.resultat) }} CHF</td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        Généré le {{ date }} - Application Comptabilité Flask
+    </div>
+</body>
+</html>

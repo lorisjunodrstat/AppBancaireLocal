@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Écritures comptables</h2>
+    
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="compte_id" class="form-label">Compte bancaire</label>
+                    <select id="compte_id" name="compte_id" class="form-select">
+                        <option value="">Tous les comptes</option>
+                        {% for compte in comptes %}
+                        <option value="{{ compte.id }}" {% if compte.id == compte_selectionne|int %}selected{% endif %}>
+                            {{ compte.nom_compte }} ({{ compte.nom_banque }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="date_from" class="form-label">Du</label>
+                    <input type="date" id="date_from" name="date_from" class="form-control" value="{{ request.args.get('date_from', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="date_to" class="form-label">Au</label>
+                    <input type="date" id="date_to" name="date_to" class="form-control" value="{{ request.args.get('date_to', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="id_contact" class="form-label">Contact</label>
+                    <select id="id_contact" name="id_contact" class="form-select"   >
+                        <option value="">Tous les contacts</option>
+                        {% for contact in contacts %}
+                        <option value="{{ contact.id }}" {% if contact.id == contact_selectionne|int %}selected{% endif %}>
+                            {{ contact.nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select id="statut" name="statut" class="form-select">
+                        {% for statut in statuts_disponibles %}
+                        <option value="{{ statut.value }}" {% if statut.value==statut_selectionne %}selected{% endif %}>
+                            {{ statut.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Filtrer</button>
+                    <a href="{{ url_for('liste_ecritures') }}" class="btn btn-outline-secondary ms-2">Réinitialiser</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tableau des écritures -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Historique des écritures</h5>
+            <a href="{{ url_for('nouvelle_ecriture') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Nouvelle écriture
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Compte</th>
+                            <th>Catégorie</th>
+                            <th>Description</th>
+                            <th>Contact
+                            <th class="text-end">Montant</th>
+                            <th>Actions</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ecriture in ecritures %}
+                        <tr class="{% if ecriture.type_ecriture == 'recette' %}table-success{% else %}table-danger{% endif %}">
+                            <td>{{ ecriture.date_ecriture.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ ecriture.compte_bancaire_nom }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ ecriture.categorie_numero }}</span>
+                                {{ ecriture.categorie_nom }}
+                            </td>
+                            <td>{{ ecriture.description }}</td>
+                            <td>{{ecriture.id_contact }}</td>
+                            <td class="text-end fw-bold">
+                                {{ "%.2f"|format(ecriture.montant) }} {{ ecriture.devise }}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('edit_ecriture', ecriture_id=ecriture.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ url_for('delete_ecriture', ecriture_id=ecriture.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette écriture?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                            <!-- Dans le tableau des écritures -->
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('edit_ecriture', ecriture_id=ecriture.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                            
+                                    <!-- Menu déroulant pour le statut -->
+                                    <div class="btn-group">
+                                        <button type="button"
+                                            class="btn btn-sm {% if ecriture.statut == 'validée' %}btn-success{% elif ecriture.statut == 'rejetée' %}btn-danger{% else %}btn-warning{% endif %} dropdown-toggle"
+                                            data-bs-toggle="dropdown">
+                                            {{ ecriture.statut }}
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <form action="{{ url_for('edit_ecriture', ecriture_id=ecriture.id) }}" method="post"
+                                                    class="dropdown-item">
+                                                    <input type="hidden" name="statut" value="pending">
+                                                    <button type="submit" class="btn btn-link">En attente</button>
+                                                </form>
+                                            </li>
+                                            <li>
+                                                <form action="{{ url_for('edit_ecriture', ecriture_id=ecriture.id) }}" method="post"
+                                                    class="dropdown-item">
+                                                    <input type="hidden" name="statut" value="validée">
+                                                    <button type="submit" class="btn btn-link">Validée</button>
+                                                </form>
+                                            </li>
+                                            <li>
+                                                <form action="{{ url_for('edit_ecriture', ecriture_id=ecriture.id) }}" method="post"
+                                                    class="dropdown-item">
+                                                    <input type="hidden" name="statut" value="rejetée">
+                                                    <button type="submit" class="btn btn-link">Rejetée</button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                            
+                                    <a href="{{ url_for('delete_ecriture', ecriture_id=ecriture.id) }}" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Supprimer cette écriture?')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">Aucune écriture trouvée</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

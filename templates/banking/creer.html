@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Créer une Banque</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="nom" class="form-label">Nom</label>
+            <input type="text" class="form-control" name="nom" id="nom" required>
+        </div>
+        <div class="mb-3">
+            <label for="code_banque" class="form-label">Code Banque</label>
+            <input type="text" class="form-control" name="code_banque" id="code_banque" required>
+        </div>
+        <div class="mb-3">
+            <label for="pays" class="form-label">Pays</label>
+            <input type="text" class="form-control" name="pays" id="pays">
+        </div>
+        <div class="mb-3">
+            <label for="couleur" class="form-label">Couleur</label>
+            <input type="color" class="form-control form-control-color" name="couleur" id="couleur" value="#000000">
+        </div>
+        <div class="mb-3">
+            <label for="site_web" class="form-label">Site Web</label>
+            <input type="url" class="form-control" name="site_web" id="site_web">
+        </div>
+        <div class="mb-3">
+            <label for="logo_url" class="form-label">Logo URL</label>
+            <input type="url" class="form-control" name="logo_url" id="logo_url">
+        </div>
+        <button type="submit" class="btn btn-primary">Créer</button>
+        <a href="{{ url_for('liste_banques') }}" class="btn btn-secondary">Retour</a>
+    </form>
+</div>
+{% endblock %}

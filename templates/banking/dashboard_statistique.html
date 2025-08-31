@@ -1,0 +1,450 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de Bord - Statistiques Bancaires{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #3498db;
+        --secondary-color: #2ecc71;
+        --danger-color: #e74c3c;
+        --warning-color: #f39c12;
+        --light-color: #f8f9fa;
+        --dark-color: #343a40;
+        --gray-color: #6c757d;
+    }
+    
+    .period-selector {
+        margin: 20px 0;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .period-btn {
+        padding: 8px 16px;
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .period-btn.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        transition: transform 0.3s;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .card-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--dark-color);
+    }
+    
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .stat-label {
+        color: var(--gray-color);
+        font-size: 0.9rem;
+    }
+    
+    .positive {
+        color: var(--secondary-color);
+    }
+    
+    .negative {
+        color: var(--danger-color);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 15px;
+    }
+    
+    .alert-item {
+        padding: 10px 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid;
+        border-radius: 4px;
+        background-color: #fff9e6;
+    }
+    
+    .alert-warning {
+        border-left-color: var(--warning-color);
+    }
+    
+    .alert-danger {
+        border-left-color: var(--danger-color);
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stat-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+        .chart_compte {
+            width: 400px;
+            margin: 20px auto;
+            font-family: sans-serif;
+        }
+        .bar_compte {
+            margin: 6px 0;
+            background: linear-gradient(90deg,#4e9af1,#6cd9ff);
+            border-radius: 8px;
+            box-shadow: 0 2px;
+            transition: width 0.6s ease;
+            color:white;
+            text-align: right;
+            padding-right: 10px;
+            line-height:25px;
+            font-size: 13px;
+        }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Tableau de Bord Financier</h1>
+    
+    <div class="period-selector">
+        <span>Période :</span>
+        <button class="period-btn active" data-period="1">1M</button>
+        <button class="period-btn" data-period="3">3M</button>
+        <button class="period-btn" data-period="6">6M</button>
+        <button class="period-btn" data-period="12">1A</button>
+    </div>
+    
+    <div class="dashboard-grid">
+        <!-- Carte de résumé financier -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Résumé Financier</h2>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Solde Total</div>
+                    <div class="stat-value positive">{{ stats.solde_total_principal }}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Épargne Totale</div>
+                    <div class="stat-value">{{ stats.epargne_totale }}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Patrimoine</div>
+                    <div class="stat-value positive">{{ stats.patrimoine_total }}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Objectifs</div>
+                    <div class="stat-value">{{ stats.objectifs_totaux }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Carte de transactions du mois -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Ce Mois</h2>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Recettes</div>
+                    <div class="stat-value positive">{{ stats.total_recettes_mois }}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Dépenses</div>
+                    <div class="stat-value negative">{{ stats.total_depenses_mois }}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Solde</div>
+                    <div class="stat-value">{{ stats.solde_mois }}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Transactions</div>
+                    <div class="stat-value">{{ stats.nb_transactions_mois }}</div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Graphique d'évolution des soldes -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Évolution des Soldes</h2>
+            </div>
+            <div class="chart-container">
+                <canvas id="evolutionChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-grid">
+        <!-- Graphique de répartition par banque -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Répartition par Banque</h2>
+            </div>
+            <div class="card-body">
+                {% if repartition %}
+                    {% for banque in repartition %}
+                    <h2>{{ banque.nom_banque }}</h2>
+                    <p>{{ banque.montant_total }}</p>
+                    <p></p>
+                    {% endfor %}
+                {% else %}
+                    <p>Il n'y a pas d'objet repartion</p>
+                {% endif %}
+            </div>
+            <div class="chart-container">
+                <canvas id="repartitionChart"></canvas>
+            </div>
+        </div>
+        
+        
+        <!-- Graphique de répartition par catégorie -->
+        <div class="card" style="background-color:#ddd;">
+            <div class="card-header">
+                <h2 class="card-title">Dépenses par Catégorie</h2>
+            </div>
+            <div class="card-body">
+                {% set repartition_labels = ["PostFinance", "Neon Banque", "Yuh Banque"] %}
+                {% set repartition_values = [7614.4, 5125.0, 3290.0] %}
+                {% set repartition_colors = ["#ffcc00", "#9195f2", "#000000"] %}
+        
+                {% set total = repartition_values | sum %}
+                {% set max_height = 300 %}
+        
+                <div
+                    style="display: flex; align-items: flex-end; justify-content: center; gap: 20px; height: {{ max_height }}px;">
+                    {% for i in range(repartition_labels|length) %}
+                    {% set label = repartition_labels[i] %}
+                    {% set value = repartition_values[i] %}
+                    {% set color = repartition_colors[i] %}
+                    {% set bar_height = (value / total * max_height) if total > 0 else 0 %}
+        
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <div style="width: 40px;
+                                        height: {{ bar_height }}px;
+                                        background-color: {{ color }};
+                                        border-radius: 6px 6px 0 0;
+                                        transition: height 0.6s ease;">
+                        </div>
+                        <span style="margin-top: 8px; font-size: 12px; text-align: center; color: #333;">
+                            {{ label }} ({{ value }} CHF – {{ (value / total * 100)|round(2) }}%)
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="card" style="background-color:#ddd;">
+            <div class="card-header">
+                <h2 class="card-title">Dépenses par Catégorie (Barre horizontale)</h2>
+            </div>
+            <div class="card-body">
+                {% set repartition_labels = ["PostFinance", "Neon Banque", "Yuh Banque"] %}
+                {% set repartition_values = [7614.4, 5125.0, 3290.0] %}
+                {% set repartition_colors = ["#ffcc00", "#9195f2", "#000000"] %}
+                
+                {% set total = repartition_values | sum %}
+                
+                <div
+                    style="width: 100%; max-width: 600px; height: 40px; display: flex; border-radius: 8px; overflow: hidden; background-color: #ddd; margin: 20px auto;">
+                    {% for i in range(repartition_labels|length) %}
+                    {% set label = repartition_labels[i] %}
+                    {% set value = repartition_values[i] %}
+                    {% set color = repartition_colors[i] %}
+                    {% set width_percent = (value / total * 100) if total > 0 else 0 %}
+                    <div style="width: {{ width_percent }}%;
+                                    background-color: {{ color }};
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    color: white;
+                                    font-size: 12px;
+                                    font-weight: bold;
+                                    transition: width 0.6s ease;">
+                        {{ label }} ({{ (value / total * 100)|round(1) }}%)
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    
+        <!-- Alertes et notifications -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Alertes Budget</h2>
+            </div>
+            <div class="alert-list">
+                {% if alertes %}
+                    {% for alerte in alertes %}
+                    <div class="alert-item {% if alerte.statut == 'Dépassement' %}alert-danger{% else %}alert-warning{% endif %}">
+                        <strong>{{ alerte.statut }}:</strong> Votre budget {{ alerte.categorie }} est utilisé à {{ (alerte.depenses_mois / alerte.budget_max * 100)|round|int }}%
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p>Aucune alerte budget pour le moment.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Données pour les graphiques (passées depuis le backend)
+    const evolutionData = {
+        labels: {{ evolution_labels|tojson }},
+        datasets: [
+            {
+                label: 'Épargne Mensuelle',
+                data: {{ evolution_values|tojson }},
+                borderColor: '#2ecc71',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                tension: 0.3,
+                fill: true
+            }
+        ]
+    };
+
+    const repartitionData = {
+        labels: {{ repartition_labels|tojson }},
+        datasets: [{
+            data: {{ repartition_values|tojson }},
+            backgroundColor: {{ repartition_colors|tojson }},
+            hoverOffset: 4
+        }]
+    };
+
+    // Configuration des graphiques
+    const evolutionConfig = {
+        type: 'line',
+        data: evolutionData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' €';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' €';
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    const repartitionConfig = {
+        type: 'doughnut',
+        data: repartitionData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed + ' €';
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // Initialisation des graphiques
+    document.addEventListener('DOMContentLoaded', function() {
+        const evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
+        new Chart(evolutionCtx, evolutionConfig);
+        
+        const repartitionCtx = document.getElementById('repartitionChart').getContext('2d');
+        new Chart(repartitionCtx, repartitionConfig);
+        
+        // Gestion des boutons de période
+        document.querySelectorAll('.period-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.period-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // Recharger les données en fonction de la période sélectionnée
+                const period = this.getAttribute('data-period');
+                window.location.href = "{{ url_for('banking_statistique_dashboard') }}?period=" + period;
+            });
+        });
+    });
+</script>
+{% endblock %}

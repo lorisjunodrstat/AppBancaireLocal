@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-file-invoice"></i> Écritures du contact : {{ contact.nom }}</h1>
+        <a href="{{ url_for('liste_contacts_comptables') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux contacts
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Type</th>
+                    <th>Compte</th>
+                    <th class="text-end">Montant</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if ecritures %}
+                {# Calculer tous les totaux dans une structure simple #}
+                {% set months = {} %}
+                {% set days = {} %}
+                {% set global_totals = {'depenses': 0, 'recettes': 0} %}
+
+                {% for ecriture in ecritures|sort(attribute='date_ecriture') %}
+                {% set month_key = ecriture.date_ecriture.strftime('%Y-%m') %}
+                {% set day_key = ecriture.date_ecriture.strftime('%Y-%m-%d') %}
+
+                {# Initialiser le mois si nécessaire #}
+                {% if month_key not in months %}
+                {% set _ = months.update({month_key: {
+                'ecritures': [],
+                'depenses': 0,
+                'recettes': 0,
+                'solde': 0
+                }}) %}
+                {% endif %}
+
+                {# Initialiser le jour si nécessaire #}
+                {% if day_key not in days %}
+                {% set _ = days.update({day_key: {
+                'ecritures': [],
+                'depenses': 0,
+                'recettes': 0,
+                'solde': 0,
+                'month': month_key
+                }}) %}
+                {% endif %}
+
+                {# Ajouter l'écriture #}
+                {% set _ = months[month_key].ecritures.append(ecriture) %}
+                {% set _ = days[day_key].ecritures.append(ecriture) %}
+
+                {# Mettre à jour les totaux #}
+                {% if ecriture.type_ecriture == 'recette' %}
+                {% set _ = months[month_key].update({
+                'recettes': months[month_key].recettes + ecriture.montant,
+                'solde': months[month_key].solde + ecriture.montant
+                }) %}
+                {% set _ = days[day_key].update({
+                'recettes': days[day_key].recettes + ecriture.montant,
+                'solde': days[day_key].solde + ecriture.montant
+                }) %}
+                {% set _ = global_totals.update({
+                'recettes': global_totals.recettes + ecriture.montant
+                }) %}
+                {% else %}
+                {% set _ = months[month_key].update({
+                'depenses': months[month_key].depenses + ecriture.montant,
+                'solde': months[month_key].solde - ecriture.montant
+                }) %}
+                {% set _ = days[day_key].update({
+                'depenses': days[day_key].depenses + ecriture.montant,
+                'solde': days[day_key].solde - ecriture.montant
+                }) %}
+                {% set _ = global_totals.update({
+                'depenses': global_totals.depenses + ecriture.montant
+                }) %}
+                {% endif %}
+                {% endfor %}
+
+                {# Utiliser un namespace pour conserver la valeur cumulative entre les mois #}
+                {% set ns = namespace(cumulative_balance=0) %}
+                {% set month_keys_sorted = months|sort %}
+
+                {# Afficher les données #}
+                {% for month_key in month_keys_sorted %}
+                {% set month_data = months[month_key] %}
+                {% set month_formatted = month_data.ecritures.0.date_ecriture.strftime('%B %Y') %}
+
+                {# Mettre à jour le solde cumulatif #}
+                {% set ns.cumulative_balance = ns.cumulative_balance + month_data.solde %}
+
+                <tr class="table-primary">
+                    <td colspan="5" class="fw-bold text-center">
+                        <i class="fas fa-calendar"></i> MOIS DE {{ month_formatted.upper() }}
+                    </td>
+                </tr>
+
+                {# Afficher les jours de ce mois #}
+                {% for day_key in days|sort %}
+                {% set day_data = days[day_key] %}
+                {% if day_data.month == month_key %}
+                {% set day_formatted = day_data.ecritures.0.date_ecriture.strftime('%d.%m.%Y') %}
+
+                {# Afficher les écritures de ce jour #}
+                {% for ecriture in day_data.ecritures %}
+                <tr>
+                    <td>{{ ecriture.date_ecriture.strftime('%d.%m.%Y') }}</td>
+                    <td>{{ ecriture.description }}</td>
+                    <td>
+                        <span
+                            class="badge {% if ecriture.type_ecriture == 'recette' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ ecriture.type_ecriture|title }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if ecriture.nom_compte %}
+                        {{ ecriture.nom_compte }}
+                        {% elif ecriture.compte_bancaire_id %}
+                        Compte #{{ ecriture.compte_bancaire_id }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td
+                        class="text-end {% if ecriture.type_ecriture == 'recette' %}text-success{% else %}text-danger{% endif %}">
+                        {% if ecriture.type_ecriture == 'recette' %}+{% else %}-{% endif %}{{
+                        "%.2f"|format(ecriture.montant) }} CHF
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {# Afficher le total du jour #}
+                <tr class="table-info">
+                    <td colspan="3" class="text-end fw-bold">Total {{ day_formatted }} :</td>
+                    <td class="text-end fw-bold text-danger">-{{ "%.2f"|format(day_data.depenses) }} CHF</td>
+                    <td class="text-end fw-bold text-success">+{{ "%.2f"|format(day_data.recettes) }} CHF</td>
+                </tr>
+                <tr class="table-info">
+                    <td colspan="4" class="text-end fw-bold">Solde {{ day_formatted }} :</td>
+                    <td
+                        class="text-end fw-bold {% if day_data.solde >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%+.2f"|format(day_data.solde) }} CHF
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="5" class="bg-secondary py-1"></td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+
+                {# Afficher le total du mois #}
+                <tr class="table-warning">
+                    <td colspan="3" class="text-end fw-bold">Total {{ month_formatted }} :</td>
+                    <td class="text-end fw-bold text-danger">-{{ "%.2f"|format(month_data.depenses) }} CHF</td>
+                    <td class="text-end fw-bold text-success">+{{ "%.2f"|format(month_data.recettes) }} CHF</td>
+                </tr>
+                <tr class="table-warning">
+                    <td colspan="4" class="text-end fw-bold">Solde {{ month_formatted }} :</td>
+                    <td
+                        class="text-end fw-bold {% if month_data.solde >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%+.2f"|format(month_data.solde) }} CHF
+                    </td>
+                </tr>
+                <tr class="table-warning">
+                    <td colspan="4" class="text-end fw-bold">Solde cumulatif (fin {{ month_formatted }}) :</td>
+                    <td
+                        class="text-end fw-bold {% if ns.cumulative_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%+.2f"|format(ns.cumulative_balance) }} CHF
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="5" class="bg-light py-2"></td>
+                </tr>
+                {% endfor %}
+
+                {# Afficher le total général #}
+                {% set solde_general = global_totals.recettes - global_totals.depenses %}
+                <tr class="table-primary">
+                    <td colspan="3" class="text-end fw-bold">Total général :</td>
+                    <td class="text-end fw-bold text-danger">-{{ "%.2f"|format(global_totals.depenses) }} CHF</td>
+                    <td class="text-end fw-bold text-success">+{{ "%.2f"|format(global_totals.recettes) }} CHF</td>
+                </tr>
+                <tr class="table-primary">
+                    <td colspan="4" class="text-end fw-bold">Solde général final :</td>
+                    <td
+                        class="text-end fw-bold {% if solde_general >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%+.2f"|format(solde_general) }} CHF
+                    </td>
+                </tr>
+
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fas fa-file-invoice fa-2x mb-3"></i>
+                        <p>Aucune écriture trouvée pour ce contact</p>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .table-info,
+    .table-warning,
+    .table-primary {
+        border-top: 2px solid #dee2e6;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+
+    .bg-secondary {
+        background-color: #6c757d !important;
+        opacity: 0.2;
+    }
+</style>
+{% endblock %}

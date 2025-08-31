@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>Encodage des heures de travail</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="heures-form">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Mois</label>
+                        <select class="form-select" id="filter-mois">
+                            {% for mois in ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août',
+                            'Septembre', 'Octobre', 'Novembre', 'Décembre'] %}
+                            <option value="{{ loop.index }}" {% if current_mois==loop.index %}selected{% endif %}>{{
+                                mois }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Semaine</label>
+                        <select class="form-select" id="filter-semaine">
+                            <option value="0">Toutes</option>
+                            {% for i in range(1, 53) %}
+                            <option value="{{ i }}">Semaine {{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Mode</label>
+                        <select class="form-select" id="mode-saisie">
+                            <option value="reel">Heures réelles</option>
+                            <option value="simule">Heures simulées</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Jour</th>
+                                <th>Matin (Début)</th>
+                                <th>Matin (Fin)</th>
+                                <th>Après-midi (Début)</th>
+                                <th>Après-midi (Fin)</th>
+                                <th>Total Heures</th>
+                                <th>Vacances</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for jour in jours %}
+                            <tr>
+                                <td>{{ jour.date }}</td>
+                                <td>{{ jour.jour_semaine }}</td>
+                                <td><input type="time" class="form-control h-debut-matin" data-date="{{ jour.date }}"
+                                        data-period="matin" data-type="debut"
+                                        value="{{ jour.h1d if jour.h1d else '' }}"></td>
+                                <td><input type="time" class="form-control h-fin-matin" data-date="{{ jour.date }}"
+                                        data-period="matin" data-type="fin" value="{{ jour.h1f if jour.h1f else '' }}">
+                                </td>
+                                <td><input type="time" class="form-control h-debut-aprem" data-date="{{ jour.date }}"
+                                        data-period="aprem" data-type="debut"
+                                        value="{{ jour.h2d if jour.h2d else '' }}"></td>
+                                <td><input type="time" class="form-control h-fin-aprem" data-date="{{ jour.date }}"
+                                        data-period="aprem" data-type="fin" value="{{ jour.h2f if jour.h2f else '' }}">
+                                </td>
+                                <td class="total-heures">{{ jour.total_h if jour.total_h else '0.00' }}</td>
+                                <td><input type="checkbox" class="form-check-input vacances" data-date="{{ jour.date }}"
+                                        {% if jour.vacances %}checked{% endif %}></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="button" id="save-btn" class="btn btn-primary">Enregistrer</button>
+                <button type="button" id="simuler-btn" class="btn btn-secondary">Simuler</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script pour calculer automatiquement les heures et gérer l'enregistrement
+    document.addEventListener('DOMContentLoaded', function () {
+        // Calcul des heures lorsqu'un champ est modifié
+        document.querySelectorAll('input[type="time"]').forEach(input => {
+            input.addEventListener('change', calculerHeures);
+        });
+
+        // Filtrage
+        document.getElementById('filter-mois').addEventListener('change', filtrerJours);
+        document.getElementById('filter-semaine').addEventListener('change', filtrerJours);
+
+        // Simulation
+        document.getElementById('simuler-btn').addEventListener('click', function () {
+            // Ici vous pourriez ouvrir un modal avec des paramètres de simulation
+            alert("Fonctionnalité de simulation à implémenter");
+        });
+
+        // Enregistrement
+        document.getElementById('save-btn').addEventListener('click', saveData);
+
+        // Fonction pour envoyer les données au serveur
+        function saveData() {
+            const joursData = [];
+            const userId = 1; // Remplacer par l'ID réel de l'utilisateur
+
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const date = row.querySelector('.h-debut-matin').dataset.date;
+
+                joursData.push({
+                    date: date,
+                    h1d: row.querySelector('.h-debut-matin').value,
+                    h1f: row.querySelector('.h-fin-matin').value,
+                    h2d: row.querySelector('.h-debut-aprem').value,
+                    h2f: row.querySelector('.h-fin-aprem').value,
+                    vacances: row.querySelector('.vacances').checked
+                });
+            });
+
+            fetch('/heures-travail', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ jours: joursData })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('Données enregistrées avec succès !');
+                    } else {
+                        alert('Erreur lors de l\'enregistrement');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Une erreur est survenue');
+                });
+        };
+
+    function calculerHeures() {
+        const row = this.closest('tr');
+        const inputs = row.querySelectorAll('input[type="time"]');
+        let total = 0;
+
+        // Calcul des heures matin
+        if (inputs[0].value && inputs[1].value) {
+            total += calculerDifferenceHeures(inputs[0].value, inputs[1].value);
+        }
+
+        // Calcul des heures après-midi
+        if (inputs[2].value && inputs[3].value) {
+            total += calculerDifferenceHeures(inputs[2].value, inputs[3].value);
+        }
+
+        row.querySelector('.total-heures').textContent = total.toFixed(2);
+    }
+
+    function calculerDifferenceHeures(debut, fin) {
+        const [h1, m1] = debut.split(':').map(Number);
+        const [h2, m2] = fin.split(':').map(Number);
+        return (h2 - h1) + (m2 - m1) / 60;
+    }
+
+    function filtrerJours() {
+        const mois = document.getElementById('filter-mois').value;
+        const semaine = document.getElementById('filter-semaine').value;
+
+        // Construire l'URL avec les nouveaux paramètres
+        const params = new URLSearchParams();
+        params.append('mois', mois);
+        params.append('semaine', semaine);
+
+        // Recharger la page avec les nouveaux filtres
+        window.location.href = '/heures-travail?' + params.toString();
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Plan comptable</h2>
+        <a href="{{ url_for('nouvelle_categorie') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nouvelle catégorie
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Numéro</th>
+                            <th>Nom</th>
+                            <th>Type</th>
+                            <th>Parent</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for categorie in categories %}
+                        <tr>
+                            <td class="fw-bold">{{ categorie.numero }}</td>
+                            <td>{{ categorie.nom }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if categorie.type == 'actif' %}bg-primary
+                                    {% elif categorie.type == 'passif' %}bg-success
+                                    {% elif categorie.type == 'produit' %}bg-info
+                                    {% else %}bg-danger
+                                    {% endif %}">
+                                    {{ categorie.type }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if categorie.parent_id %}
+                                    {% for parent in categories if parent.id == categorie.parent_id %}
+                                        {{ parent.numero }} - {{ parent.nom }}
+                                    {% endfor %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('edit_categorie', categorie_id=categorie.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ url_for('delete_categorie', categorie_id=categorie.id) }}" 
+                                   class="btn btn-sm btn-outline-danger" 
+                                   onclick="return confirm('Supprimer cette catégorie?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Statistiques Bancaires{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">Statistiques Bancaires</h2>
+
+    <div class="mb-4 text-center">
+        <form method="get" action="{{ url_for('banking_statistiques') }}" class="d-inline-block">
+            <label for="period" class="me-2">Période :</label>
+            <select name="period" id="period" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
+                <option value="3" {% if selected_period==3 %}selected{% endif %}>3 mois</option>
+                <option value="6" {% if selected_period==6 %}selected{% endif %}>6 mois</option>
+                <option value="12" {% if selected_period==12 %}selected{% endif %}>12 mois</option>
+                <option value="24" {% if selected_period==24 %}selected{% endif %}>24 mois</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- Statistiques générales -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm text-center p-3">
+                <h5>Total des Comptes</h5>
+                <p class="fs-4 fw-bold text-primary">{{ stats.nb_comptes }}</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm text-center p-3">
+                <h5>Épargne Totale</h5>
+                <p class="fs-4 fw-bold text-success">CHF {{ stats.total_epargne }}</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm text-center p-3">
+                <h5>Banques Utilisées</h5>
+                <p class="fs-4 fw-bold text-info">{{ stats.nb_banques }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="row">
+        <!-- Répartition par Banque -->
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3 mb-4">
+                <h5 class="text-center">Répartition par Banque</h5>
+                <canvas id="repartitionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Évolution de l'Épargne -->
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3 mb-4">
+                <h5 class="text-center">Évolution de l'Épargne (12 mois)</h5>
+                <canvas id="evolutionChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Répartition par banque (Doughnut)
+    const repartitionCtx = document.getElementById('repartitionChart').getContext('2d');
+    new Chart(repartitionCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ repartition_labels | tojson }},
+        datasets: [{
+            data: {{ repartition_values | tojson }},
+        backgroundColor: {{ repartition_colors | tojson }},
+        borderColor: '#fff',
+        borderWidth: 2
+            }]
+        },
+        options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom' },
+            title: { display: true, text: 'Répartition par Banque' }
+        }
+    }
+    });
+
+    // Évolution de l'épargne (Line)
+    const evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
+    new Chart(evolutionCtx, {
+        type: 'line',
+        data: {
+            labels: {{ evolution_labels | tojson }},
+        datasets: [{
+            label: 'Épargne CHF',
+            data: {{ evolution_values | tojson }},
+        fill: true,
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        tension: 0.2
+            }]
+        },
+        options: {
+        responsive: true,
+        plugins: {
+            title: { display: true, text: 'Évolution sur 12 mois' }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+    });
+</script>
+{% endblock %}

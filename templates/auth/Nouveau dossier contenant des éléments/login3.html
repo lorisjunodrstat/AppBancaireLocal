@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Connexion</title>
+</head>
+<body>
+  <div class="row">
+    <ul class="nav nav-pills nav-justified mb-3" id="ex1" role="tablist">
+      <li class="nav-item" role="presentation">
+        <a class="nav-link active" id="tab-login" data-mdb-pill-init href="#pills-login" role="tab"
+          aria-controls="pills-login" aria-selected="true">Login</a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link" id="tab-register" data-mdb-pill-init href="#pills-register" role="tab"
+          aria-controls="pills-register" aria-selected="false">Register</a>
+      </li>
+    </ul>
+    <div class="col-12">
+      <div class="card mb-4 border-top" style="border-top: 4px solid blue;">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <h1>Connexion</h1>
+              {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                  <ul>
+                    {% for msg in messages %}
+                    <li>{{ msg }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              {% endwith %}
+              <form method="POST">
+                <label for="email">Email :</label><br>
+                <input type="email" id="email" name="email" required /><br><br>
+                <label for="password">Mot de passe :</label><br>
+                <input type="password" id="password" name="password" required /><br><br>
+                <button type="submit">Se connecter</button>
+              </form>
+              <p>Pas encore inscrit ? <a href="{{ url_for('register') }}">Créer un compte</a></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+          
+</body>
+</html>

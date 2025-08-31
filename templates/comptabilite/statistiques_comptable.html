@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Statistiques comptables</h2>
+    
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="date_from" class="form-label">Du</label>
+                    <input type="date" id="date_from" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="date_to" class="form-label">Au</label>
+                    <input type="date" id="date_to" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Filtrer</button>
+                    <a href="{{ url_for('statistiques_comptables') }}" class="btn btn-outline-secondary ms-2">Réinitialiser</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Résumé -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Total recettes</h5>
+                    <p class="card-text display-6">{{ "%.2f"|format(total_recettes) }} CHF</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Total dépenses</h5>
+                    <p class="card-text display-6">{{ "%.2f"|format(total_depenses) }} CHF</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card {% if resultat >= 0 %}bg-info{% else %}bg-warning{% endif %} text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Résultat</h5>
+                    <p class="card-text display-6">{{ "%.2f"|format(resultat) }} CHF</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Répartition des dépenses</h5>
+                    <canvas id="depensesChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Évolution mensuelle</h5>
+                    <canvas id="evolutionChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Détail par catégorie -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Détail par catégorie</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Catégorie</th>
+                            <th class="text-end">Dépenses</th>
+                            <th class="text-end">Recettes</th>
+                            <th class="text-end">Solde</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in stats %}
+                        <tr>
+                            <td>
+                                <strong>{{ stat.categorie_numero }}</strong> - {{ stat.categorie_nom }}
+                            </td>
+                            <td class="text-end text-danger">
+                                {{ "%.2f"|format(stat.total_depenses) if stat.total_depenses else '-' }} CHF
+                            </td>
+                            <td class="text-end text-success">
+                                {{ "%.2f"|format(stat.total_recettes) if stat.total_recettes else '-' }} CHF
+                            </td>
+                            <td class="text-end fw-bold">
+                                {% set solde = (stat.total_recettes or 0) - (stat.total_depenses or 0) %}
+                                {{ "%.2f"|format(solde) }} CHF
+                            </td>
+                            <td>
+                                <a href="{{ url_for('liste_ecritures', categorie_id=stat.categorie_id, date_from=date_from, date_to=date_to) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    Voir détails
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Graphique de répartition des dépenses
+const depensesCtx = document.getElementById('depensesChart').getContext('2d');
+const depensesChart = new Chart(depensesCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [
+            {% for stat in stats if stat.total_depenses %}
+                '{{ stat.categorie_numero }} - {{ stat.categorie_nom }}',
+            {% endfor %}
+        ],
+        datasets: [{
+            data: [
+                {% for stat in stats if stat.total_depenses %}
+                    {{ stat.total_depenses }},
+                {% endfor %}
+            ],
+            backgroundColor: [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
+                '#FF9F40', '#8AC24A', '#607D8B', '#E91E63', '#9C27B0'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'right',
+            }
+        }
+    }
+});
+
+// Graphique d'évolution mensuelle (vous devrez ajouter les données dans votre route)
+const evolutionCtx = document.getElementById('evolutionChart').getContext('2d');
+const evolutionChart = new Chart(evolutionCtx, {
+    type: 'line',
+    data: {
+        labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
+        datasets: [
+            {
+                label: 'Recettes',
+                data: [1200, 1900, 1500, 2000, 1800, 2200, 2500, 2100, 2300, 2400, 2200, 2600],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.1,
+                fill: true
+            },
+            {
+                label: 'Dépenses',
+                data: [800, 1100, 900, 1200, 1000, 1300, 1400, 1200, 1100, 1300, 1200, 1400],
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.1,
+                fill: true
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

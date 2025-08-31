@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Nouveau sous-compte{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header banking-nav text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-piggy-bank me-2"></i>
+                    Créer un nouveau sous-compte pour {{ compte.nom_compte }}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                    novalidate>
+                    <div class="row">
+                        <!-- Informations générales -->
+                        <div class="col-md-6">
+                            <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Informations générales</h5>
+
+                            <div class="mb-3">
+                                <label for="nom_sous_compte" class="form-label">
+                                    <i class="fas fa-tag me-1"></i>Nom du sous-compte *
+                                </label>
+                                <input type="text" class="form-control" id="nom_sous_compte" name="nom_sous_compte"
+                                    placeholder="Ex: Épargne vacances" required maxlength="100"
+                                    value="{{ request.form.nom_sous_compte if request.form else '' }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">
+                                    <i class="fas fa-align-left me-1"></i>Description
+                                </label>
+                                <textarea class="form-control" id="description" name="description" rows="3"
+                                    placeholder="Ajoutez une description">{{ request.form.description if request.form else '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Objectif & style -->
+                        <div class="col-md-6">
+                            <h5 class="mb-3"><i class="fas fa-bullseye me-2"></i>Objectif</h5>
+
+                            <div class="mb-3">
+                                <label for="objectif_montant" class="form-label">
+                                    <i class="fas fa-coins me-1"></i>Montant objectif
+                                </label>
+                                <input type="number" class="form-control" id="objectif_montant" name="objectif_montant"
+                                    step="0.01" min="0" placeholder="Ex: 2000.00"
+                                    value="{{ request.form.objectif_montant if request.form else '' }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="date_objectif" class="form-label">
+                                    <i class="fas fa-calendar me-1"></i>Date cible
+                                </label>
+                                <input type="date" class="form-control" id="date_objectif" name="date_objectif"
+                                    value="{{ request.form.date_objectif if request.form else '' }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="couleur" class="form-label">
+                                    <i class="fas fa-palette me-1"></i>Couleur
+                                </label>
+                                <input type="color" class="form-control form-control-color" id="couleur" name="couleur"
+                                    value="{{ request.form.couleur if request.form else '#28a745' }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="icone" class="form-label">
+                                    <i class="fas fa-icons me-1"></i>Icône
+                                </label>
+                                <select class="form-select" id="icone" name="icone">
+                                    <option value="piggy-bank" {{ 'selected' if request.form.icone=='piggy-bank' else ''
+                                        }}>Cochon tirelire</option>
+                                    <option value="umbrella-beach" {{ 'selected' if request.form.icone=='umbrella-beach'
+                                        else '' }}>Vacances</option>
+                                    <option value="car" {{ 'selected' if request.form.icone=='car' else '' }}>Voiture
+                                    </option>
+                                    <option value="home" {{ 'selected' if request.form.icone=='home' else '' }}>Maison
+                                    </option>
+                                    <option value="gift" {{ 'selected' if request.form.icone=='gift' else '' }}>Cadeau
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Aperçu du sous-compte -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h5 class="mb-3"><i class="fas fa-eye me-2"></i>Aperçu du sous-compte</h5>
+                            <div class="card" id="sous-compte-preview"
+                                style="border-left: 4px solid #28a745; display: none;">
+                                <div class="card-body d-flex align-items-center">
+                                    <div class="me-3">
+                                        <i id="preview-icone" class="fas fa-piggy-bank fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1" id="preview-nom">Nom du sous-compte</h6>
+                                        <p class="text-muted mb-0" id="preview-desc">Description</p>
+                                        <small class="text-muted" id="preview-objectif">Objectif: -</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Boutons d'action -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}"
+                            class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Créer le sous-compte
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Aide -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>
+                    Aide pour créer un sous-compte
+                </h6>
+            </div>
+            <div class="card-body">
+                <p>Un sous-compte vous aide à atteindre des objectifs financiers spécifiques (voyage, épargne voiture,
+                    etc.).</p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-dot-circle text-primary me-2"></i>Nom et description pour identifier le but
+                    </li>
+                    <li><i class="fas fa-dot-circle text-primary me-2"></i>Montant objectif et date cible (optionnels)
+                    </li>
+                    <li><i class="fas fa-dot-circle text-primary me-2"></i>Personnalisez la couleur et l’icône</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const previewCard = document.getElementById('sous-compte-preview');
+        const nomInput = document.getElementById('nom_sous_compte');
+        const descInput = document.getElementById('description');
+        const objectifInput = document.getElementById('objectif_montant');
+        const couleurInput = document.getElementById('couleur');
+        const iconeSelect = document.getElementById('icone');
+
+        const previewNom = document.getElementById('preview-nom');
+        const previewDesc = document.getElementById('preview-desc');
+        const previewObjectif = document.getElementById('preview-objectif');
+        const previewIcone = document.getElementById('preview-icone');
+
+        function updatePreview() {
+            let show = false;
+
+            if (nomInput.value.trim()) {
+                previewNom.textContent = nomInput.value;
+                show = true;
+            }
+            previewDesc.textContent = descInput.value || 'Description';
+            previewObjectif.textContent = objectifInput.value ?
+                `Objectif: ${objectifInput.value} CHF` : 'Objectif: -';
+            previewCard.style.borderLeftColor = couleurInput.value || '#28a745';
+            previewIcone.className = `fas fa-${iconeSelect.value} fa-2x`;
+
+            previewCard.style.display = show ? 'block' : 'none';
+        }
+
+        [nomInput, descInput, objectifInput, couleurInput, iconeSelect].forEach(el => {
+            el.addEventListener('input', updatePreview);
+        });
+
+        updatePreview();
+    });
+</script>
+{% endblock %}

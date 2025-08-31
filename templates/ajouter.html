@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter un utilisateur{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Ajouter un nouvel utilisateur
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ajouter_utilisateur') }}" novalidate>
+                    <div class="mb-3">
+                        <label for="nom" class="form-label">
+                            <i class="fas fa-user me-1"></i>Nom complet *
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="nom" 
+                               name="nom" 
+                               placeholder="Entrez le nom complet"
+                               required
+                               maxlength="100"
+                               value="{{ request.form.nom if request.form else '' }}">
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Le nom doit contenir entre 2 et 100 caractères
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <i class="fas fa-envelope me-1"></i>Adresse email *
+                        </label>
+                        <input type="email" 
+                               class="form-control" 
+                               id="email" 
+                               name="email" 
+                               placeholder="exemple@domaine.com"
+                               required
+                               maxlength="150"
+                               value="{{ request.form.email if request.form else '' }}">
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            L'adresse email doit être valide et unique
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="actif" 
+                                   name="actif" 
+                                   checked>
+                            <label class="form-check-label" for="actif">
+                                <i class="fas fa-check-circle me-1"></i>
+                                Utilisateur actif
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            Les utilisateurs inactifs ne peuvent pas se connecter
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Aide -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>
+                    Aide
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Tous les champs marqués d'un * sont obligatoires
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        L'adresse email doit être unique dans le système
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Le nom peut contenir des lettres, chiffres et espaces
+                    </li>
+                    <li>
+                        <i class="fas fa-check text-success me-2"></i>
+                        Les utilisateurs inactifs peuvent être réactivés plus tard
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Validation côté client
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const nomInput = document.getElementById('nom');
+    const emailInput = document.getElementById('email');
+
+    // Validation en temps réel
+    nomInput.addEventListener('input', function() {
+        const value = this.value.trim();
+        if (value.length < 2) {
+            this.classList.add('is-invalid');
+            this.classList.remove('is-valid');
+        } else {
+            this.classList.add('is-valid');
+            this.classList.remove('is-invalid');
+        }
+    });
+
+    emailInput.addEventListener('input', function() {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailRegex.test(this.value)) {
+            this.classList.add('is-valid');
+            this.classList.remove('is-invalid');
+        } else {
+            this.classList.add('is-invalid');
+            this.classList.remove('is-valid');
+        }
+    });
+
+    // Validation avant soumission
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Vérification du nom
+        if (nomInput.value.trim().length < 2) {
+            nomInput.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        // Vérification de l'email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailInput.value)) {
+            emailInput.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Veuillez corriger les erreurs dans le formulaire.');
+        }
+    });
+
+    // Focus automatique sur le premier champ
+    nomInput.focus();
+});
+</script>
+{% endblock %}

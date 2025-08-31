@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}{{ utilisateur.nom }} - Profil utilisateur{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- En-tête utilisateur -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center me-3" 
+                                 style="width: 60px; height: 60px;">
+                                <i class="fas fa-user text-white fa-2x"></i>
+                            </div>
+                            <div>
+                                <h2 class="mb-1">{{ utilisateur.nom }}</h2>
+                                <p class="text-muted mb-0">
+                                    <i class="fas fa-envelope me-2"></i>{{ utilisateur.email }}
+                                </p>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    Membre depuis le {{ utilisateur.date_creation.strftime('%d/%m/%Y') }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="{{ url_for('banking_nouveau_compte') }}" class="btn btn-success">
+                                <i class="fas fa-plus me-2"></i>Nouveau compte
+                            </a>
+                            <a href="{{ url_for('banking_dashboard') }}" class="btn btn-primary">
+                                <i class="fas fa-university me-2"></i>Gestion bancaire
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques rapides -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-university fa-2x mb-2"></i>
+                        <h3>{{ comptes|length }}</h3>
+                        <p class="mb-0">Compte(s) bancaire(s)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-coins fa-2x mb-2"></i>
+                        <h3>
+                            {% set total_solde = comptes|sum(attribute='solde') %}
+                            {{ "%.2f"|format(total_solde) }}
+                        </h3>
+                        <p class="mb-0">CHF de patrimoine</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-building fa-2x mb-2"></i>
+                        <h3>{{ comptes|map(attribute='banque_id')|unique|list|length }}</h3>
+                        <p class="mb-0">Banque(s) différente(s)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <h3>{{ "Actif" if utilisateur.actif else "Inactif" }}</h3>
+                        <p class="mb-0">Statut du compte</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comptes bancaires -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-university me-2"></i>
+                        Comptes bancaires ({{ comptes|length }})
+                    </h5>
+                    <a href="{{ url_for('banking_nouveau_compte') }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus me-2"></i>Ajouter un compte
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if comptes %}
+                    <div class="row">
+                        {% for compte in comptes %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100" style="border-left: 4px solid {{ compte.couleur_banque or '#007bff' }};">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="card-title mb-1">{{ compte.nom_compte }}</h6>
+                                            <p class="text-muted small mb-0">{{ compte.nom_banque or 'Banque inconnue' }}</p>
+                                        </div>
+                                        <span class="badge bg-{{ 'success' if compte.actif else 'secondary' }}">
+                                            {{ 'Actif' if compte.actif else 'Inactif' }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="row text-center mb-3">
+                                        <div class="col-6">
+                                            <h5 class="mb-0">{{ "%.2f"|format(compte.solde) }}</h5>
+                                            <small class="text-muted">{{ compte.devise or 'CHF' }}</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <h6 class="mb-0 text-info">{{ compte.type_compte|title }}</h6>
+                                            <small class="text-muted">Type de compte</small>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if compte.numero_compte %}
+                                    <div class="mb-2">
+                                        <small class="text-muted">Numéro:</small>
+                                        <code class="small">{{ compte.numero_compte }}</code>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if compte.iban %}
+                                    <div class="mb-2">
+                                        <small class="text-muted">IBAN:</small>
+                                        <code class="small">{{ compte.iban }}</code>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            {{ compte.date_creation.strftime('%d/%m/%Y') }}
+                                        </small>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}" 
+                                               class="btn btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}" 
+                                               class="btn btn-outline-success">
+                                                <i class="fas fa-piggy-bank"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-university fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">Aucun compte bancaire</h5>
+                        <p class="text-muted mb-4">
+                            {{ utilisateur.nom }} n'a pas encore configuré de compte bancaire.
+                        </p>
+                        <a href="{{ url_for('banking_nouveau_compte') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Créer le premier compte
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                    </a>
+                    
+                    <div class="btn-group">
+                        <a href="{{ url_for('banking_dashboard') }}" class="btn btn-primary">
+                            <i class="fas fa-chart-pie me-2"></i>Tableau de bord bancaire
+                        </a>
+                        {% if comptes %}
+                        <a href="{{ url_for('banking_statistiques') }}" class="btn btn-info">
+                            <i class="fas fa-chart-line me-2"></i>Statistiques détaillées
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Animation au chargement des cartes
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Liste des transactions{% endblock %}
+
+{% block content %}
+<h1>Transactions / Transferts</h1>
+
+<form method="get" action="{{ url_for('liste_transactions') }}" class="mb-3">
+  <div class="row gy-2 gx-2 align-items-end">
+    <div class="col-auto">
+      <label>Date de :</label>
+      <input type="date" name="date_from" value="{{ date_from or '' }}">
+    </div>
+    <div class="col-auto">
+      <label>À :</label>
+      <input type="date" name="date_to" value="{{ date_to or '' }}">
+    </div>
+    <div class="col-auto">
+      <label>Compte :</label>
+      <select name="compte_id">
+        <option value="">Tous</option>
+        {% for c in comptes %}
+        <option value="{{ c.id }}" {% if compte_filter|int==c.id %}selected{% endif %}>
+          {{ c.nom_compte }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label>Sous‑compte origine :</label>
+      <select name="sous_compte_id">
+        <option value="">Tous</option>
+        {% for sc in sous_comptes %}
+        <option value="{{ sc.id }}" {% if sc_filter|int==sc.id %}selected{% endif %}>
+          {{ sc.nom_sous_compte }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label>Sous‑compte destination :</label>
+      <select name="sous_compte_destination_id">
+        <option value="">Tous</option>
+        {% for sc in sous_comptes %}
+        <option value="{{ sc.id }}" {% if dest_sc_filter|int==sc.id %}selected{% endif %}>
+          {{ sc.nom_sous_compte }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label>Référence :</label>
+      <select name="reference">
+        <option value="">Toutes</option>
+        {% set refs = transactions|map(attribute='reference')|unique|list %}
+        {% for r in refs if r %}
+        <option value="{{ r }}" {% if ref_filter==r %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label>Recherche texte :</label>
+      <input type="text" name="q" placeholder="mot-clé" value="{{ text_search or '' }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary">Filtrer</button>
+    </div>
+  </div>
+</form>
+
+<a href="{{ url_for('liste_transactions',
+    date_from=date_from, date_to=date_to,
+    compte_id=compte_filter, sous_compte_id=sc_filter,
+    sous_compte_destination_id=dest_sc_filter,
+    reference=ref_filter, q=text_search,
+    page=page, export='csv') }}" class="btn btn-outline-secondary mb-3">Exporter en CSV</a>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Type</th>
+      <th>Montant</th>
+      <th>Description</th>
+      <th>Référence</th>
+      <th>Date</th>
+      <th>Source</th>
+      <th>Destination</th>
+      <th>Compte dest.</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in transactions %}
+    <tr>
+      <td>{{ t.id }}</td>
+      <td>{{ t.type_transaction }}</td>
+      <td>{{ "%.2f"|format(t.montant) }}</td>
+      <td>{{ t.description or '' }}</td>
+      <td>{{ t.reference or '' }}</td>
+      <td>{{ t.date_transaction.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>{{ t.nom_sous_compte or '' }}</td>
+      <td>{{ t.nom_sous_compte_destination or '' }}</td>
+      <td>{{ t.nom_compte_destination or '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<nav aria-label="Pagination">
+  <ul class="pagination">
+    {% if page > 1 %}
+    <li><a href="{{ url_for('liste_transactions', date_from=date_from,
+             date_to=date_to, sort_by=sort_by, order=order, page=page-1) }}">« Précédent</a></li>
+    {% endif %}
+    <li>Page {{ page }} / {{ pages }}</li>
+    {% if page < pages %} <li><a href="{{ url_for('liste_transactions', date_from=date_from,
+             date_to=date_to, sort_by=sort_by, order=order, page=page+1) }}">Suivant »</a></li>
+      {% endif %}
+  </ul>
+</nav>
+{% endblock %}

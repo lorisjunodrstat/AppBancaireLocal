@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Transfert d'argent{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Effectuer un transfert</h2>
+
+    <!-- Messages Flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show mb-4" role="alert">
+        <strong>{{ "Succès!" if category == "success" else "Erreur!" }}</strong> {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% if not transfert_type %}
+    <!-- Étape 1 : Choix du type de transfert -->
+    <form method="POST" action="{{ url_for('banking_transfert') }}" class="needs-validation" novalidate>
+        <input type="hidden" name="step" value="select_type">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="transfert_type" class="form-label">Type de transfert*</label>
+                <select id="transfert_type" name="transfert_type" class="form-select" required>
+                    <option value="" disabled selected>-- Sélectionnez --</option>
+                    <option value="interne">Entre mes comptes</option>
+                    <option value="externe">Vers un compte externe</option>
+                </select>
+            </div>
+        </div>
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+                Suivant
+            </button>
+        </div>
+    </form>
+    {% else %}
+    <!-- Étape 2 : Détails du transfert -->
+    <form method="POST" action="{{ url_for('banking_transfert') }}" class="needs-validation" novalidate>
+        <input type="hidden" name="step" value="confirm">
+        <input type="hidden" name="transfert_type" value="{{ transfert_type }}">
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="compte_source" class="form-label">Compte source*</label>
+                <select class="form-select" name="compte_source" id="compte_source" required>
+                    <option value="" disabled selected>-- Choisir un compte --</option>
+                    {% for compte in comptes %}
+                    <option value="{{ compte.id }}">
+                        {{ compte.nom_banque }} - {{ compte.nom_compte }} ({{ compte.solde }} {{ compte.devise }}) ({{ compte.id }})
+                    </option>
+                    {% endfor %}
+                    {% for sous_compte in sous_comptes %}
+                    <option value="{{ sous_compte.id }}">
+                        {{ sous_compte.nom_banque }} - {{ sous_compte.nom_sous_compte }} ({{ sous_compte.solde }} CHF) ({{ sous_compte.id }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if transfert_type == 'interne' %}
+            <div class="col-md-6">
+                <label for="compte_dest" class="form-label">Compte destination*</label>
+                <select class="form-select" name="compte_dest" id="compte_dest" required>
+                    <option value="" disabled selected>-- Choisir un compte --</option>
+                    {% for compte in comptes %}
+                    <option value="{{ compte.id }}">
+                        {{ compte.nom_banque }} - {{ compte.nom_compte }} {{ compte.solde }} ({{ compte.id }})
+                    </option>
+                    {% endfor %}
+                    {% for sous_compte in sous_comptes %}
+                    <option value="{{ sous_compte.id }}">
+                        {{ sous_compte.nom_banque }} - {{ sous_compte.nom_sous_compte }} - {{ sous_compte.solde }} ({{ sous_compte.id }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% else %}
+            <!-- Champs pour transfert externe -->
+            <div class="col-md-6">
+                <label for="iban_dest" class="form-label">IBAN destination*</label>
+                <input type="text" name="iban_dest" id="iban_dest" class="form-control"
+                    value="{{ request.form.get('iban_dest', '') }}" required pattern="[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}"
+                    placeholder="Ex: CH9300762011623852957">
+                <div class="invalid-feedback">
+                    Format IBAN invalide (ex: CH9300762011623852957)
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if transfert_type == 'externe' %}
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="bic_dest" class="form-label">BIC/SWIFT (optionnel)</label>
+                <input type="text" name="bic_dest" id="bic_dest" class="form-control"
+                    value="{{ request.form.get('bic_dest', '') }}" pattern="[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?"
+                    placeholder="Ex: UBSWCHZH80A">
+            </div>
+            <div class="col-md-6">
+                <label for="nom_dest" class="form-label">Nom du bénéficiaire*</label>
+                <input type="text" name="nom_dest" id="nom_dest" class="form-control"
+                    value="{{ request.form.get('nom_dest', '') }}" required placeholder="Ex: John Doe">
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="devise" class="form-label">Devise*</label>
+                <select name="devise" id="devise" class="form-select" required>
+                    <option value="EUR" selected>EUR (Euro)</option>
+                    <option value="CHF">CHF (Franc suisse)</option>
+                    <option value="USD">USD (Dollar US)</option>
+                    <option value="GBP">GBP (Livre sterling)</option>
+                </select>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Informations de transfert communes -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="montant" class="form-label">Montant*</label>
+                <div class="input-group">
+                    <input type="text" name="montant" id="montant" class="form-control"
+                        value="{{ request.form.get('montant', '') }}" required pattern="^\d+([.,]\d{1,2})?$"
+                        placeholder="Ex: 150.50">
+                    <span class="input-group-text">CHF</span>
+                </div>
+                <div class="invalid-feedback">
+                    Format invalide. Ex: 150 ou 150.50
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label for="date_transaction" class="form-label">Date et heure du transfert*</label>
+                <input type="datetime-local" name="date_transaction" id="date_transaction" class="form-control"
+                    value="{{ request.form.get('date_transaction', now.strftime('%Y-%m-%dT%H:%M')) }}" required>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <label for="commentaire" class="form-label">Commentaire (optionnel)</label>
+                <textarea name="commentaire" id="commentaire" class="form-control" maxlength="255"
+                    placeholder="Description du transfert">{{ request.form.get('commentaire', '') }}</textarea>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <a href="{{ url_for('banking_transfert') }}" class="btn btn-secondary me-md-2">Annuler</a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                Valider le transfert
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<script>
+    // Validation basique côté client
+    (function () {
+        'use strict';
+        const forms = document.querySelectorAll('.needs-validation');
+
+        Array.from(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+
+    // Masquer/afficher les champs en fonction du type de transfert
+    document.addEventListener('DOMContentLoaded', function () {
+        const transfertType = "{{ transfert_type }}";
+
+        if (transfertType === 'externe') {
+            // Initialiser les champs pour les transferts externes
+            document.getElementById('compte_source').addEventListener('change', function () {
+                // Logique supplémentaire si nécessaire
+            });
+        }
+    });
+</script>
+{% endblock %}

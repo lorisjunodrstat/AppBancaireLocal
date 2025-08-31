@@ -1,0 +1,20 @@
+<!-- templates/404.html -->
+{% extends "base.html" %}
+
+
+
+{% block content %}
+<div class="text-center py-5">
+    <div class="mb-4">
+        <i class="fas fa-exclamation-triangle fa-5x text-warning"></i>
+    </div>
+    <h1 class="display-4">404</h1>
+    <h2 class="mb-3">Page non trouvée</h2>
+    <p class="lead">Désolé, la page que vous recherchez n'existe pas ou a été déplacée.</p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">
+        <i class="fas fa-home me-2"></i>Retour à l'accueil
+    </a>
+</div>
+{% endblock %}
+
+

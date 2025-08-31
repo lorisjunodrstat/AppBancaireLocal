@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Liste des Banques</h2>
+    <a href="{{ url_for('banques.creer_banque') }}" class="btn btn-primary mb-3">+ Nouvelle Banque</a>
+    
+    {% if banques %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Code Banque</th>
+                <th>Pays</th>
+                <th>Couleur</th>
+                <th>Site Web</th>
+                <th>Logo</th>
+                <th>Edit</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for banque in banques %}
+            <tr>
+                <td>{{ banque.nom }}</td>
+                <td>{{ banque.code_banque }}</td>
+                <td>{{ banque.pays or '-' }}</td>
+                <td>
+                    {% if banque.couleur %}
+                        <span style="display:inline-block;width:20px;height:20px;background-color:{{ banque.couleur }};"></span>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if banque.site_web %}
+                        <a href="{{ banque.site_web }}" target="_blank">Lien</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if banque.logo_url %}
+                        <img src="{{ banque.logo_url }}" alt="Logo" style="width:40px;height:auto;">
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('banques.edit_banque', banque_id=banque.id) }}" class="btn btn-warning btn-sm">Modifier</a>
+                    <form action="{{ url_for('banques.delete_banque', banque_id=banque.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-danger btn-sm"
+                            onclick="return confirm('Supprimer cette banque ?');">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>Aucune banque trouvée.</p>
+    {% endif %}
+</div>
+{% endblock %}
