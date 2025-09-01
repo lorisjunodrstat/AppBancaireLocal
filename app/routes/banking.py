@@ -2,7 +2,6 @@
 import logging
 from flask import render_template, request, redirect, url_for, flash, jsonify, make_response, current_app
 from flask_login import login_required, current_user
-import time
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, date
 from calendar import monthrange
@@ -10,11 +9,12 @@ from models import DatabaseManager, Banque, ComptePrincipal, SousCompte, Transac
 from io import StringIO
 import csv
 import io
-
 import traceback
 import random
 from collections import defaultdict
-import logging
+
+# Création du blueprint (AJOUT CRITIQUE)
+bp = Blueprint('banking', __name__)
 
 # Créez un logger au début du fichier
 logger = logging.getLogger(__name__)
@@ -34,10 +34,12 @@ logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 
-def init_banking_routes(app, db_config):
-    """Initialise les routes bancaires dans l'application Flask"""
-    # Initialisation des modèles
-    db_manager = DatabaseManager(db_config)
+# Initialisation des modèles (à déplacer dans une fonction si nécessaire)
+# Note: Vous devrez peut-être passer la configuration DB différemment
+db_config = current_app.config.get('DB_CONFIG') if current_app else None
+db_manager = DatabaseManager(db_config) if db_config else None
+
+if db_manager:
     banque_model = Banque(db_manager)
     compte_model = ComptePrincipal(db_manager)
     sous_compte_model = SousCompte(db_manager)
@@ -48,6 +50,9 @@ def init_banking_routes(app, db_config):
     contact_model = Contacts(db_manager)
     heure_model = HeureTravail(db_manager)
     contrat_model = Contrat(db_manager)
+else:
+    # Gestion d'erreur ou initialisation différée
+    pass
 
     # ---- Fonctions utilitaires ----
     def get_comptes_utilisateur(user_id):
