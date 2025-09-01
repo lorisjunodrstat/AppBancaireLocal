@@ -16,13 +16,13 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
 
-# Configuration de la base de données
+# Configuration de la base de données (NE PAS METTRE LES INFOS EN DUR)
 DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'node184712-env-9328605.jcloud.ik-server.com'),  # À adapter
-    'port': int(os.environ.get('DB_PORT', 3306)),  # Port MySQL standard
-    'database': os.environ.get('DB_NAME', 'banking2'),
-    'user': os.environ.get('DB_USER', 'root'),  # Remplacez par votre utilisateur
-    'password': os.environ.get('DB_PASSWORD', 'PTXlqh31192'),  # Remplacez par votre mot de passe
+    'host': os.environ.get('DB_HOST'),
+    'port': int(os.environ.get('DB_PORT', 3306)),
+    'database': os.environ.get('DB_NAME'),
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSWORD'),
     'charset': 'utf8mb4',
     'use_unicode': True,
     'autocommit': True
@@ -34,15 +34,6 @@ login_manager.init_app(app)
 login_manager.login_view = "auth.login"
 login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
 login_manager.login_message_category = "info"
-
-# Import des modèles et routes
-from app import models
-from app.routes import auth, admin, banking
-
-# Enregistrement des blueprints
-app.register_blueprint(auth.bp)
-app.register_blueprint(admin.bp)
-app.register_blueprint(banking.bp)
 
 # Filtres de template
 @app.template_filter('format_date')
@@ -73,12 +64,21 @@ def utility_processor():
     
     return dict(get_month_name=get_month_name)
 
+# Import des modèles et routes (APRES la création de l'app)
+from app import models
+from app.routes import auth, admin, banking
+
+# Enregistrement des blueprints
+app.register_blueprint(auth.bp)
+app.register_blueprint(admin.bp)
+app.register_blueprint(banking.bp)
+
 # Initialisation de la base de données
 def init_database():
     from app.models import init_db
     init_db()
 
-# Point d'entrée pour l'exécution directe
+# Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
     init_database()
-    app.run(debug=True, host='node184712-env-9328605.jcloud.ik-server.com', port=3306)
+    app.run(debug=True)
