@@ -104,25 +104,11 @@ class Utilisateur(UserMixin):
             cursor.close()
             conn.close()
 
-
 class DatabaseManager:
     """Gestionnaire de base de données pour les opérations bancaires"""
     
-    def __init__(self, db_manager):
-        self.db = db_manager
-        self.banque_model = Banque(self.db)
-        self.compte_principal_model = ComptePrincipal(self.db)
-        self.sous_compte_model = SousCompte(self.db)
-        self.transaction_financiere_model = TransactionFinanciere(self.db)
-        self.stats_model = StatistiquesBancaires(self.db)
-        self.plan_comptable_model = PlanComptable(self.db)
-        self.ecriture_comptable_model = EcritureComptable(self.db)
-        self.contact_model = Contacts(self.db)
-        self.heure_model = HeureTravail(self.db)
-        self.salaire_model = Salaire(self.db)
-        self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
-        self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
-        self.contrat_model = Contrat(self.db)
+    def __init__(self, db_config: dict):
+        self.db_config = db_config
     
     def get_connection(self):
         """Retourne une connexion à la base de données"""
@@ -215,9 +201,8 @@ class ParametreUtilisateur:
 class Banque:
     """Modèle pour les banques - nettoyé de toute logique transactionnelle"""
     
-    def __init__(self, db_manager):
-        self.db = db_manager
-    
+    def __init__(self, db):
+        self.db = db
     def get_all(self) -> List[Dict]:
         """Récupère toutes les banques actives"""
         connection = self.db.get_connection()
@@ -315,8 +300,8 @@ class Banque:
 class ComptePrincipal:
     """Modèle pour les comptes principaux"""
     
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
     
     def get_by_user_id(self, user_id: int) -> List[Dict]:
         """Récupère tous les comptes d'un utilisateur"""
@@ -535,8 +520,8 @@ class ComptePrincipal:
 class SousCompte:
     """Modèle pour les sous-comptes d'épargne"""
     
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
     
     def get_by_compte_principal_id(self, compte_principal_id: int) -> List[Dict]:
         """Récupère tous les sous-comptes d'un compte principal"""
@@ -743,15 +728,12 @@ class SousCompte:
                 return 0.0
         return 0.0
 
-
 class TransactionFinanciere:
     """
     Classe unifiée pour gérer toutes les transactions financières avec optimisation des soldes
     """
-    
-    def __init__(self, db_manager):
-        self.db = db_manager
-    
+    def __init__(self, db):
+        self.db = db
     # ===== VALIDATION ET UTILITAIRES =====
     
     def _valider_solde_suffisant(self, compte_type: str, compte_id: int, montant: Decimal) -> Tuple[bool, Decimal]:
@@ -2221,9 +2203,8 @@ class TransactionFinanciere:
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
     
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
-    
+    def __init__(self, db):
+        self.db = db
     def get_resume_utilisateur(self, user_id: int, statut: str = 'validée') -> Dict:
         """Résumé financier complet en utilisant les classes existantes"""
         try:
@@ -2703,14 +2684,11 @@ class StatistiquesBancaires:
             print(f"Erreur lors du calcul des statistiques: {e}")
             return {}
 
-
-
-
 class PlanComptable:
     """Modèle pour gérer le plan comptable"""
     
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
     
     def get_all_categories(self) -> List[Dict]:
         """Récupère toutes les catégories comptables"""
@@ -2871,8 +2849,8 @@ class PlanComptable:
 class EcritureComptable:
     """Modèle pour gérer les écritures comptables"""
     
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
     
     def create(self, data: Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
@@ -3527,8 +3505,8 @@ class EcritureComptable:
     
 class Contacts:
 
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
     
     def create(self, data: Dict) -> bool:
         """
@@ -3697,9 +3675,10 @@ class Contacts:
                 print(f"Erreur lors de la recherche de contacts: {e}")
                 return []
         return []
+
 class Rapport:
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
     
     def generate_rapport_mensuel(self, user_id: int, annee: int, mois: int, statut: str = 'validée') -> Dict:
         """Génère un rapport mensuel avec filtrage par statut"""
@@ -3860,8 +3839,8 @@ class Rapport:
         return []
 
 class Contrat:
-    def __init__(self, db_manager):
-        self.db_manager = db_manager
+    def __init__(self, db):
+        self.db = db
         
     @contextmanager
     def get_cursor(self, dictionary=False):
@@ -4060,12 +4039,9 @@ class Contrat:
             cursor.execute(query, (user_id, date_str, date_str))
             return cursor.fetchone()
 
-
-
-
 class HeureTravail:
-    def __init__(self, db_manager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
 
     def create_or_update(self, data: dict, cursor=None) -> bool:
         """Version améliorée acceptant un curseur externe"""
@@ -4934,8 +4910,8 @@ class Salaire:
         return round(heures_jour_fin * salaire_horaire, 2)
 
 class SyntheseHebdomadaire:
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
 
     def create_or_update(self, data: dict) -> bool:
         conn = self.db.get_connection()
@@ -5033,10 +5009,9 @@ class SyntheseHebdomadaire:
                 conn.close()
         return []
 
-
 class SyntheseMensuelle:
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
 
     def create_or_update(self, data: dict) -> bool:
         conn = self.db.get_connection()
@@ -5107,6 +5082,23 @@ class SyntheseMensuelle:
                 cursor.close()
                 conn.close()
         return []
-    
+
+class ModelManager:
+    def __init__(self, db_manager):
+        self.db = db_manager
+        self.banque_model = Banque(self.db)
+        self.compte_principal_model = ComptePrincipal(self.db)
+        self.sous_compte_model = SousCompte(self.db)
+        self.transaction_financiere_model = TransactionFinanciere(self.db)
+        self.stats_model = StatistiquesBancaires(self.db)
+        self.plan_comptable_model = PlanComptable(self.db)
+        self.ecriture_comptable_model = EcritureComptable(self.db)
+        self.contact_model = Contacts(self.db)
+        self.heure_model = HeureTravail(self.db)
+        self.salaire_model = Salaire(self.db, self.heure_model)
+        self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
+        self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
+        self.contrat_model = Contrat(self.db)
+        self.parametre_utilisateur_model = ParametreUtilisateur(self.db)    
 
 
