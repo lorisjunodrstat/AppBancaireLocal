@@ -81,4 +81,4 @@ def init_database():
 # Point d'entrée pour l'exécution directe
 if __name__ == '__main__':
     init_database()
-    app.run(debug=True, host='0.0.0.0', port=5053)
+    app.run(debug=True, host='node184712-env-9328605.jcloud.ik-server.com', port=3306)
