@@ -14,15 +14,15 @@ load_dotenv()
 
 # Initialisation Flask
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-changez-moi')
+app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
 
 # Configuration de la base de données
 DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', '127.0.0.1'),
-    'port': int(os.environ.get('DB_PORT', 8889)),
-    'database': os.environ.get('DB_NAME', 'banking'),
-    'user': os.environ.get('DB_USER', 'root'),
-    'password': os.environ.get('DB_PASSWORD', 'root'),
+    'host': os.environ.get('DB_HOST', 'node184712-env-9328605.jcloud.ik-server.com'),  # À adapter
+    'port': int(os.environ.get('DB_PORT', 3306)),  # Port MySQL standard
+    'database': os.environ.get('DB_NAME', 'banking2'),
+    'user': os.environ.get('DB_USER', 'root'),  # Remplacez par votre utilisateur
+    'password': os.environ.get('DB_PASSWORD', 'PTXlqh31192'),  # Remplacez par votre mot de passe
     'charset': 'utf8mb4',
     'use_unicode': True,
     'autocommit': True

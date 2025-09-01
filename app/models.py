@@ -48,12 +48,16 @@ class Utilisateur(UserMixin):
     # ===========================
     @staticmethod
     def get_connection():
+        # Utilisation de la configuration de l'application Flask
         return mysql.connector.connect(
-            host="127.0.0.1",
-            port=8889,
-            user="root",
-            password="root",  # MAMP par défaut
-            database="banking2"
+            host=current_app.config['DB_HOST'],
+            port=current_app.config['DB_PORT'],
+            user=current_app.config['DB_USER'],
+            password=current_app.config['DB_PASSWORD'],
+            database=current_app.config['DB_NAME'],
+            charset='utf8mb4',
+            use_unicode=True,
+            autocommit=True
         )
 
     @staticmethod
