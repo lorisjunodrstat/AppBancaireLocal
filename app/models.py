@@ -119,84 +119,6 @@ class DatabaseManager:
             print(f"Erreur de connexion à la base de données: {e}")
             return None
 
-class ParametreUtilisateur:
-    """Modèle pour gérer les paramètres utilisateur"""
-    
-    def __init__(self, db_manager: DatabaseManager):
-        db_manager = DatabaseManager(db_config)
-        self.db = db_manager
-    
-    def get(self, user_id: int) -> Dict:
-        """Récupère tous les paramètres d'un utilisateur"""
-        connection = self.db.get_connection()
-        if connection:
-            try:
-                cursor = connection.cursor(dictionary=True)
-                query = "SELECT * FROM parametres_utilisateur WHERE utilisateur_id = %s"
-                cursor.execute(query, (user_id,))
-                params = cursor.fetchone()
-                cursor.close()
-                connection.close()
-                return params or {}
-            except Error as e:
-                print(f"Erreur lors de la récupération des paramètres: {e}")
-                return {}
-        return {}
-    
-    def update(self, user_id: int, data: Dict) -> bool:
-        """Met à jour les paramètres utilisateur"""
-        connection = self.db.get_connection()
-        if connection:
-            try:
-                cursor = connection.cursor()
-                
-                # Vérifie si l'utilisateur a déjà des paramètres
-                cursor.execute("SELECT 1 FROM parametres_utilisateur WHERE utilisateur_id = %s", (user_id,))
-                exists = cursor.fetchone()
-                
-                if exists:
-                    # Mise à jour
-                    query = """
-                    UPDATE parametres_utilisateur
-                    SET devise_principale = %s, theme = %s, notifications_email = %s,
-                        alertes_solde = %s, seuil_alerte_solde = %s
-                    WHERE utilisateur_id = %s
-                    """
-                    values = (
-                        data.get('devise_principale', 'CHF'),
-                        data.get('theme', 'clair'),
-                        data.get('notifications_email', True),
-                        data.get('alertes_solde', True),
-                        data.get('seuil_alerte_solde', 500),
-                        user_id
-                    )
-                else:
-                    # Insertion
-                    query = """
-                    INSERT INTO parametres_utilisateur
-                    (utilisateur_id, devise_principale, theme, notifications_email,
-                     alertes_solde, seuil_alerte_solde)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """
-                    values = (
-                        user_id,
-                        data.get('devise_principale', 'CHF'),
-                        data.get('theme', 'clair'),
-                        data.get('notifications_email', True),
-                        data.get('alertes_solde', True),
-                        data.get('seuil_alerte_solde', 500)
-                    )
-                
-                cursor.execute(query, values)
-                connection.commit()
-                cursor.close()
-                connection.close()
-                return True
-            except Error as e:
-                print(f"Erreur lors de la mise à jour des paramètres: {e}")
-                return False
-        return False
-
 
 class Banque:
     """Modèle pour les banques - nettoyé de toute logique transactionnelle"""
@@ -5082,6 +5004,84 @@ class SyntheseMensuelle:
                 cursor.close()
                 conn.close()
         return []
+
+class ParametreUtilisateur:
+    """Modèle pour gérer les paramètres utilisateur"""
+    
+    def __init__(self, db_manager: DatabaseManager):
+        self.db = db_manager
+    
+    def get(self, user_id: int) -> Dict:
+        """Récupère tous les paramètres d'un utilisateur"""
+        connection = self.db.get_connection()
+        if connection:
+            try:
+                cursor = connection.cursor(dictionary=True)
+                query = "SELECT * FROM parametres_utilisateur WHERE utilisateur_id = %s"
+                cursor.execute(query, (user_id,))
+                params = cursor.fetchone()
+                cursor.close()
+                connection.close()
+                return params or {}
+            except Error as e:
+                print(f"Erreur lors de la récupération des paramètres: {e}")
+                return {}
+        return {}
+    
+    def update(self, user_id: int, data: Dict) -> bool:
+        """Met à jour les paramètres utilisateur"""
+        connection = self.db.get_connection()
+        if connection:
+            try:
+                cursor = connection.cursor()
+                
+                # Vérifie si l'utilisateur a déjà des paramètres
+                cursor.execute("SELECT 1 FROM parametres_utilisateur WHERE utilisateur_id = %s", (user_id,))
+                exists = cursor.fetchone()
+                
+                if exists:
+                    # Mise à jour
+                    query = """
+                    UPDATE parametres_utilisateur
+                    SET devise_principale = %s, theme = %s, notifications_email = %s,
+                        alertes_solde = %s, seuil_alerte_solde = %s
+                    WHERE utilisateur_id = %s
+                    """
+                    values = (
+                        data.get('devise_principale', 'CHF'),
+                        data.get('theme', 'clair'),
+                        data.get('notifications_email', True),
+                        data.get('alertes_solde', True),
+                        data.get('seuil_alerte_solde', 500),
+                        user_id
+                    )
+                else:
+                    # Insertion
+                    query = """
+                    INSERT INTO parametres_utilisateur
+                    (utilisateur_id, devise_principale, theme, notifications_email,
+                     alertes_solde, seuil_alerte_solde)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """
+                    values = (
+                        user_id,
+                        data.get('devise_principale', 'CHF'),
+                        data.get('theme', 'clair'),
+                        data.get('notifications_email', True),
+                        data.get('alertes_solde', True),
+                        data.get('seuil_alerte_solde', 500)
+                    )
+                
+                cursor.execute(query, values)
+                connection.commit()
+                cursor.close()
+                connection.close()
+                return True
+            except Error as e:
+                print(f"Erreur lors de la mise à jour des paramètres: {e}")
+                return False
+        return False
+
 
 class ModelManager:
     def __init__(self, db_manager):
