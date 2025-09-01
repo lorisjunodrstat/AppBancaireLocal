@@ -108,8 +108,21 @@ class Utilisateur(UserMixin):
 class DatabaseManager:
     """Gestionnaire de base de données pour les opérations bancaires"""
     
-    def __init__(self, db_config: dict):
-        self.db_config = db_config
+    def __init__(self, db_manager):
+        self.db = db_manager
+        self.banque_model = Banque(self.db)
+        self.compte_principal_model = ComptePrincipal(self.db)
+        self.sous_compte_model = SousCompte(self.db)
+        self.transaction_financiere_model = TransactionFinanciere(self.db)
+        self.stats_model = StatistiquesBancaires(self.db)
+        self.plan_comptable_model = PlanComptable(self.db)
+        self.ecriture_comptable_model = EcritureComptable(self.db)
+        self.contact_model = Contacts(self.db)
+        self.heure_model = HeureTravail(self.db)
+        self.salaire_model = Salaire(self.db)
+        self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
+        self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
+        self.contrat_model = Contrat(self.db)
     
     def get_connection(self):
         """Retourne une connexion à la base de données"""
