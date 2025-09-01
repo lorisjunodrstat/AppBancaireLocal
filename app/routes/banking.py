@@ -6,7 +6,7 @@ import time
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, date
 from calendar import monthrange
-from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts
+from models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts
 from io import StringIO
 import csv
 import io
@@ -59,7 +59,7 @@ def init_banking_routes(app, db_config):
         return comptes
 
     # ---- ROUTES ----
-    @app.route('/banking')
+    @bp.route('/banking')
     @login_required
     def banking_dashboard():
         user_id = current_user.id
@@ -88,13 +88,13 @@ def init_banking_routes(app, db_config):
                             recettes_mois=recettes_mois,
                             depenses_mois=depenses_mois)
 
-    @app.route('/banques', methods=['GET'])
+    @bp.route('/banques', methods=['GET'])
     @login_required
     def liste_banques():
         banques = banque_model.get_all()
         return render_template('banking/liste.html', banques=banques)
 
-    @app.route('/banques/nouvelle', methods=['GET', 'POST'])
+    @bp.route('/banques/nouvelle', methods=['GET', 'POST'])
     @login_required
     def creer_banque():
         if request.method == 'POST':
@@ -118,7 +118,7 @@ def init_banking_routes(app, db_config):
 
         return render_template('banking/creer.html')
     
-    @app.route('/banques/<int:banque_id>/edit', methods=['GET', 'POST'])
+    @bp.route('/banques/<int:banque_id>/edit', methods=['GET', 'POST'])
     @login_required
     def edit_banque(banque_id):
         banque = banque_model.get_by_id(banque_id)
@@ -143,7 +143,7 @@ def init_banking_routes(app, db_config):
                 flash("Erreur lors de la modification.", "danger")
 
         return render_template('banking/edit.html', banque=banque)
-    @app.route('/banques/<int:banque_id>/delete', methods=['POST'])
+    @bp.route('/banques/<int:banque_id>/delete', methods=['POST'])
     @login_required
     def delete_banque(banque_id):
         success = banque_model.delete_banque(banque_id)
@@ -153,7 +153,7 @@ def init_banking_routes(app, db_config):
             flash("Erreur lors de la suppression.", "danger")
         return redirect(url_for('liste_banques'))
         
-    @app.route('/banking/compte/nouveau', methods=['GET', 'POST'])
+    @bp.route('/banking/compte/nouveau', methods=['GET', 'POST'])
     @login_required
     def banking_nouveau_compte():
         if request.method == 'POST':
@@ -202,7 +202,7 @@ def init_banking_routes(app, db_config):
         # Récupération des banques pour le formulaire
         banques = banque_model.get_all()
         return render_template('banking/nouveau_compte.html', banques=banques)
-    @app.route('/banking/sous-compte/nouveau/<int:compte_id>', methods=['GET', 'POST'])
+    @bp.route('/banking/sous-compte/nouveau/<int:compte_id>', methods=['GET', 'POST'])
     @login_required
     def banking_nouveau_sous_compte(compte_id):
         user_id = current_user.id
@@ -235,7 +235,7 @@ def init_banking_routes(app, db_config):
 
 
 
-    @app.route('/banking/compte/<int:compte_id>')
+    @bp.route('/banking/compte/<int:compte_id>')
     @login_required
     def banking_compte_detail(compte_id):
         user_id = current_user.id
@@ -323,7 +323,7 @@ def init_banking_routes(app, db_config):
                             transferts_externes_pending=transferts_externes_pending,
                             today=date.today())
     
-    @app.route('/banking/sous-compte/<int:sous_compte_id>')
+    @bp.route('/banking/sous-compte/<int:sous_compte_id>')
     @login_required
     def banking_sous_compte_detail(sous_compte_id):
         user_id = current_user.id
@@ -473,7 +473,7 @@ def init_banking_routes(app, db_config):
 
     # Routes pour les dépôts
     @login_required
-    @app.route('/depot', methods=['GET', 'POST'])
+    @bp.route('/depot', methods=['GET', 'POST'])
     def depot():
         user_id = current_user.id
         comptes = compte_model.get_by_user_id(user_id)
@@ -514,7 +514,7 @@ def init_banking_routes(app, db_config):
         return render_template('banking/depot.html', comptes=comptes, all_comptes=all_comptes, now=datetime.now())
 
     # Routes pour les retraits
-    @app.route('/retrait', methods=['GET', 'POST'])
+    @bp.route('/retrait', methods=['GET', 'POST'])
     @login_required
     def retrait():
         user_id = current_user.id
@@ -558,7 +558,7 @@ def init_banking_routes(app, db_config):
         return render_template('banking/retrait.html', comptes=comptes, all_comptes=all_comptes, now=datetime.now())
 
 
-    @app.route('/banking/transfert', methods=['GET', 'POST'])
+    @bp.route('/banking/transfert', methods=['GET', 'POST'])
     @login_required
     def banking_transfert():
         user_id = current_user.id
@@ -729,7 +729,7 @@ def init_banking_routes(app, db_config):
             now=datetime.now()
         )
     
-    @app.route('/banking/transfert_compte_sous_compte', methods=['GET', 'POST'])
+    @bp.route('/banking/transfert_compte_sous_compte', methods=['GET', 'POST'])
     @login_required
     def banking_transfert_compte_sous_compte():    
         user_id = current_user.id
@@ -811,7 +811,7 @@ def init_banking_routes(app, db_config):
             sous_comptes=sous_comptes
         )
     
-    @app.route('/banking/annuler_transfert_externe/<int:transfert_id>', methods=['POST'])
+    @bp.route('/banking/annuler_transfert_externe/<int:transfert_id>', methods=['POST'])
     @login_required
     def annuler_transfert_externe(transfert_id):
         success, message = transaction_financiere_model.annuler_transfert_externe(
@@ -826,7 +826,7 @@ def init_banking_routes(app, db_config):
             
         return redirect(url_for('banking_dashboard'))
 
-    @app.route('/banking/modifier_transfert/<int:transfert_id>', methods=['GET', 'POST'])
+    @bp.route('/banking/modifier_transfert/<int:transfert_id>', methods=['GET', 'POST'])
     @login_required
     def modifier_transfert(transfert_id):        
         if request.method == 'POST':
@@ -852,7 +852,7 @@ def init_banking_routes(app, db_config):
         flash("Fonctionnalité non implémentée", "warning")
         return redirect(url_for('banking_dashboard'))
 
-    @app.route('/banking/supprimer_transfert/<int:transfert_id>', methods=['POST'])
+    @bp.route('/banking/supprimer_transfert/<int:transfert_id>', methods=['POST'])
     @login_required
     def supprimer_transfert(transfert_id):
         success, message = transaction_financiere_model.supprimer_transaction(
@@ -868,7 +868,7 @@ def init_banking_routes(app, db_config):
         return redirect(request.referrer or url_for('banking_dashboard'))
 
 
-    @app.route('/banking/liste_transferts', methods=['GET'])
+    @bp.route('/banking/liste_transferts', methods=['GET'])
     @login_required
     def liste_transferts():
         user_id = current_user.id
@@ -980,13 +980,13 @@ def init_banking_routes(app, db_config):
 
 
     # ---- APIs ----
-    @app.route('/api/banking/sous-comptes/<int:compte_id>')
+    @bp.route('/api/banking/sous-comptes/<int:compte_id>')
     @login_required
     def api_sous_comptes(compte_id):
         return jsonify({'success': True,
                         'sous_comptes': sous_compte_model.get_by_compte_principal_id(compte_id)})
 
-    @app.route("/statistiques")
+    @bp.route("/statistiques")
     @login_required
     def banking_statistiques():
         user_id = current_user.id
@@ -1041,7 +1041,7 @@ def init_banking_routes(app, db_config):
             evolution_values=evolution_values,
             selected_period=nb_mois
         )
-    @app.route("/statistiques/dashboard")
+    @bp.route("/statistiques/dashboard")
     @login_required
     def banking_statistique_dashboard():
         user_id = current_user.id
@@ -1091,13 +1091,13 @@ def init_banking_routes(app, db_config):
 
 
 
-    @app.route('/api/banking/repartition')
+    @bp.route('/api/banking/repartition')
     @login_required
     def api_repartition_banques():
         return jsonify({'success': True,
                         'repartition': stats_model.get_repartition_par_banque(current_user.id)})
 
-    @app.route('/banking/sous-compte/supprimer/<int:sous_compte_id>')
+    @bp.route('/banking/sous-compte/supprimer/<int:sous_compte_id>')
     @login_required
     def banking_supprimer_sous_compte(sous_compte_id):
         sous_compte = sous_compte_model.get_by_id(sous_compte_id)
@@ -1116,7 +1116,7 @@ def init_banking_routes(app, db_config):
 
     
 
-    @app.route('/comptabilite/statistiques')
+    @bp.route('/comptabilite/statistiques')
     @login_required
     def statistiques_comptables():
         #ecriture_model = ecriture_comptable_model(db_manager)
@@ -1143,7 +1143,7 @@ def init_banking_routes(app, db_config):
                             date_to=date_to)
     
     
-    @app.route('/comptabilite/categories')
+    @bp.route('/comptabilite/categories')
     @login_required
     def liste_categories_comptables():
         #plan_comptable = PlanComptable(db_manager)
@@ -1151,7 +1151,7 @@ def init_banking_routes(app, db_config):
         return render_template('comptabilite/categories.html', categories=categories)
     
 
-    @app.route('/comptabilite/categories/nouvelle', methods=['GET', 'POST'])
+    @bp.route('/comptabilite/categories/nouvelle', methods=['GET', 'POST'])
     @login_required
     def nouvelle_categorie():
         """Crée une nouvelle catégorie comptable"""
@@ -1179,7 +1179,7 @@ def init_banking_routes(app, db_config):
                             categories=categories,
                             categorie=None)
 
-    @app.route('/comptabilite/categories/<int:categorie_id>/edit', methods=['GET', 'POST'])
+    @bp.route('/comptabilite/categories/<int:categorie_id>/edit', methods=['GET', 'POST'])
     @login_required
     def edit_categorie(categorie_id):
         """Modifie une catégorie comptable existante"""
@@ -1212,7 +1212,7 @@ def init_banking_routes(app, db_config):
                             categories=categories,
                             categorie=categorie)
 
-    @app.route('/comptabilite/categories/import-csv', methods=['POST'])
+    @bp.route('/comptabilite/categories/import-csv', methods=['POST'])
     @login_required
     def import_plan_comptable_csv():
         """Importe le plan comptable depuis un fichier CSV"""
@@ -1273,7 +1273,7 @@ def init_banking_routes(app, db_config):
         
         return redirect(url_for('liste_categories_comptables'))
     
-    @app.route('/comptabilite/categories/<int:categorie_id>/delete', methods=['POST'])
+    @bp.route('/comptabilite/categories/<int:categorie_id>/delete', methods=['POST'])
     @login_required
     def delete_categorie(categorie_id):
         """Supprime une catégorie comptable"""
@@ -1286,7 +1286,7 @@ def init_banking_routes(app, db_config):
         
         return redirect(url_for('liste_categories_comptables'))
 
-    @app.route('/comptabilite/nouveau-contact', methods=['GET', 'POST'])
+    @bp.route('/comptabilite/nouveau-contact', methods=['GET', 'POST'])
     @login_required
     def nouveau_contact_comptable():
         """Crée un nouveau contact pour la comptabilité"""
@@ -1319,7 +1319,7 @@ def init_banking_routes(app, db_config):
         return redirect(redirect_to)
     
     
-    @app.route('/comptabilite/contacts/<int:contact_id>/delete', methods=['POST'])
+    @bp.route('/comptabilite/contacts/<int:contact_id>/delete', methods=['POST'])
     @login_required
     def delete_contact_comptable(contact_id):
         """Supprime un contact comptable"""
@@ -1333,7 +1333,7 @@ def init_banking_routes(app, db_config):
         return redirect(url_for('liste_contacts_comptables'))
     
     
-    @app.route('/comptabilite/contacts')
+    @bp.route('/comptabilite/contacts')
     @login_required
     def liste_contacts_comptables():
         """Affiche la liste des contacts comptables"""
@@ -1347,7 +1347,7 @@ def init_banking_routes(app, db_config):
         
         return render_template('comptabilite/liste_contacts.html', contacts=contacts)
         
-    @app.route('/comptabilite/contacts/<int:contact_id>/edit', methods=['GET', 'POST'])
+    @bp.route('/comptabilite/contacts/<int:contact_id>/edit', methods=['GET', 'POST'])
     @login_required
     def edit_contact_comptable(contact_id):
         """Modifie un contact comptable existant"""
@@ -1383,7 +1383,7 @@ def init_banking_routes(app, db_config):
         return render_template('comptabilite/nouveau_contact.html', contact=contact)
     
 
-    @app.route('/comptabilite/ecritures')
+    @bp.route('/comptabilite/ecritures')
     @login_required
     def liste_ecritures():
         """Affiche la liste des écritures comptables avec filtrage par statut"""
@@ -1457,7 +1457,7 @@ def init_banking_routes(app, db_config):
                             date_from=date_from,
                             date_to=date_to,
                             categorie_id=categorie_id)
-    @app.template_filter('datetimeformat')
+    @bp.template_filter('datetimeformat')
     def datetimeformat(value, format='%d.%m.%Y'):
         """Filtre pour formater les dates dans les templates"""
         if value is None:
@@ -1470,7 +1470,7 @@ def init_banking_routes(app, db_config):
 
     from datetime import datetime
 
-    @app.template_filter('month_french')
+    @bp.template_filter('month_french')
     def month_french_filter(value):
         """Convertit le nom du mois en français"""
         if isinstance(value, str):
@@ -1486,7 +1486,7 @@ def init_banking_routes(app, db_config):
         month_english = value.strftime('%B')
         return months_fr.get(month_english, month_english.upper())
 
-    @app.route('/comptabilite/ecritures/by-contact/<int:contact_id>', methods=['GET'])
+    @bp.route('/comptabilite/ecritures/by-contact/<int:contact_id>', methods=['GET'])
     @login_required
     def liste_ecritures_par_contact(contact_id):
         """Affiche les écritures associées à un contact spécifique"""
@@ -1510,7 +1510,7 @@ def init_banking_routes(app, db_config):
                             contact=contact,
                             comptes=comptes)
     
-    @app.route('/comptabilite/ecritures/nouvelle', methods=['GET', 'POST'])
+    @bp.route('/comptabilite/ecritures/nouvelle', methods=['GET', 'POST'])
     @login_required
     def nouvelle_ecriture():
         #plan_comptable = PlanComptable(db_manager)
@@ -1587,7 +1587,7 @@ def init_banking_routes(app, db_config):
                             statuts_disponibles=statuts_disponibles,
                             contacts=contacts)
 
-    @app.route('/comptabilite/ecritures/multiple/nouvelle', methods=['GET', 'POST'])
+    @bp.route('/comptabilite/ecritures/multiple/nouvelle', methods=['GET', 'POST'])
     @login_required
     def nouvelle_ecriture_multiple():
         #plan_comptable = PlanComptable(db_manager)
@@ -1673,7 +1673,7 @@ def init_banking_routes(app, db_config):
             current_date=datetime.now().strftime('%Y-%m-%d'), contacts=contacts)
         
 
-    @app.route('/comptabilite/ecritures/<int:ecriture_id>/statut', methods=['POST'])
+    @bp.route('/comptabilite/ecritures/<int:ecriture_id>/statut', methods=['POST'])
     @login_required
     def modifier_statut_ecriture(ecriture_id):
         #ecriture_model = EcritureComptable(db_manager)
@@ -1699,7 +1699,7 @@ def init_banking_routes(app, db_config):
     
     
 
-    @app.route('/comptabilite/ecritures/<int:ecriture_id>/edit', methods=['GET', 'POST'])
+    @bp.route('/comptabilite/ecritures/<int:ecriture_id>/edit', methods=['GET', 'POST'])
     @login_required
     def edit_ecriture(ecriture_id):
         """Modifie une écriture comptable existante"""
@@ -1766,7 +1766,7 @@ def init_banking_routes(app, db_config):
                             # CORRECTION: Utiliser 'contacts' au lieu de 'Contacts'
                             contacts=contacts)
 
-    @app.route('/comptabilite/ecritures/<int:ecriture_id>/delete', methods=['POST'])
+    @bp.route('/comptabilite/ecritures/<int:ecriture_id>/delete', methods=['POST'])
     @login_required
     def delete_ecriture(ecriture_id):
         """Supprime une écriture comptable"""
@@ -1789,7 +1789,7 @@ def init_banking_routes(app, db_config):
 
 
     # Ajouter une route pour lier une transaction à une écriture
-    @app.route('/banking/link_transaction', methods=['POST'])
+    @bp.route('/banking/link_transaction', methods=['POST'])
     @login_required
     def link_transaction_to_ecriture():
         transaction_id = request.form.get('transaction_id')
@@ -1810,7 +1810,7 @@ def init_banking_routes(app, db_config):
         return redirect(url_for('banking_compte_detail', compte_id=transaction['compte_principal_id']))
 
 
-    @app.route('/test-compte-resultat')
+    @bp.route('/test-compte-resultat')
     @login_required
     def test_compte_resultat():
         """Route de test pour debug"""
@@ -1824,7 +1824,7 @@ def init_banking_routes(app, db_config):
         )
         
         return jsonify(stats)
-    @app.route('/comptabilite/compte-de-resultat')
+    @bp.route('/comptabilite/compte-de-resultat')
     @login_required
     def compte_de_resultat():
         """Génère le compte de résultat avec filtres"""
@@ -1871,7 +1871,7 @@ def init_banking_routes(app, db_config):
             flash(f"Erreur lors de la génération du compte de résultat: {str(e)}", "danger")
             return redirect(url_for('index'))
 
-    @app.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
+    @bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
     @login_required
     def detail_ecritures_categorie(type, categorie_id):
         """Affiche le détail des écritures d'une catégorie"""
@@ -1967,7 +1967,7 @@ def init_banking_routes(app, db_config):
             flash(f"Erreur lors du chargement des détails: {str(e)}", "danger")
             return redirect(url_for('compte_de_resultat'))
 
-    @app.route('/comptabilite/ecritures/compte-resultat')
+    @bp.route('/comptabilite/ecritures/compte-resultat')
     @login_required
     def get_ecritures_compte_resultat():
         """Retourne les écritures pour le compte de résultat (AJAX)"""
@@ -2025,7 +2025,7 @@ def init_banking_routes(app, db_config):
             print(f"Erreur récupération écritures compte de résultat: {e}")
             return jsonify({'ecritures': [], 'count': 0, 'total': 0})
 
-    @app.route('/comptabilite/compte-de-resultat/export')
+    @bp.route('/comptabilite/compte-de-resultat/export')
     @login_required
     def export_compte_de_resultat():
         """Exporte le compte de résultat"""
@@ -2055,7 +2055,7 @@ def init_banking_routes(app, db_config):
             response.headers["Content-type"] = "application/pdf"
             return response
 
-    @app.route('/')
+    @bp.route('/')
     def journal_comptable():
         # Récupérer les années disponibles
         annees = ecriture_comptable_model.get_annees_disponibles(user_id=1)  # À adapter avec le vrai user_id
@@ -2089,7 +2089,7 @@ def init_banking_routes(app, db_config):
         
         return render_template('journal_comptable.html', **context)
 
-    @app.route('/api/ecritures')
+    @bp.route('/api/ecritures')
     @login_required
     def api_ecritures():
         # Récupérer les paramètres de filtrage
@@ -2121,7 +2121,7 @@ def init_banking_routes(app, db_config):
         
         return jsonify(ecritures)
 
-    @app.route('/api/compte_resultat')
+    @bp.route('/api/compte_resultat')
     @login_required
     def api_compte_resultat():
         date_from = request.args.get('date_from')
@@ -2141,7 +2141,7 @@ def init_banking_routes(app, db_config):
 
 # --- Routes heures et salaires ---
 
-    @app.route('/heures-travail', methods=['GET', 'POST'])
+    @bp.route('/heures-travail', methods=['GET', 'POST'])
     @login_required
     def heures_travail():
         #heure_model = HeureTravail(db_manager)
@@ -2482,7 +2482,7 @@ def init_banking_routes(app, db_config):
 
 
 
-    @app.route('/salaires', methods=['GET'])
+    @bp.route('/salaires', methods=['GET'])
     @login_required
     def salaires():
         # Récupération des paramètres d'année et de mois
@@ -2628,7 +2628,7 @@ def init_banking_routes(app, db_config):
                             totaux=totaux,
                             annee_courante=annee,
                             contrat_actuel=contrat_actuel)
-    @app.route('/api/details_calcul_salaire')
+    @bp.route('/api/details_calcul_salaire')
     @login_required
     def details_calcul_salaire():
         try:
@@ -2670,7 +2670,7 @@ def init_banking_routes(app, db_config):
         except Exception as e:
             return jsonify({'erreur': f'Erreur serveur: {str(e)}'}), 500
 
-    @app.route('/update_salaire', methods=['POST'])
+    @bp.route('/update_salaire', methods=['POST'])
     @login_required
     def update_salaire():
         # Récupération des données du formulaire en tant que chaînes (sans conversion automatique)
@@ -2789,7 +2789,7 @@ def init_banking_routes(app, db_config):
         
         return redirect(url_for('salaires', annee=annee))
 
-    @app.route('/synthese-hebdo', methods=['GET'])
+    @bp.route('/synthese-hebdo', methods=['GET'])
     @login_required
     def synthese_hebdomadaire():
         synthese_model = SyntheseHebdomadaire(db_manager)
@@ -2810,7 +2810,7 @@ def init_banking_routes(app, db_config):
                             current_semaine=semaine)
 
 
-    @app.route('/synthese-mensuelle', methods=['GET'])
+    @bp.route('/synthese-mensuelle', methods=['GET'])
     @login_required
     def synthese_mensuelle():
         synthese_model = SyntheseMensuelle(db_manager)
@@ -2830,7 +2830,7 @@ def init_banking_routes(app, db_config):
                             current_annee=annee,
                             current_mois=mois)
 
-    @app.route('/contrat', methods=['GET', 'POST'])
+    @bp.route('/contrat', methods=['GET', 'POST'])
     @login_required
     def gestion_contrat():
         #contrat_model = Contrat(db_manager)
