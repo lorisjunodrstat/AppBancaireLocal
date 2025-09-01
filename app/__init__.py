@@ -17,7 +17,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
 
 # Configuration de la base de données (NE PAS METTRE LES INFOS EN DUR)
-DB_CONFIG = {
+db_config = {
     'host': os.environ.get('DB_HOST'),
     'port': int(os.environ.get('DB_PORT', 3306)),
     'database': os.environ.get('DB_NAME'),
@@ -27,6 +27,16 @@ DB_CONFIG = {
     'use_unicode': True,
     'autocommit': True
 }
+
+# Assurez-vous d'importer les classes ModelManager et DatabaseManager
+from app.models import DatabaseManager, ModelManager
+
+# Initialiser les gestionnaires de modèles avec la configuration de la base de données
+# C'est ici que vous corrigez l'erreur de "NoneType"
+# Le bloc with app.app_context() est nécessaire si le ModelManager a besoin de current_app
+with app.app_context():
+    db_manager = DatabaseManager(db_config)
+    app.model_manager = ModelManager(db_manager)
 
 # Configuration Flask-Login
 login_manager = LoginManager()
