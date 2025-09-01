@@ -1,6 +1,5 @@
-
 import logging
-from flask import render_template, request, redirect, url_for, flash, jsonify, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app
 from flask_login import login_required, current_user
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, date
@@ -13,10 +12,36 @@ import traceback
 import random
 from collections import defaultdict
 
-# Création du blueprint (AJOUT CRITIQUE)
+# --- DÉBUT DES AJOUTS (8 lignes) ---
+from flask import _app_ctx_stack
+
+class ModelManager:
+    def __getattr__(self, name):
+        ctx = _app_ctx_stack.top
+        if not hasattr(ctx, 'banking_models'):
+            db_config = current_app.config.get('DB_CONFIG')
+            db_manager = DatabaseManager(db_config)
+            ctx.banking_models = {
+                'banque_model': Banque(db_manager),
+                'compte_model': ComptePrincipal(db_manager),
+                'sous_compte_model': SousCompte(db_manager),
+                'transaction_financiere_model': TransactionFinanciere(db_manager),
+                'stats_model': StatistiquesBancaires(db_manager),
+                'plan_comptable_model': PlanComptable(db_manager),
+                'ecriture_comptable_model': EcritureComptable(db_manager),
+                'contact_model': Contacts(db_manager),
+                'heure_model': HeureTravail(db_manager),
+                'contrat_model': Contrat(db_manager)
+            }
+        return ctx.banking_models.get(name)
+
+models = ModelManager()
+# --- FIN DES AJOUTS ---
+
+# Création du blueprint
 bp = Blueprint('banking', __name__)
 
-# Créez un logger au début du fichier
+# Configuration du logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -33,26 +58,6 @@ stream_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
-
-# Initialisation des modèles (à déplacer dans une fonction si nécessaire)
-# Note: Vous devrez peut-être passer la configuration DB différemment
-db_config = current_app.config.get('DB_CONFIG') if current_app else None
-db_manager = DatabaseManager(db_config) if db_config else None
-
-if db_manager:
-    banque_model = Banque(db_manager)
-    compte_model = ComptePrincipal(db_manager)
-    sous_compte_model = SousCompte(db_manager)
-    transaction_financiere_model = TransactionFinanciere(db_manager)
-    stats_model = StatistiquesBancaires(db_manager)
-    plan_comptable_model = PlanComptable(db_manager)
-    ecriture_comptable_model = EcritureComptable(db_manager)
-    contact_model = Contacts(db_manager)
-    heure_model = HeureTravail(db_manager)
-    contrat_model = Contrat(db_manager)
-else:
-    # Gestion d'erreur ou initialisation différée
-    pass
 
     # ---- Fonctions utilitaires ----
     def get_comptes_utilisateur(user_id):
