@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from ..models import Utilisateur, get_db_connection
+from ..models import Utilisateur
 from mysql.connector import Error
 
 # Créez le Blueprint avec le nom 'admin' et un préfixe d'URL
@@ -21,7 +21,7 @@ def before_request_check_admin():
 @bp.route('/utilisateurs')
 def liste_utilisateurs():
     """Affiche la liste des utilisateurs."""
-    connection = get_db_connection()
+    connection = Utilisateur.get_connection()
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
@@ -69,7 +69,7 @@ def supprimer_utilisateur(user_id):
         flash('Vous ne pouvez pas supprimer votre propre compte.', 'error')
         return redirect(url_for('admin.liste_utilisateurs'))
     
-    connection = get_db_connection()
+    connection = Utilisateur.get_connection()
     if connection:
         try:
             cursor = connection.cursor()
