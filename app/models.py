@@ -5090,7 +5090,7 @@ class ModelManager:
         self.compte_principal_model = ComptePrincipal(self.db)
         self.sous_compte_model = SousCompte(self.db)
         self.transaction_financiere_model = TransactionFinanciere(self.db)
-        self.stats_model = StatistiquesBancaires(self.db)
+        self.stats_model = StatistiquesB    ancaires(self.db)
         self.plan_comptable_model = PlanComptable(self.db)
         self.ecriture_comptable_model = EcritureComptable(self.db)
         self.contact_model = Contacts(self.db)
@@ -5100,5 +5100,22 @@ class ModelManager:
         self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
         self.contrat_model = Contrat(self.db)
         self.parametre_utilisateur_model = ParametreUtilisateur(self.db)    
-
-
+def init_db():
+    """Initialise la base de données en créant les tables"""
+    print("Initialisation de la base de données...")
+    try:
+        # Utiliser current_app pour accéder à la configuration
+        db_manager = DatabaseManager(current_app.config['DB_CONFIG'])
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        
+        # Exemple de création de table (à adapter à votre schéma)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS utilisateurs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nom VARCHAR(255) NOT NULL,
+                prenom VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                mot_de_passe VARCHAR(255) NOT NULL
+            );
+        """)
