@@ -5,9 +5,17 @@ Application Flask - Fichier d'initialisation principal
 """
 
 import os
+import sys
 from flask import Flask
 from flask_login import LoginManager
 from dotenv import load_dotenv
+
+# Ajoutez le répertoire racine au chemin Python pour les imports absolus
+# Cela est nécessaire lorsque le fichier est exécuté directement.
+if __name__ == '__main__':
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -32,10 +40,10 @@ db_config = {
 from app.models import DatabaseManager, ModelManager
 
 # Initialiser les gestionnaires de modèles avec la configuration de la base de données
-# C'est ici que vous corrigez l'erreur de "NoneType"
 # Le bloc with app.app_context() est nécessaire si le ModelManager a besoin de current_app
 with app.app_context():
-    db_manager = DatabaseManager(db_config)
+    app.config['DB_CONFIG'] = db_config  # Ajoutez cette ligne pour que 'DB_CONFIG' soit accessible
+    db_manager = DatabaseManager(app.config['DB_CONFIG'])
     app.model_manager = ModelManager(db_manager)
 
 # Configuration Flask-Login
@@ -75,18 +83,18 @@ def utility_processor():
     return dict(get_month_name=get_month_name)
 
 # Import des modèles et routes (APRES la création de l'app)
-from app import models
 from app.routes import auth, admin, banking
 
 # Enregistrement des blueprints
-app.register_blueprint(auth.bp)
+app.register_blueprint(auth.bp, url_prefix='/auth')
 app.register_blueprint(admin.bp)
 app.register_blueprint(banking.bp)
 
 # Initialisation de la base de données
 def init_database():
     from app.models import init_db
-    init_db()
+    with app.app_context():
+        init_db()
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
