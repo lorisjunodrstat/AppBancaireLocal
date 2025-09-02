@@ -5090,7 +5090,7 @@ class ModelManager:
         self.compte_principal_model = ComptePrincipal(self.db)
         self.sous_compte_model = SousCompte(self.db)
         self.transaction_financiere_model = TransactionFinanciere(self.db)
-        self.stats_model = StatistiquesB    ancaires(self.db)
+        self.stats_model = StatistiquesBncaires(self.db)
         self.plan_comptable_model = PlanComptable(self.db)
         self.ecriture_comptable_model = EcritureComptable(self.db)
         self.contact_model = Contacts(self.db)
@@ -5119,3 +5119,14 @@ def init_db():
                 mot_de_passe VARCHAR(255) NOT NULL
             );
         """)
+        # Ajoutez ici les CREATE TABLE pour toutes vos autres tables
+        print("Tables créées avec succès.")
+        conn.commit()
+    except Error as e:
+        print(f"Erreur lors de l'initialisation de la base de données: {e}")
+        traceback.print_exc()
+    finally:
+        if 'conn' in locals() and conn.is_connected():
+            cursor.close()
+            conn.close()
+
