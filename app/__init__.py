@@ -6,7 +6,7 @@ Application Flask - Fichier d'initialisation principal
 
 import os
 import sys
-from flask import Flask
+from flask import Flask, jsonify
 from flask_login import LoginManager
 from dotenv import load_dotenv
 
@@ -36,13 +36,13 @@ db_config = {
     'autocommit': True
 }
 
-# Assurez-vous d'importer les classes ModelManager et DatabaseManager
-from app.models import DatabaseManager, ModelManager
+# Assurez-vous d'importer les classes ModelManager, DatabaseManager et Utilisateur
+from app.models import DatabaseManager, ModelManager, Utilisateur
 
 # Initialiser les gestionnaires de modèles avec la configuration de la base de données
 # Le bloc with app.app_context() est nécessaire si le ModelManager a besoin de current_app
 with app.app_context():
-    app.config['DB_CONFIG'] = db_config  # Ajoutez cette ligne pour que 'DB_CONFIG' soit accessible
+    app.config['DB_CONFIG'] = db_config
     db_manager = DatabaseManager(app.config['DB_CONFIG'])
     app.model_manager = ModelManager(db_manager)
 
@@ -52,6 +52,12 @@ login_manager.init_app(app)
 login_manager.login_view = "auth.login"
 login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
 login_manager.login_message_category = "info"
+
+# Fonction user_loader requise par Flask-Login
+@login_manager.user_loader
+def load_user(user_id):
+    # Charge un utilisateur depuis la base de données via l'ID
+    return Utilisateur.get(user_id)
 
 # Filtres de template
 @app.template_filter('format_date')
@@ -89,6 +95,11 @@ from app.routes import auth, admin, banking
 app.register_blueprint(auth.bp, url_prefix='/auth')
 app.register_blueprint(admin.bp)
 app.register_blueprint(banking.bp)
+
+# Route de débogage temporaire pour vérifier les variables d'environnement
+@app.route('/debug-env')
+def debug_env():
+    return jsonify(os.environ.copy())
 
 # Initialisation de la base de données
 def init_database():
