@@ -5195,3 +5195,9 @@ class ModelManager:
         if hasattr(current_app, 'model_manager'):
             return current_app.model_manager.utilisateur_model.get_by_id(user_id)
         return None
+    def load_user(user_id):
+        """
+        Fonction de chargement d'utilisateur requise par Flask-Login.
+        Utilise la méthode statique de la classe Utilisateur.
+        """
+        return Utilisateur.get_by_id(user_id)
