@@ -96,9 +96,9 @@ app.register_blueprint(banking.bp)
 def init_database():
     from app.models import init_db
     with app.app_context():
-        init_db()
+        init_db(db_config)
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
-    init_database(db_config)
+    init_database()
     app.run(debug=True)
