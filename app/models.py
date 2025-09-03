@@ -5090,7 +5090,7 @@ class ModelManager:
         self.compte_principal_model = ComptePrincipal(self.db)
         self.sous_compte_model = SousCompte(self.db)
         self.transaction_financiere_model = TransactionFinanciere(self.db)
-        self.stats_model = StatistiquesBncaires(self.db)
+        self.stats_model = StatistiquesBancaires(self.db)
         self.plan_comptable_model = PlanComptable(self.db)
         self.ecriture_comptable_model = EcritureComptable(self.db)
         self.contact_model = Contacts(self.db)
