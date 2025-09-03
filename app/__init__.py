@@ -39,6 +39,11 @@ login_manager.login_view = "auth.login"
 login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
 login_manager.login_message_category = "info"
 
+@login_manager.user_loader
+def load_user(user_id):
+    from app.models import Utilisateur
+    return Utilisateur.get_by_id(user_id)
+
 # Import des routes (APRES la création de l'app)
 from app.routes import auth, admin, banking
 
