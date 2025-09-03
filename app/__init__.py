@@ -9,7 +9,7 @@ import sys
 from flask import Flask
 from flask_login import LoginManager
 from dotenv import load_dotenv
-
+import logging
 # Ajoutez le répertoire racine au chemin Python pour les imports absolus
 # Cela est nécessaire lorsque le fichier est exécuté directement.
 if __name__ == '__main__':
