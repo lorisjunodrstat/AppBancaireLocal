@@ -1,33 +1,23 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Application Flask - Fichier d'initialisation principal
-"""
-
 import os
 import sys
-from flask import Flask
+import logging
+from flask import Flask, g, request
 from flask_login import LoginManager
 from dotenv import load_dotenv
-import logging
+from .models import DatabaseManager, ModelManager, load_user
 
-# Ajoutez le répertoire racine au chemin Python pour les imports absolus
-# Cela est nécessaire lorsque le fichier est exécuté directement.
-if __name__ == '__main__':
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-
-# Charger les variables d'environnement
-load_dotenv()
+# Configuration de la journalisation
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Initialisation Flask
-app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
+# Chargement des variables d'environnement
+load_dotenv()
 
-# Configuration de la base de données (NE PAS METTRE LES INFOS EN DUR)
-db_config = {
+# Initialisation de Flask
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
+
+# Configuration de la base de données via la configuration Flask
+app.config['DB_CONFIG'] = {
     'host': os.environ.get('DB_HOST'),
     'port': int(os.environ.get('DB_PORT', 3306)),
     'database': os.environ.get('DB_NAME'),
@@ -38,22 +28,26 @@ db_config = {
     'autocommit': True
 }
 
-# Assurez-vous d'importer les classes ModelManager et DatabaseManager
-from app.models import DatabaseManager, ModelManager
-
-# Initialiser les gestionnaires de modèles avec la configuration de la base de données
-# Le bloc with app.app_context() est nécessaire si le ModelManager a besoin de current_app
-with app.app_context():
-    app.config['DB_CONFIG'] = db_config  # Ajoutez cette ligne pour que 'DB_CONFIG' soit accessible
-    db_manager = DatabaseManager(app.config['DB_CONFIG'])
-    app.model_manager = ModelManager(db_manager)
-
-# Configuration Flask-Login
+# Initialisation de Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
 login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
 login_manager.login_message_category = "info"
+
+# Enregistrement de la fonction de chargement d'utilisateur
+login_manager.user_loader(load_user)
+
+# ===========================
+# Initialisation de la BDD
+# ===========================
+# Cette fonction est appelée avant chaque requête pour s'assurer que les gestionnaires sont disponibles
+@app.before_request
+def before_request():
+    if not hasattr(g, 'db_manager'):
+        g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
+    if not hasattr(g, 'model_manager'):
+        g.model_manager = ModelManager(g.db_manager)
 
 # Filtres de template
 @app.template_filter('format_date')
@@ -84,21 +78,8 @@ def utility_processor():
     
     return dict(get_month_name=get_month_name)
 
-# Import des modèles et routes (APRES la création de l'app)
+# Import et enregistrement des blueprints
 from app.routes import auth, admin, banking
-
-# Enregistrement des blueprints
 app.register_blueprint(auth.bp)
 app.register_blueprint(admin.bp)
 app.register_blueprint(banking.bp)
-
-# Initialisation de la base de données
-def init_database():
-    from app.models import init_db
-    with app.app_context():
-        init_db(db_config)
-
-# Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
-if __name__ == '__main__':
-    init_database()
-    app.run(debug=True)
