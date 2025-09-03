@@ -4,7 +4,6 @@
 Modèles de données pour la gestion bancaire
 Classes pour manipuler les banques, comptes et sous-comptes
 """
-from flask import current_app
 import mysql.connector
 from mysql.connector import Error, MySQLConnection
 from decimal import Decimal
@@ -17,45 +16,45 @@ import traceback
 from contextlib import contextmanager
 from flask_login import UserMixin
 import logging
-def init_db(db_config):
+
+class DatabaseManager:
+    """Gère la connexion et les opérations de base de données."""
+    def __init__(self, db_config):
+        self.db_config = db_config
+        self.conn = None
+        self.is_connected = False
+        self.init_db_connection()
+
+    def init_db_connection(self):
         """
-        Initialise la connexion à la base de données en utilisant la configuration fournie.
-        Gère les erreurs de connexion et crée les tables si nécessaire.
+        Initialise la connexion à la base de données.
         """
-        conn = None
         try:
             logging.info("Tentative de connexion à la base de données...")
-            conn = mysql.connector.connect(**db_config)
-            logging.info("Connexion à la base de données réussie.")
-            
-            # Créer un curseur pour exécuter les requêtes
-            cursor = conn.cursor()
-            
-            # Appeler la fonction de création de tables
-            create_tables(cursor)
-            
-        except mysql.connector.Error as err:
+            self.conn = mysql.connector.connect(**self.db_config)
+            if self.conn.is_connected():
+                self.is_connected = True
+                logging.info("Connexion à la base de données réussie.")
+                self.create_tables()
+            else:
+                logging.error("Échec de la connexion à la base de données.")
+        except Error as err:
             logging.error(f"Erreur de connexion à la base de données : {err}")
-            logging.error("Vérifiez les points suivants :")
-            logging.error("1. Le serveur de base de données est-il démarré ?")
-            logging.error("2. Les informations de connexion dans votre fichier .env sont-elles correctes (DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME) ?")
-            conn = None
+            self.is_connected = False
         except Exception as e:
-            logging.error(f"Une erreur inattendue est survenue : {e}")
-            conn = None
-        finally:
-            # S'assurer que la connexion est fermée si elle a été établie
-            if conn and conn.is_connected():
-                logging.info("Fermeture de la connexion à la base de données.")
-                conn.close()
-
-    def create_tables(cursor):
+            logging.error(f"Une erreur inattendue est survenue lors de la connexion : {e}")
+            self.is_connected = False
+    
+    def create_tables(self):
         """
         Crée les tables de la base de données si elles n'existent pas.
-        Note: Remplacez les requêtes SQL ci-dessous par les vôtres.
         """
+        if not self.is_connected:
+            logging.error("Impossible de créer les tables : pas de connexion à la base de données.")
+            return
+
+        cursor = self.conn.cursor()
         try:
-            # Exemple de requête SQL pour créer une table
             create_users_table_query = """
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -68,9 +67,28 @@ def init_db(db_config):
             logging.info("Tables vérifiées et créées si nécessaire.")
         except Exception as e:
             logging.error(f"Erreur lors de la création des tables : {e}")
+        finally:
+            cursor.close()
 
+    @contextmanager
+    def get_cursor(self):
+        """Fournit un curseur de base de données dans un contexte de gestionnaire."""
+        cursor = None
+        try:
+            cursor = self.conn.cursor()
+            yield cursor
+        except Exception as e:
+            self.conn.rollback()
+            raise e
+        finally:
+            if cursor:
+                cursor.close()
 
-
+    def __del__(self):
+        """Ferme la connexion lorsque l'objet est détruit."""
+        if self.conn and self.conn.is_connected():
+            self.conn.close()
+            logging.info("Fermeture de la connexion à la base de données.")
 
 class Utilisateur(UserMixin):
     def __init__(self, id, nom, prenom, email, mot_de_passe):
@@ -5153,4 +5171,18 @@ class ModelManager:
         self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
         self.contrat_model = Contrat(self.db)
         self.parametre_utilisateur_model = ParametreUtilisateur(self.db)    
+    def get_user_by_username(self, username):
+        """
+        Récupère un utilisateur par nom d'utilisateur.
+        Ceci est un exemple de fonction de modèle.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "SELECT * FROM users WHERE username = %s"
+                cursor.execute(query, (username,))
+                user_data = cursor.fetchone()
+                return user_data
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
+            return None
     
