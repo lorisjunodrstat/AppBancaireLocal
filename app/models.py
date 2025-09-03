@@ -144,7 +144,7 @@ class DatabaseManager:
     def get_connection(self):
         """Retourne une connexion à la base de données"""
         try:
-            connection = mysql.connector.connect(**self.db_config)
+            connection = pymysql.connect(**self.db_config)
             return connection
         except Error as e:
             print(f"Erreur de connexion à la base de données: {e}")
