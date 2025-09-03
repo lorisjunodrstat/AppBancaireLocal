@@ -17,6 +17,8 @@ from contextlib import contextmanager
 from flask_login import UserMixin
 import logging
 from flask import current_app
+import pymysql
+from pymysql import Error
 
 class DatabaseManager:
     """Gère la connexion et les opérations de base de données."""
@@ -31,19 +33,25 @@ class DatabaseManager:
         Initialise la connexion à la base de données.
         """
         try:
-            logging.info("Tentative de connexion à la base de données...")
-            self.conn = mysql.connector.connect(**self.db_config)
-            if self.conn.is_connected():
-                self.is_connected = True
-                logging.info("Connexion à la base de données réussie.")
-                self.create_tables()
-            else:
-                logging.error("Échec de la connexion à la base de données.")
+            logging.info("Tentative de connexion à la base de données avec PyMySQL...")
+            # Masquer le mot de passe dans les logs
+            config_log = self.db_config.copy()
+            config_log['password'] = '***'
+            logging.info(f"Configuration: {config_log}")
+            
+            self.conn = pymysql.connect(**self.db_config)
+            self.is_connected = True
+            logging.info("Connexion à la base de données réussie avec PyMySQL.")
+            self.create_tables()
         except Error as err:
             logging.error(f"Erreur de connexion à la base de données : {err}")
+            logging.error(f"Code d'erreur: {err.args[0]}")
+            logging.error(f"Message: {err.args[1]}")
             self.is_connected = False
         except Exception as e:
             logging.error(f"Une erreur inattendue est survenue lors de la connexion : {e}")
+            import traceback
+            logging.error(traceback.format_exc())
             self.is_connected = False
     
     def create_tables(self):
@@ -5189,9 +5197,7 @@ class ModelManager:
             logging.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
             return None
 
-    def load_user(user_id):
-        """
-        Fonction de chargement d'utilisateur requise par Flask-Login.
-        Utilise la méthode statique de la classe Utilisateur.
-        """
-        return Utilisateur.get_by_id(user_id)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return Utilisateur.get_by_id(user_id)
