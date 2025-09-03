@@ -28,7 +28,8 @@ app.config['DB_CONFIG'] = {
     'password': os.environ.get('DB_PASSWORD'),
     'charset': 'utf8mb4',
     'use_unicode': True,
-    'autocommit': True
+    'autocommit': True,
+    'auth_plugin': 'mysql_native_password'  # Ajoutez cette ligne
 }
 
 # Configuration Flask-Login
@@ -69,7 +70,7 @@ def utility_processor():
         months = {
             1: "Janvier", 2: "Février", 3: "Mars", 4: "Avril",
             5: "Mai", 6: "Juin", 7: "Juillet", 8: "Août",
-            9: "Septembre", 10: "Octobre", 11: "Décembre"
+            9: "Septembre", 10: "Octobre", 11: "Novembre", 12: "Décembre"
         }
         return months.get(month_num, "")
     
@@ -83,16 +84,11 @@ def before_request_hook():
         g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
         g.model_manager = ModelManager(g.db_manager)
 
-# Initialisation de la base de données
-def init_database():
-    from app.models import init_db
-    with app.app_context():
-        init_db(app.config['DB_CONFIG'])
-
-# Fonction pour initialiser l'application Flask-Login
-def init_login_manager(app):
-    from app.models import load_user
-    login_manager.user_loader(load_user)
+# Fonction de chargement d'utilisateur pour Flask-Login
+@login_manager.user_loader
+def load_user(user_id):
+    from app.models import Utilisateur
+    return Utilisateur.get_by_id(user_id)
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
@@ -101,6 +97,4 @@ if __name__ == '__main__':
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
         
-    init_database()
-    init_login_manager(app)
     app.run(debug=True)
