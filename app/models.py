@@ -4,8 +4,8 @@
 Modèles de données pour la gestion bancaire
 Classes pour manipuler les banques, comptes et sous-comptes
 """
-import mysql.connector
-from mysql.connector import Error, MySQLConnection
+import pymysql
+from pymysql import Error
 from decimal import Decimal
 from datetime import datetime, date, timedelta
 import calendar
@@ -17,11 +17,8 @@ from contextlib import contextmanager
 from flask_login import UserMixin
 import logging
 from flask import current_app
-import pymysql
-from pymysql import Error
 
 class DatabaseManager:
-    """Gère la connexion et les opérations de base de données."""
     def __init__(self, db_config):
         self.db_config = db_config
         self.conn = None
@@ -30,7 +27,7 @@ class DatabaseManager:
 
     def init_db_connection(self):
         """
-        Initialise la connexion à la base de données.
+        Initialise la connexion à la base de données avec PyMySQL.
         """
         try:
             logging.info("Tentative de connexion à la base de données avec PyMySQL...")
@@ -53,54 +50,6 @@ class DatabaseManager:
             import traceback
             logging.error(traceback.format_exc())
             self.is_connected = False
-    
-    def create_tables(self):
-        """
-        Crée les tables de la base de données si elles n'existent pas.
-        """
-        if not self.is_connected:
-            logging.error("Impossible de créer les tables : pas de connexion à la base de données.")
-            return
-
-        cursor = self.conn.cursor()
-        try:
-            create_users_table_query = """
-            CREATE TABLE IF NOT EXISTS utilisateurs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nom VARCHAR(255) NOT NULL,
-                prenom VARCHAR(255) NOT NULL,
-                email VARCHAR(255) NOT NULL UNIQUE,
-                mot_de_passe VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-            cursor.execute(create_users_table_query)
-            logging.info("Tables vérifiées et créées si nécessaire.")
-        except Exception as e:
-            logging.error(f"Erreur lors de la création des tables : {e}")
-        finally:
-            cursor.close()
-
-    @contextmanager
-    def get_cursor(self):
-        """Fournit un curseur de base de données dans un contexte de gestionnaire."""
-        cursor = None
-        try:
-            cursor = self.conn.cursor()
-            yield cursor
-        except Exception as e:
-            self.conn.rollback()
-            raise e
-        finally:
-            if cursor:
-                cursor.close()
-
-    def __del__(self):
-        """Ferme la connexion lorsque l'objet est détruit."""
-        if self.conn and self.conn.is_connected():
-            self.conn.close()
-            logging.info("Fermeture de la connexion à la base de données.")
-
 class Utilisateur(UserMixin):
     def __init__(self, id, nom, prenom, email, mot_de_passe):
         self.id = id
@@ -5198,3 +5147,6 @@ class ModelManager:
             return None
 
 
+@login_manager.user_loader
+def load_user(user_id):
+    return Utilisateur.get_by_id(user_id)
