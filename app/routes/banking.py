@@ -1921,7 +1921,7 @@ def journal_comptable():
         'date_from': date_from,
         'date_to': date_to
     }
-    return render_template('journal_comptable.html', **context)
+    return render_template('comptabilite/journal_comptable.html', **context)
 
 @bp.route('/api/ecritures')
 @login_required
