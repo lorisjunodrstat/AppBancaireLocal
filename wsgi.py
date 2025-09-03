@@ -1,16 +1,12 @@
 import sys
 import os
-from dotenv import load_dotenv, find_dotenv
 
-# Chargez les variables d'environnement au démarrage de WSGI de manière robuste.
-# find_dotenv() cherche de manière récursive le fichier .env
-load_dotenv(find_dotenv())
+# Ajoutez le répertoire racine du projet au chemin de recherche Python
+# Remplacez '/var/www/webroot/ROOT' par le chemin absolu de votre répertoire racine
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Ajoutez le répertoire racine au chemin Python
-# Cela permet à l'application d'importer ses modules correctement.
-project_root = os.path.dirname(os.path.abspath(__file__))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Importez dotenv et chargez les variables d'environnement
+from dotenv import load_dotenv
+load_dotenv()
 
-# Importez l'application Flask
 from app import app as application
