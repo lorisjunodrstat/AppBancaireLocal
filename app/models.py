@@ -5100,33 +5100,56 @@ class ModelManager:
         self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
         self.contrat_model = Contrat(self.db)
         self.parametre_utilisateur_model = ParametreUtilisateur(self.db)    
-def init_db():
-    """Initialise la base de données en créant les tables"""
-    print("Initialisation de la base de données...")
-    try:
-        # Utiliser current_app pour accéder à la configuration
-        db_manager = DatabaseManager(current_app.config['DB_CONFIG'])
-        conn = db_manager.get_connection()
-        cursor = conn.cursor()
-        
-        # Exemple de création de table (à adapter à votre schéma)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS utilisateurs (
+    def init_db(db_config):
+        """
+        Initialise la connexion à la base de données en utilisant la configuration fournie.
+        Gère les erreurs de connexion et crée les tables si nécessaire.
+        """
+        conn = None
+        try:
+            logging.info("Tentative de connexion à la base de données...")
+            conn = mysql.connector.connect(**db_config)
+            logging.info("Connexion à la base de données réussie.")
+            
+            # Créer un curseur pour exécuter les requêtes
+            cursor = conn.cursor()
+            
+            # Appeler la fonction de création de tables
+            create_tables(cursor)
+            
+        except mysql.connector.Error as err:
+            logging.error(f"Erreur de connexion à la base de données : {err}")
+            logging.error("Vérifiez les points suivants :")
+            logging.error("1. Le serveur de base de données est-il démarré ?")
+            logging.error("2. Les informations de connexion dans votre fichier .env sont-elles correctes (DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME) ?")
+            conn = None
+        except Exception as e:
+            logging.error(f"Une erreur inattendue est survenue : {e}")
+            conn = None
+        finally:
+            # S'assurer que la connexion est fermée si elle a été établie
+            if conn and conn.is_connected():
+                logging.info("Fermeture de la connexion à la base de données.")
+                conn.close()
+
+    def create_tables(cursor):
+        """
+        Crée les tables de la base de données si elles n'existent pas.
+        Note: Remplacez les requêtes SQL ci-dessous par les vôtres.
+        """
+        try:
+            # Exemple de requête SQL pour créer une table
+            create_users_table_query = """
+            CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                nom VARCHAR(255) NOT NULL,
-                prenom VARCHAR(255) NOT NULL,
-                email VARCHAR(255) NOT NULL UNIQUE,
-                mot_de_passe VARCHAR(255) NOT NULL
+                username VARCHAR(255) NOT NULL UNIQUE,
+                password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-        """)
-        # Ajoutez ici les CREATE TABLE pour toutes vos autres tables
-        print("Tables créées avec succès.")
-        conn.commit()
-    except Error as e:
-        print(f"Erreur lors de l'initialisation de la base de données: {e}")
-        traceback.print_exc()
-    finally:
-        if 'conn' in locals() and conn.is_connected():
-            cursor.close()
-            conn.close()
+            """
+            cursor.execute(create_users_table_query)
+            logging.info("Tables vérifiées et créées si nécessaire.")
+        except Exception as e:
+            logging.error(f"Erreur lors de la création des tables : {e}")
+
 
