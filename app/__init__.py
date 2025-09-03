@@ -42,7 +42,7 @@ app.config['DB_CONFIG'] = {
     'charset': 'utf8mb4',
     'autocommit': True,
     'cursorclass': pymysql.cursors.DictCursor,
-    'auth_plugin': 'mysql_native_password'
+    #'auth_plugin': 'mysql_native_password'
 }
 
 # Configuration Flask-Login
