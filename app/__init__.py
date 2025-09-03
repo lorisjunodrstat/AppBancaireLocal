@@ -6,9 +6,9 @@ Application Flask - Fichier d'initialisation principal
 
 import os
 import sys
-from flask import Flask, jsonify
-from flask_login import LoginManager
-from dotenv import load_dotenv
+from flask import Flask, jsonify, redirect, url_for
+from flask_login import LoginManager, current_user
+# from dotenv import load_dotenv  # <-- Suppression de cette ligne
 
 # Ajoutez le répertoire racine au chemin Python pour les imports absolus
 # Cela est nécessaire lorsque le fichier est exécuté directement.
@@ -16,9 +16,6 @@ if __name__ == '__main__':
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-
-# Charger les variables d'environnement
-load_dotenv()
 
 # Initialisation Flask
 app = Flask(__name__)
@@ -87,6 +84,16 @@ def utility_processor():
         return months.get(month_num, "")
     
     return dict(get_month_name=get_month_name)
+
+# --- NOUVEAU --- Route d'accueil pour éviter la page blanche
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        # Redirige vers la page d'accueil si l'utilisateur est déjà connecté
+        return redirect(url_for('admin.accueil'))
+    # Sinon, redirige vers la page de connexion
+    return redirect(url_for('auth.login'))
+# --- FIN NOUVEAU ---
 
 # Import des modèles et routes (APRES la création de l'app)
 from app.routes import auth, admin, banking
