@@ -5188,7 +5188,6 @@ class ModelManager:
         except Exception as e:
             logging.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
             return None
-    @current_app.login_manager.user_loader
     def load_user(user_id):
         """
         Fonction de chargement d'utilisateur requise par Flask-Login.
