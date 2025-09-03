@@ -1,31 +1,25 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Application Flask - Fichier d'initialisation principal
+"""
+
 import os
 import sys
-import logging
-from flask import Flask, g, request
+from flask import Flask, g
 from flask_login import LoginManager
 from dotenv import load_dotenv
-from .models import DatabaseManager, ModelManager, load_user
-from pathlib import Path
-# Configuration de la journalisation
+import logging
+
+# Charge les variables d'environnement
+load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Chargement des variables d'environnement
-
-
-
-env_path = Path('/var/www/webroot/ROOT') / '.env'
-load_dotenv(dotenv_path=env_path)
-logging.info("Variables d'environnement chargées:")
-logging.info(f"DB_HOST: {os.environ.get('DB_HOST')}")
-logging.info(f"DB_PORT: {os.environ.get('DB_PORT')}")
-logging.info(f"DB_NAME: {os.environ.get('DB_NAME')}")
-logging.info(f"DB_USER: {os.environ.get('DB_USER')}")
-
-# Initialisation de Flask
+# Initialisation Flask
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
+app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
 
-# Configuration de la base de données via la configuration Flask
+# Configuration de la base de données
 app.config['DB_CONFIG'] = {
     'host': os.environ.get('DB_HOST'),
     'port': int(os.environ.get('DB_PORT', 3306)),
@@ -34,30 +28,23 @@ app.config['DB_CONFIG'] = {
     'password': os.environ.get('DB_PASSWORD'),
     'charset': 'utf8mb4',
     'use_unicode': True,
-    'autocommit': True,
-    'auth_plugin': 'mysql_native_password'
+    'autocommit': True
 }
 
-# Initialisation de Flask-Login
+# Configuration Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
 login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
 login_manager.login_message_category = "info"
 
-# Enregistrement de la fonction de chargement d'utilisateur
-login_manager.user_loader(load_user)
+# Import des routes (APRES la création de l'app)
+from app.routes import auth, admin, banking
 
-# ===========================
-# Initialisation de la BDD
-# ===========================
-# Cette fonction est appelée avant chaque requête pour s'assurer que les gestionnaires sont disponibles
-@app.before_request
-def before_request():
-    if not hasattr(g, 'db_manager'):
-        g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
-    if not hasattr(g, 'model_manager'):
-        g.model_manager = ModelManager(g.db_manager)
+# Enregistrement des blueprints
+app.register_blueprint(auth.bp)
+app.register_blueprint(admin.bp)
+app.register_blueprint(banking.bp)
 
 # Filtres de template
 @app.template_filter('format_date')
@@ -82,15 +69,38 @@ def utility_processor():
         months = {
             1: "Janvier", 2: "Février", 3: "Mars", 4: "Avril",
             5: "Mai", 6: "Juin", 7: "Juillet", 8: "Août",
-            9: "Septembre", 10: "Octobre", 11: "Novembre", 12: "Décembre"
+            9: "Septembre", 10: "Octobre", 11: "Décembre"
         }
         return months.get(month_num, "")
     
     return dict(get_month_name=get_month_name)
 
-# Import et enregistrement des blueprints
-from app.routes import auth, admin, banking
-app.register_blueprint(auth.bp)
-app.register_blueprint(admin.bp)
-app.register_blueprint(banking.bp)
+# Initialisation des gestionnaires de modèles
+@app.before_request
+def before_request_hook():
+    if not hasattr(g, 'db_manager'):
+        from app.models import DatabaseManager, ModelManager
+        g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
+        g.model_manager = ModelManager(g.db_manager)
 
+# Initialisation de la base de données
+def init_database():
+    from app.models import init_db
+    with app.app_context():
+        init_db(app.config['DB_CONFIG'])
+
+# Fonction pour initialiser l'application Flask-Login
+def init_login_manager(app):
+    from app.models import load_user
+    login_manager.user_loader(load_user)
+
+# Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
+if __name__ == '__main__':
+    # Ajoutez le répertoire racine au chemin Python pour les imports absolus
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+        
+    init_database()
+    init_login_manager(app)
+    app.run(debug=True)
