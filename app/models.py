@@ -16,6 +16,7 @@ import traceback
 from contextlib import contextmanager
 from flask_login import UserMixin
 import logging
+from flask import current_app
 
 class DatabaseManager:
     """Gère la connexion et les opérations de base de données."""
@@ -56,10 +57,12 @@ class DatabaseManager:
         cursor = self.conn.cursor()
         try:
             create_users_table_query = """
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE IF NOT EXISTS utilisateurs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                username VARCHAR(255) NOT NULL UNIQUE,
-                password VARCHAR(255) NOT NULL,
+                nom VARCHAR(255) NOT NULL,
+                prenom VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                mot_de_passe VARCHAR(255) NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -5185,4 +5188,11 @@ class ModelManager:
         except Exception as e:
             logging.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
             return None
-    
+    @current_app.login_manager.user_loader
+    def load_user(user_id):
+        """
+        Fonction de chargement d'utilisateur requise par Flask-Login.
+        """
+        if hasattr(current_app, 'model_manager'):
+            return current_app.model_manager.utilisateur_model.get_by_id(user_id)
+        return None
