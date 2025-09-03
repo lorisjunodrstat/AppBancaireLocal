@@ -29,7 +29,7 @@ app.config['DB_CONFIG'] = {
     'charset': 'utf8mb4',
     'use_unicode': True,
     'autocommit': True,
-    'auth_plugin': 'mysql_native_password'  # Ajoutez cette ligne
+    'auth_plugin': 'mysql_native_password'
 }
 
 # Configuration Flask-Login
@@ -39,6 +39,7 @@ login_manager.login_view = "auth.login"
 login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
 login_manager.login_message_category = "info"
 
+# Fonction de chargement d'utilisateur pour Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
     from app.models import Utilisateur
@@ -88,12 +89,6 @@ def before_request_hook():
         from app.models import DatabaseManager, ModelManager
         g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
         g.model_manager = ModelManager(g.db_manager)
-
-# Fonction de chargement d'utilisateur pour Flask-Login
-@login_manager.user_loader
-def load_user(user_id):
-    from app.models import Utilisateur
-    return Utilisateur.get_by_id(user_id)
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
