@@ -5,12 +5,21 @@ from flask import Flask, g, request
 from flask_login import LoginManager
 from dotenv import load_dotenv
 from .models import DatabaseManager, ModelManager, load_user
-
+from pathlib import Path
 # Configuration de la journalisation
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Chargement des variables d'environnement
-load_dotenv()
+
+
+
+env_path = Path('/var/www/webroot/ROOT') / '.env'
+load_dotenv(dotenv_path=env_path)
+logging.info("Variables d'environnement chargées:")
+logging.info(f"DB_HOST: {os.environ.get('DB_HOST')}")
+logging.info(f"DB_PORT: {os.environ.get('DB_PORT')}")
+logging.info(f"DB_NAME: {os.environ.get('DB_NAME')}")
+logging.info(f"DB_USER: {os.environ.get('DB_USER')}")
 
 # Initialisation de Flask
 app = Flask(__name__)
@@ -25,7 +34,8 @@ app.config['DB_CONFIG'] = {
     'password': os.environ.get('DB_PASSWORD'),
     'charset': 'utf8mb4',
     'use_unicode': True,
-    'autocommit': True
+    'autocommit': True,
+    'auth_plugin': 'mysql_native_password'
 }
 
 # Initialisation de Flask-Login
@@ -83,3 +93,4 @@ from app.routes import auth, admin, banking
 app.register_blueprint(auth.bp)
 app.register_blueprint(admin.bp)
 app.register_blueprint(banking.bp)
+
