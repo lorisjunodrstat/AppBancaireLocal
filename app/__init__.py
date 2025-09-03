@@ -9,17 +9,30 @@ import sys
 from flask import Flask, g
 from flask_login import LoginManager
 from dotenv import load_dotenv
+from pathlib import Path
+import pymysql
+import pymysql.cursors
 import logging
 
-# Charge les variables d'environnement
-load_dotenv()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Charge les variables d'environnement avec chemin absolu
+env_path = Path('/var/www/webroot/ROOT') / '.env'
+load_dotenv(dotenv_path=env_path)
+
+# Configuration de la journalisation
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/var/www/webroot/ROOT/app.log'),
+        logging.StreamHandler()
+    ]
+)
 
 # Initialisation Flask
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
 
-# Configuration de la base de données
+# Configuration de la base de données avec PyMySQL
 app.config['DB_CONFIG'] = {
     'host': os.environ.get('DB_HOST'),
     'port': int(os.environ.get('DB_PORT', 3306)),
@@ -27,9 +40,8 @@ app.config['DB_CONFIG'] = {
     'user': os.environ.get('DB_USER'),
     'password': os.environ.get('DB_PASSWORD'),
     'charset': 'utf8mb4',
-    'use_unicode': True,
     'autocommit': True,
-    'auth_plugin': 'mysql_native_password'
+    'cursorclass': pymysql.cursors.DictCursor
 }
 
 # Configuration Flask-Login
