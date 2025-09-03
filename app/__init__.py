@@ -10,6 +10,7 @@ from flask import Flask
 from flask_login import LoginManager
 from dotenv import load_dotenv
 import logging
+
 # Ajoutez le répertoire racine au chemin Python pour les imports absolus
 # Cela est nécessaire lorsque le fichier est exécuté directement.
 if __name__ == '__main__':
@@ -99,5 +100,5 @@ def init_database():
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
-    init_database()
+    init_database(db_config)
     app.run(debug=True)
