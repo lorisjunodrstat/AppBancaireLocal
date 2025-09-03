@@ -5147,6 +5147,4 @@ class ModelManager:
             return None
 
 
-@login_manager.user_loader
-def load_user(user_id):
-    return Utilisateur.get_by_id(user_id)
+
