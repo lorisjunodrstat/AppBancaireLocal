@@ -13,6 +13,38 @@ from pathlib import Path
 import pymysql
 import pymysql.cursors
 import logging
+from logging.handler import RotatingFileHandler
+
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_dir = '/var/www/webroot/ROOT/logs'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Handler pour fichier de log
+file_handler = RotatingFileHandler(
+    os.path.join(log_dir, 'app.log'),
+    maxBytes=1024 * 1024 * 10,  # 10 MB
+    backupCount=10
+)
+file_handler.setFormatter(log_formatter)
+file_handler.setLevel(logging.INFO)
+
+# Handler pour la console
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(log_formatter)
+stream_handler.setLevel(logging.INFO)
+
+# Configurer le logger racine
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(file_handler)
+root_logger.addHandler(stream_handler)
+
+# Désactiver le logging de certains modules trop verbeux
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
+
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
 
 # Charge les variables d'environnement avec chemin absolu
 env_path = Path('/var/www/webroot/ROOT') / '.env'
@@ -41,8 +73,7 @@ app.config['DB_CONFIG'] = {
     'password': os.environ.get('DB_PASSWORD'),
     'charset': 'utf8mb4',
     'autocommit': True,
-    'cursorclass': pymysql.cursors.DictCursor,
-    #'auth_plugin': 'mysql_native_password'
+    'cursorclass': pymysql.cursors.DictCursor  # Ceci permet d'obtenir des dictionnaires
 }
 
 # Configuration Flask-Login
