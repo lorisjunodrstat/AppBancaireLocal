@@ -27,7 +27,7 @@ class DatabaseManager:
 
     def init_db_connection(self):
         """
-        Initialise la connexion à la base de données avec PyMySQL.
+        Initialise la connexion à la base de données.
         """
         try:
             logging.info("Tentative de connexion à la base de données avec PyMySQL...")
@@ -50,6 +50,23 @@ class DatabaseManager:
             import traceback
             logging.error(traceback.format_exc())
             self.is_connected = False
+    
+    def close_connection(self):
+        """
+        Ferme proprement la connexion à la base de données.
+        """
+        try:
+            if self.conn and self.conn.open:
+                self.conn.close()
+                self.is_connected = False
+                logging.info("Connexion à la base de données fermée proprement.")
+        except Exception as e:
+            logging.error(f"Erreur lors de la fermeture de la connexion : {e}")
+    
+    def __del__(self):
+        """Ferme la connexion lorsque l'objet est détruit."""
+        self.close_connection()
+        
 class Utilisateur(UserMixin):
     def __init__(self, id, nom, prenom, email, mot_de_passe):
         self.id = id
@@ -94,7 +111,7 @@ class Utilisateur(UserMixin):
     @staticmethod
     def get_by_id(user_id):
         conn = Utilisateur.get_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM utilisateurs WHERE id = %s", (user_id,))
         row = cursor.fetchone()
         cursor.close()
@@ -106,7 +123,7 @@ class Utilisateur(UserMixin):
     @staticmethod
     def get_by_email(email):
         conn = Utilisateur.get_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM utilisateurs WHERE email = %s", (email,))
         row = cursor.fetchone()
         cursor.close()
@@ -161,7 +178,7 @@ class Banque:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT id, nom, code_banque, pays, couleur, site_web, logo_url
                 FROM banques 
@@ -183,7 +200,7 @@ class Banque:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = "SELECT * FROM banques WHERE id = %s AND actif = TRUE"
                 cursor.execute(query, (banque_id,))
                 banque = cursor.fetchone()
@@ -261,7 +278,7 @@ class ComptePrincipal:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT 
                     c.id, c.banque_id, c.nom_compte, c.numero_compte, c.iban, c.bic,
@@ -289,7 +306,7 @@ class ComptePrincipal:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT 
                     c.*, 
@@ -429,7 +446,7 @@ class ComptePrincipal:
         connection = db_manager.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT 
                     c.id,
@@ -486,7 +503,7 @@ class SousCompte:
             return []
         
         try:
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             query = """
             SELECT 
                 id, nom_sous_compte, description, objectif_montant, solde,
@@ -524,7 +541,7 @@ class SousCompte:
             return []
         
         try:
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             query = """
             SELECT sc.*, cp.nom_compte as nom_compte_principal
             FROM sous_comptes sc
@@ -549,7 +566,7 @@ class SousCompte:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT sc.*, cp.nom_compte as nom_compte_principal
                 FROM sous_comptes sc
@@ -725,7 +742,7 @@ class TransactionFinanciere:
             return None
         
         try:
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             
             if compte_type == 'compte_principal':
                 condition = "compte_principal_id = %s"
@@ -906,7 +923,7 @@ class TransactionFinanciere:
         
         try:
             connection.start_transaction()
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             
             # Récupérer toutes les transactions à partir de la date de modification, triées chronologiquement
             if compte_type == 'compte_principal':
@@ -982,7 +999,7 @@ class TransactionFinanciere:
             return []
         
         try:
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             
             if compte_type == 'compte_principal':
                 condition_compte = "compte_principal_id = %s"
@@ -1070,7 +1087,7 @@ class TransactionFinanciere:
         
         try:
             connection.start_transaction()
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             
             # Récupérer la transaction originale
             cursor.execute("""
@@ -1155,7 +1172,7 @@ class TransactionFinanciere:
         
         try:
             connection.start_transaction()
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             
             # Récupérer la transaction
             cursor.execute("""
@@ -1709,7 +1726,7 @@ class TransactionFinanciere:
         try:
             connection.start_transaction()
             # Utiliser un curseur dictionnaire
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
 
             # Vérifier que le sous-compte appartient au compte
             cursor.execute(
@@ -1779,7 +1796,7 @@ class TransactionFinanciere:
         try:
             connection.start_transaction()
             # Utiliser un curseur dictionnaire
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
 
             # Vérifier que le sous-compte appartient au compte
             cursor.execute(
@@ -1918,7 +1935,7 @@ class TransactionFinanciere:
             return []
         
         try:
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             
             # Requête pour compte principal
             if compte_type == 'compte_principal':
@@ -2015,7 +2032,7 @@ class TransactionFinanciere:
             return {}
         
         try:
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             
             if compte_type == 'compte_principal':
                 condition_compte = "t.compte_principal_id = %s"
@@ -2063,7 +2080,7 @@ class TransactionFinanciere:
             return []
         
         try:
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             query = """
             SELECT 
                 te.id, te.iban_dest, te.bic_dest, te.nom_dest,
@@ -2098,7 +2115,7 @@ class TransactionFinanciere:
         
         try:
             connection.start_transaction()
-            cursor = connection.cursor(dictionary=True)
+            cursor = connection.cursor()
             
             # Récupérer les détails du transfert externe
             query = """
@@ -2200,7 +2217,7 @@ class StatistiquesBancaires:
             connection = self.db.get_connection()
             if connection:
                 try:
-                    cursor = connection.cursor(dictionary=True)
+                    cursor = connection.cursor()
                     query = """
                     SELECT 
                         COUNT(*) as nb_ecritures_mois,
@@ -2322,7 +2339,7 @@ class StatistiquesBancaires:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT
                     DATE_FORMAT(t.date_transaction, '%Y-%m') as mois,
@@ -2363,7 +2380,7 @@ class StatistiquesBancaires:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 
                 # Évolution des comptes principaux
                 query_comptes = """
@@ -2493,7 +2510,7 @@ class StatistiquesBancaires:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT
                     DATE_FORMAT(t.date_transaction, '%Y-%m') as mois,
@@ -2567,7 +2584,7 @@ class StatistiquesBancaires:
             connection = self.db.get_connection()
             if connection:
                 try:
-                    cursor = connection.cursor(dictionary=True)
+                    cursor = connection.cursor()
                     query = """
                     SELECT 
                         COUNT(*) as nb_ecritures_mois,
@@ -2648,7 +2665,7 @@ class PlanComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT id, numero, nom, parent_id, type_compte, compte_systeme, compte_associe, type_tva, actif, created_at, updated_at 
                 FROM categories_comptables 
@@ -2669,7 +2686,7 @@ class PlanComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = "SELECT * FROM categories_comptables WHERE id = %s"
                 cursor.execute(query, (categorie_id,))
                 categorie = cursor.fetchone()
@@ -2686,7 +2703,7 @@ class PlanComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = "SELECT * FROM categories_comptables WHERE numero = %s"
                 cursor.execute(query, (numero,))
                 categorie = cursor.fetchone()
@@ -2702,7 +2719,7 @@ class PlanComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = "SELECT * FROM categories_comptables WHERE type_compte = %s ORDER BY numero"
                 cursor.execute(query, (type_compte,))
                 categories = cursor.fetchall()
@@ -2896,7 +2913,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
                 cb.nom_compte as compte_bancaire_nom
@@ -2922,7 +2939,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom
                 FROM ecritures_comptables e
@@ -2973,7 +2990,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT e.*, cb.nom_compte as compte_bancaire_nom
                 FROM ecritures_comptables e
@@ -3012,7 +3029,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT 
                     c.id as categorie_id,
@@ -3055,7 +3072,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 
                 # 1. PRODUITS
                 cursor.execute("""
@@ -3136,7 +3153,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
                     cb.nom_compte as compte_bancaire_nom
@@ -3161,7 +3178,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 
                 # Statistiques par statut
                 query = """
@@ -3209,7 +3226,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 
                 # Écritures en attente depuis plus de 7 jours
                 query = """
@@ -3266,7 +3283,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 
                 # Taux de validation
                 cursor.execute("""
@@ -3332,7 +3349,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
                     cb.nom_compte as compte_bancaire_nom
@@ -3369,7 +3386,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
                     cb.nom_compte as compte_bancaire_nom
@@ -3405,7 +3422,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
                     cb.nom_compte as compte_bancaire_nom
@@ -3432,7 +3449,7 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT ec.*, cp.nom_compte 
                 FROM ecritures_comptables ec
@@ -3545,7 +3562,7 @@ class Contacts:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = "SELECT * FROM contacts WHERE utilisateur_id = %s ORDER BY nom"
                 # CORRECTION: Passer le paramètre sous forme de tuple
                 cursor.execute(query, (utilisateur_id,))
@@ -3563,7 +3580,7 @@ class Contacts:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = "SELECT * FROM contacts WHERE id_contact = %s AND utilisateur_id = %s"
                 # CORRECTION: Passer les paramètres sous forme de tuple
                 cursor.execute(query, (contact_id, utilisateur_id))
@@ -3616,7 +3633,7 @@ class Contacts:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = "SELECT * FROM contacts WHERE nom LIKE %s AND utilisateur_id = %s ORDER BY nom"
                 # CORRECTION: Passer les paramètres sous forme de tuple
                 cursor.execute(query, (f"%{nom}%", utilisateur_id))
@@ -3735,7 +3752,7 @@ class Rapport:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 
                 # Compte le nombre d'écritures par statut
                 query = """
@@ -3771,7 +3788,7 @@ class Rapport:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = """
                 SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
                     cb.nom_compte as compte_bancaire_nom
@@ -3907,7 +3924,7 @@ class Contrat:
         if not conn:
             return None
         try:
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor()
             query = """
                 SELECT * FROM contrats
                 WHERE user_id = %s
@@ -3935,7 +3952,7 @@ class Contrat:
         if not conn:
             return []
         try:
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor()
             query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut DESC;"
             cursor.execute(query, (user_id,))
             rows = cursor.fetchall()
@@ -3977,7 +3994,7 @@ class Contrat:
 
     def get_contrat_for_date(self, user_id: int, date_str: str) -> Optional[Dict]:
         """Récupère le contrat actif pour une date spécifique"""
-        with self.get_cursor(dictionary=True) as cursor:
+        with self.get_cursor() as cursor:
             if not cursor:
                 return None
                 
@@ -4009,7 +4026,7 @@ class HeureTravail:
                 return False
             try:
                 conn.autocommit = False
-                cursor = conn.cursor(dictionary=True)
+                cursor = conn.cursor()
                 success = self._execute_create_or_update(data, cursor)
                 conn.commit()
                 return success
@@ -4137,7 +4154,7 @@ class HeureTravail:
         
         cursor = None
         try:
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor()
             query = "SELECT * FROM heures_travail WHERE date = %s AND user_id = %s"
             current_app.logger.debug(f"[get_by_date] Query: {query} avec params: ({date_str}, {user_id})")
             
@@ -4170,7 +4187,7 @@ class HeureTravail:
             return []
         
         try:
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor()
             
             if semaine > 0:
                 query = "SELECT * FROM heures_travail WHERE semaine_annee = %s AND user_id = %s ORDER BY date"
@@ -4314,7 +4331,7 @@ class HeureTravail:
 
         try:
             conn.autocommit = False
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor()
 
             with open(fichier_csv, newline='', encoding='utf-8') as csvfile:
                 reader = csv.DictReader(csvfile)
@@ -4511,14 +4528,14 @@ class Salaire:
             return False
         
     def get_by_id(self, salaire_id: int) -> Optional[Dict]:
-        with self.get_cursor(dictionary=True) as cursor:
+        with self.get_cursor() as cursor:
             if not cursor:
                 return None
             cursor.execute("SELECT * FROM salaires WHERE id = %s", (salaire_id,))
             return cursor.fetchone()
 
     def get_all(self, user_id: int) -> List[Dict]:
-        with self.get_cursor(dictionary=True) as cursor:
+        with self.get_cursor() as cursor:
             if not cursor:
                 return []
             query = "SELECT * FROM salaires WHERE user_id = %s ORDER BY annee DESC, mois DESC"
@@ -4530,7 +4547,7 @@ class Salaire:
         if not conn:
             return []
         try:
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor()
             query = "SELECT * FROM salaires WHERE user_id = %s AND annee = %s AND mois = %s"
             cursor.execute(query, (user_id, annee, mois))
             return cursor.fetchall()
@@ -4827,7 +4844,7 @@ class Salaire:
             cursor.close()
             conn.close()
     def get_by_user_and_month(self, user_id: int, mois: int = None, annee: int = None) -> List[Dict]:
-        with self.get_cursor(dictionary=True) as cursor:
+        with self.get_cursor() as cursor:
             if not cursor:
                 return []
             query = "SELECT * FROM salaires WHERE user_id = %s"
@@ -4918,7 +4935,7 @@ class SyntheseHebdomadaire:
         conn = self.db.get_connection()
         if conn:
             try:
-                cursor = conn.cursor(dictionary=True)
+                cursor = conn.cursor()
                 query = """
                 SELECT * FROM synthese_hebdo 
                 WHERE user_id = %s 
@@ -4939,7 +4956,7 @@ class SyntheseHebdomadaire:
         conn = self.db.get_connection()
         if conn:
             try:
-                cursor = conn.cursor(dictionary=True)
+                cursor = conn.cursor()
                 query = """
                     SELECT * FROM synthese_hebdo WHERE user_id = %s
                 """
@@ -5018,7 +5035,7 @@ class SyntheseMensuelle:
         conn = self.db.get_connection()
         if conn:
             try:
-                cursor = conn.cursor(dictionary=True)
+                cursor = conn.cursor()
                 query = """
                 SELECT * FROM synthese_mensuelle 
                 WHERE user_id = %s 
@@ -5047,7 +5064,7 @@ class ParametreUtilisateur:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
                 query = "SELECT * FROM parametres_utilisateur WHERE utilisateur_id = %s"
                 cursor.execute(query, (user_id,))
                 params = cursor.fetchone()
