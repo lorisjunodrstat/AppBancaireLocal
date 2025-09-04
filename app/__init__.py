@@ -14,6 +14,8 @@ import pymysql
 import pymysql.cursors
 import logging
 from logging.handler import RotatingFileHandler
+import atexit
+from flask import g
 
 log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 log_dir = '/var/www/webroot/ROOT/logs'
@@ -125,7 +127,23 @@ def utility_processor():
         return months.get(month_num, "")
     
     return dict(get_month_name=get_month_name)
+def close_database_connections():
+    """Ferme toutes les connexions à la base de données."""
+    try:
+        if hasattr(g, 'db_manager'):
+            g.db_manager.close_connection()
+            logging.info("Connexions à la base de données fermées.")
+    except Exception as e:
+        logging.error(f"Erreur lors de la fermeture des connexions: {e}")
 
+# Enregistrer la fonction de nettoyage
+atexit.register(close_database_connections)
+
+# Gestionnaire de teardown pour Flask
+@app.teardown_appcontext
+def teardown_db(exception):
+    """Ferme la connexion à la base de données à la fin du contexte de l'application."""
+    close_database_connections()
 # Initialisation des gestionnaires de modèles
 @app.before_request
 def before_request_hook():
