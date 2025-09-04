@@ -3644,25 +3644,23 @@ class EcritureComptable:
         return {}
 
     def get_annees_disponibles(self, user_id: int) -> List[int]:
-        """Retourne les années disponibles pour les écritures"""
-        connection = self.db.get_connection()
-        if connection:
-            try:
-                with self.db.get_cursor() as cursor:(
-                    """
-                    SELECT DISTINCT YEAR(date_ecriture) as annee 
-                    FROM ecritures_comptables 
-                    WHERE utilisateur_id = %s
+        try:
+            # Use the get_cursor() context manager
+            # This replaces the need for a separate 'connection' variable
+            with self.db.get_cursor() as cursor:
+                query = """
+                    SELECT DISTINCT YEAR(date_transaction) AS annee
+                    FROM ecriture_comptable
+                    WHERE user_id = %s
                     ORDER BY annee DESC
-                """, (user_id,))
-                annees = [row[0] for row in cursor.fetchall()]
-                cursor.close()
-                connection.close()
-                return annees if annees else [datetime.now().year]
-            except Exception as e:
-                print(f"Erreur récupération années: {e}")
-                return [datetime.now().year]
-        return [datetime.now().year]
+                """
+                cursor.execute(query, (user_id,))
+                annees = [row['annee'] for row in cursor.fetchall()]
+                return annees
+        except Exception as e:
+            # It's good practice to log the error for debugging
+            logging.error(f"Erreur lors de la récupération des années disponibles : {e}")
+            return []
 
     def get_all(self, user_id: int, date_from: str = None, date_to: str = None, limit: int = 100) -> List[Dict]:
         """Récupère toutes les écritures avec filtres optionnels"""
