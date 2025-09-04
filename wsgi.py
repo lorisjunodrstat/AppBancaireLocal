@@ -22,3 +22,6 @@ from app import app as application
 
 # L'initialisation de Flask-Login est déjà faite dans __init__.py,
 # donc pas besoin d'appeler init_login_manager ici.
+if __name__ == '__main__':
+    # Ce bloc ne sera pas exécuté en mode WSGI
+    application.run()
