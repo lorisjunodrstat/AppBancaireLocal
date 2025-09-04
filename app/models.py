@@ -3648,8 +3648,8 @@ class EcritureComptable:
         connection = self.db.get_connection()
         if connection:
             try:
-                cursor = connection.cursor()
-                cursor.execute("""
+                with self.db.get_cursor() as cursor:(
+                    """
                     SELECT DISTINCT YEAR(date_ecriture) as annee 
                     FROM ecritures_comptables 
                     WHERE utilisateur_id = %s
