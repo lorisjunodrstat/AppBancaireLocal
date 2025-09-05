@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from ..models import Utilisateur, db
+from ..models import Utilisateur
+from .. import db
 from mysql.connector import Error
 
 # Créez le Blueprint avec le nom 'admin' et un préfixe d'URL
