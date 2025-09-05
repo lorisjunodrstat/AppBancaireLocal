@@ -21,7 +21,7 @@
             <h5 class="m-0 font-weight-bold">Encodage des heures de travail</h5>
         </div>
         <div class="card-body">
-            <form id="heures-form" method="POST" action="{{ url_for('heures_travail') }}">
+            <form id="heures-form" method="POST" action="{{ url_for('banking.heures_travail') }}">
                 <input type="hidden" name="action" id="form-action" value="">
 
                 <div class="row mb-4">
@@ -186,7 +186,7 @@
                     <button type="submit" name="save" class="btn btn-success me-2" aria-label="Enregistrer tout">
                         <i class="fas fa-save me-1" aria-hidden="true"></i> Enregistrer
                     </button>
-                    <a href="{{ url_for('heures_travail',annee=current_annee, mois=current_mois, semaine=current_semaine, mode=current_mode) }}"
+                    <a href="{{ url_for('banking.heures_travail',annee=current_annee, mois=current_mois, semaine=current_semaine, mode=current_mode) }}"
                         class="btn btn-secondary" aria-label="Annuler">
                         <i class="fas fa-times me-1" aria-hidden="true"></i> Annuler
                     </a>

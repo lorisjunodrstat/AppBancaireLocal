@@ -17,7 +17,7 @@
                 <label class="form-label me-2">Année:</label>
                 <div class="btn-group">
                     {% for year in salaires_par_mois.annee %}
-                    <a href="{{ url_for('calcul_salaires', annee=year) }}"
+                    <a href="{{ url_for('banking.calcul_salaires', annee=year) }}"
                         class="btn btn-outline-primary {% if annee_courante == year %}active{% endif %}">
                         {{ year }}
                     </a>
@@ -346,7 +346,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                    <a href="{{ url_for('gestion_contrat') }}" class="btn btn-primary">
+                    <a href="{{ url_for('banking.gestion_contrat') }}" class="btn btn-primary">
                         <i class="fas fa-edit me-1"></i> <small>Modifier le contrat</small>
                     </a>
                 </div>
@@ -365,7 +365,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{{ url_for('update_salaire') }}">
+                <form method="POST" action="{{ url_for('banking.update_salaire') }}">
                     <input type="hidden" name="mois" value="{{ mois }}"> <input type="hidden" name="annee"
                         value="{{ annee_courante }}">
                     <div class="modal-body">
