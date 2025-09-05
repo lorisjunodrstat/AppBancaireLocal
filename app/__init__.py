@@ -125,10 +125,20 @@ request_started.connect(create_managers_on_request_start, app)
 
 # Fermeture des ressources après chaque requête
 def close_managers_on_request_finish(sender, response, **extra):
+    # Vérifie si l'attribut db_manager existe dans l'objet g et n'est pas None.
     if hasattr(g, 'db_manager') and g.db_manager:
-        g.db_manager.close_all()
+        try:
+            # Tente de fermer le pool de connexions si la méthode existe.
+            # Le nom de la méthode dépend de votre implémentation.
+            if hasattr(g.db_manager, 'pool'):
+                # Si votre DatabaseManager a un attribut 'pool'
+                g.db_manager.pool.close()
+            elif hasattr(g.db_manager, 'close'):
+                # Si la méthode de fermeture est simplement 'close'
+                g.db_manager.close()
+        except Exception as e:
+            logging.error(f"Erreur lors de la fermeture du gestionnaire de DB : {e}")
     return response
-
 # Connecter la fonction au signal request_finished de l'application
 request_finished.connect(close_managers_on_request_finish, app)
 
