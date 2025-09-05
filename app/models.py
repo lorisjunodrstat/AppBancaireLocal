@@ -1311,7 +1311,58 @@ class TransactionFinanciere:
             logging.error(f"Erreur vérification appartenance: {e}")
             return False
     
-  
+    def get_by_compte_id(self, compte_id: int, user_id: int, limit: int = 100) -> List[Dict]:
+        """
+        Récupère les transactions d'un compte principal avec pagination
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier d'abord que le compte appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s",
+                    (compte_id, user_id)
+                )
+                if not cursor.fetchone():
+                    return []
+                
+                # Récupérer les transactions
+                query = """
+                SELECT 
+                    t.id,
+                    t.type_transaction,
+                    t.montant,
+                    t.description,
+                    t.reference,
+                    t.date_transaction,
+                    t.solde_apres,
+                    sc.nom_sous_compte as sous_compte_source,
+                    sc_dest.nom_sous_compte as sous_compte_dest,
+                    te.iban_dest,
+                    te.nom_dest,
+                    te.statut as statut_externe
+                FROM transactions t
+                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                LEFT JOIN sous_comptes sc_dest ON t.sous_compte_destination_id = sc_dest.id
+                LEFT JOIN transferts_externes te ON t.id = te.transaction_id
+                WHERE t.compte_principal_id = %s
+                ORDER BY t.date_transaction DESC
+                LIMIT %s
+                """
+                
+                cursor.execute(query, (compte_id, limit))
+                transactions = cursor.fetchall()
+                
+                # Convertir les montants en Decimal pour une manipulation plus précise
+                for transaction in transactions:
+                    transaction['montant'] = Decimal(str(transaction['montant']))
+                    transaction['solde_apres'] = Decimal(str(transaction['solde_apres']))
+                    
+                return transactions
+                
+        except Exception as e:
+            logging.error(f"Erreur récupération transactions par compte: {e}")
+            return []
+
     # ===== DÉPÔTS ET RETRAITS =====
     
     def create_depot(self, compte_id: int, user_id: int, montant: Decimal, 
