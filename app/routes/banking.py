@@ -15,27 +15,27 @@ from collections import defaultdict
 # --- DÉBUT DES AJOUTS (8 lignes) ---
 from flask import _app_ctx_stack
 
-class ModelManager:
-    def __getattr__(self, name):
-        ctx = _app_ctx_stack.top
-        if not hasattr(ctx, 'banking_models'):
-            db_config = current_app.config.get('DB_CONFIG')
-            db_manager = DatabaseManager(db_config)
-            ctx.banking_models = {
-                'banque_model': Banque(db_manager),
-                'compte_model': ComptePrincipal(db_manager),
-                'sous_compte_model': SousCompte(db_manager),
-                'transaction_financiere_model': TransactionFinanciere(db_manager),
-                'stats_model': StatistiquesBancaires(db_manager),
-                'plan_comptable_model': PlanComptable(db_manager),
-                'ecriture_comptable_model': EcritureComptable(db_manager),
-                'contact_model': Contacts(db_manager),
-                'heure_model': HeureTravail(db_manager),
-                'contrat_model': Contrat(db_manager)
-            }
-        return ctx.banking_models.get(name)
+#class ModelManager:
+#    def __getattr__(self, name):
+#        ctx = _app_ctx_stack.top
+#        if not hasattr(ctx, 'banking_models'):
+#            db_config = current_app.config.get('DB_CONFIG')
+#            g.db_manager = DatabaseManager(db_config)
+#            ctx.banking_models = {
+#                'banque_model': Banque(g.db_manager),
+#                'compte_model': ComptePrincipal(g.db_manager),
+#                'sous_compte_model': SousCompte(g.db_manager),
+#                'transaction_financiere_model': TransactionFinanciere(g.db_manager),
+#                'stats_model': StatistiquesBancaires(g.db_manager),
+#                'plan_comptable_model': PlanComptable(g.db_manager),
+#                'ecriture_comptable_model': EcritureComptable(g.db_manager),
+#                'contact_model': Contacts(g.db_manager),
+#                'heure_model': HeureTravail(g.db_manager),
+#                'contrat_model': Contrat(g.db_manager)
+#            }
+#        return ctx.banking_g.models.get(name)
 
-models = ModelManager()
+#models = ModelManager()
 # --- FIN DES AJOUTS ---
 
 # Création du blueprint
@@ -62,10 +62,10 @@ logger.addHandler(stream_handler)
     # ---- Fonctions utilitaires ----
 def get_comptes_utilisateur(user_id):
         """Retourne les comptes avec sous-comptes et soldes"""
-        comptes = models.compte_model.get_by_user_id(user_id)
+        comptes = g.models.compte_model.get_by_user_id(user_id)
         for compte in comptes:
-            compte['sous_comptes'] = models.sous_compte_model.get_by_compte_principal_id(compte['id'])
-            compte['solde_total'] = models.compte_model.get_solde_total_avec_sous_comptes(compte['id'])
+            compte['sous_comptes'] = g.models.sous_compte_model.get_by_compte_principal_id(compte['id'])
+            compte['solde_total'] = g.models.compte_model.get_solde_total_avec_sous_comptes(compte['id'])
         return comptes
 
     # ---- ROUTES ----
@@ -74,8 +74,8 @@ def get_comptes_utilisateur(user_id):
 @login_required
 def banking_dashboard():
     user_id = current_user.id
-    stats = models.stats_model.get_resume_utilisateur(user_id)
-    repartition = models.stats_model.get_repartition_par_banque(user_id)
+    stats = g.models.stats_model.get_resume_utilisateur(user_id)
+    repartition = g.models.stats_model.get_repartition_par_banque(user_id)
     comptes = get_comptes_utilisateur(user_id)
         
     # Ajout des stats comptables
@@ -83,7 +83,7 @@ def banking_dashboard():
     first_day = now.replace(day=1)
     last_day = (first_day.replace(month=first_day.month % 12 + 1, year=first_day.year + first_day.month // 12) - timedelta(days=1))
     
-    stats_comptables = models.ecriture_comptable_model.get_stats_by_categorie(
+    stats_comptables = g.models.ecriture_comptable_model.get_stats_by_categorie(
         user_id=user_id,
         date_from=first_day.strftime('%Y-%m-%d'),
         date_to=last_day.strftime('%Y-%m-%d')
@@ -102,7 +102,7 @@ def banking_dashboard():
 @bp.route('/banques', methods=['GET'])
 @login_required
 def liste_banques():
-    banques = models.banque_model.get_all()
+    banques = g.models.banque_model.get_all()
     return render_template('banking/liste.html', banques=banques)
 
 @bp.route('/banques/nouvelle', methods=['GET', 'POST'])
@@ -117,7 +117,7 @@ def creer_banque():
         logo_url = request.form.get('logo_url')
 
         if nom and code_banque:
-            success = models.banque_model.create_banque(nom, code_banque, pays, couleur, site_web, logo_url)
+            success = g.models.banque_model.create_banque(nom, code_banque, pays, couleur, site_web, logo_url)
             if success:
                 flash('Banque créée avec succès !', 'success')
                 print(f'Banque créée: {nom} ({code_banque})')
@@ -132,7 +132,7 @@ def creer_banque():
 @bp.route('/banques/<int:banque_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_banque(banque_id):
-    banque = models.banque_model.get_by_id(banque_id)
+    banque = g.models.banque_model.get_by_id(banque_id)
     if not banque:
         flash("Banque introuvable.", "danger")
         return redirect(url_for('liste_banques'))
@@ -145,7 +145,7 @@ def edit_banque(banque_id):
         site_web = request.form.get('site_web')
         logo_url = request.form.get('logo_url')
 
-        success = models.banque_model.update_banque(banque_id, nom, code_banque, pays, couleur, site_web, logo_url)
+        success = g.models.banque_model.update_banque(banque_id, nom, code_banque, pays, couleur, site_web, logo_url)
         if success:
             flash("Banque modifiée avec succès.", "success")
             print(f'Banque modifiée: {nom} ({code_banque}) avec les données suivantes : {pays}, {couleur}, {site_web}, {logo_url}')
@@ -158,7 +158,7 @@ def edit_banque(banque_id):
 @bp.route('/banques/<int:banque_id>/delete', methods=['POST'])
 @login_required
 def delete_banque(banque_id):
-    success = models.banque_model.delete_banque(banque_id)
+    success = g.models.banque_model.delete_banque(banque_id)
     if success:
         flash("Banque supprimée (désactivée) avec succès.", "success")
     else:
@@ -201,7 +201,7 @@ def banking_nouveau_compte():
             }
             
             # Création du compte
-            if models.compte_model.create(data):
+            if g.models.compte_model.create(data):
                 flash(f'Compte "{data["nom_compte"]}" créé avec succès!', 'success')
                 return redirect(url_for('banking_dashboard'))
             else:
@@ -212,14 +212,14 @@ def banking_nouveau_compte():
             flash(f'Erreur: {str(e)}', 'error')
     
     # Récupération des banques pour le formulaire
-    banques = models.banque_model.get_all()
+    banques = g.models.banque_model.get_all()
     return render_template('banking/nouveau_compte.html', banques=banques)
 
 @bp.route('/banking/sous-compte/nouveau/<int:compte_id>', methods=['GET', 'POST'])
 @login_required
 def banking_nouveau_sous_compte(compte_id):
     user_id = current_user.id
-    compte = models.compte_model.get_by_id(compte_id)
+    compte = g.models.compte_model.get_by_id(compte_id)
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte principal non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking_dashboard'))
@@ -237,7 +237,7 @@ def banking_nouveau_sous_compte(compte_id):
                     request.form['date_objectif'], '%Y-%m-%d'
                 ).date() if request.form.get('date_objectif') else None
             }
-            if  models.sous_compte_model.create(data):
+            if  g.models.sous_compte_model.create(data):
                 flash(f'Sous-compte "{data["nom_sous_compte"]}" créé avec succès!', 'success')
                 return redirect(url_for('banking_compte_detail', compte_id=compte_id))
             flash('Erreur lors de la création du sous-compte', 'error')
@@ -250,7 +250,7 @@ def banking_nouveau_sous_compte(compte_id):
 @login_required
 def banking_compte_detail(compte_id):
     user_id = current_user.id
-    compte = models.compte_model.get_by_id(compte_id)
+    compte = g.models.compte_model.get_by_id(compte_id)
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking_dashboard'))
@@ -278,7 +278,7 @@ def banking_compte_detail(compte_id):
         libelle_periode = "Ce mois"
     
     # Récupération des mouvements avec la nouvelle classe unifiée
-    mouvements = models.transaction_financiere_model.get_historique_compte(
+    mouvements = g.models.transaction_financiere_model.get_historique_compte(
         compte_type='compte_principal',
         compte_id=compte_id,
         user_id=user_id,
@@ -301,9 +301,9 @@ def banking_compte_detail(compte_id):
     # Récupération des données existantes
     #sous_comptes = sous_compte_model.get_by_compte_principal_id(compte_id)
     #print(f'Il y a grâve à get_by_compte_principal_id {len(sous_comptes)}')
-    sous_comptes = models.sous_compte_model.get_by_compte_principal_id(compte_id)
+    sous_comptes = g.models.sous_compte_model.get_by_compte_principal_id(compte_id)
     print(f'Il y a grâve à get_all_sous_comptes_by_user_id {len(sous_comptes)}')
-    solde_total = models.compte_model.get_solde_total_avec_sous_comptes(compte_id)
+    solde_total = g.models.compte_model.get_solde_total_avec_sous_comptes(compte_id)
     
     # Préparation des données pour le template
     tresorerie_data = {
@@ -314,12 +314,12 @@ def banking_compte_detail(compte_id):
         }]
     }
     
-    #ecriture_model = EcritureComptable(db_manager)
-    ecritures_non_liees = models.ecriture_comptable_model.get_ecritures_non_synchronisees(
+    #ecriture_model = EcritureComptable(g.db_manager)
+    ecritures_non_liees = g.models.ecriture_comptable_model.get_ecritures_non_synchronisees(
         compte_id=compte_id,
         user_id=current_user.id
         )
-    transferts_externes_pending = models.transaction_financiere_model.get_transferts_externes_pending(user_id)
+    transferts_externes_pending = g.models.transaction_financiere_model.get_transferts_externes_pending(user_id)
     return render_template('banking/compte_detail.html',
                         compte=compte,
                         sous_comptes=sous_comptes,
@@ -339,10 +339,10 @@ def banking_compte_detail(compte_id):
 def banking_sous_compte_detail(sous_compte_id):
     user_id = current_user.id
     # Récupérer les comptes de l'utilisateur
-    comptes_ = models.compte_model.get_by_user_id(user_id)
+    comptes_ = g.models.compte_model.get_by_user_id(user_id)
     print(f'comptes pour le modal {comptes_}')
     # Récupérer tous les sous-comptes de l'utilisateur
-    sous_comptes_ = models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
+    sous_comptes_ = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
     # Convertir les IDs en entiers
     for sous_compte in sous_comptes_:
@@ -350,23 +350,23 @@ def banking_sous_compte_detail(sous_compte_id):
         sous_compte['compte_principal_id'] = int(sous_compte['compte_principal_id'])
         print(f'sous_compte {sous_compte}')
     
-    sous_compte = models.sous_compte_model.get_by_id(sous_compte_id)
+    sous_compte = g.models.sous_compte_model.get_by_id(sous_compte_id)
     if not sous_compte:
         flash('Sous-compte introuvable', 'error')
         return redirect(url_for('banking_dashboard'))
 
 # Vérifie que le sous-compte appartient bien à l'utilisateur
-    compte_principal = models.compte_model.get_by_id(sous_compte['compte_principal_id'])
+    compte_principal = g.models.compte_model.get_by_id(sous_compte['compte_principal_id'])
     if not compte_principal or compte_principal['utilisateur_id'] != user_id:
         flash('Sous-compte non autorisé', 'error')
         return redirect(url_for('banking_dashboard'))
-    mouvements = models.transaction_financiere_model.get_historique_compte(
+    mouvements = g.models.transaction_financiere_model.get_historique_compte(
         compte_type='sous_compte',
         compte_id=sous_compte_id,
         user_id=user_id,
         limit=50)
     print(f'HAHA Il y a {len(mouvements)} mouvements pour le compte {sous_compte['nom_sous_compte']}: {mouvements}')        
-    solde = models.sous_compte_model.get_solde(sous_compte_id)
+    solde = g.models.sous_compte_model.get_solde(sous_compte_id)
     #        Ajout du pourcentage calculé
     # Ajout du pourcentage calculé
     if sous_compte['objectif_montant'] and sous_compte['objectif_montant'] > 0:
@@ -477,9 +477,9 @@ def est_transfert_valide(compte_source_id, compte_dest_id, user_id, comptes, sou
 @bp.route('/depot', methods=['GET', 'POST'])
 def depot():
     user_id = current_user.id
-    comptes = models.compte_model.get_by_user_id(user_id)
+    comptes = g.models.compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
-    all_comptes = models.compte_model.get_all_accounts(db_manager)
+    all_comptes = g.models.compte_model.get_all_accounts(g.db_manager)
     
     if request.method == 'POST':
         # Récupération des données du formulaire
@@ -501,7 +501,7 @@ def depot():
             date_transaction = datetime.now()
         
         # Appel de la fonction create_depot avec la date
-        success, message = models.transaction_financiere_model.create_depot(
+        success, message = g.models.transaction_financiere_model.create_depot(
             compte_id, user_id, montant, description, compte_type, date_transaction
         )
         
@@ -521,7 +521,7 @@ def retrait():
     user_id = current_user.id
     comptes = compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
-    all_comptes = compte_model.get_all_accounts(db_manager)
+    all_comptes = compte_model.get_all_accounts(g.db_manager)
     
     if request.method == 'POST':
         # Récupération des données du formulaire
@@ -563,22 +563,22 @@ def retrait():
 @login_required
 def banking_transfert():
     user_id = current_user.id
-    comptes = models.compte_model.get_by_user_id(user_id)
+    comptes = g.models.compte_model.get_by_user_id(user_id)
     
     # Convertir les IDs en entiers pour éviter les problèmes de comparaison
     for compte in comptes:
         compte['id'] = int(compte['id'])
     
-    all_comptes = models.compte_model.get_all_accounts(db_manager)
+    all_comptes = g.models.compte_model.get_all_accounts(g.db_manager)
     sous_comptes = []
     
     for c in comptes:
-        subs = models.sous_compte_model.get_by_compte_principal_id(c['id'])
+        subs = g.models.sous_compte_model.get_by_compte_principal_id(c['id'])
         for sub in subs:
             sub['id'] = int(sub['id'])  # Convertir les IDs en entiers
         sous_comptes += subs
 
-    all_comptes = [c for c in models.compte_model.get_all_accounts(db_manager) if c['utilisateur_id'] != user_id]
+    all_comptes = [c for c in g.models.compte_model.get_all_accounts(g.db_manager) if c['utilisateur_id'] != user_id]
     
     if request.method == "POST":
         step = request.form.get('step')
@@ -665,7 +665,7 @@ def banking_transfert():
                     elif any(sc['id'] == dest_id for sc in sous_comptes):
                         dest_type = 'sous_compte'
                     else:
-                        flash("Compte destination non valide", "danger")
+                        flash('Compte destination non valide', "danger")
                         return redirect(url_for("banking_transfert"))
                     
                     # Vérification que le compte source appartient à l'utilisateur
@@ -696,7 +696,7 @@ def banking_transfert():
                     # Exécution du transfert interne
                     commentaire = request.form.get('commentaire', '').strip()
 
-                    success, message = models.transaction_financiere_model.create_transfert_interne(
+                    success, message = g.models.transaction_financiere_model.create_transfert_interne(
                         source_type=source_type,
                         source_id=source_id,
                         dest_type=dest_type,
@@ -736,11 +736,11 @@ def banking_transfert_compte_sous_compte():
     user_id = current_user.id
 
         # Récupérer les comptes de l'utilisateur
-    comptes = models.compte_model.get_by_user_id(user_id)
+    comptes = g.models.compte_model.get_by_user_id(user_id)
     print(f"DEBUG: Comptes de l'utilisateur {user_id}: {comptes}")
         
         # Récupérer tous les sous-comptes de l'utilisateur en une seule requête
-    sous_comptes = models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
+    sous_comptes = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
     print(f"DEBUG: Tous les sous-comptes: {sous_comptes}")
         
         # Convertir les IDs en entiers
@@ -787,11 +787,11 @@ def banking_transfert_compte_sous_compte():
 
             # Exécution du transfert
             if direction == 'compte_vers_sous':
-                success, message = models.transaction_financiere_model.transfert_compte_vers_sous_compte(
+                success, message = g.models.transaction_financiere_model.transfert_compte_vers_sous_compte(
                     compte_id, sous_compte_id, montant, user_id, commentaire
                 )
             else:
-                success, message = models.transaction_financiere_model.transfert_sous_compte_vers_compte(
+                success, message = g.models.transaction_financiere_model.transfert_sous_compte_vers_compte(
                     sous_compte_id, compte_id, montant, user_id, commentaire
                 )
 
@@ -815,7 +815,7 @@ def banking_transfert_compte_sous_compte():
 @bp.route('/banking/annuler_transfert_externe/<int:transfert_id>', methods=['POST'])
 @login_required
 def annuler_transfert_externe(transfert_id):
-    success, message = models.transaction_financiere_model.annuler_transfert_externe(
+    success, message = g.models.transaction_financiere_model.annuler_transfert_externe(
         transfert_externe_id=transfert_id,
         user_id=current_user.id)
     if success:
@@ -831,7 +831,7 @@ def modifier_transfert(transfert_id):
         nouveau_montant = Decimal(request.form.get('montant'))
         nouvelle_description = request.form.get('description', '').strip()
         
-        success, message = models.transaction_financiere_model.modifier_transaction(
+        success, message = g.models.transaction_financiere_model.modifier_transaction(
             transaction_id=transfert_id,
             user_id=current_user.id,
             nouveau_montant=nouveau_montant,
@@ -849,7 +849,7 @@ def modifier_transfert(transfert_id):
 @bp.route('/banking/supprimer_transfert/<int:transfert_id>', methods=['POST'])
 @login_required
 def supprimer_transfert(transfert_id):
-    success, message = models.transaction_financiere_model.supprimer_transaction(
+    success, message = g.models.transaction_financiere_model.supprimer_transaction(
         transaction_id=transfert_id,
         user_id=current_user.id)
     if success:
@@ -875,10 +875,10 @@ def liste_transferts():
     per_page = 20
 
     # Récupération des comptes et sous-comptes pour les filtres
-    comptes = models.compte_model.get_by_user_id(user_id)
+    comptes = g.models.compte_model.get_by_user_id(user_id)
     sous_comptes = []
     for c in comptes:
-        sous_comptes += models.sous_compte_model.get_by_compte_principal_id(c['id'])
+        sous_comptes += g.models.sous_compte_model.get_by_compte_principal_id(c['id'])
 
     # Récupération des mouvements financiers avec filtres
     filters = {
@@ -897,8 +897,8 @@ def liste_transferts():
     # Utilisez une méthode unifiée qui peut récupérer à la fois les transactions et les transferts
     # NOTE: Cette méthode est une hypothèse, elle doit être implémentée dans votre modèle
     # transaction_financiere_model.
-    mouvements = models.transaction_financiere_model.get_by_filters(filters)
-    total_mouvements = models.transaction_financiere_model.count_by_filters(filters)
+    mouvements = g.models.transaction_financiere_model.get_by_filters(filters)
+    total_mouvements = g.models.transaction_financiere_model.count_by_filters(filters)
     pages = (total_mouvements + per_page - 1) // per_page
 
     # Export CSV
@@ -966,13 +966,13 @@ def liste_transferts():
 @login_required
 def api_sous_comptes(compte_id):
     return jsonify({'success': True,
-                    'sous_comptes': models.sous_compte_model.get_by_compte_principal_id(compte_id)})
+                    'sous_comptes': g.models.sous_compte_model.get_by_compte_principal_id(compte_id)})
 
 @bp.route("/statistiques")
 @login_required
 def banking_statistiques():
     user_id = current_user.id
-    #statistiques_bancaires_model = StatistiquesBancaires(db_manager)
+    #statistiques_bancaires_model = StatistiquesBancaires(g.db_manager)
     
     # Récupérer la période (en mois) depuis la requête GET, valeur par défaut : 6
     nb_mois = request.args.get("period", 6)
@@ -982,11 +982,11 @@ def banking_statistiques():
         nb_mois = 6
 
     # Récupérer les stats globales
-    stats = models.stats_model.get_resume_utilisateur(user_id)
+    stats = g.models.stats_model.get_resume_utilisateur(user_id)
     print("Stats globales:", stats)
     
     # Répartition par banque
-    repartition = models.stats_model.get_repartition_par_banque(user_id)
+    repartition = g.models.stats_model.get_repartition_par_banque(user_id)
     print("Répartition par banque:", repartition)
     
     # Préparer les données pour le graphique de répartition
@@ -1002,7 +1002,7 @@ def banking_statistiques():
             repartition_colors.append(f"#{random.randint(0, 0xFFFFFF):06x}")
 
     # Évolution épargne (avec filtre nb_mois)
-    evolution = models.stats_model.get_evolution_epargne(user_id, nb_mois)
+    evolution = g.models.stats_model.get_evolution_epargne(user_id, nb_mois)
     print("Évolution épargne:", evolution)
     
     # Préparer les données pour le graphique d'évolution
@@ -1027,7 +1027,7 @@ def banking_statistiques():
 @login_required
 def banking_statistique_dashboard():
     user_id = current_user.id
-    #statistiques_bancaires_model = StatistiquesBancaires(db_manager)
+    #statistiques_bancaires_model = StatistiquesBancaires(g.db_manager)
     
     # Récupérer la période depuis la requête
     nb_mois = request.args.get("period", 6)
@@ -1037,10 +1037,10 @@ def banking_statistique_dashboard():
         nb_mois = 6
     
     # Récupérer les statistiques en utilisant les nouvelles fonctions
-    stats = models.stats_model.get_resume_utilisateur(user_id)
+    stats = g.models.stats_model.get_resume_utilisateur(user_id)
     print("Stats globales:", stats)
     # Répartition par banque
-    repartition = models.stats_model.get_repartition_par_banque(user_id)
+    repartition = g.models.stats_model.get_repartition_par_banque(user_id)
     repartition_labels = [item['nom_banque'] for item in repartition]
     print(repartition_labels)
     repartition_values = [float(item['montant_total']) for item in repartition]
@@ -1053,7 +1053,7 @@ def banking_statistique_dashboard():
     print(repartition_dict)
     print(f'Voici la {repartition_dict} avec {len(repartition_dict)} élements')
     # Évolution épargne
-    evolution = models.stats_model.get_evolution_epargne(user_id, nb_mois)
+    evolution = g.models.stats_model.get_evolution_epargne(user_id, nb_mois)
     evolution_labels = [item['mois'] for item in evolution]
     evolution_values = [float(item['epargne_mensuelle']) for item in evolution]
     
@@ -1074,17 +1074,17 @@ def banking_statistique_dashboard():
 @login_required
 def api_repartition_banques():
     return jsonify({'success': True,
-                    'repartition': models.stats_model.get_repartition_par_banque(current_user.id)})
+                    'repartition': g.models.stats_model.get_repartition_par_banque(current_user.id)})
 
 @bp.route('/banking/sous-compte/supprimer/<int:sous_compte_id>')
 @login_required
 def banking_supprimer_sous_compte(sous_compte_id):
-    sous_compte = models.sous_compte_model.get_by_id(sous_compte_id)
+    sous_compte = g.models.sous_compte_model.get_by_id(sous_compte_id)
     if not sous_compte:
         flash('Sous-compte non trouvé', 'error')
         return redirect(url_for('banking_dashboard'))    
     compte_id = sous_compte['compte_principal_id']
-    if models.sous_compte_model.delete(sous_compte_id):
+    if g.models.sous_compte_model.delete(sous_compte_id):
         flash(f'Sous-compte "{sous_compte["nom_sous_compte"]}" supprimé avec succès', 'success')
     else:
         flash('Impossible de supprimer un sous-compte avec un solde positif', 'error')    
@@ -1095,7 +1095,7 @@ def banking_supprimer_sous_compte(sous_compte_id):
 def statistiques_comptables():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to') 
-    stats = models.ecriture_comptable_model.get_stats_by_categorie(
+    stats = g.models.ecriture_comptable_model.get_stats_by_categorie(
         user_id=current_user.id,
         date_from=date_from,
         date_to=date_to
@@ -1116,15 +1116,15 @@ def statistiques_comptables():
 @bp.route('/comptabilite/categories')
 @login_required
 def liste_categories_comptables():
-    #plan_comptable = PlanComptable(db_manager)
-    categories = models.plan_comptable_model.get_all_categories()
+    #plan_comptable = PlanComptable(g.db_manager)
+    categories = g.models.plan_comptable_model.get_all_categories()
     return render_template('comptabilite/categories.html', categories=categories)
 
 @bp.route('/comptabilite/categories/nouvelle', methods=['GET', 'POST'])
 @login_required
 def nouvelle_categorie():
     """Crée une nouvelle catégorie comptable"""
-    #plan_comptable = PlanComptable(db_manager)
+    #plan_comptable = PlanComptable(g.db_manager)
     if request.method == 'POST':
         try:
             data = {
@@ -1133,14 +1133,14 @@ def nouvelle_categorie():
                 'type': request.form['type'],
                 'parent_id': request.form.get('parent_id') or None
             }         
-            if models.plan_comptable_model.create(data):
+            if g.models.plan_comptable_model.create(data):
                 flash('Catégorie créée avec succès', 'success')
                 return redirect(url_for('liste_categories_comptables'))
             else:
                 flash('Erreur lors de la création', 'danger')
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger')
-    categories = models.plan_comptable_model.get_all_categories()
+    categories = g.models.plan_comptable_model.get_all_categories()
     return render_template('comptabilite/edit_categorie.html', 
                         categories=categories,
                         categorie=None)
@@ -1149,8 +1149,8 @@ def nouvelle_categorie():
 @login_required
 def edit_categorie(categorie_id):
     """Modifie une catégorie comptable existante"""
-    #plan_comptable = PlanComptable(db_manager)
-    categorie = models.plan_comptable_model.get_by_id(categorie_id)
+    #plan_comptable = PlanComptable(g.db_manager)
+    categorie = g.models.plan_comptable_model.get_by_id(categorie_id)
     if not categorie:
         flash('Catégorie introuvable', 'danger')
         return redirect(url_for('liste_categories_comptables'))
@@ -1162,14 +1162,14 @@ def edit_categorie(categorie_id):
                 'type': request.form['type'],
                 'parent_id': request.form.get('parent_id') or None
             }
-            if models.plan_comptable_model.update(categorie_id, data):
+            if g.models.plan_comptable_model.update(categorie_id, data):
                 flash('Catégorie mise à jour avec succès', 'success')
                 return redirect(url_for('liste_categories_comptables'))
             else:
                 flash('Erreur lors de la mise à jour', 'danger')
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger')
-    categories = models.plan_comptable_model.get_all_categories()
+    categories = g.models.plan_comptable_model.get_all_categories()
     return render_template('comptabilite/edit_categorie.html', 
                         categories=categories,
                         categorie=categorie)
@@ -1178,7 +1178,7 @@ def edit_categorie(categorie_id):
 @login_required
 def import_plan_comptable_csv():
     """Importe le plan comptable depuis un fichier CSV"""
-    #plan_comptable = PlanComptable(db_manager)
+    #plan_comptable = PlanComptable(g.db_manager)
     try:
         # Vérifier si un fichier a été uploadé
         if 'csv_file' not in request.files:
@@ -1194,7 +1194,7 @@ def import_plan_comptable_csv():
             csv_input = csv.reader(stream)
             # Sauter l'en-tête
             next(csv_input)
-            connection = models.db_manager.get_connection()
+            connection = g.models.g.db_manager.get_connection()
             cursor = connection.cursor()
             
             # Vider la table existante
@@ -1230,7 +1230,7 @@ def import_plan_comptable_csv():
 @login_required
 def delete_categorie(categorie_id):
     """Supprime une catégorie comptable"""
-    if models.plan_comptable_model.delete(categorie_id):
+    if g.models.plan_comptable_model.delete(categorie_id):
         flash('Catégorie supprimée avec succès', 'success')
     else:
         flash('Erreur lors de la suppression', 'danger')
@@ -1255,7 +1255,7 @@ def nouveau_contact_comptable():
             }
                 # Debug: afficher les données
             print(f"Données à insérer: {data}")
-            if models.contact_model.create(data):
+            if g.models.contact_model.create(data):
                 flash('Contact créé avec succès', 'success')
                 return redirect(url_for('liste_contacts_comptables'))
             else:
@@ -1271,7 +1271,7 @@ def nouveau_contact_comptable():
 @login_required
 def delete_contact_comptable(contact_id):
     """Supprime un contact comptable"""
-    if models.contact_model.delete(contact_id, current_user.id):
+    if g.models.contact_model.delete(contact_id, current_user.id):
         flash('Contact supprimé avec succès', 'success')
     else:
         flash('Erreur lors de la suppression du contact', 'danger')
@@ -1283,8 +1283,8 @@ def delete_contact_comptable(contact_id):
 @login_required
 def liste_contacts_comptables():
     """Affiche la liste des contacts comptables"""
-    #contact_model = Contacts(db_manager)
-    contacts = models.contact_model.get_all(current_user.id)
+    #contact_model = Contacts(g.db_manager)
+    contacts = g.models.contact_model.get_all(current_user.id)
     
     # Debug: afficher la structure du premier contact
     if contacts:
@@ -1297,8 +1297,8 @@ def liste_contacts_comptables():
 @login_required
 def edit_contact_comptable(contact_id):
     """Modifie un contact comptable existant"""
-    #contact_model = Contacts(db_manager)
-    contact = models.contact_model.get_by_id(contact_id, current_user.id)
+    #contact_model = Contacts(g.db_manager)
+    contact = g.models.contact_model.get_by_id(contact_id, current_user.id)
     print(f'voici les données du contact: {contact}')
     if not contact:
         flash('Contact introuvable', 'danger')
@@ -1315,7 +1315,7 @@ def edit_contact_comptable(contact_id):
                 'pays': request.form.get('pays', '')
             }
             # Correction: utiliser current_user.id comme dernier paramètre
-            if models.contact_model.update(contact_id, data, current_user.id):
+            if g.models.contact_model.update(contact_id, data, current_user.id):
                 print(f'Contact mis à jour avec les données: {data}')
                 flash('Contact mis à jour avec succès', 'success')
                 return redirect(url_for('liste_contacts_comptables'))
@@ -1355,33 +1355,33 @@ def liste_ecritures():
         'contact_id': int(id_contact) if id_contact else None
     }
     if categorie_id:
-        ecritures = models.ecriture_comptable_model.get_by_categorie(
+        ecritures = g.models.ecriture_comptable_model.get_by_categorie(
             categorie_id=int(categorie_id),
             **filtres
         )
     elif compte_id:
-        ecritures = models.ecriture_comptable_model.get_by_compte_bancaire(
+        ecritures = g.models.ecriture_comptable_model.get_by_compte_bancaire(
             compte_id=int(compte_id),
             **filtres
         )
     elif id_contact:
-        ecritures = models.ecriture_comptable_model.get_by_contact_id(
+        ecritures = g.models.ecriture_comptable_model.get_by_contact_id(
             contact_id=int(id_contact),
             **filtres
         )   
     else:
         # Si aucun filtre spécifique, récupérer toutes les écritures avec les filtres
-        ecritures = models.ecriture_comptable_model.get_by_statut(
+        ecritures = g.models.ecriture_comptable_model.get_by_statut(
             user_id=current_user.id,
             statut=filtres['statut'],
             date_from=date_from,
             date_to=date_to
-        ) if filtres['statut'] else models.ecriture_comptable_model.get_all(
+        ) if filtres['statut'] else g.models.ecriture_comptable_model.get_all(
             user_id=current_user.id,
             date_from=date_from,
             date_to=date_to
         )
-    comptes = models.compte_model.get_by_user_id(current_user.id)
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
     
     return render_template('comptabilite/ecritures.html', 
                         ecritures=ecritures, 
@@ -1429,15 +1429,15 @@ def month_french_filter(value):
 def liste_ecritures_par_contact(contact_id):
     """Affiche les écritures associées à un contact spécifique"""
     current_user_id = current_user.id
-    contact = models.contact_model.get_by_id(contact_id, current_user_id)
+    contact = g.models.contact_model.get_by_id(contact_id, current_user_id)
     
-    contact = models.contact_model.get_by_id(contact_id, current_user_id)
+    contact = g.models.contact_model.get_by_id(contact_id, current_user_id)
     if not contact:
         flash('Contact introuvable', 'danger')
         return redirect(url_for('liste_contacts_comptables'))
-    ecritures = models.ecriture_comptable_model.get_by_contact_id(contact_id, utilisateur_id=current_user_id)
+    ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id, utilisateur_id=current_user_id)
     print(ecritures)
-    comptes = models.compte_model.get_by_user_id(current_user_id)
+    comptes = g.models.compte_model.get_by_user_id(current_user_id)
     return render_template('comptabilite/ecritures_par_contact.html', 
                         ecritures=ecritures, 
                         contact=contact,
@@ -1463,11 +1463,11 @@ def nouvelle_ecriture():
             }
             if data['tva_taux']:
                 data['tva_montant'] = data['montant'] * data['tva_taux'] / 100
-            if models.ecriture_comptable_model.create(data):
+            if g.models.ecriture_comptable_model.create(data):
                 flash('Écriture enregistrée avec succès', 'success')
                 transaction_id = request.form.get('transaction_id')
                 if transaction_id:
-                    models.transaction_financiere_model.link_to_ecriture(transaction_id, models.ecriture_comptable_model.last_insert_id)
+                    g.models.transaction_financiere_model.link_to_ecriture(transaction_id, g.models.ecriture_comptable_model.last_insert_id)
                 return redirect(url_for('liste_ecritures'))
             else:
                 flash('Erreur lors de l\'enregistrement', 'danger')
@@ -1477,7 +1477,7 @@ def nouvelle_ecriture():
     transaction_id = request.args.get('transaction_id')
     transaction_data = {}
     if transaction_id:
-        transaction = models.transaction_financiere_model.get_by_id(transaction_id)
+        transaction = g.models.transaction_financiere_model.get_by_id(transaction_id)
         if transaction and transaction['utilisateur_id'] == current_user.id:
             transaction_data = {
                 'date_ecriture': transaction['date_transaction'].strftime('%Y-%m-%d'),
@@ -1486,10 +1486,10 @@ def nouvelle_ecriture():
                 'description': transaction['description'],
                 'compte_bancaire_id': transaction['compte_principal_id']
             }  
-    comptes = models.compte_model.get_by_user_id(current_user.id)   
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)   
     # CORRECTION: Utiliser l'instance existante plan_comptable
-    categories = models.plan_comptable_model.get_all_categories()        
-    contacts = models.contact_model.get_all(current_user.id)
+    categories = g.models.plan_comptable_model.get_all_categories()        
+    contacts = g.models.contact_model.get_all(current_user.id)
     statuts_disponibles = [
         {'value': 'pending', 'label': 'En attente'},
         {'value': 'validée', 'label': 'Validée'},
@@ -1544,7 +1544,7 @@ def nouvelle_ecriture_multiple():
                 if data['tva_taux']:
                     data['tva_montant'] = data['montant'] * data['tva_taux'] / 100
 
-                if models.ecriture_comptable_model.create(data):
+                if g.models.ecriture_comptable_model.create(data):
                     succes_count += 1
                 else:
                     flash(f"Écriture {i+1}: Erreur lors de l'enregistrement", "error")
@@ -1560,9 +1560,9 @@ def nouvelle_ecriture_multiple():
             flash("Aucune écriture n'a pu être enregistrée", "warning")
         return redirect(url_for('liste_ecritures'))
     # GET request processing
-    comptes = models.compte_model.get_by_user_id(current_user.id)
-    categories = models.plan_comptable_model.get_all_categories()
-    contacts = models.contact_model.get_all(current_user.id)
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
+    categories = g.models.plan_comptable_model.get_all_categories()
+    contacts = g.models.contact_model.get_all(current_user.id)
     statuts_disponibles = [
         {'value': 'pending', 'label': 'En attente'},
         {'value': 'validée', 'label': 'Validée'},
@@ -1579,8 +1579,8 @@ def nouvelle_ecriture_multiple():
 @bp.route('/comptabilite/ecritures/<int:ecriture_id>/statut', methods=['POST'])
 @login_required
 def modifier_statut_ecriture(ecriture_id):
-    contacts = models.contact_model.get_all(current_user.id)
-    ecriture = models.ecriture_comptable_model.get_by_id(ecriture_id)
+    contacts = g.models.contact_model.get_all(current_user.id)
+    ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture non trouvée', 'danger')
         return redirect(url_for('liste_ecritures'))
@@ -1588,7 +1588,7 @@ def modifier_statut_ecriture(ecriture_id):
     if nouveau_statut not in ['pending', 'validée', 'rejetée']:
         flash('Statut invalide', 'danger')
         return redirect(url_for('liste_ecritures'))
-    if models.ecriture_comptable_model.update_statut(ecriture_id, current_user.id, nouveau_statut):
+    if g.models.ecriture_comptable_model.update_statut(ecriture_id, current_user.id, nouveau_statut):
         flash(f'Statut modifié en "{nouveau_statut}"', 'success')
     else:
         flash('Erreur lors de la modification du statut', 'danger')
@@ -1598,7 +1598,7 @@ def modifier_statut_ecriture(ecriture_id):
 @login_required
 def edit_ecriture(ecriture_id):
     """Modifie une écriture comptable existante"""
-    ecriture = models.ecriture_comptable_model.get_by_id(ecriture_id)
+    ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture introuvable ou non autorisée', 'danger')
         return redirect(url_for('liste_ecritures'))
@@ -1621,16 +1621,16 @@ def edit_ecriture(ecriture_id):
         } 
             if data['tva_taux']:
                 data['tva_montant'] = data['montant'] * data['tva_taux'] / 100   
-            if models.ecriture_comptable_model.update(ecriture_id, data):
+            if g.models.ecriture_comptable_model.update(ecriture_id, data):
                 flash('Écriture mise à jour avec succès', 'success')
                 return redirect(url_for('liste_ecritures'))
             else:
                 flash('Erreur lors de la mise à jour', 'danger')
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger')
-    comptes = models.compte_model.get_by_user_id(current_user.id)
-    categories = models.plan_comptable_model.get_all_categories()
-    contacts = models.contact_model.get_all(current_user.id)
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
+    categories = g.models.plan_comptable_model.get_all_categories()
+    contacts = g.models.contact_model.get_all(current_user.id)
     # CORRECTION: Utiliser 'contacts' au lieu de 'Contacts'
     print(contacts)
     # Ajout des statuts disponibles pour le template
@@ -1653,11 +1653,11 @@ def edit_ecriture(ecriture_id):
 @login_required
 def delete_ecriture(ecriture_id):
     """Supprime une écriture comptable"""
-    ecriture = models.ecriture_comptable_model.get_by_id(ecriture_id)
+    ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture introuvable ou non autorisée', 'danger')
         return redirect(url_for('liste_ecritures'))  
-    if models.ecriture_comptable_model.delete(ecriture_id):
+    if g.models.ecriture_comptable_model.delete(ecriture_id):
         flash('Écriture supprimée avec succès', 'success')
     else:
         flash('Erreur lors de la suppression', 'danger')    
@@ -1669,11 +1669,11 @@ def delete_ecriture(ecriture_id):
 def link_transaction_to_ecriture():
     transaction_id = request.form.get('transaction_id')
     ecriture_id = request.form.get('ecriture_id')
-    transaction = models.transaction_financiere_model.get_by_id(transaction_id)
+    transaction = g.models.transaction_financiere_model.get_by_id(transaction_id)
     if not transaction or transaction['utilisateur_id'] != current_user.id:
         flash('Transaction non trouvée ou non autorisée', 'danger')
         return redirect(url_for('banking_dashboard'))
-    if models.transaction_financiere_model.link_to_ecriture(transaction_id, ecriture_id):
+    if g.models.transaction_financiere_model.link_to_ecriture(transaction_id, ecriture_id):
         flash('Transaction liée avec succès', 'success')
     else:
         flash('Erreur lors du lien', 'danger')
@@ -1685,7 +1685,7 @@ def link_transaction_to_ecriture():
 def test_compte_resultat():
     """Route de test pour debug"""
     print(f"DEBUG: Test route - User: {current_user.id}")
-    stats = models.ecriture_comptable_model.get_compte_de_resultat(
+    stats = g.models.ecriture_comptable_model.get_compte_de_resultat(
         user_id=current_user.id,
         date_from="2025-01-01",
         date_to="2025-12-31"
@@ -1707,7 +1707,7 @@ def compte_de_resultat():
         date_from = f"{annee}-01-01"
         date_to = f"{annee}-12-31"
         # Récupération des données
-        stats = models.ecriture_comptable_model.get_compte_de_resultat(
+        stats = g.models.ecriture_comptable_model.get_compte_de_resultat(
             user_id=current_user.id,
             date_from=date_from,
             date_to=date_to
@@ -1715,14 +1715,14 @@ def compte_de_resultat():
         # Debug: Afficher le nombre d'écritures trouvées
         print(f"DEBUG: {len(stats.get('produits', [])) + len(stats.get('charges', []))} éléments dans le compte de résultat")
         # Vérification des écritures pour l'année sélectionnée
-        toutes_ecritures = models.ecriture_comptable_model.get_by_user_period(
+        toutes_ecritures = g.models.ecriture_comptable_model.get_by_user_period(
             user_id=current_user.id,
             date_from=date_from,
             date_to=date_to
         )
         print(f"DEBUG: {len(toutes_ecritures)} écritures trouvées pour {annee}")
         # Préparation des données pour le template
-        annees_disponibles = models.ecriture_comptable_model.get_annees_disponibles(current_user.id)
+        annees_disponibles = g.models.ecriture_comptable_model.get_annees_disponibles(current_user.id)
         return render_template('comptabilite/compte_de_resultat.html',
                             stats=stats,
                             annee_selectionnee=annee,
@@ -1739,7 +1739,7 @@ def detail_ecritures_categorie(type, categorie_id):
         annee = request.args.get('annee', datetime.now().year)
         date_from = f"{annee}-01-01"
         date_to = f"{annee}-12-31"
-        connection = models.ecriture_comptable_model.db.get_connection()
+        connection = g.models.ecriture_comptable_model.db.get_connection()
         if not connection:
             flash("Erreur de connexion à la base de données", "danger")
             return redirect(url_for('compte_de_resultat'))
@@ -1855,7 +1855,7 @@ def get_ecritures_compte_resultat():
             query += " AND e.categorie_id = %s"
             params.append(int(categorie_id))
         query += " ORDER BY e.date_ecriture DESC"
-        ecritures = models.ecriture_comptable_model.db.execute_query(query, params)
+        ecritures = g.models.ecriture_comptable_model.db.execute_query(query, params)
         return jsonify({
             'ecritures': ecritures,
             'count': len(ecritures),
@@ -1873,8 +1873,8 @@ def export_compte_de_resultat():
     annee = request.args.get('annee', datetime.now().year)
     
     # Récupération des données
-    #ecriture_model = EcritureComptable(db_manager)
-    stats = models.ecriture_comptable_model.get_compte_de_resultat(
+    #ecriture_model = EcritureComptable(g.db_manager)
+    stats = g.models.ecriture_comptable_model.get_compte_de_resultat(
         user_id=current_user.id,
         date_from=f"{annee}-01-01",
         date_to=f"{annee}-12-31"
@@ -1897,15 +1897,15 @@ def export_compte_de_resultat():
 @bp.route('/')
 def journal_comptable():
     # Récupérer les années disponibles
-    annees = models.ecriture_comptable_model.get_annees_disponibles(user_id=1)  # À adapter avec le vrai user_id
+    annees = g.models.ecriture_comptable_model.get_annees_disponibles(user_id=1)  # À adapter avec le vrai user_id
     # Récupérer les catégories comptables
-    categories = models.plan_comptable_model.get_all_categories()
+    categories = g.models.plan_comptable_model.get_all_categories()
     # Paramètres par défaut
     annee_courante = datetime.now().year
     date_from = f"{annee_courante}-01-01"
     date_to = f"{annee_courante}-12-31"
     # Récupérer les écritures
-    ecritures = models.ecriture_comptable_model.get_by_compte_bancaire(
+    ecritures = g.models.ecriture_comptable_model.get_by_compte_bancaire(
         compte_id=None,  # Tous les comptes
         user_id=1,      # À adapter
         date_from=date_from,
@@ -1934,14 +1934,14 @@ def api_ecritures():
     
     # Récupérer les écritures filtrées
     if categorie_id:
-        ecritures = models.ecriture_comptable_model.get_by_categorie(
+        ecritures = g.models.ecriture_comptable_model.get_by_categorie(
             categorie_id=int(categorie_id),
             user_id=1,  # À adapter
             date_from=date_from,
             date_to=date_to  # Fixed: changed from date_from=date_to to date_to=date_to
         )
     else:
-        ecritures = models.ecriture_comptable_model.get_by_compte_bancaire(
+        ecritures = g.models.ecriture_comptable_model.get_by_compte_bancaire(
             compte_id=None,  # Tous les comptes
             user_id=1,      # À adapter
             date_from=date_from,
@@ -1958,7 +1958,7 @@ def api_ecritures():
 def api_compte_resultat():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
-    resultat = models.ecriture_comptable_model.get_compte_de_resultat(
+    resultat = g.models.ecriture_comptable_model.get_compte_de_resultat(
         user_id=1,  # À adapter
         date_from=date_from,
         date_to=date_to
@@ -1974,7 +1974,7 @@ def api_compte_resultat():
 @login_required
 def heures_travail():
     current_user_id = current_user.id
-    contrat = models.contrat_model.get_contrat_actuel(current_user_id)
+    contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
     heures_hebdo_contrat = contrat['heures_hebdo'] if contrat else 38.0
     now = datetime.now()
     # Récupérer mois, semaine, mode selon méthode HTTP
@@ -2007,7 +2007,7 @@ def heures_travail():
     semaines = {}
     for day_date in generate_days(annee, mois, semaine):
         date_str = day_date.isoformat()
-        jour_data = models.heure_model.get_by_date(date_str, current_user_id) or {
+        jour_data = g.models.heure_model.get_by_date(date_str, current_user_id) or {
             'date': date_str,
             'h1d': '',
             'h1f': '',
@@ -2018,7 +2018,7 @@ def heures_travail():
         }
         # CORRECTION : Toujours recalculer total_h pour assurer la cohérence
         if not jour_data['vacances'] and any([jour_data['h1d'], jour_data['h1f'], jour_data['h2d'], jour_data['h2f']]):
-            calculated_total = models.heure_model.calculer_heures(
+            calculated_total = g.models.heure_model.calculer_heures(
                 jour_data['h1d'] or '', jour_data['h1f'] or '',
                 jour_data['h2d'] or '', jour_data['h2f'] or ''
             )
@@ -2160,7 +2160,7 @@ def save_day_transaction(cursor, payload):
         # Utiliser directement la classe HeureTravail pour la sauvegarde
 
         # Transmettre le curseur à la méthode create_or_update
-        success = models.heure_model.create_or_update(payload, cursor)
+        success = g.models.heure_model.create_or_update(payload, cursor)
         
         if success:
             logger.debug(f"Sauvegarde réussie pour {payload['date']}")
@@ -2186,7 +2186,7 @@ def process_day(request, user_id, date_str, annee, mois, semaine, mode, flash_me
     payload = create_day_payload(request, user_id, date_str)
     
     # Utiliser la méthode sécurisée de HeureTravail
-    success = models.heure_model.create_or_update(payload)
+    success = g.models.heure_model.create_or_update(payload)
     
     if success:
         if flash_message:
@@ -2220,7 +2220,7 @@ def handle_save_line(request, user_id, annee, mois, semaine, mode):
 
 def handle_reset_line(request, user_id, annee, mois, semaine, mode):
     date_str = request.form['reset_line']
-    heure_model = HeureTravail(db_manager)
+    heure_model = HeureTravail(g.db_manager)
     try:
         heure_model.delete_by_date(date_str, user_id)
         flash(f"Les heures du {format_date(date_str)} ont été réinitialisées", "warning")
@@ -2234,7 +2234,7 @@ def handle_reset_all(request, user_id, annee, mois, semaine, mode):
     errors = []
     for day in days:
         try:
-            models.heure_model.delete_by_date(day.isoformat(), user_id)
+            g.models.heure_model.delete_by_date(day.isoformat(), user_id)
         except Exception as e:
             logger.error(f"Erreur reset jour {day}: {str(e)}")
             errors.append(format_date(day.isoformat()))
@@ -2253,7 +2253,7 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode):
         vacances = get_vacances_value(request, date_str)
         if not vacances:
             try:
-                total_h = models.heure_model.calculer_heures('08:00', '12:00', '13:00', '17:00')
+                total_h = g.models.heure_model.calculer_heures('08:00', '12:00', '13:00', '17:00')
                 payload = {
                     'date': date_str,
                     'h1d': '08:00',
@@ -2267,7 +2267,7 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode):
                     'semaine_annee': day.isocalendar()[1],
                     'mois': day.month
                 }
-                models.heure_model.create_or_update(payload)
+                g.models.heure_model.create_or_update(payload)
                 success_count += 1
             except Exception as e:
                 logger.error(f"Erreur simulation jour {date_str}: {str(e)}")
@@ -2286,7 +2286,7 @@ def handle_save_all(request, user_id, annee, mois, semaine, mode):
         date_str = day.isoformat()
         payload = create_day_payload(request, user_id, date_str)
         
-        if not models.heure_model.create_or_update(payload):
+        if not g.models.heure_model.create_or_update(payload):
             has_errors = True
             logger.error(f"Erreur traitement jour {date_str}")
     
@@ -2315,7 +2315,7 @@ def salaires():
     for m in range(1, 13):
         # Récupération du contrat actif pour ce mois spécifique
         date_mois = f"{annee}-{m:02d}-01"
-        contrat = models.contrat_model.get_contrat_for_date(current_user_id, date_mois)
+        contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, date_mois)
         
         jour_estimation = contrat['jour_estimation_salaire'] if contrat else 15
         salaire_horaire = 24.05  # Valeur par défaut
@@ -2329,7 +2329,7 @@ def salaires():
                 salaire_horaire = 24.05
         
         # Récupération des heures réelles travaillées
-        heures_reelles = models.heure_model.get_total_heures_mois(current_user_id, annee, m) or 0.0
+        heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, m) or 0.0
         heures_reelles = round(heures_reelles, 2)
         
         
@@ -2342,7 +2342,7 @@ def salaires():
         if heures_reelles > 0 and contrat:
             try:
                 # Calcul acompte du 25 estimé
-                details = models.salaire_model.calculer_salaire_net_avec_details(
+                details = g.models.salaire_model.calculer_salaire_net_avec_details(
                     heures_reelles, contrat, 
                     user_id=current_user_id, annee=annee, mois=m)
                 
@@ -2363,7 +2363,7 @@ def salaires():
 
         
         # Vérifier si un salaire existe en base pour ce mois
-        salaire_existant = models.salaire_model.get_by_mois_annee(current_user_id, annee, m)
+        salaire_existant = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m)
         
         if salaire_existant:
             update_data = {
@@ -2376,7 +2376,7 @@ def salaires():
             print(f"DEBUG - Mois {m}:")
             print(f"  salaire_acompte_25_estime = {salaire_acompte_25_estime}")
             print(f"  salaire_acompte_10_estime = {salaire_acompte_10_estime}")
-            models.salaire_model.update(salaire_existant[0]['id'], update_data)
+            g.models.salaire_model.update(salaire_existant[0]['id'], update_data)
             salaires_par_mois[m] = {**salaire_existant[0], **update_data, 'details': details}
         else:
             # Créer une nouvelle entrée en BASE DE DONNÉES
@@ -2397,7 +2397,7 @@ def salaires():
                 'salaire_horaire': salaire_horaire,
                 'details': details
             }
-            salaire_id = models.salaire_model.create(new_salaire)
+            salaire_id = g.models.salaire_model.create(new_salaire)
             new_salaire['id'] = salaire_id
             salaires_par_mois[m] = new_salaire
 
@@ -2431,7 +2431,7 @@ def salaires():
             totaux[key] = round(totaux[key], 2)
 
     # Récupération du contrat actuel pour l'affichage global
-    contrat_actuel = models.contrat_model.get_contrat_actuel(current_user_id)
+    contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
 
     return render_template('salaires/calcul_salaires.html',
                         salaires_par_mois=salaires_par_mois,
@@ -2446,7 +2446,7 @@ def details_calcul_salaire():
         # Récupération des paramètres
         mois = request.args.get('mois', type=int)
         annee = request.args.get('annee', type=int)
-        contrat = models.contrat_model.get_contrat_for_date(current_user_id, f"{annee}-{mois:02d}-01")
+        contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, f"{annee}-{mois:02d}-01")
     
         if not contrat:
             return jsonify({'erreur': 'Aucun contrat trouvé pour cette période'}), 404
@@ -2456,16 +2456,16 @@ def details_calcul_salaire():
         
         # Récupération du contrat actuel
         current_user_id = current_user.id
-        contrat = models.contrat_model.get_contrat_actuel(current_user_id)
+        contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
         
         if not contrat:
             return jsonify({'erreur': 'Aucun contrat trouvé'}), 404
         
         # Récupération des heures réelles
-        heures_reelles = models.heure_model.get_total_heures_mois(current_user_id, annee, mois) or 0.0
+        heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, mois) or 0.0
         
         # Calcul avec détails
-        resultats = models.salaire_model.calculer_salaire_net_avec_details(heures_reelles, contrat)
+        resultats = g.models.salaire_model.calculer_salaire_net_avec_details(heures_reelles, contrat)
         
         # Ajout du mois et de l'année aux résultats
         resultats['mois'] = mois
@@ -2505,7 +2505,7 @@ def update_salaire():
     current_user_id = current_user.id
     
     # Récupération du contrat
-    contrat = models.contrat_model.get_contrat_actuel(current_user_id)
+    contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
     try:
         salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
     except (TypeError, ValueError):
@@ -2514,14 +2514,14 @@ def update_salaire():
     jour_estimation = int(contrat['jour_estimation_salaire']) if contrat and 'jour_estimation_salaire' in contrat else 15
     
     # Récupération des heures réelles
-    heures_reelles = models.heure_model.get_total_heures_mois(current_user_id, annee, mois) or 0.0
+    heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, mois) or 0.0
     
     # Récupération de l'entrée existante
-    existing = models.salaire_model.get_by_mois_annee(current_user_id, annee, mois)
+    existing = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, mois)
     
     # Calcul du salaire théorique
     try:
-        salaire_calcule = models.salaire_model.calculer_salaire(heures_reelles, salaire_horaire)
+        salaire_calcule = g.models.salaire_model.calculer_salaire(heures_reelles, salaire_horaire)
     except Exception as e:
         current_app.logger.error(f"Erreur calcul salaire pour {mois}/{annee}: {str(e)}")
         salaire_calcule = 0.0
@@ -2547,7 +2547,7 @@ def update_salaire():
         acompte_25_estime, acompte_10_estime = 0.0, 0.0
         
     # Calcul des différences
-    difference, difference_pourcent = models.salaire_model.calculer_differences(
+    difference, difference_pourcent = g.models.salaire_model.calculer_differences(
         salaire_calcule, 
         salaire_verse
     )
@@ -2565,7 +2565,7 @@ def update_salaire():
     if existing:
         # Mettre à jour l'entrée existante EN BASE
         salaire_id = existing[0]['id']
-        success = models.salaire_model.update(salaire_id, update_data)
+        success = g.models.salaire_model.update(salaire_id, update_data)
     else:
         # Créer une nouvelle entrée EN BASE
         full_data = {
@@ -2578,7 +2578,7 @@ def update_salaire():
             'acompte_10_estime': acompte_10_estime,
             **update_data
         }
-        success = models.salaire_model.create(full_data)
+        success = g.models.salaire_model.create(full_data)
     
     if success:
         flash("Les valeurs ont été mises à jour avec succès", "success")
@@ -2594,7 +2594,7 @@ def synthese_hebdomadaire():
     annee = int(request.args.get('annee', datetime.now().year))
     semaine = int(request.args.get('semaine', 0))
 
-    synthese = models.synthese_model.get_by_user_and_week(current_user_id, annee, semaine)
+    synthese = g.models.synthese_model.get_by_user_and_week(current_user_id, annee, semaine)
     if synthese:
         synthese_data = synthese
     else:
@@ -2612,7 +2612,7 @@ def synthese_mensuelle():
     current_user_id = current_user.id
     annee = int(request.args.get('annee', datetime.now().year))
     mois = int(request.args.get('mois', datetime.now().month))
-    synthese = models.synthese_model.get_by_user_and_month(current_user_id, annee, mois)
+    synthese = g.models.synthese_model.get_by_user_and_month(current_user_id, annee, mois)
     if synthese:
         synthese_data = synthese
     else:
@@ -2656,13 +2656,13 @@ def gestion_contrat():
                 flash("Certaines valeurs numériques sont invalides.", "danger")
                 return redirect(url_for('gestion_contrat'))
             
-            models.contrat_model.create_or_update(data)
+            g.models.contrat_model.create_or_update(data)
             flash('Contrat enregistré avec succès!', 'success')
         
         elif action == 'delete':
             contrat_id = request.form.get('contrat_id')
             if contrat_id:
-                models.contrat_model.delete(contrat_id)
+                g.models.contrat_model.delete(contrat_id)
                 flash('Contrat supprimé avec succès!', 'success')
             else:
                 flash("Aucun contrat sélectionné pour suppression.", "warning")
@@ -2670,8 +2670,8 @@ def gestion_contrat():
         return redirect(url_for('gestion_contrat'))
     
     # En GET, on récupère les contrats
-    contrat_actuel = models.contrat_model.get_contrat_actuel(current_user_id)
-    contrats = models.contrat_model.get_all_contrats(current_user_id)
+    contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
+    contrats = g.models.contrat_model.get_all_contrats(current_user_id)
     for contrat in contrats:
         contrat['data_id'] = contrat['id']
     return render_template('salaires/contrat.html', 
