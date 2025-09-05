@@ -6,27 +6,36 @@ Application Flask - Fichier d'initialisation principal
 
 import os
 import sys
-from flask import Flask, g
+from flask import Flask, g, request
 from flask_login import LoginManager
 from dotenv import load_dotenv
 from pathlib import Path
 import pymysql
 import pymysql.cursors
 import logging
+from logging.handlers import RotatingFileHandler
 
 # Charge les variables d'environnement avec chemin absolu
 env_path = Path('/var/www/webroot/ROOT') / '.env'
 load_dotenv(dotenv_path=env_path)
 
-# Configuration de la journalisation
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/var/www/webroot/ROOT/app.log'),
-        logging.StreamHandler()
-    ]
+# --- Configuration de la journalisation ---
+log_dir = os.path.join('/var/www/webroot/ROOT', 'logs')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+file_handler = RotatingFileHandler(
+    os.path.join(log_dir, 'app.log'),
+    maxBytes=1024 * 1024 * 10,  # 10 Mo
+    backupCount=10
 )
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+file_handler.setLevel(logging.INFO)
+
+root_logger = logging.getLogger()
+root_logger.addHandler(file_handler)
+root_logger.setLevel(logging.INFO)
 
 # Initialisation Flask
 app = Flask(__name__)
@@ -41,8 +50,7 @@ app.config['DB_CONFIG'] = {
     'password': os.environ.get('DB_PASSWORD'),
     'charset': 'utf8mb4',
     'autocommit': True,
-    'cursorclass': pymysql.cursors.DictCursor,
-    'auth_plugin': 'mysql_native_password'
+    'cursorclass': pymysql.cursors.DictCursor
 }
 
 # Configuration Flask-Login
@@ -55,8 +63,9 @@ login_manager.login_message_category = "info"
 # Fonction de chargement d'utilisateur pour Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    from app.models import Utilisateur
-    return Utilisateur.get_by_id(user_id)
+    from app.models import Utilisateur, DatabaseManager
+    db_manager = DatabaseManager(app.config['DB_CONFIG'])
+    return Utilisateur.get_by_id(user_id, db_manager)
 
 # Import des routes (APRES la création de l'app)
 from app.routes import auth, admin, banking
@@ -98,14 +107,19 @@ def utility_processor():
 # Initialisation des gestionnaires de modèles
 @app.before_request
 def before_request_hook():
-    if not hasattr(g, 'db_manager'):
-        from app.models import DatabaseManager, ModelManager
-        g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
-        g.model_manager = ModelManager(g.db_manager)
+    from app.models import DatabaseManager, ModelManager
+    g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
+    g.model_manager = ModelManager(g.db_manager)
+
+@app.after_request
+def after_request_hook(response):
+    if hasattr(g, 'db_manager'):
+        g.db_manager.close_connection()
+    return response
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
-    # Ajoutez le r\xe9pertoire racine au chemin Python pour les imports absolus
+    # Ajoutez le répertoire racine au chemin Python pour les imports absolus
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
