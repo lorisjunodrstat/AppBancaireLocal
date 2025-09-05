@@ -400,7 +400,7 @@ class DatabaseManager:
             cursor.close()
 
 class Utilisateur(UserMixin):
-    def __init__(self, id, nom, prenom, email, mot_de_passe):
+    def __init__(self, id, nom=None, prenom=None, email=None, mot_de_passe=None):
         self.id = id
         self.nom = nom
         self.prenom = prenom
@@ -419,58 +419,45 @@ class Utilisateur(UserMixin):
     @property
     def is_anonymous(self):
         return False
+
+    def get_id(self):
+        return str(self.id)
+
     @staticmethod
     def get_by_id(user_id: int, db_manager):
         """
         Charge l'utilisateur depuis la base de données en utilisant le gestionnaire de contexte.
         """
         try:
-            with db_manager.get_cursor() as cursor:
-                query = "SELECT id, email, username, nom, prenom FROM utilisateurs WHERE id = %s"
+            with db_manager.get_cursor(dictionary=True) as cursor:
+                query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
                 cursor.execute(query, (user_id,))
                 row = cursor.fetchone()
                 if row:
-                    return Utilisateur(row['id'], row['email'], row['username'], row.get('nom'), row.get('prenom'))
+                    return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
                 return None
         except Error as e:
             logging.error(f"Erreur lors de la récupération de l'utilisateur: {e}")
             return None
 
-    def get_id(self):
-        return str(self.id)
-
-    # ===========================
-    # MÉTHODES STATIQUES
-    # ===========================
     @staticmethod
-    def get_connection():
-        # Utilisation de la configuration de l'application Flask
-        return mysql.connector.connect(
-            host=current_app.config['DB_HOST'],
-            port=current_app.config['DB_PORT'],
-            user=current_app.config['DB_USER'],
-            password=current_app.config['DB_PASSWORD'],
-            database=current_app.config['DB_NAME'],
-            charset='utf8mb4',
-            use_unicode=True,
-            autocommit=True
-        )
-
-    
-    @staticmethod
-    def get_by_email(email):
-        conn = Utilisateur.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM utilisateurs WHERE email = %s", (email,))
-        row = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        if row:
-            return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
-        return None
+    def get_by_email(email: str, db_manager):
+        """
+        Récupère un utilisateur par son adresse email.
+        """
+        try:
+            with db_manager.get_cursor(dictionary=True) as cursor:
+                cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
+                row = cursor.fetchone()
+                if row:
+                    return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
+                return None
+        except Error as e:
+            logging.error(f"Erreur lors de la récupération de l'utilisateur par email: {e}")
+            return None
 
     @staticmethod
-    def create(nom, prenom, email, mot_de_passe, db_manager):
+    def create(nom: str, prenom: str, email: str, mot_de_passe: str, db_manager):
         """
         Crée un nouvel utilisateur dans la base de données.
         """
@@ -481,7 +468,7 @@ class Utilisateur(UserMixin):
                     VALUES (%s, %s, %s, %s)
                 """, (nom, prenom, email, mot_de_passe))
                 user_id = cursor.lastrowid
-                logging.error(f"Utilisateur créé avec ID: {user_id}")
+                logging.info(f"Utilisateur créé avec ID: {user_id}")
             return user_id
         except Error as e:
             logging.error(f"Erreur création utilisateur : {e}")
