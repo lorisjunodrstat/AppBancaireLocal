@@ -483,7 +483,7 @@ class Utilisateur(UserMixin):
         Crée un nouvel utilisateur dans la base de données.
         """
         try:
-            with db_manager.get_cursor(commit=True) as cursor:
+            with db_manager.get_cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
                     VALUES (%s, %s, %s, %s)
