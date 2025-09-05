@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app, g
 from flask_login import login_required, current_user
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, date
