@@ -672,15 +672,30 @@ class ComptePrincipal:
             return False
     
     def get_solde_total_avec_sous_comptes(self, compte_id: int) -> Decimal:
-        """Calcule le solde total (compte principal + sous-comptes)"""
+        """
+        Calcule le solde total d'un compte principal, en incluant ses sous-comptes.
+        """
         try:
-            with self.db.get_cursor() as cursor:
-                # La ligne "cursor = connection.cursor()" est redondante et incorrecte.
-                cursor.execute("SELECT GetSoldeTotalCompte(%s)", (compte_id,))
+            # Note: J'ai remplacé self.db par self.db_manager pour plus de cohérence.
+            with self.db_manager.get_cursor() as cursor:
+                # Utilisation d'une requête SQL directe pour éviter une fonction de base de données.
+                query = """
+                SELECT 
+                    (SELECT COALESCE(SUM(solde), 0) FROM sous_comptes WHERE compte_principal_id = %s) +
+                    (SELECT solde FROM comptes_principaux WHERE id = %s) as solde_total
+                """
+                cursor.execute(query, (compte_id, compte_id))
                 result = cursor.fetchone()
-                return Decimal(str(result[0])) if result and result[0] else Decimal('0')
-        except Error as e:
-            logging.error(f"Erreur lors du calcul du solde total: {e}")
+                
+                # Le curseur retourne un dictionnaire, donc nous vérifions si 'solde_total' est présent.
+                # L'ancienne version retournait une erreur si le résultat était vide.
+                if result and 'solde_total' in result:
+                    return Decimal(str(result['solde_total']))
+                else:
+                    return Decimal('0')
+        except MySQLError as e:
+            # J'ai remplacé "Error" par "MySQLError" pour gérer spécifiquement les erreurs de base de données.
+            logging.error(f"Erreur lors du calcul du solde total pour le compte {compte_id}: {e}")
             return Decimal('0')
     
     def get_solde_avec_ecritures(self, compte_id: int, date_jusqua: date = None) -> Decimal:
@@ -4535,6 +4550,3 @@ class ModelManager:
         except Exception as e:
             logging.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
             return None
-
-
-
