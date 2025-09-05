@@ -7,7 +7,7 @@
             <h5 class="m-0 font-weight-bold">Gestion du contrat</h5>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('gestion_contrat') }}">
+            <form method="POST" action="{{ url_for('banking.gestion_contrat') }}">
                 <input type="hidden" name="action" value="save">
                 <input type="hidden" name="contrat_id" value="{{ contrat_actuel.id if contrat_actuel else '' }}">
                 <p>Id du contrat {{ contrat_actuel.id }}</p>
@@ -224,7 +224,7 @@
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="{{ url_for('gestion_contrat') }}">
+            <form method="POST" action="{{ url_for('banking.gestion_contrat') }}">
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="contrat_id" value="{{ contrat_actuel.id }}">
                 <div class="modal-header">
