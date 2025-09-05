@@ -69,7 +69,7 @@ def get_comptes_utilisateur(user_id):
         return comptes
 
     # ---- ROUTES ----
-@app.route('/index')
+@bp.route('/index')
 def index():
      return redirect(url_for('auth.login'))
      
