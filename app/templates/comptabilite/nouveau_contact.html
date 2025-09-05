@@ -7,7 +7,7 @@
             <i class="fas fa-file-invoice"></i> Détails du contact
         </div>
         <div class="card-body">
-            <form method="POST" {% if contact %}action="{{ url_for('edit_contact_comptable', contact_id=contact.id_contact) }}"{% else %}action="{{ url_for('nouveau_contact_comptable', contact=contact) }}"{% endif %}>
+            <form method="POST" {% if contact %}action="{{ url_for('banking.edit_contact_comptable', contact_id=contact.id_contact) }}"{% else %}action="{{ url_for('banking.nouveau_contact_comptable', contact=contact) }}"{% endif %}>
                 <div class="mb-3">
                     <label for="nom" class="form-label">Nom</label>
                     <input type="text" class="form-control" id="nom" name="nom"
@@ -46,7 +46,7 @@
                 <button type="submit" class="btn btn-primary">{% if contact %}Mettre à jour{% else %}Créer{% endif
                     %}</button>
                 <!-- Correction de l'erreur de syntaxe ici -->
-                <a href="{{ url_for('liste_contacts_comptables') }}" class="btn btn-secondary">Annuler</a>
+                <a href="{{ url_for('banking.liste_contacts_comptables') }}" class="btn btn-secondary">Annuler</a>
             </form>
         </div>
     </div>

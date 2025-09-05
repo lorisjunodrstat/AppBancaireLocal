@@ -14,13 +14,13 @@
                 <ul class="dropdown-menu">
                     <li>
                         <a class="dropdown-item"
-                            href="{{ url_for('export_compte_de_resultat', format='pdf', annee=annee_selectionnee) }}">
+                            href="{{ url_for('banking.export_compte_de_resultat', format='pdf', annee=annee_selectionnee) }}">
                             <i class="fas fa-file-pdf me-2"></i>PDF
                         </a>
                     </li>
                     <li>
                         <a class="dropdown-item"
-                            href="{{ url_for('export_compte_de_resultat', format='excel', annee=annee_selectionnee) }}">
+                            href="{{ url_for('banking.export_compte_de_resultat', format='excel', annee=annee_selectionnee) }}">
                             <i class="fas fa-file-excel me-2"></i>Excel
                         </a>
                     </li>
@@ -43,7 +43,7 @@
                     <button type="submit" class="btn btn-primary me-2">
                         <i class="fas fa-filter me-1"></i> Appliquer
                     </button>
-                    <a href="{{ url_for('compte_de_resultat') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('banking.compte_de_resultat') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-sync me-1"></i> Réinitialiser
                     </a>
                 </div>
@@ -79,7 +79,7 @@
                                 <td>{{ produit.categorie_nom }}</td>
                                 <td class="text-end">{{ "%.2f"|format(produit.montant) }}</td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('detail_ecritures_categorie', 
+                                    <a href="{{ url_for('banking.detail_ecritures_categorie', 
                                         annee=annee_selectionnee, 
                                         type='produit', 
                                         categorie_id=produit.categorie_id) }}" class="btn btn-sm btn-outline-info">
@@ -95,7 +95,7 @@
                             <tr class="table-success">
                                 <td colspan="2" class="fw-bold">TOTAL PRODUITS</td>
                                 <td class="text-end fw-bold">
-                                    <a href="{{ url_for('detail_ecritures_categorie', 
+                                    <a href="{{ url_for('banking.detail_ecritures_categorie', 
                                         annee=annee_selectionnee, 
                                         type='produit', 
                                         categorie_id='all') }}" class="text-decoration-none text-dark">

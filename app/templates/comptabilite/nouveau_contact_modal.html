@@ -8,8 +8,8 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
-                <form method="POST" {% if contact %}action="{{ url_for('edit_contact_comptable', contact_id=contact.id_contact) }}" {%
-                                else %}action="{{ url_for('nouveau_contact_comptable', contact=contact) }}" {% endif %}>
+                <form method="POST" {% if contact %}action="{{ url_for('banking.edit_contact_comptable', contact_id=contact.id_contact) }}" {%
+                                else %}action="{{ url_for('banking.nouveau_contact_comptable', contact=contact) }}" {% endif %}>
 
                 <div class="modal-body">
                     <div class="row">

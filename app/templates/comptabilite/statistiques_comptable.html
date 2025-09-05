@@ -18,7 +18,7 @@
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary">Filtrer</button>
-                    <a href="{{ url_for('statistiques_comptables') }}" class="btn btn-outline-secondary ms-2">Réinitialiser</a>
+                    <a href="{{ url_for('banking.statistiques_comptables') }}" class="btn btn-outline-secondary ms-2">Réinitialiser</a>
                 </div>
             </form>
         </div>
@@ -106,7 +106,7 @@
                                 {{ "%.2f"|format(solde) }} CHF
                             </td>
                             <td>
-                                <a href="{{ url_for('liste_ecritures', categorie_id=stat.categorie_id, date_from=date_from, date_to=date_to) }}" 
+                                <a href="{{ url_for('banking.liste_ecritures', categorie_id=stat.categorie_id, date_from=date_from, date_to=date_to) }}" 
                                    class="btn btn-sm btn-outline-primary">
                                     Voir détails
                                 </a>

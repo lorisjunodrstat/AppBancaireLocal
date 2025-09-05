@@ -113,19 +113,19 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('liste_ecritures_par_contact', contact_id=contact.id_contact) }}"
+                                <a href="{{ url_for('banking.liste_ecritures_par_contact', contact_id=contact.id_contact) }}"
                                     class="btn btn-sm btn-outline-info">
                                     <i class="fas fa-file-invoice"></i> Écritures
                                 </a>
                             </td>
                             <td class="text-center">
                                 <div class="btn-group" role="group">
-                                    <a href="{{ url_for('edit_contact_comptable', contact_id=contact.id_contact) }}"
+                                    <a href="{{ url_for('banking.edit_contact_comptable', contact_id=contact.id_contact) }}"
                                         class="btn btn-sm btn-outline-primary" title="Modifier">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <form
-                                        action="{{ url_for('delete_contact_comptable', contact_id=contact.id_contact) }}"
+                                        action="{{ url_for('banking.delete_contact_comptable', contact_id=contact.id_contact) }}"
                                         method="post" class="d-inline">
                                         <button type="submit" class="btn btn-sm btn-outline-danger"
                                             onclick="return confirm('Êtes-vous sûr de vouloir supprimer définitivement ce contact ?');"
@@ -142,7 +142,7 @@
                                 <i class="fas fa-address-book fa-3x mb-3"></i>
                                 <h5>Aucun contact enregistré</h5>
                                 <p class="text-muted">Commencez par ajouter votre premier contact</p>
-                                <a href="{{ url_for('nouveau_contact_comptable') }}" class="btn btn-primary">
+                                <a href="{{ url_for('banking.nouveau_contact_comptable') }}" class="btn btn-primary">
                                     <i class="fas fa-plus"></i> Ajouter un contact
                                 </a>
                             </td>
