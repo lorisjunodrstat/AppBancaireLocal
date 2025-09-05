@@ -121,8 +121,6 @@ def before_request_hook():
 
 @app.after_request
 def after_request_hook(response):
-    if hasattr(g, 'db_manager') and g.db_manager is not None:
-        g.db_manager.close_connection()
     return response
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
