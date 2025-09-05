@@ -28,26 +28,25 @@ class DatabaseManager:
     def __init__(self, db_config):
         self.db_config = db_config
         self._connection_pool = None
-        self.create_tables()
+
 
     def _get_connection_pool(self):
         """Initialise et retourne le pool de connexions avec DBUtils."""
         if self._connection_pool is None:
             logging.info("Initialisation du pool de connexions avec DBUtils...")
             try:
-                # Création du pool de connexions avec DBUtils
                 self._connection_pool = PooledDB(
                     creator=pymysql,
-                    maxconnections=5,  # Nombre maximum de connexions dans le pool
-                    mincached=2,       # Nombre minimal de connexions inactives à garder
-                    maxcached=5,       # Nombre maximal de connexions inactives à garder
-                    maxshared=0,       # Nombre maximal de connexions partagées
-                    blocking=True,     # Bloquer si toutes les connexions sont utilisées
-                    maxusage=None,     # Nombre maximum de réutilisations d'une connexion
-                    setsession=None,   # Commandes SQL optionnelles à exécuter au début
-                    reset=True,        # Remettre la connexion à son état initial quand retournée
-                    failures=None,     # Exceptions à considérer comme des erreurs de connexion
-                    ping=1,            # Vérifier la connexion avec ping (0=non, 1=avant utilisation, 2=quand créée, 4=quand dans transaction, 7=toujours)
+                    maxconnections=5,
+                    mincached=2,
+                    maxcached=5,
+                    maxshared=0,
+                    blocking=True,
+                    maxusage=None,
+                    setsession=None,
+                    reset=True,
+                    failures=None,
+                    ping=1,
                     **self.db_config
                 )
                 logging.info("Pool de connexions DBUtils initialisé avec succès.")
@@ -445,12 +444,12 @@ class Utilisateur(UserMixin):
         return str(self.id)
 
     @staticmethod
-    def get_by_id(user_id: int, db_manager):
+    def get_by_id(user_id: int, db):
         """
         Charge l'utilisateur depuis la base de données en utilisant le gestionnaire de contexte.
         """
         try:
-            with db_manager.get_cursor(dictionary=True) as cursor:
+            with db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
                 cursor.execute(query, (user_id,))
                 row = cursor.fetchone()
@@ -462,12 +461,12 @@ class Utilisateur(UserMixin):
             return None
 
     @staticmethod
-    def get_by_email(email: str, db_manager):
+    def get_by_email(email: str, db):
         """
         Récupère un utilisateur par son adresse email.
         """
         try:
-            with db_manager.get_cursor(dictionary=True) as cursor:
+            with db.get_cursor(dictionary=True) as cursor:
                 cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
                 row = cursor.fetchone()
                 if row:
@@ -478,12 +477,12 @@ class Utilisateur(UserMixin):
             return None
 
     @staticmethod
-    def create(nom: str, prenom: str, email: str, mot_de_passe: str, db_manager):
+    def create(nom: str, prenom: str, email: str, mot_de_passe: str, db):
         """
         Crée un nouvel utilisateur dans la base de données.
         """
         try:
-            with db_manager.get_cursor() as cursor:
+            with db.get_cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
                     VALUES (%s, %s, %s, %s)
@@ -676,8 +675,8 @@ class ComptePrincipal:
         Calcule le solde total d'un compte principal, en incluant ses sous-comptes.
         """
         try:
-            # Note: J'ai remplacé self.db par self.db_manager pour plus de cohérence.
-            with self.db_manager.get_cursor() as cursor:
+            # Note: J'ai remplacé self.db par self.db pour plus de cohérence.
+            with self.db.get_cursor() as cursor:
                 # Utilisation d'une requête SQL directe pour éviter une fonction de base de données.
                 query = """
                 SELECT 
@@ -730,14 +729,14 @@ class ComptePrincipal:
             return Decimal('0')
     
     @classmethod
-    def get_all_accounts(cls, db_manager):
+    def get_all_accounts(cls, db):
         # Cette méthode de classe n'est pas cohérente avec les autres méthodes d'instance.
         # Il est préférable de la rendre une méthode d'instance si possible.
         # Si vous devez la garder en l'état, voici la correction.
         comptes = []
         try:
-            # Correction de l'utilisation de db_manager
-            with db_manager.get_cursor() as cursor:
+            # Correction de l'utilisation de db
+            with db.get_cursor() as cursor:
                 query = """
                 SELECT 
                     c.id, c.utilisateur_id, c.banque_id, c.nom_compte, c.numero_compte,
@@ -3360,7 +3359,7 @@ class Contrat:
         
     @contextmanager
     def get_cursor(self, dictionary=False):
-        conn = self.db_manager.get_connection()  # Correction: db_manager au lieu de db
+        conn = self.db.get_connection()  # Correction: db au lieu de db
         if not conn:
             yield None
             return
@@ -3376,7 +3375,7 @@ class Contrat:
             conn.close()
 
     def create_or_update(self, data: Dict) -> bool:
-        conn = self.db_manager.get_connection()
+        conn = self.db.get_connection()
         if not conn:
             return False
         try:
@@ -3466,7 +3465,7 @@ class Contrat:
 
     def get_contrat_actuel(self, user_id: int) -> Optional[Dict]:
         """Récupère le contrat en cours pour l'utilisateur (fin null ou future)"""
-        conn = self.db_manager.get_connection()
+        conn = self.db.get_connection()
         if not conn:
             return None
         try:
@@ -3494,7 +3493,7 @@ class Contrat:
 
     def get_all_contrats(self, user_id: int) -> List[Dict]:
         """Liste tous les contrats de l’utilisateur, du plus récent au plus ancien."""
-        conn = self.db_manager.get_connection()
+        conn = self.db.get_connection()
         if not conn:
             return []
         try:
@@ -3516,7 +3515,7 @@ class Contrat:
 
     def delete(self, contrat_id: int) -> bool:
         """Supprime un contrat par son id."""
-        conn = self.db_manager.get_connection()
+        conn = self.db.get_connection()
         if not conn:
             return False
         try:
@@ -3883,8 +3882,8 @@ class HeureTravail:
         return round(total, 2)
 
 class Salaire:
-    def __init__(self, db_manager, heure_travail_manager=None):
-        self.db = db_manager
+    def __init__(self, db, heure_travail_manager=None):
+        self.db = db
         self.heure_travail_manager = heure_travail_manager
     def create(self, data: dict) -> bool:
         try:
@@ -4456,8 +4455,8 @@ class SyntheseMensuelle:
 class ParametreUtilisateur:
     """Modèle pour gérer les paramètres utilisateur"""
     
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db: DatabaseManager):
+        self.db = db
     
     def get(self, user_id: int) -> Dict:
         """Récupère tous les paramètres d'un utilisateur de manière sécurisée"""
@@ -4520,8 +4519,8 @@ class ParametreUtilisateur:
 
 
 class ModelManager:
-    def __init__(self, db_manager):
-        self.db = db_manager
+    def __init__(self, db):
+        self.db = db
         self.banque_model = Banque(self.db)
         self.compte_model = ComptePrincipal(self.db)
         self.sous_compte_model = SousCompte(self.db)
