@@ -114,11 +114,13 @@ def create_managers_on_request_start(sender, **extra):
     from app.models import DatabaseManager, ModelManager
     try:
         g.db_manager = DatabaseManager(sender.config['DB_CONFIG'])
-        g.model_manager = ModelManager(g.db_manager)
+        # CORRECTION ICI: utilisez "g.models" pour correspondre au reste de votre code
+        g.models = ModelManager(g.db_manager)
     except Exception as e:
         logging.error(f"Failed to establish database connection: {e}")
         g.db_manager = None
-        g.model_manager = None
+        # CORRECTION ICI: utilisez "g.models" pour la cohérence
+        g.models = None
 
 # Connecter la fonction au signal request_started de l'application
 request_started.connect(create_managers_on_request_start, app)
