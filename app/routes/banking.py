@@ -70,7 +70,7 @@ def get_comptes_utilisateur(user_id):
 
     # ---- ROUTES ----
 @app.route('/index')
- def index():
+def index():
      return redirect(url_for('auth.login'))
      
 @bp.route('/banking')
