@@ -14,6 +14,7 @@ import pymysql
 import pymysql.cursors
 import logging
 from logging.handlers import RotatingFileHandler
+from psycopg2 import Error
 
 # Charge les variables d'environnement avec chemin absolu
 env_path = Path('/var/www/webroot/ROOT') / '.env'
@@ -108,12 +109,17 @@ def utility_processor():
 @app.before_request
 def before_request_hook():
     from app.models import DatabaseManager, ModelManager
-    g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
-    g.model_manager = ModelManager(g.db_manager)
+    try:
+        g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
+        g.model_manager = ModelManager(g.db_manager)
+    except Exception as e:
+        logging.error(f"Failed to establish database connection: {e}")
+        g.db_manager = None
+        g.model_manager = None
 
 @app.after_request
 def after_request_hook(response):
-    if hasattr(g, 'db_manager'):
+    if hasattr(g, 'db_manager') and g.db_manager is not None:
         g.db_manager.close_connection()
     return response
 
