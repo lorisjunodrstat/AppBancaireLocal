@@ -81,7 +81,7 @@
                                 </a>
                             </li>
                             <li class="dropdown-item">
-                                <a class="dropdown-link" href="{{ url_for('banking.index') }}">
+                                <a class="dropdown-link" href="{{ url_for('banking.banking_statistiquesindex') }}">
                                     <i class="fas fa-home me-1"></i>Utilisateurs
                                 </a>
                             </li>
@@ -115,7 +115,7 @@
                             </li>
                             
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('banking.depot') }}">
+                                <a class="dropdown-item" href="{{ url_for('banking.banking.depot') }}">
                                     <i class="fas fa-arrow-down me-2"></i>Dépôt
                                 </a>
                             </li>
@@ -129,10 +129,10 @@
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking_statistiques') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('banking.banking_statistiques') }}">
                                     <i class="fas fa-chart-line me-2"></i>Statistiques
                                 </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking_statistique_dashboard') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('banking.banking_statistique_dashboard') }}">
                                     <i class="fas fa-chart-line me-2"></i>Statistiques
                                 </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('banking.liste_banques') }}">
@@ -246,7 +246,7 @@
                 </ul>
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('test_database') }}">
+                        <a class="nav-link" href="#">
                             <i class="fas fa-database me-1"></i>Test DB
                         </a>
                     </li>
