@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..models import Utilisateur
@@ -21,7 +21,8 @@ def login():
             flash("Veuillez remplir tous les champs", "error")
             return render_template('auth/login.html', active_tab='login')
 
-        user = Utilisateur.get_by_email(email)
+        # Utilisez g.db_manager au lieu de db
+        user = Utilisateur.get_by_email(email, g.db_manager)
         if user and check_password_hash(user.mot_de_passe, password):
             login_user(user)
             logging.info(f"Utilisateur {user.email} connecté")
@@ -55,12 +56,14 @@ def register():
             flash("Le mot de passe doit contenir au moins 6 caractères", "error")
             return render_template('auth/login.html', active_tab='register')
         
-        if Utilisateur.get_by_email(email):
+        # Ajoutez g.db_manager comme paramètre
+        if Utilisateur.get_by_email(email, g.db_manager):
             flash("Cet email est déjà utilisé", "error")
             return render_template('auth/login.html', active_tab='register')
         
         hashed_password = generate_password_hash(password)
-        if Utilisateur.create(nom, prenom, email, hashed_password):
+        # Ajoutez g.db_manager comme paramètre
+        if Utilisateur.create(nom, prenom, email, hashed_password, g.db_manager):
             flash("Compte créé avec succès ! Connectez-vous.", "success")
             return redirect(url_for('auth.login'))
         else:
