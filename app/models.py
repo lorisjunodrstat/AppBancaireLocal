@@ -470,24 +470,22 @@ class Utilisateur(UserMixin):
         return None
 
     @staticmethod
-    def create(nom, prenom, email, mot_de_passe):
-        conn = Utilisateur.get_connection()
-        cursor = conn.cursor()
+    def create(nom, prenom, email, mot_de_passe, db_manager):
+        """
+        Crée un nouvel utilisateur dans la base de données.
+        """
         try:
-            cursor.execute("""
-                INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
-                VALUES (%s, %s, %s, %s)
-            """, (nom, prenom, email, mot_de_passe))
-            conn.commit()
-            user_id = cursor.lastrowid  # Récupère l'ID de l'utilisateur créé
-            logging.error((f'Utilisateur créé avec ID: {user_id}')
+            with db_manager.get_cursor(commit=True) as cursor:
+                cursor.execute("""
+                    INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
+                    VALUES (%s, %s, %s, %s)
+                """, (nom, prenom, email, mot_de_passe))
+                user_id = cursor.lastrowid
+                logging.error(f"Utilisateur créé avec ID: {user_id}")
             return user_id
-        except Exception as e:
-            logging.error(("Erreur création utilisateur :", e)
+        except Error as e:
+            logging.error(f"Erreur création utilisateur : {e}")
             return False
-        finally:
-            cursor.close()
-            conn.close()
 
 class Banque:
     """Modèle pour les banques - nettoyé de toute logique transactionnelle"""
