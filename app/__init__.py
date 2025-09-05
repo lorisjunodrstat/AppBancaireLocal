@@ -14,7 +14,7 @@ import pymysql
 import pymysql.cursors
 import logging
 from logging.handlers import RotatingFileHandler
-from psycopg2 import Error
+# L'import de 'psycopg2' a été retiré car il n'est pas compatible avec PyMySQL.
 
 # Charge les variables d'environnement avec chemin absolu
 env_path = Path('/var/www/webroot/ROOT') / '.env'
