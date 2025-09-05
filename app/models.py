@@ -5,6 +5,7 @@ Modèles de données pour la gestion bancaire
 Classes pour manipuler les banques, comptes et sous-comptes
 """
 import pymysql
+import pymysql.pool
 from pymysql import Error
 from decimal import Decimal
 from datetime import datetime, date, timedelta
@@ -20,384 +21,389 @@ from flask import current_app
 
 
 class DatabaseManager:
+    """
+    Gère la connexion à la base de données en utilisant un pool de connexions
+    pour une gestion plus robuste et performante, avec la bibliothèque pymysql.
+    """
     def __init__(self, db_config):
         self.db_config = db_config
-        self.conn = None
-        self.is_connected = False
-        self.init_db_connection()
+        self._connection_pool = None
+        # Le niveau de log est fixé à WARNING pour éviter le spam.
+        logging.getLogger("pymysql.pool").setLevel(logging.WARNING)
+        self.create_tables()
 
-    def init_db_connection(self):
-        """
-        Initialise la connexion à la base de données.
-        """
-        try:
-            logging.info("Tentative de connexion à la base de données avec PyMySQL...")
-            config_log = self.db_config.copy()
-            config_log['password'] = '***'
-            logging.info(f"Configuration: {config_log}")
-            
-            self.conn = pymysql.connect(**self.db_config)
-            self.is_connected = True
-            logging.info("Connexion à la base de données réussie avec PyMySQL.")
-            # Note: self.create_tables() doit être une méthode de cette classe et exister.
-            self.create_tables()
-        except Error as err:
-            logging.error(f"Erreur de connexion à la base de données : {err}")
-            self.is_connected = False
-        except Exception as e:
-            logging.error(f"Une erreur inattendue est survenue lors de la connexion : {e}")
-            self.is_connected = False
+    def _get_connection_pool(self):
+        """Initialise et retourne le pool de connexions."""
+        if self._connection_pool is None:
+            logging.info("Initialisation du pool de connexions PyMySQL...")
+            try:
+                # Création du pool de connexions.
+                # max_size définit le nombre maximum de connexions dans le pool.
+                self._connection_pool = pymysql.pool.Pool(
+                    max_size=5,  
+                    **self.db_config
+                )
+                logging.info("Pool de connexions PyMySQL initialisé avec succès.")
+            except Error as err:
+                logging.error(f"Erreur lors de l'initialisation du pool de connexions : {err}")
+                self._connection_pool = None
+        return self._connection_pool
 
-    def close_connection(self):
-        """
-        Ferme proprement la connexion à la base de données.
-        """
-        try:
-            if self.conn and self.conn.open:
-                self.conn.close()
-                self.is_connected = False
-                logging.info("Connexion à la base de données fermée proprement.")
-        except Exception as e:
-            logging.error(f"Erreur lors de la fermeture de la connexion : {e}")
-    
-    # Ajoutez un gestionnaire de contexte pour les curseurs pour un usage plus propre
     @contextmanager
-    def get_cursor(self):
-        if not self.is_connected:
-            self.init_db_connection()
-        
+    def get_cursor(self, dictionary=False):
+        """
+        Fournit un curseur de base de données depuis le pool.
+        Gère automatiquement la connexion et la fermeture des ressources.
+        """
+        connection = None
         cursor = None
         try:
-            cursor = self.conn.cursor()
+            pool = self._get_connection_pool()
+            if not pool:
+                raise RuntimeError("Impossible d'obtenir une connexion à la base de données.")
+            
+            # Obtient une connexion du pool
+            connection = pool.get_connection()
+            
+            # Crée un curseur (dictionnaire si nécessaire)
+            cursor = connection.cursor(pymysql.cursors.DictCursor) if dictionary else connection.cursor()
+            
             yield cursor
+            
+            # Commit la transaction après une exécution réussie
+            connection.commit()
+        except Exception as e:
+            logging.error(f"Erreur dans le gestionnaire de curseur : {e}")
+            if connection:
+                connection.rollback() # Annule les changements en cas d'erreur
+            raise # Relance l'exception
         finally:
             if cursor:
                 cursor.close()
+            if connection:
+                connection.close() # La connexion est retournée au pool.
+
     def create_tables(self):
         """
         Crée toutes les tables de la base de données si elles n'existent pas.
         """
-        if not self.is_connected:
-            logging.error("Impossible de créer les tables : pas de connexion à la base de données.")
-            return
-
-        cursor = self.conn.cursor()
+        logging.info("Vérification et création des tables de la base de données...")
         try:
-            # Table utilisateurs
-            create_users_table_query = """
-            CREATE TABLE IF NOT EXISTS utilisateurs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nom VARCHAR(255) NOT NULL,
-                prenom VARCHAR(255) NOT NULL,
-                email VARCHAR(255) NOT NULL UNIQUE,
-                mot_de_passe VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-            cursor.execute(create_users_table_query)
+            # Utilisation du gestionnaire de contexte pour la création des tables.
+            with self.get_cursor() as cursor:
+                
+                # Table utilisateurs
+                create_users_table_query = """
+                CREATE TABLE IF NOT EXISTS utilisateurs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nom VARCHAR(255) NOT NULL,
+                    prenom VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    mot_de_passe VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+                cursor.execute(create_users_table_query)
 
-            # Table banques
-            create_banques_table_query = """
-            CREATE TABLE IF NOT EXISTS banques (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nom VARCHAR(255) NOT NULL,
-                code_banque VARCHAR(50) UNIQUE,
-                pays VARCHAR(100) DEFAULT 'Suisse',
-                couleur VARCHAR(7) DEFAULT '#3498db',
-                site_web VARCHAR(255),
-                logo_url VARCHAR(255),
-                actif BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-            cursor.execute(create_banques_table_query)
+                # Table banques
+                create_banques_table_query = """
+                CREATE TABLE IF NOT EXISTS banques (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nom VARCHAR(255) NOT NULL,
+                    code_banque VARCHAR(50) UNIQUE,
+                    pays VARCHAR(100) DEFAULT 'Suisse',
+                    couleur VARCHAR(7) DEFAULT '#3498db',
+                    site_web VARCHAR(255),
+                    logo_url VARCHAR(255),
+                    actif BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+                cursor.execute(create_banques_table_query)
 
-            # Table comptes_principaux
-            create_comptes_table_query = """
-            CREATE TABLE IF NOT EXISTS comptes_principaux (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                utilisateur_id INT NOT NULL,
-                banque_id INT NOT NULL,
-                nom_compte VARCHAR(255) NOT NULL,
-                numero_compte VARCHAR(255),
-                iban VARCHAR(34),
-                bic VARCHAR(11),
-                type_compte ENUM('courant', 'epargne', 'compte_jeune', 'autre') DEFAULT 'courant',
-                solde DECIMAL(15,2) DEFAULT 0.00,
-                devise VARCHAR(3) DEFAULT 'CHF',
-                date_ouverture DATE,
-                actif BOOLEAN DEFAULT TRUE,
-                date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id),
-                FOREIGN KEY (banque_id) REFERENCES banques(id)
-            );
-            """
-            cursor.execute(create_comptes_table_query)
+                # Table comptes_principaux
+                create_comptes_table_query = """
+                CREATE TABLE IF NOT EXISTS comptes_principaux (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    utilisateur_id INT NOT NULL,
+                    banque_id INT NOT NULL,
+                    nom_compte VARCHAR(255) NOT NULL,
+                    numero_compte VARCHAR(255),
+                    iban VARCHAR(34),
+                    bic VARCHAR(11),
+                    type_compte ENUM('courant', 'epargne', 'compte_jeune', 'autre') DEFAULT 'courant',
+                    solde DECIMAL(15,2) DEFAULT 0.00,
+                    devise VARCHAR(3) DEFAULT 'CHF',
+                    date_ouverture DATE,
+                    actif BOOLEAN DEFAULT TRUE,
+                    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id),
+                    FOREIGN KEY (banque_id) REFERENCES banques(id)
+                );
+                """
+                cursor.execute(create_comptes_table_query)
 
-            # Table sous_comptes
-            create_sous_comptes_table_query = """
-            CREATE TABLE IF NOT EXISTS sous_comptes (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                compte_principal_id INT NOT NULL,
-                nom_sous_compte VARCHAR(255) NOT NULL,
-                description TEXT,
-                objectif_montant DECIMAL(15,2),
-                solde DECIMAL(15,2) DEFAULT 0.00,
-                couleur VARCHAR(7) DEFAULT '#28a745',
-                icone VARCHAR(50) DEFAULT 'piggy-bank',
-                date_objectif DATE,
-                actif BOOLEAN DEFAULT TRUE,
-                date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (compte_principal_id) REFERENCES comptes_principaux(id)
-            );
-            """
-            cursor.execute(create_sous_comptes_table_query)
+                # Table sous_comptes
+                create_sous_comptes_table_query = """
+                CREATE TABLE IF NOT EXISTS sous_comptes (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    compte_principal_id INT NOT NULL,
+                    nom_sous_compte VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    objectif_montant DECIMAL(15,2),
+                    solde DECIMAL(15,2) DEFAULT 0.00,
+                    couleur VARCHAR(7) DEFAULT '#28a745',
+                    icone VARCHAR(50) DEFAULT 'piggy-bank',
+                    date_objectif DATE,
+                    actif BOOLEAN DEFAULT TRUE,
+                    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (compte_principal_id) REFERENCES comptes_principaux(id)
+                );
+                """
+                cursor.execute(create_sous_comptes_table_query)
 
-            # Table transactions
-            create_transactions_table_query = """
-            CREATE TABLE IF NOT EXISTS transactions (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                compte_principal_id INT,
-                sous_compte_id INT,
-                compte_source_id INT,
-                sous_compte_source_id INT,
-                compte_destination_id INT,
-                sous_compte_destination_id INT,
-                type_transaction ENUM('depot', 'retrait', 'transfert_entrant', 'transfert_sortant', 'transfert_externe', 'recredit_annulation', 'transfert_compte_vers_sous', 'transfert_sous_vers_compte') NOT NULL,
-                montant DECIMAL(15,2) NOT NULL,
-                description TEXT,
-                reference VARCHAR(100),
-                utilisateur_id INT NOT NULL,
-                date_transaction DATETIME NOT NULL,
-                solde_apres DECIMAL(15,2),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (compte_principal_id) REFERENCES comptes_principaux(id),
-                FOREIGN KEY (sous_compte_id) REFERENCES sous_comptes(id),
-                FOREIGN KEY (compte_source_id) REFERENCES comptes_principaux(id),
-                FOREIGN KEY (sous_compte_source_id) REFERENCES sous_comptes(id),
-                FOREIGN KEY (compte_destination_id) REFERENCES comptes_principaux(id),
-                FOREIGN KEY (sous_compte_destination_id) REFERENCES sous_comptes(id),
-                FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_transactions_table_query)
+                # Table transactions
+                create_transactions_table_query = """
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    compte_principal_id INT,
+                    sous_compte_id INT,
+                    compte_source_id INT,
+                    sous_compte_source_id INT,
+                    compte_destination_id INT,
+                    sous_compte_destination_id INT,
+                    type_transaction ENUM('depot', 'retrait', 'transfert_entrant', 'transfert_sortant', 'transfert_externe', 'recredit_annulation', 'transfert_compte_vers_sous', 'transfert_sous_vers_compte') NOT NULL,
+                    montant DECIMAL(15,2) NOT NULL,
+                    description TEXT,
+                    reference VARCHAR(100),
+                    utilisateur_id INT NOT NULL,
+                    date_transaction DATETIME NOT NULL,
+                    solde_apres DECIMAL(15,2),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (compte_principal_id) REFERENCES comptes_principaux(id),
+                    FOREIGN KEY (sous_compte_id) REFERENCES sous_comptes(id),
+                    FOREIGN KEY (compte_source_id) REFERENCES comptes_principaux(id),
+                    FOREIGN KEY (sous_compte_source_id) REFERENCES sous_comptes(id),
+                    FOREIGN KEY (compte_destination_id) REFERENCES comptes_principaux(id),
+                    FOREIGN KEY (sous_compte_destination_id) REFERENCES sous_comptes(id),
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_transactions_table_query)
 
-            # Table transferts_externes
-            create_transferts_externes_table_query = """
-            CREATE TABLE IF NOT EXISTS transferts_externes (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                transaction_id INT NOT NULL,
-                iban_dest VARCHAR(34) NOT NULL,
-                bic_dest VARCHAR(11),
-                nom_dest VARCHAR(255) NOT NULL,
-                montant DECIMAL(15,2) NOT NULL,
-                devise VARCHAR(3) DEFAULT 'EUR',
-                statut ENUM('pending', 'processed', 'cancelled') DEFAULT 'pending',
-                date_demande TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                date_traitement TIMESTAMP NULL,
-                FOREIGN KEY (transaction_id) REFERENCES transactions(id)
-            );
-            """
-            cursor.execute(create_transferts_externes_table_query)
+                # Table transferts_externes
+                create_transferts_externes_table_query = """
+                CREATE TABLE IF NOT EXISTS transferts_externes (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    transaction_id INT NOT NULL,
+                    iban_dest VARCHAR(34) NOT NULL,
+                    bic_dest VARCHAR(11),
+                    nom_dest VARCHAR(255) NOT NULL,
+                    montant DECIMAL(15,2) NOT NULL,
+                    devise VARCHAR(3) DEFAULT 'EUR',
+                    statut ENUM('pending', 'processed', 'cancelled') DEFAULT 'pending',
+                    date_demande TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    date_traitement TIMESTAMP NULL,
+                    FOREIGN KEY (transaction_id) REFERENCES transactions(id)
+                );
+                """
+                cursor.execute(create_transferts_externes_table_query)
 
-            # Table categories_comptables
-            create_categories_table_query = """
-            CREATE TABLE IF NOT EXISTS categories_comptables (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                numero VARCHAR(10) NOT NULL UNIQUE,
-                nom VARCHAR(255) NOT NULL,
-                parent_id INT,
-                type_compte ENUM('Actif', 'Passif', 'Charge', 'Revenus') NOT NULL,
-                compte_systeme BOOLEAN DEFAULT FALSE,
-                compte_associe VARCHAR(10),
-                type_tva ENUM('taux_plein', 'taux_reduit', 'taux_zero', 'exonere') DEFAULT 'taux_plein',
-                actif BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            );
-            """
-            cursor.execute(create_categories_table_query)
+                # Table categories_comptables
+                create_categories_table_query = """
+                CREATE TABLE IF NOT EXISTS categories_comptables (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    numero VARCHAR(10) NOT NULL UNIQUE,
+                    nom VARCHAR(255) NOT NULL,
+                    parent_id INT,
+                    type_compte ENUM('Actif', 'Passif', 'Charge', 'Revenus') NOT NULL,
+                    compte_systeme BOOLEAN DEFAULT FALSE,
+                    compte_associe VARCHAR(10),
+                    type_tva ENUM('taux_plein', 'taux_reduit', 'taux_zero', 'exonere') DEFAULT 'taux_plein',
+                    actif BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                );
+                """
+                cursor.execute(create_categories_table_query)
 
-            # Table ecritures_comptables
-            create_ecritures_table_query = """
-            CREATE TABLE IF NOT EXISTS ecritures_comptables (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                date_ecriture DATE NOT NULL,
-                compte_bancaire_id INT NOT NULL,
-                sous_compte_id INT,
-                categorie_id INT NOT NULL,
-                montant DECIMAL(15,2) NOT NULL,
-                devise VARCHAR(3) DEFAULT 'CHF',
-                description TEXT,
-                id_contact INT,
-                reference VARCHAR(100),
-                type_ecriture ENUM('depense', 'recette') NOT NULL,
-                tva_taux DECIMAL(5,2),
-                tva_montant DECIMAL(15,2),
-                utilisateur_id INT NOT NULL,
-                justificatif_url VARCHAR(255),
-                statut ENUM('pending', 'validée', 'rejetée') DEFAULT 'pending',
-                date_validation TIMESTAMP NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (compte_bancaire_id) REFERENCES comptes_principaux(id),
-                FOREIGN KEY (sous_compte_id) REFERENCES sous_comptes(id),
-                FOREIGN KEY (categorie_id) REFERENCES categories_comptables(id),
-                FOREIGN KEY (id_contact) REFERENCES contacts(id_contact),
-                FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_ecritures_table_query)
+                # Table ecritures_comptables
+                create_ecritures_table_query = """
+                CREATE TABLE IF NOT EXISTS ecritures_comptables (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    date_ecriture DATE NOT NULL,
+                    compte_bancaire_id INT NOT NULL,
+                    sous_compte_id INT,
+                    categorie_id INT NOT NULL,
+                    montant DECIMAL(15,2) NOT NULL,
+                    devise VARCHAR(3) DEFAULT 'CHF',
+                    description TEXT,
+                    id_contact INT,
+                    reference VARCHAR(100),
+                    type_ecriture ENUM('depense', 'recette') NOT NULL,
+                    tva_taux DECIMAL(5,2),
+                    tva_montant DECIMAL(15,2),
+                    utilisateur_id INT NOT NULL,
+                    justificatif_url VARCHAR(255),
+                    statut ENUM('pending', 'validée', 'rejetée') DEFAULT 'pending',
+                    date_validation TIMESTAMP NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (compte_bancaire_id) REFERENCES comptes_principaux(id),
+                    FOREIGN KEY (sous_compte_id) REFERENCES sous_comptes(id),
+                    FOREIGN KEY (categorie_id) REFERENCES categories_comptables(id),
+                    FOREIGN KEY (id_contact) REFERENCES contacts(id_contact),
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_ecritures_table_query)
 
-            # Table contacts
-            create_contacts_table_query = """
-            CREATE TABLE IF NOT EXISTS contacts (
-                id_contact INT AUTO_INCREMENT PRIMARY KEY,
-                nom VARCHAR(255) NOT NULL,
-                email VARCHAR(255),
-                telephone VARCHAR(20),
-                adresse TEXT,
-                code_postal VARCHAR(10),
-                ville VARCHAR(100),
-                pays VARCHAR(100),
-                utilisateur_id INT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_contacts_table_query)
+                # Table contacts
+                create_contacts_table_query = """
+                CREATE TABLE IF NOT EXISTS contacts (
+                    id_contact INT AUTO_INCREMENT PRIMARY KEY,
+                    nom VARCHAR(255) NOT NULL,
+                    email VARCHAR(255),
+                    telephone VARCHAR(20),
+                    adresse TEXT,
+                    code_postal VARCHAR(10),
+                    ville VARCHAR(100),
+                    pays VARCHAR(100),
+                    utilisateur_id INT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_contacts_table_query)
 
-            # Table parametres_utilisateur
-            create_parametres_table_query = """
-            CREATE TABLE IF NOT EXISTS parametres_utilisateur (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                utilisateur_id INT NOT NULL UNIQUE,
-                devise_principale VARCHAR(3) DEFAULT 'CHF',
-                theme ENUM('clair', 'sombre') DEFAULT 'clair',
-                notifications_email BOOLEAN DEFAULT TRUE,
-                alertes_solde BOOLEAN DEFAULT TRUE,
-                seuil_alerte_solde DECIMAL(15,2) DEFAULT 500.00,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_parametres_table_query)
+                # Table parametres_utilisateur
+                create_parametres_table_query = """
+                CREATE TABLE IF NOT EXISTS parametres_utilisateur (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    utilisateur_id INT NOT NULL UNIQUE,
+                    devise_principale VARCHAR(3) DEFAULT 'CHF',
+                    theme ENUM('clair', 'sombre') DEFAULT 'clair',
+                    notifications_email BOOLEAN DEFAULT TRUE,
+                    alertes_solde BOOLEAN DEFAULT TRUE,
+                    seuil_alerte_solde DECIMAL(15,2) DEFAULT 500.00,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_parametres_table_query)
 
-            # Table heures_travail
-            create_heures_travail_table_query = """
-            CREATE TABLE IF NOT EXISTS heures_travail (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                date DATE NOT NULL,
-                user_id INT NOT NULL,
-                h1d TIME,
-                h1f TIME,
-                h2d TIME,
-                h2f TIME,
-                total_h DECIMAL(5,2),
-                vacances BOOLEAN DEFAULT FALSE,
-                jour_semaine VARCHAR(10),
-                semaine_annee INT,
-                mois INT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE KEY unique_date_user (date, user_id),
-                FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_heures_travail_table_query)
+                # Table heures_travail
+                create_heures_travail_table_query = """
+                CREATE TABLE IF NOT EXISTS heures_travail (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    date DATE NOT NULL,
+                    user_id INT NOT NULL,
+                    h1d TIME,
+                    h1f TIME,
+                    h2d TIME,
+                    h2f TIME,
+                    total_h DECIMAL(5,2),
+                    vacances BOOLEAN DEFAULT FALSE,
+                    jour_semaine VARCHAR(10),
+                    semaine_annee INT,
+                    mois INT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_date_user (date, user_id),
+                    FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_heures_travail_table_query)
 
-            # Table salaires
-            create_salaires_table_query = """
-            CREATE TABLE IF NOT EXISTS salaires (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                mois INT NOT NULL,
-                annee INT NOT NULL,
-                heures_reelles DECIMAL(7,2),
-                salaire_horaire DECIMAL(7,2) DEFAULT 24.05,
-                salaire_calcule DECIMAL(10,2),
-                salaire_net DECIMAL(10,2),
-                salaire_verse DECIMAL(10,2),
-                acompte_25 DECIMAL(10,2),
-                acompte_10 DECIMAL(10,2),
-                acompte_25_estime DECIMAL(10,2),
-                acompte_10_estime DECIMAL(10,2),
-                difference DECIMAL(10,2),
-                difference_pourcent DECIMAL(5,2),
-                user_id INT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_salaires_table_query)
+                # Table salaires
+                create_salaires_table_query = """
+                CREATE TABLE IF NOT EXISTS salaires (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    mois INT NOT NULL,
+                    annee INT NOT NULL,
+                    heures_reelles DECIMAL(7,2),
+                    salaire_horaire DECIMAL(7,2) DEFAULT 24.05,
+                    salaire_calcule DECIMAL(10,2),
+                    salaire_net DECIMAL(10,2),
+                    salaire_verse DECIMAL(10,2),
+                    acompte_25 DECIMAL(10,2),
+                    acompte_10 DECIMAL(10,2),
+                    acompte_25_estime DECIMAL(10,2),
+                    acompte_10_estime DECIMAL(10,2),
+                    difference DECIMAL(10,2),
+                    difference_pourcent DECIMAL(5,2),
+                    user_id INT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_salaires_table_query)
 
-            # Table synthese_hebdo
-            create_synthese_hebdo_table_query = """
-            CREATE TABLE IF NOT EXISTS synthese_hebdo (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                semaine_numero INT NOT NULL,
-                annee INT NOT NULL,
-                heures_reelles DECIMAL(7,2),
-                heures_simulees DECIMAL(7,2),
-                difference DECIMAL(7,2),
-                moyenne_mobile DECIMAL(7,2),
-                user_id INT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_synthese_hebdo_table_query)
+                # Table synthese_hebdo
+                create_synthese_hebdo_table_query = """
+                CREATE TABLE IF NOT EXISTS synthese_hebdo (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    semaine_numero INT NOT NULL,
+                    annee INT NOT NULL,
+                    heures_reelles DECIMAL(7,2),
+                    heures_simulees DECIMAL(7,2),
+                    difference DECIMAL(7,2),
+                    moyenne_mobile DECIMAL(7,2),
+                    user_id INT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_synthese_hebdo_table_query)
 
-            # Table synthese_mensuelle
-            create_synthese_mensuelle_table_query = """
-            CREATE TABLE IF NOT EXISTS synthese_mensuelle (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                mois INT NOT NULL,
-                annee INT NOT NULL,
-                heures_reelles DECIMAL(7,2),
-                heures_simulees DECIMAL(7,2),
-                salaire_reel DECIMAL(10,2),
-                salaire_simule DECIMAL(10,2),
-                user_id INT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_synthese_mensuelle_table_query)
+                # Table synthese_mensuelle
+                create_synthese_mensuelle_table_query = """
+                CREATE TABLE IF NOT EXISTS synthese_mensuelle (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    mois INT NOT NULL,
+                    annee INT NOT NULL,
+                    heures_reelles DECIMAL(7,2),
+                    heures_simulees DECIMAL(7,2),
+                    salaire_reel DECIMAL(10,2),
+                    salaire_simule DECIMAL(10,2),
+                    user_id INT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_synthese_mensuelle_table_query)
 
-            # Table contrats
-            create_contrats_table_query = """
-            CREATE TABLE IF NOT EXISTS contrats (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
-                heures_hebdo DECIMAL(4,2) NOT NULL,
-                date_debut DATE NOT NULL,
-                date_fin DATE,
-                salaire_horaire DECIMAL(7,2) DEFAULT 24.05,
-                jour_estimation_salaire INT DEFAULT 15,
-                versement_10 BOOLEAN DEFAULT TRUE,
-                versement_25 BOOLEAN DEFAULT TRUE,
-                indemnite_vacances_tx DECIMAL(5,2),
-                indemnite_jours_feries_tx DECIMAL(5,2),
-                indemnite_jour_conges_tx DECIMAL(5,2),
-                indemnite_repas_tx DECIMAL(5,2),
-                indemnite_retenues_tx DECIMAL(5,2),
-                cotisation_avs_tx DECIMAL(5,2),
-                cotisation_ac_tx DECIMAL(5,2),
-                cotisation_accident_n_prof_tx DECIMAL(5,2),
-                cotisation_assurance_indemnite_maladie_tx DECIMAL(5,2),
-                cotisation_cap_tx DECIMAL(5,2),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
-            );
-            """
-            cursor.execute(create_contrats_table_query)
+                # Table contrats
+                create_contrats_table_query = """
+                CREATE TABLE IF NOT EXISTS contrats (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    heures_hebdo DECIMAL(4,2) NOT NULL,
+                    date_debut DATE NOT NULL,
+                    date_fin DATE,
+                    salaire_horaire DECIMAL(7,2) DEFAULT 24.05,
+                    jour_estimation_salaire INT DEFAULT 15,
+                    versement_10 BOOLEAN DEFAULT TRUE,
+                    versement_25 BOOLEAN DEFAULT TRUE,
+                    indemnite_vacances_tx DECIMAL(5,2),
+                    indemnite_jours_feries_tx DECIMAL(5,2),
+                    indemnite_jour_conges_tx DECIMAL(5,2),
+                    indemnite_repas_tx DECIMAL(5,2),
+                    indemnite_retenues_tx DECIMAL(5,2),
+                    cotisation_avs_tx DECIMAL(5,2),
+                    cotisation_ac_tx DECIMAL(5,2),
+                    cotisation_accident_n_prof_tx DECIMAL(5,2),
+                    cotisation_assurance_indemnite_maladie_tx DECIMAL(5,2),
+                    cotisation_cap_tx DECIMAL(5,2),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_contrats_table_query)
 
             logging.info("Toutes les tables ont été vérifiées/créées avec succès.")
-            
-        except Error as e:
+        
+        except Exception as e:
             logging.error(f"Erreur lors de la création des tables : {e}")
-            self.conn.rollback()
-        finally:
-            cursor.close()
 
 class Utilisateur(UserMixin):
     def __init__(self, id, nom=None, prenom=None, email=None, mot_de_passe=None):
