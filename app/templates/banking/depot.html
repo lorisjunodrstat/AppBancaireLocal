@@ -20,7 +20,7 @@
                             {% endif %}
                         {% endwith %}
                         
-                        <form method="POST" action="{{ url_for('depot') }}">
+                        <form method="POST" action="{{ url_for('banking.depot') }}">
                             <div class="mb-3">
                                 <label for="compte_type" class="form-label">Type de compte</label>
                                 <select class="form-select" id="compte_type" name="compte_type" required>

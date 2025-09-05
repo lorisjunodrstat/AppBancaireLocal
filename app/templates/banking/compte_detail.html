@@ -49,10 +49,10 @@
                         </div>
 
                         <div class="btn-group">
-                            <a href="{{ url_for('banking_transfert') }}" class="btn btn-primary btn-sm">
+                            <a href="{{ url_for('banking.banking_transfert') }}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-exchange-alt me-1"></i>Transfert
                             </a>
-                            <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                            <a href="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id) }}"
                                 class="btn btn-outline-success btn-sm">
                                 <i class="fas fa-piggy-bank me-1"></i>Épargne
                             </a>
@@ -68,7 +68,7 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-piggy-bank me-2"></i>Épargnes ({{ sous_comptes|length }})</h5>
-                        <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                        <a href="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id) }}"
                             class="btn btn-success btn-sm">
                             <i class="fas fa-plus me-1"></i>Nouvelle épargne
                         </a>
@@ -122,7 +122,7 @@
                                                 data-bs-toggle="dropdown"></button>
                                             <ul class="dropdown-menu">
                                                 <li><a class="dropdown-item"
-                                                        href="{{ url_for('banking_sous_compte_detail', sous_compte_id=sc.id) }}"><i
+                                                        href="{{ url_for('banking.banking_sous_compte_detail', sous_compte_id=sc.id) }}"><i
                                                             class="fas fa-eye me-2"></i>Détails</a></li>
                                                 <li><a class="dropdown-item" href="#"
                                                         onclick="transfertRapide({{ compte.id }}, {{ sc.id }})"><i
@@ -134,7 +134,7 @@
                                                     <hr class="dropdown-divider">
                                                 </li>
                                                 <li><a class="dropdown-item text-danger"
-                                                        href="{{ url_for('banking_supprimer_sous_compte', sous_compte_id=sc.id) }}"
+                                                        href="{{ url_for('banking.banking_supprimer_sous_compte', sous_compte_id=sc.id) }}"
                                                         onclick="return confirm('Supprimer ce sous-compte ?')"><i
                                                             class="fas fa-trash me-2"></i>Supprimer</a></li>
                                             </ul>
@@ -150,7 +150,7 @@
                             <h5 class="text-muted">Aucune épargne configurée</h5>
                             <p class="text-muted">Créez votre première épargne pour commencer à mettre de l'argent de
                                 côté.</p>
-                            <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                            <a href="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id) }}"
                                 class="btn btn-success"><i class="fas fa-plus me-2"></i>Créer ma première épargne</a>
                         </div>
                         {% endif %}
@@ -414,7 +414,7 @@
                                         </li>
                                         <li class="nav-item ms-auto">
                                             <form class="d-flex" role="search"
-                                                action="{{ url_for('banking_compte_detail', compte_id=compte.id) }}"
+                                                action="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
                                                 method="GET">
                                                 <input type="hidden" name="periode" value="{{ periode_selectionnee }}">
                                                 <input class="form-control me-2" type="search" placeholder="Rechercher"
@@ -584,14 +584,14 @@
         // Implémentation de la fonction de transfert rapide
         console.log("Transfert rapide depuis le compte " + compteId + " vers le sous-compte " + sousCompteId);
         // Redirection vers le formulaire de transfert avec pré-remplissage
-        window.location.href = "{{ url_for('banking_transfert') }}?source=" + compteId + "&destination_type=sous_compte&destination=" + sousCompteId;
+        window.location.href = "{{ url_for('banking.banking_transfert') }}?source=" + compteId + "&destination_type=sous_compte&destination=" + sousCompteId;
     }
 
     function retraitRapide(compteId, sousCompteId) {
         // Implémentation de la fonction de retrait rapide
         console.log("Retrait rapide depuis le sous-compte " + sousCompteId + " vers le compte " + compteId);
         // Redirection vers le formulaire de transfert avec pré-remplissage
-        window.location.href = "{{ url_for('banking_transfert') }}?source_type=sous_compte&source=" + sousCompteId + "&destination=" + compteId;
+        window.location.href = "{{ url_for('banking.banking_transfert') }}?source_type=sous_compte&source=" + sousCompteId + "&destination=" + compteId;
     }
 </script>
 {% endblock %}

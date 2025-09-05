@@ -24,7 +24,7 @@
             transfert.</p>
     </div>
     {% else %}
-    <form method="POST" action="{{ url_for('banking_transfert_compte_sous_compte') }}" class="needs-validation" novalidate>
+    <form method="POST" action="{{ url_for('banking.banking_transfert_compte_sous_compte') }}" class="needs-validation" novalidate>
         <div class="row mb-4">
             <div class="col-md-6">
                 <label for="compte_id" class="form-label">Compte principal*</label>
@@ -83,7 +83,7 @@
         </div>
 
         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-            <a href="{{ url_for('banking_transfert') }}" class="btn btn-secondary me-md-2">Retour aux transferts</a>
+            <a href="{{ url_for('banking.banking_transfert') }}" class="btn btn-secondary me-md-2">Retour aux transferts</a>
             <button type="submit" class="btn btn-primary btn-lg">
                 Valider le transfert
             </button>

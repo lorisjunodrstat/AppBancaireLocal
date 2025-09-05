@@ -13,7 +13,7 @@
                 </h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                <form method="POST" action="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id) }}"
                     novalidate>
                     <div class="row">
                         <!-- Informations générales -->
@@ -113,7 +113,7 @@
 
                     <!-- Boutons d'action -->
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}"
+                        <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
                             class="btn btn-outline-secondary me-md-2">
                             <i class="fas fa-times me-2"></i>Annuler
                         </a>

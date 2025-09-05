@@ -2,7 +2,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Liste des Banques</h2>
-    <a href="{{ url_for('creer_banque') }}" class="btn btn-primary mb-3">+ Nouvelle Banque</a>
+    <a href="{{ url_for('banking.creer_banque') }}" class="btn btn-primary mb-3">+ Nouvelle Banque</a>
     
     {% if banques %}
     <table class="table table-striped">
@@ -46,8 +46,8 @@
                     {% endif %}
                 </td>
                 <td>
-                    <a href="{{ url_for('edit_banque', banque_id=banque.id) }}" class="btn btn-warning btn-sm">Modifier</a>
-                    <form action="{{ url_for('delete_banque', banque_id=banque.id) }}" method="POST" style="display:inline;">
+                    <a href="{{ url_for('banking.edit_banque', banque_id=banque.id) }}" class="btn btn-warning btn-sm">Modifier</a>
+                    <form action="{{ url_for('banking.delete_banque', banque_id=banque.id) }}" method="POST" style="display:inline;">
                         <button type="submit" class="btn btn-danger btn-sm"
                             onclick="return confirm('Supprimer cette banque ?');">Supprimer</button>
                     </form>

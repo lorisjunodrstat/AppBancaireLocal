@@ -6,7 +6,7 @@
     <h2 class="mb-4 text-center">Statistiques Bancaires</h2>
 
     <div class="mb-4 text-center">
-        <form method="get" action="{{ url_for('banking_statistiques') }}" class="d-inline-block">
+        <form method="get" action="{{ url_for('banking.banking_statistiques') }}" class="d-inline-block">
             <label for="period" class="me-2">Période :</label>
             <select name="period" id="period" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
                 <option value="3" {% if selected_period==3 %}selected{% endif %}>3 mois</option>

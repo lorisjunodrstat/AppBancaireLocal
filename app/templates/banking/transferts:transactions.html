@@ -5,7 +5,7 @@
 {% block content %}
 <h1>Transactions / Transferts</h1>
 
-<form method="get" action="{{ url_for('liste_transactions') }}" class="mb-3">
+<form method="get" action="{{ url_for('banking.liste_transactions') }}" class="mb-3">
   <div class="row gy-2 gx-2 align-items-end">
     <div class="col-auto">
       <label>Date de :</label>
@@ -68,7 +68,7 @@
   </div>
 </form>
 
-<a href="{{ url_for('liste_transactions',
+<a href="{{ urlbanking.liste_transactions',
     date_from=date_from, date_to=date_to,
     compte_id=compte_filter, sous_compte_id=sc_filter,
     sous_compte_destination_id=dest_sc_filter,
@@ -109,11 +109,11 @@
 <nav aria-label="Pagination">
   <ul class="pagination">
     {% if page > 1 %}
-    <li><a href="{{ url_for('liste_transactions', date_from=date_from,
+    <li><a href="{{ url_for('banking.liste_transactions', date_from=date_from,
              date_to=date_to, sort_by=sort_by, order=order, page=page-1) }}">« Précédent</a></li>
     {% endif %}
     <li>Page {{ page }} / {{ pages }}</li>
-    {% if page < pages %} <li><a href="{{ url_for('liste_transactions', date_from=date_from,
+    {% if page < pages %} <li><a href="{{ url_for('banking.liste_transactions', date_from=date_from,
              date_to=date_to, sort_by=sort_by, order=order, page=page+1) }}">Suivant »</a></li>
       {% endif %}
   </ul>

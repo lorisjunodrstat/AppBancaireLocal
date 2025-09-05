@@ -442,7 +442,7 @@
                 
                 // Recharger les données en fonction de la période sélectionnée
                 const period = this.getAttribute('data-period');
-                window.location.href = "{{ url_for('banking_statistique_dashboard') }}?period=" + period;
+                window.location.href = "{{ url_for('banking.banking_statistique_dashboard') }}?period=" + period;
             });
         });
     });

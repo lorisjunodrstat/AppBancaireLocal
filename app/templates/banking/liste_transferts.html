@@ -4,7 +4,7 @@
 {% block content %}
 <h2>Transactions / Transferts</h2>
 
-<form method="get" action="{{ url_for('liste_transactions') }}" class="mb-3">
+<form method="get" action="{{ url_for('banking.liste_transactions') }}" class="mb-3">
   <div class="row gy-2 gx-2 align-items-end">
     <div class="col-auto"><label>Date de :</label>
       <input type="date" name="date_from" value="{{ date_from or '' }}">
@@ -77,7 +77,7 @@
 </form>
 
 <div class="d-flex justify-content-between mb-3">
-  <a href="{{ url_for('liste_transactions',
+  <a href="{{ url_for('banking.liste_transactions',
         date_from=date_from, date_to=date_to,
         compte_source_id=compte_source_filter,
         compte_dest_id=compte_dest_filter,
@@ -163,7 +163,7 @@
   <ul class="pagination">
     {% if page > 1 %}
     <li class="page-item">
-      <a class="page-link" href="{{ url_for('liste_transactions',
+      <a class="page-link" href="{{ url_for('banking.liste_transactions',
                date_from=date_from, date_to=date_to,
                compte_source_id=compte_source_filter,
                compte_dest_id=compte_dest_filter,
@@ -179,7 +179,7 @@
     </li>
 
     {% if page < pages %} <li class="page-item">
-      <a class="page-link" href="{{ url_for('liste_transactions',
+      <a class="page-link" href="{{ url_for('banking.liste_transactions',
                date_from=date_from, date_to=date_to,
                compte_source_id=compte_source_filter,
                compte_dest_id=compte_dest_filter,
@@ -202,7 +202,7 @@
         <h5 class="modal-title" id="editTransactionModalLabel">Éditer Transaction</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="transactionForm" method="post" action="{{ url_for('edit_transaction') }}">
+      <form id="transactionForm" method="post" action="{{ url_for('banking.edit_transaction') }}">
         <div class="modal-body">
           <input type="hidden" name="transaction_id" id="transactionId">
 
@@ -364,7 +364,7 @@
       btn.addEventListener('click', function () {
         if (confirm('Êtes-vous sûr de vouloir annuler ce transfert?')) {
           const transfertId = this.dataset.id;
-          fetch('{{ url_for("annuler_transfert_externe") }}/' + transfertId, {
+          fetch('{{ url_for("banking.annuler_transfert_externe") }}/' + transfertId, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
