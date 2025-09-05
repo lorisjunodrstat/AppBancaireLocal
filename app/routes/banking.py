@@ -69,9 +69,14 @@ def get_comptes_utilisateur(user_id):
         return comptes
 
     # ---- ROUTES ----
-@bp.route('/index')
+@bp.route('/')
 def index():
-     return redirect(url_for('auth.login'))
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for('admin.liste_utilisateurs'))
+        else:
+            return redirect(url_for('banking.dashboard'))
+    return redirect(url_for('auth.login'))
      
 @bp.route('/banking')
 @login_required
