@@ -6,7 +6,7 @@ Application Flask - Fichier d'initialisation principal
 
 import os
 import sys
-from flask import Flask, g, request, redirect, url_for
+from flask import Flask, g, request, redirect, url_for, request_started, request_finished
 from flask_login import LoginManager
 from dotenv import load_dotenv
 from pathlib import Path
@@ -14,7 +14,7 @@ import pymysql
 import pymysql.cursors
 import logging
 from logging.handlers import RotatingFileHandler
-# L'import de 'psycopg2' a été retiré car il n'est pas compatible avec PyMySQL.
+from contextlib import contextmanager
 
 # Charge les variables d'environnement avec chemin absolu
 env_path = Path('/var/www/webroot/ROOT') / '.env'
@@ -107,21 +107,33 @@ def utility_processor():
 
     return dict(get_month_name=get_month_name)
 
-# Initialisation des gestionnaires de modèles
-@app.before_request
-def before_request_hook():
+# --- Début des modifications ---
+
+# Remplacer la fonction before_request par un signal
+def create_managers_on_request_start(sender, **extra):
     from app.models import DatabaseManager, ModelManager
     try:
-        g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
+        g.db_manager = DatabaseManager(sender.config['DB_CONFIG'])
         g.model_manager = ModelManager(g.db_manager)
     except Exception as e:
         logging.error(f"Failed to establish database connection: {e}")
         g.db_manager = None
         g.model_manager = None
 
-@app.after_request
-def after_request_hook(response):
+# Connecter la fonction au signal request_started de l'application
+request_started.connect(create_managers_on_request_start, app)
+
+# Fermeture des ressources après chaque requête
+def close_managers_on_request_finish(sender, response, **extra):
+    if hasattr(g, 'db_manager') and g.db_manager:
+        g.db_manager.close_all()
     return response
+
+# Connecter la fonction au signal request_finished de l'application
+request_finished.connect(close_managers_on_request_finish, app)
+
+
+# --- Fin des modifications ---
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
