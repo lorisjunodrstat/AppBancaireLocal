@@ -3407,204 +3407,143 @@ class Rapport:
 class Contrat:
     def __init__(self, db):
         self.db = db
-        
-    @contextmanager
-    def get_cursor(self, dictionary=False):
-        conn = self.db.get_connection()  # Correction: db au lieu de db
-        if not conn:
-            yield None
-            return
-            
-        try:
-            with conn.cursor(dictionary=dictionary) as cursor:
-                yield cursor
-                conn.commit()
-        except Exception as e:
-            conn.rollback()
-            current_app.logger.error(f"Erreur DB: {e}")
-        finally:
-            conn.close()
 
     def create_or_update(self, data: Dict) -> bool:
-        conn = self.db.get_connection()
-        if not conn:
-            return False
         try:
-            cursor = conn.cursor()
-            if 'id' in data and data['id']:
-                # Mise à jour
-                query = """
-                    UPDATE contrats
-                    SET heures_hebdo = %s, date_debut = %s, date_fin = %s,
-                        salaire_horaire = %s,
-                        jour_estimation_salaire = %s,
-                        versement_10 = %s,
-                        versement_25 = %s,
-                        indemnite_vacances_tx = %s,
-                        indemnite_jours_feries_tx = %s,
-                        indemnite_jour_conges_tx = %s,
-                        indemnite_repas_tx = %s,        -- Added
-                        indemnite_retenues_tx = %s,     -- Added
-                        cotisation_avs_tx = %s,
-                        cotisation_ac_tx = %s,
-                        cotisation_accident_n_prof_tx = %s,
-                        cotisation_assurance_indemnite_maladie_tx = %s,
-                        cotisation_cap_tx = %s
-                    WHERE id = %s;
-                """
-                params = (
-                    data['user_id'], data['heures_hebdo'], data['date_debut'], data.get('date_fin'),
-                    data.get('salaire_horaire', 24.05),
-                    data.get('jour_estimation_salaire', 15),
-                    data.get('versement_10', True),
-                    data.get('versement_25', True),
-                    data.get('indemnite_vacances_tx', True),
-                    data.get('indemnite_jours_feries_tx', True),
-                    data.get('indemnite_jour_conges_tx', True),
-                    data.get('cotisation_avs_tx', True),
-                    data.get('cotisation_ac_tx', True),
-                    data.get('cotisation_accident_n_prof_tx', True),
-                    data.get('cotisation_assurance_indemnite_maladie_tx', True),
-                    data.get('cotisation_cap_tx', True),
-                    data.get('indemnite_repas_tx', True),    
-                    data.get('indemnite_retenues_tx', True)  
-                )
-            else:
-                # Insertion
-                query = """
-                INSERT INTO contrats 
-                (user_id, heures_hebdo, date_debut, date_fin,
-                salaire_horaire, jour_estimation_salaire, versement_10, versement_25, 
-                indemnite_vacances_tx, indemnite_jours_feries_tx, indemnite_jour_conges_tx, 
-                cotisation_avs_tx, cotisation_ac_tx, cotisation_accident_n_prof_tx, cotisation_assurance_indemnite_maladie_tx, 
-                cotisation_cap_tx, indemnite_repas_tx, indemnite_retenues_tx)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-                """
-                params = (
-                    data['user_id'], data['heures_hebdo'], data['date_debut'], data.get('date_fin'),
-                    data.get('salaire_horaire', 24.05),
-                    data.get('jour_estimation_salaire', 15),
-                    data.get('versement_10', True),
-                    data.get('versement_25', True),
-                    data.get('indemnite_vacances_tx', True),
-                    data.get('indemnite_jours_feries_tx', True),
-                    data.get('indemnite_jour_conges_tx', True),
-                    data.get('cotisation_avs_tx', True),
-                    data.get('cotisation_ac_tx', True),
-                    data.get('cotisation_accident_n_prof_tx', True),
-                    data.get('cotisation_assurance_indemnite_maladie_tx', True),
-                    data.get('cotisation_cap_tx', True),
-                    data.get('indemnite_repas_tx', True),
-                    data.get('indemnite_retenues_tx', True)
-                )
+            with self.db.get_cursor() as cursor:
+                if 'id' in data and data['id']:
+                    # Mise à jour
+                    query = """
+                        UPDATE contrats
+                        SET heures_hebdo = %s, date_debut = %s, date_fin = %s,
+                            salaire_horaire = %s,
+                            jour_estimation_salaire = %s,
+                            versement_10 = %s,
+                            versement_25 = %s,
+                            indemnite_vacances_tx = %s,
+                            indemnite_jours_feries_tx = %s,
+                            indemnite_jour_conges_tx = %s,
+                            indemnite_repas_tx = %s,
+                            indemnite_retenues_tx = %s,
+                            cotisation_avs_tx = %s,
+                            cotisation_ac_tx = %s,
+                            cotisation_accident_n_prof_tx = %s,
+                            cotisation_assurance_indemnite_maladie_tx = %s,
+                            cotisation_cap_tx = %s
+                        WHERE id = %s;
+                    """
+                    params = (
+                        data['heures_hebdo'], data['date_debut'], data.get('date_fin'),
+                        data.get('salaire_horaire', 24.05),
+                        data.get('jour_estimation_salaire', 15),
+                        bool(data.get('versement_10', True)),
+                        bool(data.get('versement_25', True)),
+                        data.get('indemnite_vacances_tx', 0),
+                        data.get('indemnite_jours_feries_tx', 0),
+                        data.get('indemnite_jour_conges_tx', 0),
+                        data.get('indemnite_repas_tx', 0),
+                        data.get('indemnite_retenues_tx', 0),
+                        data.get('cotisation_avs_tx', 0),
+                        data.get('cotisation_ac_tx', 0),
+                        data.get('cotisation_accident_n_prof_tx', 0),
+                        data.get('cotisation_assurance_indemnite_maladie_tx', 0),
+                        data.get('cotisation_cap_tx', 0),
+                        data['id']
+                    )
+                else:
+                    # Insertion
+                    query = """
+                    INSERT INTO contrats 
+                    (user_id, heures_hebdo, date_debut, date_fin,
+                    salaire_horaire, jour_estimation_salaire, versement_10, versement_25, 
+                    indemnite_vacances_tx, indemnite_jours_feries_tx, indemnite_jour_conges_tx, 
+                    indemnite_repas_tx, indemnite_retenues_tx,
+                    cotisation_avs_tx, cotisation_ac_tx, cotisation_accident_n_prof_tx, 
+                    cotisation_assurance_indemnite_maladie_tx, cotisation_cap_tx)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    """
+                    params = (
+                        data['user_id'], data['heures_hebdo'], data['date_debut'], data.get('date_fin'),
+                        data.get('salaire_horaire', 24.05),
+                        data.get('jour_estimation_salaire', 15),
+                        bool(data.get('versement_10', True)),
+                        bool(data.get('versement_25', True)),
+                        data.get('indemnite_vacances_tx', 0),
+                        data.get('indemnite_jours_feries_tx', 0),
+                        data.get('indemnite_jour_conges_tx', 0),
+                        data.get('indemnite_repas_tx', 0),
+                        data.get('indemnite_retenues_tx', 0),
+                        data.get('cotisation_avs_tx', 0),
+                        data.get('cotisation_ac_tx', 0),
+                        data.get('cotisation_accident_n_prof_tx', 0),
+                        data.get('cotisation_assurance_indemnite_maladie_tx', 0),
+                        data.get('cotisation_cap_tx', 0)
+                    )
 
-            cursor.execute(query, params)
-            conn.commit()
-            return True
+                cursor.execute(query, params)
+                return True
+                
         except Exception as e:
             logging.error(f"Erreur lors de la création/mise à jour du contrat: {e}")
-            if conn:
-                conn.rollback()
             return False
-        finally:
-            try:
-                if cursor:
-                    cursor.close()
-            except:
-                pass
-            conn.close()
 
     def get_contrat_actuel(self, user_id: int) -> Optional[Dict]:
         """Récupère le contrat en cours pour l'utilisateur (fin null ou future)"""
-        conn = self.db.get_connection()
-        if not conn:
-            return None
         try:
-            cursor = conn.cursor()
-            query = """
-                SELECT * FROM contrats
-                WHERE user_id = %s
-                AND (date_fin IS NULL OR date_fin >= CURDATE())
-                ORDER BY date_debut DESC
-                LIMIT 1
-            """
-            cursor.execute(query, (user_id,))
-            contrat = cursor.fetchone()
-            return contrat
+            with self.db.get_cursor(dictionary=True) as cursor:
+                query = """
+                    SELECT * FROM contrats
+                    WHERE user_id = %s
+                    AND (date_fin IS NULL OR date_fin >= CURDATE())
+                    ORDER BY date_debut DESC
+                    LIMIT 1
+                """
+                cursor.execute(query, (user_id,))
+                return cursor.fetchone()
         except Exception as e:
             logging.error(f"Erreur lors de la récupération du contrat: {e}")
             return None
-        finally:
-            try:
-                if cursor:
-                    cursor.close()
-            except:
-                pass
-            conn.close()
 
     def get_all_contrats(self, user_id: int) -> List[Dict]:
-        """Liste tous les contrats de l’utilisateur, du plus récent au plus ancien."""
-        conn = self.db.get_connection()
-        if not conn:
-            return []
+        """Liste tous les contrats de l'utilisateur, du plus récent au plus ancien."""
         try:
-            cursor = conn.cursor()
-            query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut DESC;"
-            cursor.execute(query, (user_id,))
-            rows = cursor.fetchall()
-            return rows
+            with self.db.get_cursor(dictionary=True) as cursor:
+                query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut DESC;"
+                cursor.execute(query, (user_id,))
+                return cursor.fetchall()
         except Exception as e:
             logging.error(f"Erreur lors de la récupération des contrats: {e}")
             return []
-        finally:
-            try:
-                if cursor:
-                    cursor.close()
-            except:
-                pass
-            conn.close()
 
     def delete(self, contrat_id: int) -> bool:
         """Supprime un contrat par son id."""
-        conn = self.db.get_connection()
-        if not conn:
-            return False
         try:
-            cursor = conn.cursor()
-            query = "DELETE FROM contrats WHERE id = %s;"
-            cursor.execute(query, (contrat_id,))
-            conn.commit()
-            return True
+            with self.db.get_cursor() as cursor:
+                query = "DELETE FROM contrats WHERE id = %s;"
+                cursor.execute(query, (contrat_id,))
+                return True
         except Exception as e:
             logging.error(f"Erreur lors de la suppression du contrat: {e}")
-            if conn:
-                conn.rollback()
             return False
-        finally:
-            try:
-                if cursor:
-                    cursor.close()
-            except:
-                pass
-            conn.close()
 
     def get_contrat_for_date(self, user_id: int, date_str: str) -> Optional[Dict]:
         """Récupère le contrat actif pour une date spécifique"""
-        with self.get_cursor() as cursor:
-            if not cursor:
-                return None
-                
-            query = """
-            SELECT * FROM contrats 
-            WHERE user_id = %s 
-            AND date_debut <= %s 
-            AND (date_fin IS NULL OR date_fin >= %s)
-            ORDER BY date_debut DESC
-            LIMIT 1
-            """
-            cursor.execute(query, (user_id, date_str, date_str))
-            return cursor.fetchone()
-
+        try:
+            with self.db.get_cursor(dictionary=True) as cursor:
+                query = """
+                SELECT * FROM contrats 
+                WHERE user_id = %s 
+                AND date_debut <= %s 
+                AND (date_fin IS NULL OR date_fin >= %s)
+                ORDER BY date_debut DESC
+                LIMIT 1
+                """
+                cursor.execute(query, (user_id, date_str, date_str))
+                return cursor.fetchone()
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération du contrat pour la date {date_str}: {e}")
+            return None
+            
 class HeureTravail:
     def __init__(self, db):
         self.db = db
