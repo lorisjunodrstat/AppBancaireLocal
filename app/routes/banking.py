@@ -69,7 +69,10 @@ def get_comptes_utilisateur(user_id):
         return comptes
 
     # ---- ROUTES ----
-
+@app.route('/index')
+ def index():
+     return redirect(url_for('auth.login'))
+     
 @bp.route('/banking')
 @login_required
 def banking_dashboard():
