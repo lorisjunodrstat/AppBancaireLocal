@@ -4,8 +4,8 @@
 Modèles de données pour la gestion bancaire
 Classes pour manipuler les banques, comptes et sous-comptes
 """
+from dbutils.pooled_db import PooledD
 import pymysql
-import pymysql.pool
 from pymysql import Error
 from decimal import Decimal
 from datetime import datetime, date, timedelta
@@ -28,22 +28,29 @@ class DatabaseManager:
     def __init__(self, db_config):
         self.db_config = db_config
         self._connection_pool = None
-        # Le niveau de log est fixé à WARNING pour éviter le spam.
-        logging.getLogger("pymysql.pool").setLevel(logging.WARNING)
         self.create_tables()
 
     def _get_connection_pool(self):
-        """Initialise et retourne le pool de connexions."""
+        """Initialise et retourne le pool de connexions avec DBUtils."""
         if self._connection_pool is None:
-            logging.info("Initialisation du pool de connexions PyMySQL...")
+            logging.info("Initialisation du pool de connexions avec DBUtils...")
             try:
-                # Création du pool de connexions.
-                # max_size définit le nombre maximum de connexions dans le pool.
-                self._connection_pool = pymysql.pool.Pool(
-                    max_size=5,  
+                # Création du pool de connexions avec DBUtils
+                self._connection_pool = PooledDB(
+                    creator=pymysql,
+                    maxconnections=5,  # Nombre maximum de connexions dans le pool
+                    mincached=2,       # Nombre minimal de connexions inactives à garder
+                    maxcached=5,       # Nombre maximal de connexions inactives à garder
+                    maxshared=0,       # Nombre maximal de connexions partagées
+                    blocking=True,     # Bloquer si toutes les connexions sont utilisées
+                    maxusage=None,     # Nombre maximum de réutilisations d'une connexion
+                    setsession=None,   # Commandes SQL optionnelles à exécuter au début
+                    reset=True,        # Remettre la connexion à son état initial quand retournée
+                    failures=None,     # Exceptions à considérer comme des erreurs de connexion
+                    ping=1,            # Vérifier la connexion avec ping (0=non, 1=avant utilisation, 2=quand créée, 4=quand dans transaction, 7=toujours)
                     **self.db_config
                 )
-                logging.info("Pool de connexions PyMySQL initialisé avec succès.")
+                logging.info("Pool de connexions DBUtils initialisé avec succès.")
             except Error as err:
                 logging.error(f"Erreur lors de l'initialisation du pool de connexions : {err}")
                 self._connection_pool = None
@@ -63,7 +70,7 @@ class DatabaseManager:
                 raise RuntimeError("Impossible d'obtenir une connexion à la base de données.")
             
             # Obtient une connexion du pool
-            connection = pool.get_connection()
+            connection = pool.connection()
             
             # Crée un curseur (dictionnaire si nécessaire)
             cursor = connection.cursor(pymysql.cursors.DictCursor) if dictionary else connection.cursor()
@@ -75,13 +82,13 @@ class DatabaseManager:
         except Exception as e:
             logging.error(f"Erreur dans le gestionnaire de curseur : {e}")
             if connection:
-                connection.rollback() # Annule les changements en cas d'erreur
-            raise # Relance l'exception
+                connection.rollback()  # Annule les changements en cas d'erreur
+            raise  # Relance l'exception
         finally:
             if cursor:
                 cursor.close()
             if connection:
-                connection.close() # La connexion est retournée au pool.
+                connection.close()
 
     def create_tables(self):
         """
