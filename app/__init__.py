@@ -71,8 +71,8 @@ def load_user(user_id):
 # Import des routes (APRES la création de l'app)
 from app.routes import auth, admin, banking
 @app.route('/')
-    def index_redirect():
-        return redirect(url_for('auth.login'))
+def index_redirect():
+    return redirect(url_for('auth.login'))
 # Enregistrement des blueprints
 app.register_blueprint(auth.bp)
 app.register_blueprint(admin.bp)
