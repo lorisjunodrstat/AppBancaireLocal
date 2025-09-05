@@ -4,7 +4,7 @@
 Modèles de données pour la gestion bancaire
 Classes pour manipuler les banques, comptes et sous-comptes
 """
-from dbutils.pooled_db import PooledD
+from dbutils.pooled_db import PooledDB
 import pymysql
 from pymysql import Error
 from decimal import Decimal
@@ -55,7 +55,15 @@ class DatabaseManager:
                 logging.error(f"Erreur lors de l'initialisation du pool de connexions : {err}")
                 self._connection_pool = None
         return self._connection_pool
-
+    def close_connection(self):
+        """
+        Ferme le pool de connexions.
+        Cette méthode est optionnelle car DBUtils gère normalement la fermeture automatiquement.
+        """
+        if self._connection_pool is not None:
+            self._connection_pool.close()
+            self._connection_pool = None
+            logging.info("Pool de connexions fermé")
     @contextmanager
     def get_cursor(self, dictionary=False):
         """
