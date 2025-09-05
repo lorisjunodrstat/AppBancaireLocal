@@ -2227,7 +2227,7 @@ class StatistiquesBancaires:
             patrimoine_total = solde_total_principal + epargne_totale
 
             # Récupérer les transactions du mois (approximation)
-            transaction_model = Transaction(self.db)
+            transaction_model = TransactionFinanciere(self.db)
             nb_transactions_mois = 0
             for compte in comptes:
                 transactions = transaction_model.get_by_compte_id(compte['id'], user_id, 100)
