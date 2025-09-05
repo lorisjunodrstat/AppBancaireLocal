@@ -28,7 +28,7 @@ def login():
             logging.info(f"Utilisateur {user.email} connecté")
             flash("Connexion réussie !", "success")
             next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('banking.dashboard'))
+            return redirect(next_page) if next_page else redirect(url_for('banking.banking_dashboard'))
         else:
             logging.warning(f"Échec de connexion pour {email}")
             flash("Email ou mot de passe incorrect", "error")
