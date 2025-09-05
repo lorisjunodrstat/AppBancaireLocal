@@ -419,6 +419,22 @@ class Utilisateur(UserMixin):
     @property
     def is_anonymous(self):
         return False
+    @staticmethod
+    def get_by_id(user_id: int, db_manager):
+        """
+        Charge l'utilisateur depuis la base de données en utilisant le gestionnaire de contexte.
+        """
+        try:
+            with db_manager.get_cursor() as cursor:
+                query = "SELECT id, email, username, nom, prenom FROM utilisateurs WHERE id = %s"
+                cursor.execute(query, (user_id,))
+                row = cursor.fetchone()
+                if row:
+                    return Utilisateur(row['id'], row['email'], row['username'], row.get('nom'), row.get('prenom'))
+                return None
+        except Error as e:
+            logging.error(f"Erreur lors de la récupération de l'utilisateur: {e}")
+            return None
 
     def get_id(self):
         return str(self.id)
@@ -440,18 +456,7 @@ class Utilisateur(UserMixin):
             autocommit=True
         )
 
-    @staticmethod
-    def get_by_id(user_id):
-        conn = Utilisateur.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM utilisateurs WHERE id = %s", (user_id,))
-        row = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        if row:
-            return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
-        return None
-
+    
     @staticmethod
     def get_by_email(email):
         conn = Utilisateur.get_connection()
