@@ -8,10 +8,10 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1><i class="fas fa-university me-2"></i>Mes Comptes Bancaires</h1>
             <div class="btn-group">
-                <a href="{{ url_for('banking_nouveau_compte') }}" class="btn btn-success">
+                <a href="{{ url_for('banking.banking_nouveau_compte') }}" class="btn btn-success">
                     <i class="fas fa-plus me-2"></i>Nouveau compte
                 </a>
-                <a href="{{ url_for('banking_statistiques') }}" class="btn btn-info">
+                <a href="{{ url_for('banking.banking_statistiques') }}" class="btn btn-info">
                     <i class="fas fa-chart-pie me-2"></i>Statistiques
                 </a>
             </div>
@@ -96,13 +96,13 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-4 mb-2">
-                                <a href="{{ url_for('banking_transfert') }}" class="btn btn-outline-primary w-100">
+                                <a href="{{ url_for('banking.banking_transfert') }}" class="btn btn-outline-primary w-100">
                                     <i class="fas fa-exchange-alt me-2"></i>Effectuer un transfert
                                 </a>
                             </div>
                             
                             <div class="col-md-4 mb-2">
-                                <a href="{{ url_for('banking_statistiques') }}" class="btn btn-outline-info w-100">
+                                <a href="{{ url_for('banking.banking_statistiques') }}" class="btn btn-outline-info w-100">
                                     <i class="fas fa-chart-line me-2"></i>Voir statistiques
                                 </a>
                             </div>
@@ -154,10 +154,10 @@
                             </div>
                             
                             <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}" class="btn btn-outline-primary">
+                                <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}" class="btn btn-outline-primary">
                                     <i class="fas fa-eye me-1"></i>Détails
                                 </a>
-                                <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id, user_id = current_user.id) }}" class="btn btn-outline-success">
+                                <a href="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id, user_id = current_user.id) }}" class="btn btn-outline-success">
                                     <i class="fas fa-plus me-1"></i>Épargne
                                 </a>
                             </div>
@@ -195,7 +195,7 @@
                                 
                                 {% if compte.sous_comptes|length > 3 %}
                                 <div class="text-center">
-                                    <a href="{{ url_for('banking_compte_detail', compte_id=compte.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}" class="btn btn-sm btn-outline-secondary">
                                         Voir les {{ compte.sous_comptes|length - 3 }} autres...
                                     </a>
                                 </div>
@@ -204,7 +204,7 @@
                                 <div class="text-center text-muted py-3">
                                     <i class="fas fa-plus-circle fa-2x mb-2"></i>
                                     <p>Aucune épargne configurée</p>
-                                    <a href="{{ url_for('banking_nouveau_sous_compte', compte_id=compte.id) }}" class="btn btn-sm btn-outline-success">
+                                    <a href="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id) }}" class="btn btn-sm btn-outline-success">
                                         Créer la première épargne
                                     </a>
                                 </div>
@@ -222,7 +222,7 @@
                 </div>
                 <h3 class="text-muted">Aucun compte bancaire configuré</h3>
                 <p class="text-muted mb-4">Commencez par ajouter votre premier compte pour gérer vos finances.</p>
-                <a href="{{ url_for('banking_nouveau_compte') }}" class="btn btn-primary btn-lg">
+                <a href="{{ url_for('banking.banking_nouveau_compte') }}" class="btn btn-primary btn-lg">
                     <i class="fas fa-plus me-2"></i>Ajouter le premier compte
                 </a>
             </div>
@@ -280,7 +280,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('banking_transfert') }}">
+            <form method="POST" action="{{ url_for('banking.banking_transfert') }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Compte source</label>
