@@ -1390,14 +1390,14 @@ def liste_ecritures():
             date_to=date_to
         )
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
-    
+    contacts=g.models.contact_model.get_all(current_user.id)
     return render_template('comptabilite/ecritures.html', 
                         ecritures=ecritures, 
                         comptes=comptes,
                         compte_selectionne=compte_id,
                         statuts_disponibles=statuts_disponibles,
                         statut_selectionne=statut,
-                        contacts=contact_model.get_all(current_user.id),
+                        contacts=contacts,
                         contact_selectionne=id_contact,
                         date_from=date_from,
                         date_to=date_to,
