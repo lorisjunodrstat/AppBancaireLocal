@@ -47,11 +47,11 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('edit_categorie', categorie_id=categorie.id) }}" 
+                                <a href="{{ url_for('banking.edit_categorie', categorie_id=categorie.id) }}" 
                                    class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="{{ url_for('delete_categorie', categorie_id=categorie.id) }}" 
+                                <a href="{{ url_for('banking.delete_categorie', categorie_id=categorie.id) }}" 
                                    class="btn btn-sm btn-outline-danger" 
                                    onclick="return confirm('Supprimer cette catégorie?')">
                                     <i class="bi bi-trash"></i>
@@ -61,7 +61,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                <form method="post" action="{{ url_for('import_plan_comptable_csv') }}" enctype="multipart/form-data" class="mb-3">
+                <form method="post" action="{{ url_for('banking.import_plan_comptable_csv') }}" enctype="multipart/form-data" class="mb-3">
                     <div class="input-group">
                         <input type="file" class="form-control" name="csv_file" accept=".csv" required>
                         <button type="submit" class="btn btn-primary-custom">
