@@ -143,7 +143,7 @@ def edit_banque(banque_id):
     banque = g.models.banque_model.get_by_id(banque_id)
     if not banque:
         flash("Banque introuvable.", "danger")
-        return redirect(url_for('liste_banques'))
+        return redirect(url_for('banking.liste_banques'))
 
     if request.method == 'POST':
         nom = request.form.get('nom')
@@ -157,7 +157,7 @@ def edit_banque(banque_id):
         if success:
             flash("Banque modifiée avec succès.", "success")
             print(f'Banque modifiée: {nom} ({code_banque}) avec les données suivantes : {pays}, {couleur}, {site_web}, {logo_url}')
-            return redirect(url_for('liste_banques'))
+            return redirect(url_for('banking.liste_banques'))
         else:
             flash("Erreur lors de la modification.", "danger")
 
@@ -171,7 +171,7 @@ def delete_banque(banque_id):
         flash("Banque supprimée (désactivée) avec succès.", "success")
     else:
         flash("Erreur lors de la suppression.", "danger")
-    return redirect(url_for('liste_banques'))
+    return redirect(url_for('banking.liste_banques'))
     
 @bp.route('/banking/compte/nouveau', methods=['GET', 'POST'])
 @login_required
@@ -181,15 +181,15 @@ def banking_nouveau_compte():
             # Validation des données
             if not request.form['banque_id'] or not request.form['banque_id'].isdigit():
                 flash('Veuillez sélectionner une banque valide', 'error')
-                return redirect(url_for('banking_nouveau_compte'))
+                return redirect(url_for('banking.banking_nouveau_compte'))
             
             if not request.form['nom_compte'].strip():
                 flash('Le nom du compte est obligatoire', 'error')
-                return redirect(url_for('banking_nouveau_compte'))
+                return redirect(url_for('banking.banking_nouveau_compte'))
                 
             if not request.form['numero_compte'].strip():
                 flash('Le numéro de compte est obligatoire', 'error')
-                return redirect(url_for('banking_nouveau_compte'))
+                return redirect(url_for('banking.banking_nouveau_compte'))
             
             # Préparation des données
             data = {
@@ -211,7 +211,7 @@ def banking_nouveau_compte():
             # Création du compte
             if g.models.compte_model.create(data):
                 flash(f'Compte "{data["nom_compte"]}" créé avec succès!', 'success')
-                return redirect(url_for('banking_dashboard'))
+                return redirect(url_for('banking.banking_dashboard'))
             else:
                 flash('Erreur lors de la création du compte. Vérifiez que la banque existe.', 'error')
         except ValueError as e:
@@ -230,7 +230,7 @@ def banking_nouveau_sous_compte(compte_id):
     compte = g.models.compte_model.get_by_id(compte_id)
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte principal non trouvé ou non autorisé', 'error')
-        return redirect(url_for('banking_dashboard'))
+        return redirect(url_for('banking.banking_dashboard'))
     
     if request.method == 'POST':
         try:
@@ -247,7 +247,7 @@ def banking_nouveau_sous_compte(compte_id):
             }
             if  g.models.sous_compte_model.create(data):
                 flash(f'Sous-compte "{data["nom_sous_compte"]}" créé avec succès!', 'success')
-                return redirect(url_for('banking_compte_detail', compte_id=compte_id))
+                return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
             flash('Erreur lors de la création du sous-compte', 'error')
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'error')
@@ -261,7 +261,7 @@ def banking_compte_detail(compte_id):
     compte = g.models.compte_model.get_by_id(compte_id)
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
-        return redirect(url_for('banking_dashboard'))
+        return redirect(url_for('banking.banking_dashboard'))
 
     # Gestion de la période sélectionnée
     periode = request.args.get('periode', 'mois')  # Valeurs possibles: mois, trimestre, annee
@@ -361,13 +361,13 @@ def banking_sous_compte_detail(sous_compte_id):
     sous_compte = g.models.sous_compte_model.get_by_id(sous_compte_id)
     if not sous_compte:
         flash('Sous-compte introuvable', 'error')
-        return redirect(url_for('banking_dashboard'))
+        return redirect(url_for('banking.banking_dashboard'))
 
 # Vérifie que le sous-compte appartient bien à l'utilisateur
     compte_principal = g.models.compte_model.get_by_id(sous_compte['compte_principal_id'])
     if not compte_principal or compte_principal['utilisateur_id'] != user_id:
         flash('Sous-compte non autorisé', 'error')
-        return redirect(url_for('banking_dashboard'))
+        return redirect(url_for('banking.banking_dashboard'))
     mouvements = g.models.transaction_financiere_model.get_historique_compte(
         compte_type='sous_compte',
         compte_id=sous_compte_id,
@@ -515,7 +515,7 @@ def depot():
         
         if success:
             flash(message, 'success')
-            return redirect(url_for('banking_compte_detail', compte_id=compte_id))
+            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
         else:
             flash(message, 'error')
             return render_template('banking/depot.html', comptes=comptes, all_comptes=all_comptes, form_data=request.form)
@@ -558,7 +558,7 @@ def retrait():
         if success:
             flash(message, 'success')
             print(f'Retrait effectué avec succès: {message} pour le compte {compte_id} de type {compte_type} pour {montant}')
-            return redirect(url_for('banking_compte_detail', compte_id=compte_id))
+            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
         else:
             flash(message, 'error')
             print('Erreur lors du retrait:', message)
@@ -595,7 +595,7 @@ def banking_transfert():
             transfert_type = request.form.get('transfert_type')
             if not transfert_type:
                 flash("Veuillez sélectionner un type de transfert", "danger")
-                return redirect(url_for("banking_transfert"))
+                return redirect(url_for("banking.banking_transfert"))
             return render_template(
                 "banking/transfert.html",
                 comptes=comptes,
@@ -613,16 +613,16 @@ def banking_transfert():
                 montant_str = request.form.get('montant', '').replace(',', '.').strip()
                 if not montant_str:
                     flash("Montant manquant", "danger")
-                    return redirect(url_for("banking_transfert"))
+                    return redirect(url_for("banking.banking_transfert"))
                 
                 try:
                     montant = Decimal(montant_str)
                     if montant <= 0:
                         flash("Le montant doit être positif", "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
                 except (InvalidOperation, ValueError):
                     flash("Format de montant invalide. Utilisez un nombre avec maximum 2 décimales", "danger")
-                    return redirect(url_for("banking_transfert"))
+                    return redirect(url_for("banking.banking_transfert"))
                 
                 # Date de transaction
                 date_transaction_str = request.form.get('date_transaction')
@@ -631,7 +631,7 @@ def banking_transfert():
                         date_transaction = datetime.strptime(date_transaction_str, '%Y-%m-%dT%H:%M')
                     except ValueError:
                         flash("Format de date invalide", "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
                 else:
                     date_transaction = datetime.now()
 
@@ -642,19 +642,19 @@ def banking_transfert():
                     
                     if not source_id_str or not dest_id_str:
                         flash("Compte source ou destination manquant", "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
                     
                     try:
                         source_id = int(source_id_str)
                         dest_id = int(dest_id_str)
                     except (ValueError, TypeError) as e:
                         flash("Identifiant de compte invalide", "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
                     
                     # Vérification que les IDs sont valides
                     if source_id <= 0 or dest_id <= 0:
                         flash("Les IDs de comptes doivent être positifs", "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
                     
                     # Déterminer le type de compte source
                     source_type = None
@@ -664,7 +664,7 @@ def banking_transfert():
                         source_type = 'sous_compte'
                     else:
                         flash("Compte source non valide", "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
                     
                     # Déterminer le type de compte destination
                     dest_type = None
@@ -674,17 +674,17 @@ def banking_transfert():
                         dest_type = 'sous_compte'
                     else:
                         flash('Compte destination non valide', "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
                     
                     # Vérification que le compte source appartient à l'utilisateur
                     if not any(c['id'] == source_id for c in comptes + sous_comptes):
                         flash("Vous ne pouvez pas transférer depuis ce compte", "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
 
                     # Vérification interne : comptes différents
                     if source_id == dest_id and source_type == dest_type:
                         flash("Le compte source et le compte destination doivent être différents", "danger")
-                        return redirect(url_for("banking_transfert"))
+                        return redirect(url_for("banking.banking_transfert"))
                     
                     # Vérification spécifique pour les sous-comptes
                     if source_type == 'sous_compte':
@@ -692,14 +692,14 @@ def banking_transfert():
                         sous_compte_source = next((sc for sc in sous_comptes if sc['id'] == source_id), None)
                         if sous_compte_source and sous_compte_source['compte_principal_id'] != dest_id:
                             flash("Un sous-compte ne peut être transféré que vers son compte principal", "danger")
-                            return redirect(url_for("banking_transfert"))
+                            return redirect(url_for("banking.banking_transfert"))
                     
                     if dest_type == 'sous_compte':
                         # Récupérer le sous-compte destination
                         sous_compte_dest = next((sc for sc in sous_comptes if sc['id'] == dest_id), None)
                         if sous_compte_dest and sous_compte_dest['compte_principal_id'] != source_id:
                             flash("Un sous-compte ne peut recevoir des fonds que depuis son compte principal", "danger")
-                            return redirect(url_for("banking_transfert"))
+                            return redirect(url_for("banking.banking_transfert"))
                     
                     # Exécution du transfert interne
                     commentaire = request.form.get('commentaire', '').strip()
@@ -724,11 +724,11 @@ def banking_transfert():
                 else:
                     flash(message, "danger")
 
-                return redirect(url_for("banking_transfert"))
+                return redirect(url_for("banking.banking_transfert"))
 
             except Exception as e:
                 flash(f"Erreur lors du transfert: {str(e)}", "danger")
-                return redirect(url_for("banking_transfert"))
+                return redirect(url_for("banking.banking_transfert"))
 
     return render_template(
         "banking/transfert.html",
@@ -780,10 +780,10 @@ def banking_transfert_compte_sous_compte():
                 montant = Decimal(montant_str)
                 if montant <= 0:
                     flash("Le montant doit être positif", "danger")
-                    return redirect(url_for("banking_transfert_compte_sous_compte"))
+                    return redirect(url_for("banking.banking_transfert_compte_sous_compte"))
             except (InvalidOperation, ValueError):
                 flash("Format de montant invalide", "danger")
-                return redirect(url_for("banking_transfert_compte_sous_compte"))
+                return redirect(url_for("banking.banking_transfert_compte_sous_compte"))
 
             # Vérification que les comptes appartiennent à l'utilisateur
             compte_valide = any(c['id'] == compte_id for c in comptes)
@@ -791,7 +791,7 @@ def banking_transfert_compte_sous_compte():
             
             if not compte_valide or not sous_compte_valide:
                 flash("Compte ou sous-compte invalide", "danger")
-                return redirect(url_for("banking_transfert_compte_sous_compte"))
+                return redirect(url_for("banking.banking_transfert_compte_sous_compte"))
 
             # Exécution du transfert
             if direction == 'compte_vers_sous':
@@ -808,11 +808,11 @@ def banking_transfert_compte_sous_compte():
             else:
                 flash(message, "danger")
 
-            return redirect(url_for("banking_transfert_compte_sous_compte"))
+            return redirect(url_for("banking.banking_transfert_compte_sous_compte"))
 
         except Exception as e:
             flash(f"Erreur lors du transfert: {str(e)}", "danger")
-            return redirect(url_for("banking_transfert_compte_sous_compte"))
+            return redirect(url_for("banking.banking_transfert_compte_sous_compte"))
 
     return render_template(
         "banking/transfert_compte_sous_compte.html",
@@ -830,7 +830,7 @@ def annuler_transfert_externe(transfert_id):
         flash(message, "success")
     else:
         flash(message, "danger")     
-    return redirect(url_for('banking_dashboard'))
+    return redirect(url_for('banking.banking_dashboard'))
 
 @bp.route('/banking/modifier_transfert/<int:transfert_id>', methods=['GET', 'POST'])
 @login_required
@@ -848,11 +848,11 @@ def modifier_transfert(transfert_id):
             flash(message, "success")
         else:
             flash(message, "danger")        
-        return redirect(request.referrer or url_for('banking_dashboard'))
+        return redirect(request.referrer or url_for('banking.banking_dashboard'))
     # Méthode GET - afficher le formulaire de modification
     # (à implémenter selon vos besoins)
     flash("Fonctionnalité non implémentée", "warning")
-    return redirect(url_for('banking_dashboard'))
+    return redirect(url_for('banking.banking_dashboard'))
 
 @bp.route('/banking/supprimer_transfert/<int:transfert_id>', methods=['POST'])
 @login_required
@@ -864,7 +864,7 @@ def supprimer_transfert(transfert_id):
         flash(message, "success")
     else:
         flash(message, "danger")        
-    return redirect(request.referrer or url_for('banking_dashboard'))
+    return redirect(request.referrer or url_for('banking.banking_dashboard'))
 
 @bp.route('/banking/liste_transferts', methods=['GET'])
 @login_required
@@ -1090,13 +1090,13 @@ def banking_supprimer_sous_compte(sous_compte_id):
     sous_compte = g.models.sous_compte_model.get_by_id(sous_compte_id)
     if not sous_compte:
         flash('Sous-compte non trouvé', 'error')
-        return redirect(url_for('banking_dashboard'))    
+        return redirect(url_for('banking.banking_dashboard'))    
     compte_id = sous_compte['compte_principal_id']
     if g.models.sous_compte_model.delete(sous_compte_id):
         flash(f'Sous-compte "{sous_compte["nom_sous_compte"]}" supprimé avec succès', 'success')
     else:
         flash('Impossible de supprimer un sous-compte avec un solde positif', 'error')    
-    return redirect(url_for('banking_compte_detail', compte_id=compte_id))
+    return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
 
 @bp.route('/comptabilite/statistiques')
 @login_required
@@ -1143,7 +1143,7 @@ def nouvelle_categorie():
             }         
             if g.models.plan_comptable_model.create(data):
                 flash('Catégorie créée avec succès', 'success')
-                return redirect(url_for('liste_categories_comptables'))
+                return redirect(url_for('banking.liste_categories_comptables'))
             else:
                 flash('Erreur lors de la création', 'danger')
         except Exception as e:
@@ -1161,7 +1161,7 @@ def edit_categorie(categorie_id):
     categorie = g.models.plan_comptable_model.get_by_id(categorie_id)
     if not categorie:
         flash('Catégorie introuvable', 'danger')
-        return redirect(url_for('liste_categories_comptables'))
+        return redirect(url_for('banking.liste_categories_comptables'))
     if request.method == 'POST':
         try:
             data = {
@@ -1172,7 +1172,7 @@ def edit_categorie(categorie_id):
             }
             if g.models.plan_comptable_model.update(categorie_id, data):
                 flash('Catégorie mise à jour avec succès', 'success')
-                return redirect(url_for('liste_categories_comptables'))
+                return redirect(url_for('banking.liste_categories_comptables'))
             else:
                 flash('Erreur lors de la mise à jour', 'danger')
         except Exception as e:
@@ -1191,11 +1191,11 @@ def import_plan_comptable_csv():
         # Vérifier si un fichier a été uploadé
         if 'csv_file' not in request.files:
             flash('Aucun fichier sélectionné', 'danger')
-            return redirect(url_for('liste_categories_comptables'))  
+            return redirect(url_for('banking.liste_categories_comptables'))  
         file = request.files['csv_file']
         if file.filename == '':
             flash('Aucun fichier sélectionné', 'danger')
-            return redirect(url_for('liste_categories_comptables'))
+            return redirect(url_for('banking.liste_categories_comptables'))
         if file and file.filename.endswith('.csv'):
             # Lire le fichier CSV
             stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
@@ -1232,7 +1232,7 @@ def import_plan_comptable_csv():
             flash('Format de fichier non supporté. Veuillez uploader un fichier CSV.', 'danger')
     except Exception as e:
         flash(f'Erreur lors de l\'importation: {str(e)}', 'danger')
-    return redirect(url_for('liste_categories_comptables'))
+    return redirect(url_for('banking.liste_categories_comptables'))
 
 @bp.route('/comptabilite/categories/<int:categorie_id>/delete', methods=['POST'])
 @login_required
@@ -1243,7 +1243,7 @@ def delete_categorie(categorie_id):
     else:
         flash('Erreur lors de la suppression', 'danger')
     
-    return redirect(url_for('liste_categories_comptables'))
+    return redirect(url_for('banking.liste_categories_comptables'))
 
 @bp.route('/comptabilite/nouveau-contact', methods=['GET', 'POST'])
 @login_required
@@ -1265,13 +1265,13 @@ def nouveau_contact_comptable():
             print(f"Données à insérer: {data}")
             if g.models.contact_model.create(data):
                 flash('Contact créé avec succès', 'success')
-                return redirect(url_for('liste_contacts_comptables'))
+                return redirect(url_for('banking.liste_contacts_comptables'))
             else:
                 flash('Erreur lors de la création du contact', 'danger')
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger') 
     # Pour les requêtes GET, on affiche le modal via la page liste_contacts_comptables
-    redirect_to = request.form.get('redirect_to', url_for('liste_ecritures'))
+    redirect_to = request.form.get('redirect_to', url_for('banking.liste_ecritures'))
     return redirect(redirect_to)
 
 
@@ -1284,7 +1284,7 @@ def delete_contact_comptable(contact_id):
     else:
         flash('Erreur lors de la suppression du contact', 'danger')
     
-    return redirect(url_for('liste_contacts_comptables'))
+    return redirect(url_for('banking.liste_contacts_comptables'))
 
 
 @bp.route('/comptabilite/contacts')
@@ -1310,7 +1310,7 @@ def edit_contact_comptable(contact_id):
     print(f'voici les données du contact: {contact}')
     if not contact:
         flash('Contact introuvable', 'danger')
-        return redirect(url_for('liste_contacts_comptables'))
+        return redirect(url_for('banking.liste_contacts_comptables'))
     if request.method == 'POST':
         try:
             data = {
@@ -1326,7 +1326,7 @@ def edit_contact_comptable(contact_id):
             if g.models.contact_model.update(contact_id, data, current_user.id):
                 print(f'Contact mis à jour avec les données: {data}')
                 flash('Contact mis à jour avec succès', 'success')
-                return redirect(url_for('liste_contacts_comptables'))
+                return redirect(url_for('banking.liste_contacts_comptables'))
             else:
                 flash('Erreur lors de la mise à jour du contact', 'danger')
         except Exception as e:
@@ -1442,7 +1442,7 @@ def liste_ecritures_par_contact(contact_id):
     contact = g.models.contact_model.get_by_id(contact_id, current_user_id)
     if not contact:
         flash('Contact introuvable', 'danger')
-        return redirect(url_for('liste_contacts_comptables'))
+        return redirect(url_for('banking.liste_contacts_comptables'))
     ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id, utilisateur_id=current_user_id)
     print(ecritures)
     comptes = g.models.compte_model.get_by_user_id(current_user_id)
@@ -1476,7 +1476,7 @@ def nouvelle_ecriture():
                 transaction_id = request.form.get('transaction_id')
                 if transaction_id:
                     g.models.transaction_financiere_model.link_to_ecriture(transaction_id, g.models.ecriture_comptable_model.last_insert_id)
-                return redirect(url_for('liste_ecritures'))
+                return redirect(url_for('banking.liste_ecritures'))
             else:
                 flash('Erreur lors de l\'enregistrement', 'danger')
         except Exception as e:
@@ -1566,7 +1566,7 @@ def nouvelle_ecriture_multiple():
             flash(f"{succes_count} écriture(s) enregistrée(s) avec succès!", "success")
         else:
             flash("Aucune écriture n'a pu être enregistrée", "warning")
-        return redirect(url_for('liste_ecritures'))
+        return redirect(url_for('banking.liste_ecritures'))
     # GET request processing
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
     categories = g.models.plan_comptable_model.get_all_categories()
@@ -1591,16 +1591,16 @@ def modifier_statut_ecriture(ecriture_id):
     ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture non trouvée', 'danger')
-        return redirect(url_for('liste_ecritures'))
+        return redirect(url_for('banking.liste_ecritures'))
     nouveau_statut = request.form.get('statut')
     if nouveau_statut not in ['pending', 'validée', 'rejetée']:
         flash('Statut invalide', 'danger')
-        return redirect(url_for('liste_ecritures'))
+        return redirect(url_for('banking.liste_ecritures'))
     if g.models.ecriture_comptable_model.update_statut(ecriture_id, current_user.id, nouveau_statut):
         flash(f'Statut modifié en "{nouveau_statut}"', 'success')
     else:
         flash('Erreur lors de la modification du statut', 'danger')
-    return redirect(url_for('liste_ecritures'), contacts=contacts)
+    return redirect(url_for('banking.liste_ecritures'), contacts=contacts)
 
 @bp.route('/comptabilite/ecritures/<int:ecriture_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -1609,7 +1609,7 @@ def edit_ecriture(ecriture_id):
     ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture introuvable ou non autorisée', 'danger')
-        return redirect(url_for('liste_ecritures'))
+        return redirect(url_for('banking.liste_ecritures'))
     if request.method == 'POST':
         try:
             id_contact_str = request.form.get('id_contact', '')
@@ -1631,7 +1631,7 @@ def edit_ecriture(ecriture_id):
                 data['tva_montant'] = data['montant'] * data['tva_taux'] / 100   
             if g.models.ecriture_comptable_model.update(ecriture_id, data):
                 flash('Écriture mise à jour avec succès', 'success')
-                return redirect(url_for('liste_ecritures'))
+                return redirect(url_for('banking.liste_ecritures'))
             else:
                 flash('Erreur lors de la mise à jour', 'danger')
         except Exception as e:
@@ -1664,12 +1664,12 @@ def delete_ecriture(ecriture_id):
     ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture introuvable ou non autorisée', 'danger')
-        return redirect(url_for('liste_ecritures'))  
+        return redirect(url_for('banking.liste_ecritures'))  
     if g.models.ecriture_comptable_model.delete(ecriture_id):
         flash('Écriture supprimée avec succès', 'success')
     else:
         flash('Erreur lors de la suppression', 'danger')    
-    return redirect(url_for('liste_ecritures'))
+    return redirect(url_for('banking.liste_ecritures'))
 
 # Ajouter une route pour lier une transaction à une écriture
 @bp.route('/banking/link_transaction', methods=['POST'])
@@ -1680,12 +1680,12 @@ def link_transaction_to_ecriture():
     transaction = g.models.transaction_financiere_model.get_by_id(transaction_id)
     if not transaction or transaction['utilisateur_id'] != current_user.id:
         flash('Transaction non trouvée ou non autorisée', 'danger')
-        return redirect(url_for('banking_dashboard'))
+        return redirect(url_for('banking.banking_dashboard'))
     if g.models.transaction_financiere_model.link_to_ecriture(transaction_id, ecriture_id):
         flash('Transaction liée avec succès', 'success')
     else:
         flash('Erreur lors du lien', 'danger')
-    return redirect(url_for('banking_compte_detail', compte_id=transaction['compte_principal_id']))
+    return redirect(url_for('banking.banking_compte_detail', compte_id=transaction['compte_principal_id']))
 
 
 @bp.route('/test-compte-resultat')
@@ -1737,7 +1737,7 @@ def compte_de_resultat():
                             annees_disponibles=annees_disponibles)  
     except Exception as e:
         flash(f"Erreur lors de la génération du compte de résultat: {str(e)}", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('banking.index'))
 
 @bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
 @login_required
@@ -1750,7 +1750,7 @@ def detail_ecritures_categorie(type, categorie_id):
         connection = g.models.ecriture_comptable_model.db.get_connection()
         if not connection:
             flash("Erreur de connexion à la base de données", "danger")
-            return redirect(url_for('compte_de_resultat'))
+            return redirect(url_for('banking.compte_de_resultat'))
         try:
             cursor = connection.cursor(dictionary=True)
             # Construire la requête avec une jointure LEFT pour les contacts
@@ -1813,14 +1813,14 @@ def detail_ecritures_categorie(type, categorie_id):
         except Exception as e:
             print(f"Erreur lors du chargement des détails: {e}")
             flash(f"Erreur lors du chargement des détails: {str(e)}", "danger")
-            return redirect(url_for('compte_de_resultat'))
+            return redirect(url_for('banking.compte_de_resultat'))
         finally:
             if connection:
                 connection.close()
     
     except Exception as e:
         flash(f"Erreur lors du chargement des détails: {str(e)}", "danger")
-        return redirect(url_for('compte_de_resultat'))
+        return redirect(url_for('banking.compte_de_resultat'))
 
 @bp.route('/comptabilite/ecritures/compte-resultat')
 @login_required
@@ -2189,7 +2189,7 @@ def process_day(request, user_id, date_str, annee, mois, semaine, mode, flash_me
     if errors:
         for error in errors:
             flash(f"Erreur {format_date(date_str)}: {error}", "error")
-        return redirect(url_for('heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
     
     payload = create_day_payload(request, user_id, date_str)
     
@@ -2202,7 +2202,7 @@ def process_day(request, user_id, date_str, annee, mois, semaine, mode, flash_me
     else:
         flash(f"Échec de la sauvegarde pour {format_date(date_str)}", "error")
     
-    return redirect(url_for('heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
 
 def format_date(date_str):
     return datetime.fromisoformat(date_str).strftime('%d/%m/%Y')
@@ -2235,7 +2235,7 @@ def handle_reset_line(request, user_id, annee, mois, semaine, mode):
     except Exception as e:
         logger.error(f"Erreur reset_line pour {date_str}: {str(e)}")
         flash(f"Erreur lors de la réinitialisation du {format_date(date_str)}", "error")
-    return redirect(url_for('heures_travail', annee=annee,mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee,mois=mois, semaine=semaine, mode=mode))
 
 def handle_reset_all(request, user_id, annee, mois, semaine, mode):
     days = generate_days(annee, mois, semaine)
@@ -2250,7 +2250,7 @@ def handle_reset_all(request, user_id, annee, mois, semaine, mode):
         flash(f"Erreur lors de la réinitialisation des jours: {', '.join(errors)}", "error")
     else:
         flash("Toutes les heures ont été réinitialisées", "warning")
-    return redirect(url_for('heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
 
 def handle_simulation(request, user_id, annee,mois, semaine, mode):
     days = generate_days(annee, mois, semaine)
@@ -2284,7 +2284,7 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode):
         flash(f"Erreur simulation pour les jours: {', '.join(errors)}", "error")
     if success_count > 0:
         flash(f"Heures simulées appliquées pour {success_count} jour(s)", "info")
-    return redirect(url_for('heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
 
 def handle_save_all(request, user_id, annee, mois, semaine, mode):
     days = generate_days(annee, mois, semaine)
@@ -2301,7 +2301,7 @@ def handle_save_all(request, user_id, annee, mois, semaine, mode):
     if not has_errors:
         flash("Toutes les heures ont été enregistrées avec succès", "success")
     
-    return redirect(url_for('heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
 # --- Routes salaires ---
 
 @bp.route('/salaires', methods=['GET'])
@@ -2506,7 +2506,7 @@ def update_salaire():
 
         if mois is None or annee is None:
             flash("Mois et année sont requis", "error")
-            return redirect(url_for('salaires', annee=annee_now))
+            return redirect(url_for('banking.salaires', annee=annee_now))
     except (ValueError, TypeError):
         flash("Format de données invalide", "error")
         return redirect(url_for('salaires', annee=annee_now))
@@ -2592,7 +2592,7 @@ def update_salaire():
         flash("Les valeurs ont été mises à jour avec succès", "success")
     else:
         flash("Erreur lors de la mise à jour des données", "error")
-    return redirect(url_for('salaires', annee=annee))
+    return redirect(url_for('banking.salaires', annee=annee))
 
 @bp.route('/synthese-hebdo', methods=['GET'])
 @login_required
@@ -2662,7 +2662,7 @@ def gestion_contrat():
                 print(f'Voici les données du contrat à sauvegarder: {data}')
             except ValueError:
                 flash("Certaines valeurs numériques sont invalides.", "danger")
-                return redirect(url_for('gestion_contrat'))
+                return redirect(url_for('banking.gestion_contrat'))
             
             g.models.contrat_model.create_or_update(data)
             flash('Contrat enregistré avec succès!', 'success')
@@ -2675,7 +2675,7 @@ def gestion_contrat():
             else:
                 flash("Aucun contrat sélectionné pour suppression.", "warning")
         
-        return redirect(url_for('gestion_contrat'))
+        return redirect(url_for('banking.gestion_contrat'))
     
     # En GET, on récupère les contrats
     contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
