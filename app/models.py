@@ -2283,30 +2283,30 @@ class TransactionFinanciere:
             logging.error(f"Erreur annulation transfert externe: {e}")
             return False, f"Erreur lors de l'annulation: {str(e)}"
     def get_evolution_soldes_quotidiens_compte(self, compte_id: int, user_id: int, nb_jours: int = 30) -> List[Dict]:
-    """Récupère l'évolution quotidienne des soldes d'un compte principal"""
-    try:
-        with self.db.get_cursor() as cursor:
-            query = """
-            SELECT 
-                DATE(date_transaction) as date,
-                solde_apres
-            FROM transactions
-            WHERE compte_principal_id = %s
-            AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-            AND id IN (
-                SELECT MAX(id)
+        """Récupère l'évolution quotidienne des soldes d'un compte principal"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT 
+                    DATE(date_transaction) as date,
+                    solde_apres
                 FROM transactions
                 WHERE compte_principal_id = %s
                 AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-                GROUP BY DATE(date_transaction)
-            )
-            ORDER BY date
-            """
-            cursor.execute(query, (compte_id, nb_jours, compte_id, nb_jours))
-            return cursor.fetchall()
-    except Exception as e:
-        logging.error(f"Erreur récupération évolution soldes compte: {e}")
-        return []
+                AND id IN (
+                    SELECT MAX(id)
+                    FROM transactions
+                    WHERE compte_principal_id = %s
+                    AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+                    GROUP BY DATE(date_transaction)
+                )
+                ORDER BY date
+                """
+                cursor.execute(query, (compte_id, nb_jours, compte_id, nb_jours))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur récupération évolution soldes compte: {e}")
+            return []
 
 def get_evolution_soldes_quotidiens_sous_compte(self, sous_compte_id: int, user_id: int, nb_jours: int = 30) -> List[Dict]:
     """Récupère l'évolution quotidienne des soldes d'un sous-compte"""
