@@ -108,7 +108,7 @@ class DatabaseManager:
         logging.info("Vérification et création des tables de la base de données...")
         try:
             # Utilisation du gestionnaire de contexte pour la création des tables.
-            with self.get_cursor() as cursor:
+            with self.db.get_cursor() as cursor:
                 
                 # Table utilisateurs
                 create_users_table_query = """
@@ -1384,7 +1384,7 @@ class TransactionFinanciere:
             date_transaction = datetime.now()
         
         try:
-            with self.deb.get_cursor(dictionary=True, commit=True) as cursor:
+            with self.db.get_cursor(dictionary=True, commit=True) as cursor:
                 success, message, _ = self._inserer_transaction_with_cursor(
                     cursor, compte_type, compte_id, 'depot', montant, 
                     description, user_id, date_transaction, False
@@ -3899,7 +3899,7 @@ class Salaire:
         self.heure_travail_manager = heure_travail_manager
     def create(self, data: dict) -> bool:
         try:
-            with self.get_cursor() as cursor:
+            with self.db.get_cursor() as cursor:
                 if not cursor:
                     return False
                 
@@ -3953,7 +3953,7 @@ class Salaire:
         values.append(salaire_id)
         
         try:
-            with self.get_cursor() as cursor:
+            with self.db.get_cursor() as cursor:
                 if not cursor:
                     return False
                     
@@ -3966,7 +3966,7 @@ class Salaire:
 
     def delete(self, salaire_id: int) -> bool:
         try:
-            with self.get_cursor() as cursor:
+            with self.dbget_cursor() as cursor:
                 if not cursor:
                     return False
                 query = "DELETE FROM salaires WHERE id = %s"
@@ -3977,14 +3977,14 @@ class Salaire:
             return False
         
     def get_by_id(self, salaire_id: int) -> Optional[Dict]:
-        with self.get_cursor() as cursor:
+        with self.db.get_cursor() as cursor:
             if not cursor:
                 return None
             cursor.execute("SELECT * FROM salaires WHERE id = %s", (salaire_id,))
             return cursor.fetchone()
 
     def get_all(self, user_id: int) -> List[Dict]:
-        with self.get_cursor() as cursor:
+        with self.db.get_cursor() as cursor:
             if not cursor:
                 return []
             query = "SELECT * FROM salaires WHERE user_id = %s ORDER BY annee DESC, mois DESC"
@@ -4281,7 +4281,7 @@ class Salaire:
             return False
 
     def get_by_user_and_month(self, user_id: int, mois: int = None, annee: int = None) -> List[Dict]:
-        with self.get_cursor() as cursor:
+        with self.db.get_cursor() as cursor:
             if not cursor:
                 return []
             query = "SELECT * FROM salaires WHERE user_id = %s"
