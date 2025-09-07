@@ -1508,24 +1508,30 @@ class TransactionFinanciere:
         Returns:
             bool: True si le compte appartient à l'utilisateur, False sinon.
         """
-        if compte_type == 'compte_principal':
-            cursor.execute(
-                "SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s",
-                (compte_id, user_id)
-            )
-            return cursor.fetchone() is not None
-        elif compte_type == 'sous_compte':
+        try:
+            if compte_type == 'compte_principal':
+                cursor.execute(
+                    "SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s",
+                    (compte_id, user_id)
+                )
+                result = cursor.fetchone()
+                return result is not None
+            elif compte_type == 'sous_compte':
             # Jointure pour vérifier la propriété du sous-compte via le compte principal
-            cursor.execute(
-                """SELECT sc.id 
-                FROM sous_comptes sc
-                JOIN comptes_principaux cp ON sc.compte_principal_id = cp.id
-                WHERE sc.id = %s AND cp.utilisateur_id = %s""",
-                (compte_id, user_id)
-            )
-            return cursor.fetchone() is not None
-        else:
-            return False
+                cursor.execute(
+                    """SELECT sc.id 
+                    FROM sous_comptes sc
+                    JOIN comptes_principaux cp ON sc.compte_principal_id = cp.id
+                    WHERE sc.id = %s AND cp.utilisateur_id = %s""",
+                    (compte_id, user_id)
+                )
+                result = cursor.fetchone()
+                return result is not None
+            else:
+                return False
+        except Exception as e:
+            logging.error(f"Erreur lors de la vérification de l'appartenance du compte: {e}")
+            return False    
 
     def _get_solde_compte_with_cursor(self, cursor, compte_type: str, compte_id: int) -> Decimal:
         """
