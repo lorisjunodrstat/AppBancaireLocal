@@ -1690,7 +1690,7 @@ class TransactionFinanciere:
         """
         try:
             if compte_type == 'compte_principal':
-                cursor.execute("SELECT s FROM comptes_principaux WHERE id = %s", (compte_id,))
+                cursor.execute("SELECT solde_initial FROM comptes_principaux WHERE id = %s", (compte_id,))
             else:
                 cursor.execute("SELECT solde_initial FROM sous_comptes WHERE id = %s", (compte_id,))
             
