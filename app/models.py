@@ -1202,9 +1202,9 @@ class TransactionFinanciere:
         except Error as e:
             logging.error(f"Erreur mise à jour solde: {e}")
             return False
-  
+
     def modifier_transaction(self, transaction_id: int, user_id: int, nouveau_montant: Decimal, 
-                           nouvelle_description: str = None) -> Tuple[bool, str]:
+                        nouvelle_description: str = None) -> Tuple[bool, str]:
         """Modifie une transaction existante et recalcule les soldes suivants"""
         try:
             with self.db.get_cursor() as cursor:
@@ -1383,12 +1383,17 @@ class TransactionFinanciere:
         if date_transaction is None:
             date_transaction = datetime.now()
         
-        success, message, _ = self._inserer_transaction(
-            compte_type, compte_id, 'depot', montant, 
-            description, user_id, date_transaction, False
-        )
-        
-        return success, message
+        try:
+            with self.db_manager.get_cursor(dictionary=True, commit=True) as cursor:
+                success, message, _ = self._inserer_transaction_with_cursor(
+                    cursor, compte_type, compte_id, 'depot', montant, 
+                    description, user_id, date_transaction, False
+                )
+                return success, message
+        except Exception as e:
+            logging.error(f"Erreur création dépôt: {e}")
+            return False, f"Erreur lors de la création du dépôt: {str(e)}"
+
 
     def create_retrait(self, compte_id: int, user_id: int, montant: Decimal, 
                     description: str = "", compte_type: str = 'compte_principal',
@@ -1402,12 +1407,15 @@ class TransactionFinanciere:
             date_transaction = datetime.now()
         solde_suffisant, _ = self._valider_solde_suffisant(compte_type, compte_id, montant)
         if not solde_suffisant:
-            return False, "Solde insuffisant"   
-        success, message, _ = self._inserer_transaction(
-            compte_type, compte_id, 'retrait', montant, 
-            description, user_id, date_transaction, False
-        )
-        return success, message
+            return False, "Solde insuffisant"
+        try:
+            with self.db.get_cursor(dictionary=True, commit=True) as cursor:
+                success, message, _ = self._inserer_transaction_with_cursor(cursor,
+                                                                            compte_type, compte_id, 'retrait', montant, description, user_id, date_transaction, False)
+            return success, message
+        except Exception as e:  
+            logging.error(f"Erreur création retrait: {e}")
+            return False, f"Erreur lors de la création du retrait: {str(e)}"    
 
     def _valider_solde_suffisant_with_cursor(self, cursor, compte_type: str, compte_id: int, montant: Decimal) -> Tuple[bool, Decimal]:
         """
