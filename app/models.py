@@ -3525,7 +3525,6 @@ class Contrat:
         except Exception as e:
             logging.error(f"Erreur lors de la suppression du contrat: {e}")
             return False
-
     def get_contrat_for_date(self, user_id: int, date_str: str) -> Optional[Dict]:
         """Récupère le contrat actif pour une date spécifique"""
         try:
@@ -3543,7 +3542,18 @@ class Contrat:
         except Exception as e:
             logging.error(f"Erreur lors de la récupération du contrat pour la date {date_str}: {e}")
             return None
-            
+        
+    def delete(self, contrat_id: int) -> bool:
+        """Supprime un contrat par son id."""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "DELETE FROM contrats WHERE id = %s;"
+                cursor.execute(query, (contrat_id,))
+                return True
+        except Exception as e:
+            logging.error(f"Erreur lors de la suppression du contrat: {e}")
+            return False
+
 class HeureTravail:
     def __init__(self, db):
         self.db = db
