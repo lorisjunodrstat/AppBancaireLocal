@@ -481,8 +481,8 @@ def est_transfert_valide(compte_source_id, compte_dest_id, user_id, comptes, sou
     return True, "Transfert valide", source_type, dest_type
 
 # Routes pour les dépôts
-@login_required
 @bp.route('/depot', methods=['GET', 'POST'])
+@login_required
 def depot():
     user_id = current_user.id
     comptes = g.models.compte_model.get_by_user_id(user_id)
@@ -518,9 +518,15 @@ def depot():
             return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
         else:
             flash(message, 'error')
-            return render_template('banking/depot.html', comptes=comptes, all_comptes=all_comptes, form_data=request.form)
+            return render_template('banking/depot.html', 
+                                   comptes=comptes, 
+                                   all_comptes=all_comptes, 
+                                   form_data=request.form,
+                                   now=datetime.now())
     
-    return render_template('banking/depot.html', comptes=comptes, all_comptes=all_comptes, now=datetime.now())
+    return render_template('banking/depot.html', 
+                           comptes=comptes, 
+                           all_comptes=all_comptes, now=datetime.now())
 
 # Routes pour les retraits
 @bp.route('/retrait', methods=['GET', 'POST'])
