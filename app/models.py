@@ -1850,8 +1850,8 @@ class TransactionFinanciere:
                     return False, f"Erreur transaction crédit: {message}"
                 
                 # Déterminer l'ID de source en fonction du type
-                source_compte_id = source_id if source_type == 'compte_principal' else None
-                source_sous_compte_id = source_id if source_type == 'sous_compte' else None
+                compte_principal_id = source_id if source_type == 'compte_principal' else None
+                sous_compte_id = source_id if source_type == 'sous_compte' else None
                 
                 # Mettre à jour la transaction avec les informations de source
                 update_query = """
@@ -1859,7 +1859,7 @@ class TransactionFinanciere:
                 SET compte_source_id = %s, sous_compte_source_id = %s 
                 WHERE id = %s
                 """
-                cursor.execute(update_query, (source_compte_id, source_sous_compte_id, transaction_id))
+                cursor.execute(update_query, (compte_principal_id, sous_compte_id, transaction_id))
                 
                 # Le commit est automatique à la sortie du bloc 'with' si aucune erreur
                 return True, "Transfert interne effectué avec succès"
@@ -1867,6 +1867,7 @@ class TransactionFinanciere:
         except Exception as e:
             # Le rollback est automatique à la sortie du bloc 'with' en cas d'erreur
             return False, f"Erreur lors du transfert: {str(e)}"
+        
     def transfert_compte_vers_sous_compte(self, compte_id, sous_compte_id, montant, user_id, description=""):
         """Transfert d'un compte principal vers un sous-compte.   
         Args:
