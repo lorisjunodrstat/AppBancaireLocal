@@ -1539,15 +1539,19 @@ class TransactionFinanciere:
         Returns:
             Decimal: Le solde du compte, ou 0 si une erreur ou un compte non trouvé.
         """
-        if compte_type == 'compte_principal':
-            cursor.execute("SELECT solde FROM comptes_principaux WHERE id = %s", (compte_id,))
-            result = cursor.fetchone()
-            return Decimal(str(result[0])) if result else Decimal('0')
-        elif compte_type == 'sous_compte':
-            cursor.execute("SELECT solde FROM sous_comptes WHERE id = %s", (compte_id,))
-            result = cursor.fetchone()
-            return Decimal(str(result[0])) if result else Decimal('0')
-        else:
+        try:
+            if compte_type == 'compte_principal':
+                cursor.execute("SELECT solde FROM comptes_principaux WHERE id = %s", (compte_id,))
+                result = cursor.fetchone()
+                return Decimal(str(result['solde'])) if result and 'solde' in result else Decimal('0')
+            elif compte_type == 'sous_compte':
+                cursor.execute("SELECT solde FROM sous_comptes WHERE id = %s", (compte_id,))
+                result = cursor.fetchone()
+                return Decimal(str(result['solde'])) if result and 'solde' in result else Decimal('0')
+            else:
+                return Decimal('0')
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération du solde : {e}", exc_info=True)
             return Decimal('0')
         
     def valider_transfert_sous_compte(sous_compte_id, compte_principal_id, sous_comptes):
