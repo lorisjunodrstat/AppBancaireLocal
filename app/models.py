@@ -91,15 +91,24 @@ class DatabaseManager:
             if commit:
                 connection.commit()
         except Exception as e:
-            logging.error(f"Erreur dans le gestionnaire de curseur : {e}")
+            logging.error(f"Erreur dans le gestionnaire de curseur : {e}", exc_info=True)
             if connection:
-                connection.rollback()  # Annule les changements en cas d'erreur
+                try:
+                    connection.rollback()  # Annule les changements en cas d'erreur
+                except Exception as rollback_error:
+                    logging.error(f"Erreur lors du rollback : {rollback_error}", exc_info=True)
             raise  # Relance l'exception
         finally:
             if cursor:
-                cursor.close()
+                try:
+                    cursor.close()
+                except Exception as close_error:
+                    logging.error(f"Erreur lors de la fermeture du curseur : {close_error}", exc_info=True)
             if connection:
-                connection.close()
+                try:
+                    connection.close()  # Retourne la connexion au pool
+                except Exception as close_error:
+                    logging.error(f"Erreur lors de la fermeture de la connexion : {close_error}", exc_info=True)
 
     def create_tables(self):
         """
@@ -1633,7 +1642,7 @@ class TransactionFinanciere:
             return True, "Transaction insérée avec succès", transaction_id
             
         except Exception as e:
-            logging.error(f"Erreur lors de l'insertion de la transaction: {e}")
+            logging.error(f"Erreur lors de l'insertion de la transaction: {e}",  exc_info=True)
             return False, f"Erreur lors de l'insertion: {str(e)}", None
         
     def _get_previous_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, date_transaction: datetime) -> Optional[tuple]:
