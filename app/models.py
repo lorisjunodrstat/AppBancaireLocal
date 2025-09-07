@@ -1456,7 +1456,7 @@ class TransactionFinanciere:
                 return False, Decimal('0')
                 
             # Assurer la précision décimale en convertissant le résultat de la requête
-            solde_actuel = Decimal(str(result[0]))
+            solde_actuel = Decimal(str(result['solde']))
             return solde_actuel >= montant, solde_actuel
         except Exception as e:
             logging.error(f"Erreur lors de la validation du solde: {e}")
@@ -1487,7 +1487,7 @@ class TransactionFinanciere:
             with self.db.get_cursor() as cursor:
                 cursor.execute(query, (compte_id,))
                 result = cursor.fetchone()
-                solde = Decimal(result[0]) if result else Decimal('0')
+                solde = Decimal(result['solde']) if result  and 'solde' in result else Decimal('0')
                 logging.error(f"Solde trouvé: {solde}")
                 return solde
         except Exception as e:
@@ -1675,24 +1675,28 @@ class TransactionFinanciere:
             """
             
             cursor.execute(query_simple, (compte_id, date_transaction))
-            return cursor.fetchone()
-                
+            result = cursor.fetchone()
+            if result:
+                return (result['id'], result['date_transaction'], result['solde_apres'])
+            return None        
+
         except Exception as e:
             logging.error(f"Erreur lors de la recherche de la transaction précédente: {e}")
             return None
+    
     def _get_solde_initial_with_cursor(self, cursor, compte_type: str, compte_id: int) -> Decimal:
         """
         Récupère le solde initial d'un compte en utilisant un curseur existant.
         """
         try:
             if compte_type == 'compte_principal':
-                cursor.execute("SELECT solde_initial FROM comptes_principaux WHERE id = %s", (compte_id,))
+                cursor.execute("SELECT s FROM comptes_principaux WHERE id = %s", (compte_id,))
             else:
                 cursor.execute("SELECT solde_initial FROM sous_comptes WHERE id = %s", (compte_id,))
             
             result = cursor.fetchone()
-            return Decimal(str(result[0])) if result and result[0] else Decimal('0')
-                
+            return Decimal(str(result['solde_initial'])) if result and 'solde_initial' in result else Decimal('0')
+
         except Exception as e:
             logging.error(f"Erreur lors de la récupération du solde initial: {e}")
             return Decimal('0')
@@ -1740,8 +1744,8 @@ class TransactionFinanciere:
         dernier_solde = None
         
         for transaction in subsequent_transactions:
-            montant_val = Decimal(str(transaction[2]))
-            type_transaction_val = transaction[1]
+            montant_val = Decimal(str(transaction['montant']))
+            type_transaction_val = transaction['type_transaction']
             
             if type_transaction_val in ['depot', 'transfert_entrant', 'recredit_annulation']:
                 solde_courant += montant_val
@@ -1749,7 +1753,7 @@ class TransactionFinanciere:
                 solde_courant -= montant_val
             
             update_query = "UPDATE transactions SET solde_apres = %s WHERE id = %s"
-            cursor.execute(update_query, (float(solde_courant), transaction[0]))
+            cursor.execute(update_query, (float(solde_courant), transaction['id']))
             dernier_solde = solde_courant
         
         return dernier_solde
@@ -1890,7 +1894,7 @@ class TransactionFinanciere:
                 result = cursor.fetchone()
                 if not result:
                     return False, "Compte non trouvé"
-                solde_compte = Decimal(str(result[0]))
+                solde_compte = Decimal(str(result['solde']))
                 
                 if solde_compte < montant:
                     return False, "Solde insuffisant sur le compte"
@@ -1907,7 +1911,7 @@ class TransactionFinanciere:
                 result = cursor.fetchone()
                 if not result:
                     return False, "Sous-compte non trouvé"
-                solde_sous_compte = Decimal(str(result[0]))
+                solde_sous_compte = Decimal(str(result['solde']))
                 
                 nouveau_solde_sous_compte = solde_sous_compte + montant
                 cursor.execute(
