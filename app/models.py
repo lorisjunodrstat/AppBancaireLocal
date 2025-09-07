@@ -64,10 +64,13 @@ class DatabaseManager:
             self._connection_pool = None
             logging.info("Pool de connexions fermé")
     @contextmanager
-    def get_cursor(self, dictionary=False):
+    def get_cursor(self, dictionary=False, commit=True):
         """
         Fournit un curseur de base de données depuis le pool.
         Gère automatiquement la connexion et la fermeture des ressources.
+        
+        :param dictionary: Si True, retourne un curseur de type dictionnaire
+        :param commit: Si True, commit la transaction après l'exécution
         """
         connection = None
         cursor = None
@@ -84,8 +87,9 @@ class DatabaseManager:
             
             yield cursor
             
-            # Commit la transaction après une exécution réussie
-            connection.commit()
+            # Commit la transaction après une exécution réussie si commit=True
+            if commit:
+                connection.commit()
         except Exception as e:
             logging.error(f"Erreur dans le gestionnaire de curseur : {e}")
             if connection:
