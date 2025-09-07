@@ -9,15 +9,12 @@ bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 @bp.before_request
 @login_required
-def before_request_check_admin():
+def before_request_check_auth():
     """
-    Vérifie si l'utilisateur est un administrateur avant chaque requête.
-    Redirige vers le dashboard si ce n'est pas le cas.
+    Vérifie simplement que l'utilisateur est connecté avant chaque requête.
     """
-    if not current_user.is_admin:
-        flash("Accès non autorisé.", "error")
-        return redirect(url_for('banking.dashboard'))
-
+    # Pas de vérification d'admin, juste une confirmation de connexion
+    pass
 @bp.route('/utilisateurs')
 def liste_utilisateurs():
     """Affiche la liste des utilisateurs."""
