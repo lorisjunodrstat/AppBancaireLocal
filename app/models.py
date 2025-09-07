@@ -1384,7 +1384,7 @@ class TransactionFinanciere:
             date_transaction = datetime.now()
         
         try:
-            with self.db_manager.get_cursor(dictionary=True, commit=True) as cursor:
+            with self.deb.get_cursor(dictionary=True, commit=True) as cursor:
                 success, message, _ = self._inserer_transaction_with_cursor(
                     cursor, compte_type, compte_id, 'depot', montant, 
                     description, user_id, date_transaction, False
