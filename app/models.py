@@ -1850,8 +1850,8 @@ class TransactionFinanciere:
                     return False, f"Erreur transaction crédit: {message}"
                 
                 # Déterminer l'ID de source en fonction du type
-                compte_principal_id = source_id if source_type == 'compte_principal' else None
-                sous_compte_id = source_id if source_type == 'sous_compte' else None
+                source_compte_id = source_id if source_type == 'compte_principal' else None
+                source_sous_compte_id = source_id if source_type == 'sous_compte' else None
                 
                 # Mettre à jour la transaction avec les informations de source
                 update_query = """
@@ -1859,7 +1859,7 @@ class TransactionFinanciere:
                 SET compte_source_id = %s, sous_compte_source_id = %s 
                 WHERE id = %s
                 """
-                cursor.execute(update_query, (compte_principal_id, sous_compte_id, transaction_id))
+                cursor.execute(update_query, (source_compte_id, source_sous_compte_id, transaction_id))
                 
                 # Le commit est automatique à la sortie du bloc 'with' si aucune erreur
                 return True, "Transfert interne effectué avec succès"
@@ -2169,10 +2169,15 @@ class TransactionFinanciere:
                 else:
                     condition_compte = "t.sous_compte_id = %s"
                 
+                # Requête corrigée pour inclure tous les types de transactions
                 query = f"""
                 SELECT 
-                    SUM(CASE WHEN t.type_transaction IN ('depot', 'transfert_entrant') THEN t.montant ELSE 0 END) as total_entrees,
-                    SUM(CASE WHEN t.type_transaction IN ('retrait', 'transfert_sortant', 'transfert_externe') THEN t.montant ELSE 0 END) as total_sorties,
+                    SUM(CASE 
+                        WHEN t.type_transaction IN ('depot', 'transfert_entrant', 'transfert_sous_vers_compte', 'recredit_annulation') 
+                        THEN t.montant ELSE 0 END) as total_entrees,
+                    SUM(CASE 
+                        WHEN t.type_transaction IN ('retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous') 
+                        THEN t.montant ELSE 0 END) as total_sorties,
                     COUNT(*) as nombre_transactions,
                     AVG(t.montant) as montant_moyen
                 FROM transactions t
@@ -2313,12 +2318,29 @@ class StatistiquesBancaires:
             # Calculer le patrimoine total
             patrimoine_total = solde_total_principal + epargne_totale
 
-            # Récupérer les transactions du mois (approximation)
+            # Récupérer les transactions du mois en utilisant TransactionFinanciere
             transaction_model = TransactionFinanciere(self.db)
             nb_transactions_mois = 0
+            
+            # Pour chaque compte, compter les transactions du mois
             for compte in comptes:
-                transactions = transaction_model.get_by_compte_id(compte['id'], user_id, 100)
+                transactions = transaction_model.get_historique_compte(
+                    'compte_principal', compte['id'], user_id,
+                    date_from=(datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'),
+                    date_to=datetime.now().strftime('%Y-%m-%d')
+                )
                 nb_transactions_mois += len(transactions)
+                
+            # Pour les sous-comptes
+            for compte in comptes:
+                sous_comptes = sous_compte_model.get_by_compte_principal_id(compte['id'])
+                for sous_compte in sous_comptes:
+                    transactions = transaction_model.get_historique_compte(
+                        'sous_compte', sous_compte['id'], user_id,
+                        date_from=(datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'),
+                        date_to=datetime.now().strftime('%Y-%m-%d')
+                    )
+                    nb_transactions_mois += len(transactions)
 
             # Pour les écritures comptables, nous utilisons une requête directe
             with self.db.get_cursor() as cursor:
@@ -2335,7 +2357,6 @@ class StatistiquesBancaires:
                 cursor.execute(query, (user_id, statut))
                 stats_ecritures = cursor.fetchone()
                 
-            # Les opérations sur la connexion sont automatiques avec le bloc 'with'
             nb_ecritures_mois = stats_ecritures['nb_ecritures_mois'] or 0
             total_depenses = Decimal(str(stats_ecritures['total_depenses'] or '0'))
             total_recettes = Decimal(str(stats_ecritures['total_recettes'] or '0'))
@@ -2350,16 +2371,16 @@ class StatistiquesBancaires:
                 'nb_comptes': nb_comptes,
                 'nb_banques': nb_banques,
                 'nb_sous_comptes': nb_sous_comptes,
-                'solde_total_principal': solde_total_principal,
-                'epargne_totale': epargne_totale,
-                'patrimoine_total': patrimoine_total,
-                'objectifs_totaux': objectifs_totaux,
+                'solde_total_principal': float(solde_total_principal),
+                'epargne_totale': float(epargne_totale),
+                'patrimoine_total': float(patrimoine_total),
+                'objectifs_totaux': float(objectifs_totaux),
                 'nb_transactions_mois': nb_transactions_mois,
                 'nb_ecritures_mois': nb_ecritures_mois,
-                'total_depenses_mois': total_depenses,
-                'total_recettes_mois': total_recettes,
-                'solde_mois': solde_mois,
-                'progression_epargne': round(progression_epargne, 2),
+                'total_depenses_mois': float(total_depenses),
+                'total_recettes_mois': float(total_recettes),
+                'solde_mois': float(solde_mois),
+                'progression_epargne': float(round(progression_epargne, 2)),
                 'statut_utilise': statut
             }
 
@@ -2367,22 +2388,21 @@ class StatistiquesBancaires:
             logging.error(f"Erreur lors du calcul des statistiques: {e}")
             # Retourner des valeurs par défaut en cas d'erreur
             return {
-                'nb_comptes': nb_comptes,
-                'nb_banques': nb_banques,
-                'nb_sous_comptes': nb_sous_comptes,
-                'solde_total_principal': solde_total_principal,
-                'epargne_totale': epargne_totale,
-                'patrimoine_total': patrimoine_total,
-                'objectifs_totaux': objectifs_totaux,
+                'nb_comptes': 0,
+                'nb_banques': 0,
+                'nb_sous_comptes': 0,
+                'solde_total_principal': 0.0,
+                'epargne_totale': 0.0,
+                'patrimoine_total': 0.0,
+                'objectifs_totaux': 0.0,
                 'nb_transactions_mois': 0,
                 'nb_ecritures_mois': 0,
-                'total_depenses_mois': Decimal('0'),
-                'total_recettes_mois': Decimal('0'),
-                'solde_mois': Decimal('0'),
-                'progression_epargne': Decimal('0'),
+                'total_depenses_mois': 0.0,
+                'total_recettes_mois': 0.0,
+                'solde_mois': 0.0,
+                'progression_epargne': 0.0,
                 'statut_utilise': statut
             }
-
     def get_repartition_par_banque(self, user_id: int) -> List[Dict]:
         """Répartition du patrimoine par banque"""
         try:
@@ -2425,12 +2445,15 @@ class StatistiquesBancaires:
                 query = """
                 SELECT
                     DATE_FORMAT(t.date_transaction, '%Y-%m') as mois,
-                    SUM(CASE WHEN t.type_transaction = 'transfert_vers_sous_compte' THEN t.montant ELSE 0 END) as epargne_mensuelle
+                    SUM(CASE 
+                        WHEN t.type_transaction IN ('transfert_compte_vers_sous', 'depot') 
+                        THEN t.montant ELSE 0 END) as epargne_mensuelle
                 FROM transactions t
-                JOIN comptes_principaux c ON t.compte_principal_id = c.id
-                WHERE c.utilisateur_id = %s
+                JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                JOIN comptes_principaux cp ON sc.compte_principal_id = cp.id
+                WHERE cp.utilisateur_id = %s
                     AND t.date_transaction >= DATE_SUB(NOW(), INTERVAL %s MONTH)
-                    AND t.type_transaction = 'transfert_vers_sous_compte'
+                    AND t.type_transaction IN ('transfert_compte_vers_sous', 'depot')
                 GROUP BY DATE_FORMAT(t.date_transaction, '%Y-%m')
                 ORDER BY mois DESC
                 """
@@ -2445,76 +2468,59 @@ class StatistiquesBancaires:
         """Récupère l'évolution quotidienne des soldes pour tous les comptes"""
         try:
             with self.db.get_cursor() as cursor:
+                # Pour les comptes principaux - utiliser les transactions
                 query_comptes = """
                 SELECT 
-                    DATE(date_ecriture) as date,
+                    DATE(t.date_transaction) as date,
                     cp.nom_compte,
-                    SUM(CASE 
-                        WHEN ec.type_ecriture = 'recette' THEN ec.montant 
-                        WHEN ec.type_ecriture = 'depense' THEN -ec.montant 
-                        ELSE 0 
-                    END) as solde_quotidien
-                FROM ecritures_comptables ec
-                JOIN comptes_principaux cp ON ec.compte_bancaire_id = cp.id
+                    t.solde_apres as solde_quotidien
+                FROM transactions t
+                JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
                 WHERE cp.utilisateur_id = %s
-                    AND ec.statut = 'validée'
-                    AND ec.date_ecriture >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-                GROUP BY DATE(ec.date_ecriture), cp.id, cp.nom_compte
+                    AND t.date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+                    AND t.id IN (
+                        SELECT MAX(t2.id)
+                        FROM transactions t2
+                        WHERE t2.compte_principal_id = cp.id
+                        AND DATE(t2.date_transaction) = DATE(t.date_transaction)
+                        GROUP BY DATE(t2.date_transaction)
+                    )
                 ORDER BY date, cp.nom_compte
                 """
                 cursor.execute(query_comptes, (user_id, nb_jours))
                 evolution_comptes = cursor.fetchall()
                 
+                # Pour les sous-comptes - utiliser les transactions
                 query_sous_comptes = """
                 SELECT 
-                    DATE(date_ecriture) as date,
+                    DATE(t.date_transaction) as date,
                     sc.nom_sous_compte,
-                    SUM(CASE 
-                        WHEN ec.type_ecriture = 'recette' THEN ec.montant 
-                        WHEN ec.type_ecriture = 'depense' THEN -ec.montant 
-                        ELSE 0 
-                    END) as solde_quotidien
-                FROM ecritures_comptables ec
-                JOIN sous_comptes sc ON ec.sous_compte_id = sc.id
+                    t.solde_apres as solde_quotidien
+                FROM transactions t
+                JOIN sous_comptes sc ON t.sous_compte_id = sc.id
                 JOIN comptes_principaux cp ON sc.compte_principal_id = cp.id
                 WHERE cp.utilisateur_id = %s
-                    AND ec.statut = 'validée'
-                    AND ec.date_ecriture >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-                GROUP BY DATE(ec.date_ecriture), sc.id, sc.nom_sous_compte
+                    AND t.date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+                    AND t.id IN (
+                        SELECT MAX(t2.id)
+                        FROM transactions t2
+                        WHERE t2.sous_compte_id = sc.id
+                        AND DATE(t2.date_transaction) = DATE(t.date_transaction)
+                        GROUP BY DATE(t2.date_transaction)
+                    )
                 ORDER BY date, sc.nom_sous_compte
                 """
                 cursor.execute(query_sous_comptes, (user_id, nb_jours))
                 evolution_sous_comptes = cursor.fetchall()
                 
-                query_total = """
-                SELECT 
-                    DATE(date_ecriture) as date,
-                    'Total' as nom_compte,
-                    SUM(CASE 
-                        WHEN ec.type_ecriture = 'recette' THEN ec.montant 
-                        WHEN ec.type_ecriture = 'depense' THEN -ec.montant 
-                        ELSE 0 
-                    END) as solde_quotidien
-                FROM ecritures_comptables ec
-                WHERE ec.utilisateur_id = %s
-                    AND ec.statut = 'validée'
-                    AND ec.date_ecriture >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-                GROUP BY DATE(ec.date_ecriture)
-                ORDER BY date
-                """
-                cursor.execute(query_total, (user_id, nb_jours))
-                evolution_total = cursor.fetchall()
-                
                 return {
                     'comptes_principaux': evolution_comptes,
                     'sous_comptes': evolution_sous_comptes,
-                    'total': evolution_total
+                    'total': []  # On ne calcule pas le total ici
                 }
         except Error as e:
             logging.error(f"Erreur lors du calcul de l'évolution quotidienne: {e}")
             return {'comptes_principaux': [], 'sous_comptes': [], 'total': []}
-
-
 
 class PlanComptable:
     """Modèle pour gérer le plan comptable"""
