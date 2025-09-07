@@ -533,9 +533,9 @@ def depot():
 @login_required
 def retrait():
     user_id = current_user.id
-    comptes = compte_model.get_by_user_id(user_id)
+    comptes = g.compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
-    all_comptes = compte_model.get_all_accounts(g.db_manager)
+    all_comptes = g.compte_model.get_all_accounts(g.db_manager)
     
     if request.method == 'POST':
         # Récupération des données du formulaire
@@ -557,7 +557,7 @@ def retrait():
             date_transaction = datetime.now()
         
         # Appel de la fonction create_retrait avec la date
-        success, message = transaction_financiere_model.create_retrait(
+        success, message = g.transaction_financiere_model.create_retrait(
             compte_id, user_id, montant, description, compte_type, date_transaction
         )
         
