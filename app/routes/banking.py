@@ -78,34 +78,6 @@ def index():
             return redirect(url_for('banking.dashboard'))
     return redirect(url_for('auth.login'))
      
-@bp.route('/banking')
-@login_required
-def banking_dashboard():
-    user_id = current_user.id
-    stats = g.models.stats_model.get_resume_utilisateur(user_id)
-    repartition = g.models.stats_model.get_repartition_par_banque(user_id)
-    comptes = get_comptes_utilisateur(user_id)
-        
-    # Ajout des stats comptables
-    now = datetime.now()
-    first_day = now.replace(day=1)
-    last_day = (first_day.replace(month=first_day.month % 12 + 1, year=first_day.year + first_day.month // 12) - timedelta(days=1))
-    
-    stats_comptables = g.models.ecriture_comptable_model.get_stats_by_categorie(
-        user_id=user_id,
-        date_from=first_day.strftime('%Y-%m-%d'),
-        date_to=last_day.strftime('%Y-%m-%d')
-    )
-    
-    recettes_mois = sum(s['total_recettes'] or 0 for s in stats_comptables)
-    depenses_mois = sum(s['total_depenses'] or 0 for s in stats_comptables)
-    
-    return render_template('banking/dashboard.html', 
-                        comptes=comptes, 
-                        stats=stats, 
-                        repartition=repartition,
-                        recettes_mois=recettes_mois,
-                        depenses_mois=depenses_mois)
 
 @bp.route('/banques', methods=['GET'])
 @login_required
@@ -254,6 +226,36 @@ def banking_nouveau_sous_compte(compte_id):
     
     return render_template('banking/nouveau_sous_compte.html', compte=compte)
 
+@bp.route('/banking')
+@login_required
+def banking_dashboard():
+    user_id = current_user.id
+    stats = g.models.stats_model.get_resume_utilisateur(user_id)
+    repartition = g.models.stats_model.get_repartition_par_banque(user_id)
+    comptes = get_comptes_utilisateur(user_id)
+        
+    # Ajout des stats comptables
+    now = datetime.now()
+    first_day = now.replace(day=1)
+    last_day = (first_day.replace(month=first_day.month % 12 + 1, year=first_day.year + first_day.month // 12) - timedelta(days=1))
+    
+    stats_comptables = g.models.ecriture_comptable_model.get_stats_by_categorie(
+        user_id=user_id,
+        date_from=first_day.strftime('%Y-%m-%d'),
+        date_to=last_day.strftime('%Y-%m-%d')
+    )
+    
+    recettes_mois = sum(s['total_recettes'] or 0 for s in stats_comptables)
+    depenses_mois = sum(s['total_depenses'] or 0 for s in stats_comptables)
+    
+    return render_template('banking/dashboard.html', 
+                        comptes=comptes, 
+                        stats=stats, 
+                        repartition=repartition,
+                        recettes_mois=recettes_mois,
+                        depenses_mois=depenses_mois)
+
+
 @bp.route('/banking/compte/<int:compte_id>')
 @login_required
 def banking_compte_detail(compte_id):
@@ -294,23 +296,20 @@ def banking_compte_detail(compte_id):
         date_to=fin.strftime('%Y-%m-%d'),
         limit=100  # Augmenter la limite pour la période
     )
-    print(f'Voici les mouvements qui sont au nombre de {len(mouvements)}: {mouvements}')
-    # Calcul des totaux pour la période
-    total_recettes = Decimal('0')
-    total_depenses = Decimal('0')
     
+    # Utiliser les statistiques corrigées plutôt que le calcul manuel
+    stats_compte = g.models.transaction_financiere_model.get_statistiques_compte(
+        compte_type='compte_principal',
+        compte_id=compte_id,
+        user_id=user_id,
+        periode_jours=(fin - debut).days
+    )
     
-    for mouvement in mouvements:
-        if mouvement['type_transaction'] in ['depot', 'transfert_entrant', 'recredit_annulation']:
-            total_recettes += Decimal(str(mouvement['montant']))
-        elif mouvement['type_transaction'] in ['retrait', 'transfert_sortant', 'transfert_externe']:
-            total_depenses += Decimal(str(mouvement['montant']))
+    total_recettes = Decimal(str(stats_compte.get('total_entrees', 0)))
+    total_depenses = Decimal(str(stats_compte.get('total_sorties', 0)))
 
     # Récupération des données existantes
-    #sous_comptes = sous_compte_model.get_by_compte_principal_id(compte_id)
-    #print(f'Il y a grâve à get_by_compte_principal_id {len(sous_comptes)}')
     sous_comptes = g.models.sous_compte_model.get_by_compte_principal_id(compte_id)
-    print(f'Il y a grâve à get_all_sous_comptes_by_user_id {len(sous_comptes)}')
     solde_total = g.models.compte_model.get_solde_total_avec_sous_comptes(compte_id)
     
     # Préparation des données pour le template
@@ -322,12 +321,48 @@ def banking_compte_detail(compte_id):
         }]
     }
     
-    #ecriture_model = EcritureComptable(g.db_manager)
     ecritures_non_liees = g.models.ecriture_comptable_model.get_ecritures_non_synchronisees(
         compte_id=compte_id,
         user_id=current_user.id
         )
     transferts_externes_pending = g.models.transaction_financiere_model.get_transferts_externes_pending(user_id)
+    soldes_quotidiens = g.models.transaction_financiere_model.get_evolution_soldes_quotidiens_compte(
+        compte_id=compte_id, 
+        user_id=user_id, 
+        nb_jours=30
+        )
+
+    # Préparation des données pour le graphique SVG
+    if soldes_quotidiens:
+        # Trouver les valeurs min et max pour l'échelle
+        soldes_values = [s['solde_apres'] for s in soldes_quotidiens]
+        min_solde = min(soldes_values) if soldes_values else 0
+        max_solde = max(soldes_values) if soldes_values else 0
+        
+        # Ajuster l'échelle pour éviter les problèmes de division par zéro
+        if min_solde == max_solde:
+            if min_solde == 0:
+                max_solde = 100  # Valeur par défaut si tous les soldes sont à zéro
+            else:
+                min_solde = min_solde * 0.9  # Réduire de 10% pour avoir une échelle
+                max_solde = max_solde * 1.1  # Augmenter de 10%
+        
+        # Préparer les points pour le graphique
+        points = []
+        for i, solde in enumerate(soldes_quotidiens):
+            x = i * (350 / (len(soldes_quotidiens) - 1)) if len(soldes_quotidiens) > 1 else 175
+            y = 150 - ((solde['solde_apres'] - min_solde) / (max_solde - min_solde)) * 130 if max_solde != min_solde else 85
+            points.append(f"{x},{y}")
+        
+        graphique_svg = {
+            'points': points,
+            'min_solde': min_solde,
+            'max_solde': max_solde,
+            'dates': [s['date'].strftime('%d/%m') for s in soldes_quotidiens],
+            'soldes': soldes_values
+        }
+    else:
+        graphique_svg = None
     return render_template('banking/compte_detail.html',
                         compte=compte,
                         sous_comptes=sous_comptes,
@@ -340,7 +375,8 @@ def banking_compte_detail(compte_id):
                         total_depenses=total_depenses,
                         ecritures_non_liees=ecritures_non_liees,
                         transferts_externes_pending=transferts_externes_pending,
-                        today=date.today())
+                        today=date.today(),
+                        graphique_svg=graphique_svg)
 
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
@@ -348,7 +384,7 @@ def banking_sous_compte_detail(sous_compte_id):
     user_id = current_user.id
     # Récupérer les comptes de l'utilisateur
     comptes_ = g.models.compte_model.get_by_user_id(user_id)
-    print(f'comptes pour le modal {comptes_}')
+    
     # Récupérer tous les sous-comptes de l'utilisateur
     sous_comptes_ = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
@@ -356,31 +392,75 @@ def banking_sous_compte_detail(sous_compte_id):
     for sous_compte in sous_comptes_:
         sous_compte['id'] = int(sous_compte['id'])
         sous_compte['compte_principal_id'] = int(sous_compte['compte_principal_id'])
-        print(f'sous_compte {sous_compte}')
     
     sous_compte = g.models.sous_compte_model.get_by_id(sous_compte_id)
     if not sous_compte:
         flash('Sous-compte introuvable', 'error')
         return redirect(url_for('banking.banking_dashboard'))
 
-# Vérifie que le sous-compte appartient bien à l'utilisateur
+    # Vérifie que le sous-compte appartient bien à l'utilisateur
     compte_principal = g.models.compte_model.get_by_id(sous_compte['compte_principal_id'])
     if not compte_principal or compte_principal['utilisateur_id'] != user_id:
         flash('Sous-compte non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))
+        
     mouvements = g.models.transaction_financiere_model.get_historique_compte(
         compte_type='sous_compte',
         compte_id=sous_compte_id,
         user_id=user_id,
         limit=50)
-    print(f'HAHA Il y a {len(mouvements)} mouvements pour le compte {sous_compte['nom_sous_compte']}: {mouvements}')        
+        
+    # Ajouter les statistiques du sous-compte
+    stats_sous_compte = g.models.transaction_financiere_model.get_statistiques_compte(
+        compte_type='sous_compte',
+        compte_id=sous_compte_id,
+        user_id=user_id,
+        periode_jours=30
+    )
+    
     solde = g.models.sous_compte_model.get_solde(sous_compte_id)
-    #        Ajout du pourcentage calculé
+    
     # Ajout du pourcentage calculé
     if sous_compte['objectif_montant'] and sous_compte['objectif_montant'] > 0:
         sous_compte['pourcentage_objectif'] = round((sous_compte['solde'] / sous_compte['objectif_montant']) * 100, 1)
     else:
         sous_compte['pourcentage_objectif'] = 0
+    
+        # Récupération de l'évolution des soldes quotidiens pour les 30 derniers jours
+    soldes_quotidiens = g.models.transaction_financiere_model.get_evolution_soldes_quotidiens_sous_compte(
+        sous_compte_id=sous_compte_id, 
+        user_id=user_id, 
+        nb_jours=30
+    )
+
+    # Préparation des données pour le graphique SVG (même code que pour le compte principal)
+    if soldes_quotidiens:
+        soldes_values = [s['solde_apres'] for s in soldes_quotidiens]
+        min_solde = min(soldes_values) if soldes_values else 0
+        max_solde = max(soldes_values) if soldes_values else 0
+        
+        if min_solde == max_solde:
+            if min_solde == 0:
+                max_solde = 100
+            else:
+                min_solde = min_solde * 0.9
+                max_solde = max_solde * 1.1
+        
+        points = []
+        for i, solde in enumerate(soldes_quotidiens):
+            x = i * (350 / (len(soldes_quotidiens) - 1)) if len(soldes_quotidiens) > 1 else 175
+            y = 150 - ((solde['solde_apres'] - min_solde) / (max_solde - min_solde)) * 130 if max_solde != min_solde else 85
+            points.append(f"{x},{y}")
+        
+        graphique_svg = {
+            'points': points,
+            'min_solde': min_solde,
+            'max_solde': max_solde,
+            'dates': [s['date'].strftime('%d/%m') for s in soldes_quotidiens],
+            'soldes': soldes_values
+        }
+    else:
+        graphique_svg = None
     return render_template(
         'banking/sous_compte_detail.html',
         sous_compte=sous_compte,
@@ -388,9 +468,10 @@ def banking_sous_compte_detail(sous_compte_id):
         sous_comptes_=sous_comptes_,
         compte=compte_principal,
         mouvements=mouvements,
-        solde=solde
+        solde=solde,
+        stats_sous_compte=stats_sous_compte,  # Ajouter les stats au contexte
+        graphique_svg=graphique_svg
     )
-        
 def est_transfert_valide(compte_source_id, compte_dest_id, user_id, comptes, sous_comptes):
     """
     Vérifie si un transfert entre deux comptes est valide avec les restrictions spécifiées:
