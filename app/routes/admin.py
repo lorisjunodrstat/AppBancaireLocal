@@ -84,6 +84,7 @@ def supprimer_utilisateur(user_id):
         flash(f"Erreur lors de la suppression : {str(e)}", 'error')
     
     return redirect(url_for('admin.liste_utilisateurs'))
+
 @bp.route('/utilisateur/<int:user_id>')
 @bp.route('/profil_utilisateur')
 def detail_utilisateur(user_id=None):
