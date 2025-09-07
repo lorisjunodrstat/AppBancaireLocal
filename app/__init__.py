@@ -6,15 +6,14 @@ Application Flask - Fichier d'initialisation principal
 
 import os
 import sys
-from flask import Flask, g, request, redirect, url_for, request_started, request_finished
-from flask_login import LoginManager
+from flask import Flask, g, redirect, url_for, request_started, request_finished
+from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
 from pathlib import Path
 import pymysql
 import pymysql.cursors
 import logging
 from logging.handlers import RotatingFileHandler
-from contextlib import contextmanager
 
 # Charge les variables d'environnement avec chemin absolu
 env_path = Path('/var/www/webroot/ROOT') / '.env'
@@ -70,9 +69,17 @@ def load_user(user_id):
 
 # Import des routes (APRES la création de l'app)
 from app.routes import auth, admin, banking
+
+# Route racine redirigeant vers la page appropriée
 @app.route('/')
-def index_redirect():
+def index():
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for('admin.liste_utilisateurs'))
+        else:
+            return redirect(url_for('banking.dashboard'))
     return redirect(url_for('auth.login'))
+
 # Enregistrement des blueprints
 app.register_blueprint(auth.bp)
 app.register_blueprint(admin.bp)
@@ -107,19 +114,15 @@ def utility_processor():
 
     return dict(get_month_name=get_month_name)
 
-# --- Début des modifications ---
-
 # Remplacer la fonction before_request par un signal
 def create_managers_on_request_start(sender, **extra):
     from app.models import DatabaseManager, ModelManager
     try:
         g.db_manager = DatabaseManager(sender.config['DB_CONFIG'])
-        # CORRECTION ICI: utilisez "g.models" pour correspondre au reste de votre code
         g.models = ModelManager(g.db_manager)
     except Exception as e:
         logging.error(f"Failed to establish database connection: {e}")
         g.db_manager = None
-        # CORRECTION ICI: utilisez "g.models" pour la cohérence
         g.models = None
 
 # Connecter la fonction au signal request_started de l'application
@@ -127,25 +130,20 @@ request_started.connect(create_managers_on_request_start, app)
 
 # Fermeture des ressources après chaque requête
 def close_managers_on_request_finish(sender, response, **extra):
-    # Vérifie si l'attribut db_manager existe dans l'objet g et n'est pas None.
+    # Vérifie si l'attribut db_manager existe dans l'objet g et n'est pas None
     if hasattr(g, 'db_manager') and g.db_manager:
         try:
-            # Tente de fermer le pool de connexions si la méthode existe.
-            # Le nom de la méthode dépend de votre implémentation.
+            # Tente de fermer le pool de connexions si la méthode existe
             if hasattr(g.db_manager, 'pool'):
-                # Si votre DatabaseManager a un attribut 'pool'
                 g.db_manager.pool.close()
             elif hasattr(g.db_manager, 'close'):
-                # Si la méthode de fermeture est simplement 'close'
                 g.db_manager.close()
         except Exception as e:
             logging.error(f"Erreur lors de la fermeture du gestionnaire de DB : {e}")
     return response
+
 # Connecter la fonction au signal request_finished de l'application
 request_finished.connect(close_managers_on_request_finish, app)
-
-
-# --- Fin des modifications ---
 
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
