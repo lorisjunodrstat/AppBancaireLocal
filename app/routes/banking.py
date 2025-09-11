@@ -264,14 +264,45 @@ def banking_compte_detail(compte_id):
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))
+    #Paramètre de filtrage et tri
+    sort = request.args.get('sort', 'date_desc')  # Valeurs possibles: date_asc, date_desc, montant_asc, montant_desc
+    filter_type = request.args.get('filter_type', 'tous')  # Valeurs possibles: tous, entree, sortie, transfert 
+    filter_min_amount = request.args.get('filter_min_amount')
+    filter_max_amount = request.args.get('filter_max_amount')
+    search_query = request.args.get('search', '').strip()
 
     # Gestion de la période sélectionnée
     periode = request.args.get('periode', 'mois')  # Valeurs possibles: mois, trimestre, annee
     
+    date_debut_str = request.args.get('date_debut')
+    date_fin_str = request.args.get('date_fin')
+    mois_seletct = request.args.get('mois_select')
+    annee_select = request.args.get('annee_select')
     # Calcul des dates selon la période
     maintenant = datetime.now()
+    debut = None
+    fin = None
+    libelle_periode = "période personnalisée "
     
-    if periode == 'annee':
+    if periode == 'personnalisee' and date_debut_str and date_fin_str:
+        try:
+            debut = datetime.strptime(date_debut_str, '%Y-%m-%d')
+            fin = datetime.strptime(date_fin_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        except ValueError:
+            flash('Dates personnalisées invalides', 'error')
+            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+    elif periode == 'mois_annee' and mois_seletct and annee_select:
+        try:
+            mois = int(mois_seletct)
+            annee = int(annee_select)
+            debut = datetime(annee, mois, 1)
+            fin = (debut + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            fin = fin.replace(hour=23, minute=59, second=59)
+            libelle_periode =f'{debut.strftime('%B %Y')}'
+        except ValueError:
+            flash('Mois/Année invalides', 'error')
+            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+    elif periode == 'annee':
         debut = maintenant.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
         fin = maintenant.replace(month=12, day=31, hour=23, minute=59, second=59)
         libelle_periode = "Cette année"
@@ -294,7 +325,7 @@ def banking_compte_detail(compte_id):
         user_id=user_id,
         date_from=debut.strftime('%Y-%m-%d'),
         date_to=fin.strftime('%Y-%m-%d'),
-        limit=100  # Augmenter la limite pour la période
+        limit=200  # Augmenter la limite pour la période
     )
     
     # Utiliser les statistiques corrigées plutôt que le calcul manuel
@@ -304,7 +335,29 @@ def banking_compte_detail(compte_id):
         user_id=user_id,
         periode_jours=(fin - debut).days
     )
-    
+    filtred_mouvements = mouvements
+    if filter_type!='tous':
+        filtred_mouvements
+    if filter_min_amount:
+        try:
+            min_amount = Decimal(filter_min_amount)
+            filtred_mouvements = [m for m in filtred_mouvements if m['montant'] >= min_amount]
+        except InvalidOperation:
+            flash('Montant minimum invalide', 'error')
+    if filter_max_amount:
+        search_lower = search_query.lower()
+        filtred_mouvements = [
+            m for m in filtred_mouvements if (m.get('description','') and search_lower in m['description'].lower()) or
+            (m.get('categorie','') and search_lower in m['categorie'].lower())
+        ]
+        try:
+            max_amount = Decimal(filter_max_amount)
+            filtred_mouvements = [m for m in filtred_mouvements if m['montant'] <= max_amount]
+        except InvalidOperation:
+            flash('Montant maximum invalide', 'error')
+    if search_query:
+        filtred_mouvements = [m for m in filtred_mouvements if search_query.lower() in (m.get('description','') or '').lower() or search_query.lower() in (m.get('categorie','') or '').lower()]
+
     total_recettes = Decimal(str(stats_compte.get('total_entrees', 0)))
     total_depenses = Decimal(str(stats_compte.get('total_sorties', 0)))
 
@@ -376,7 +429,11 @@ def banking_compte_detail(compte_id):
                         ecritures_non_liees=ecritures_non_liees,
                         transferts_externes_pending=transferts_externes_pending,
                         today=date.today(),
-                        graphique_svg=graphique_svg)
+                        graphique_svg=graphique_svg,
+                        date_debut_selected=date_debut_str,
+                        date_fin_selected=date_fin_str,
+                        mois_seletcted=mois_seletct,
+                        annee_selected=annee_select)
 
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
