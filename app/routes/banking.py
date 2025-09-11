@@ -388,15 +388,15 @@ def banking_compte_detail(compte_id):
 
     # Préparation des données pour le graphique SVG
     if soldes_quotidiens:
-        # Trouver les valeurs min et max pour l'échelle
+        # Convertir toutes les valeurs Decimal en float pour les calculs
         soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
-        min_solde = min(soldes_values) if soldes_values else 0
-        max_solde = max(soldes_values) if soldes_values else 0
+        min_solde = min(soldes_values) if soldes_values else 0.0
+        max_solde = max(soldes_values) if soldes_values else 0.0
         
         # Ajuster l'échelle pour éviter les problèmes de division par zéro
         if min_solde == max_solde:
             if min_solde == 0:
-                max_solde = 100  # Valeur par défaut si tous les soldes sont à zéro
+                max_solde = 100.0  # Valeur par défaut si tous les soldes sont à zéro
             else:
                 min_solde = min_solde * 0.9  # Réduire de 10% pour avoir une échelle
                 max_solde = max_solde * 1.1  # Augmenter de 10%
@@ -404,8 +404,9 @@ def banking_compte_detail(compte_id):
         # Préparer les points pour le graphique
         points = []
         for i, solde in enumerate(soldes_quotidiens):
+            solde_float = float(solde['solde_apres'])  # Convertir en float pour le calcul
             x = i * (350 / (len(soldes_quotidiens) - 1)) if len(soldes_quotidiens) > 1 else 175
-            y = 150 - ((solde['solde_apres'] - min_solde) / (max_solde - min_solde)) * 130 if max_solde != min_solde else 85
+            y = 150 - ((solde_float - min_solde) / (max_solde - min_solde)) * 130 if max_solde != min_solde else 85
             points.append(f"{x},{y}")
         
         graphique_svg = {
