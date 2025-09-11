@@ -279,6 +279,7 @@
                 </div>
             </div>
         </div>
+        <!-- Section filtre de la période-->
         <div class="row mt-4">
             <div class="col-md-12">
                 <div class="card">
@@ -422,7 +423,7 @@
                                         height="{{ (total_recettes / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) }}"
                                         fill="#28a745" rx="2" ry="2" />
                                     <text x="35%"
-                                        y="{{ 200 - (total_recettes / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) - 10 }}"
+                                        y="10"
                                         text-anchor="middle" font-size="12" fill="#28a745">
                                         {{ "%.2f"|format(total_recettes) }}
                                     </text>
@@ -434,12 +435,12 @@
                                 <!-- Barre des dépenses -->
                                 <g class="bar-group">
                                     <rect x="55%"
-                                        y="{{ 200 - (total_depenses / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) }}"
+                                        y="{{ 15 +(200 - (total_depenses / (total_recettes + total_depenses) * 180) if (total_recettes + total_depenses) > 0 else 0) }}"
                                         width="20%"
-                                        height="{{ (total_depenses / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) }}"
+                                        height="{{ ((total_depenses / (total_recettes + total_depenses) * 180) - 15 if (total_recettes + total_depenses) > 0 else 0) }}"
                                         fill="#dc3545" rx="2" ry="2" />
                                     <text x="65%"
-                                        y="{{ 200 - (total_depenses / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) - 10 }}"
+                                        y="10"
                                         text-anchor="middle" font-size="12" fill="#dc3545">
                                         {{ "%.2f"|format(total_depenses) }}
                                     </text>
@@ -449,7 +450,10 @@
                                 </g>
                     
                                 <!-- Ligne de base -->
-                                <line x1="10%" y1="180" x2="90%" y2="180" stroke="#dee2e6" stroke-width="1" />
+                                <line x1="20%" y1="180" x2="80%" y2="180" stroke="#dee2e6" stroke-width="2" />
+                                <line x1="20%" y1="0" x2="80%" y2="0" stroke="#dee2e6" stroke-width="2" />
+                                <line x1="20%" y1="0" x2="20%" y2="200" stroke="#dee2e6" stroke-width="1.5" /><
+                                <line x1="80%" y1="0" x2="80%" y2="200" stroke="#dee2e6" stroke-width="1.5" /><
                             </svg>
                         </div>
                     
