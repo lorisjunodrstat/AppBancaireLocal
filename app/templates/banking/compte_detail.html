@@ -411,7 +411,48 @@
                         
                     </div>
                     <div class="card-body">
-                        <canvas id="chartTresorerie" style="max-height: 250px;"></canvas>
+                        <!-- Graphique SVG en barres -->
+                        <div class="mb-3">
+                            <svg width="100%" height="200" class="chart-svg">
+                                <!-- Barre des recettes -->
+                                <g class="bar-group">
+                                    <rect x="25%"
+                                        y="{{ 200 - (total_recettes / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) }}"
+                                        width="20%"
+                                        height="{{ (total_recettes / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) }}"
+                                        fill="#28a745" rx="2" ry="2" />
+                                    <text x="35%"
+                                        y="{{ 200 - (total_recettes / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) - 10 }}"
+                                        text-anchor="middle" font-size="12" fill="#28a745">
+                                        {{ "%.2f"|format(total_recettes) }}
+                                    </text>
+                                    <text x="35%" y="195" text-anchor="middle" font-size="12" fill="#6c757d">
+                                        Recettes
+                                    </text>
+                                </g>
+                    
+                                <!-- Barre des dépenses -->
+                                <g class="bar-group">
+                                    <rect x="55%"
+                                        y="{{ 200 - (total_depenses / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) }}"
+                                        width="20%"
+                                        height="{{ (total_depenses / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) }}"
+                                        fill="#dc3545" rx="2" ry="2" />
+                                    <text x="65%"
+                                        y="{{ 200 - (total_depenses / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) - 10 }}"
+                                        text-anchor="middle" font-size="12" fill="#dc3545">
+                                        {{ "%.2f"|format(total_depenses) }}
+                                    </text>
+                                    <text x="65%" y="195" text-anchor="middle" font-size="12" fill="#6c757d">
+                                        Dépenses
+                                    </text>
+                                </g>
+                    
+                                <!-- Ligne de base -->
+                                <line x1="10%" y1="180" x2="90%" y2="180" stroke="#dee2e6" stroke-width="1" />
+                            </svg>
+                        </div>
+                    
                         <div class="mt-3">
                             <div class="d-flex justify-content-between">
                                 <span class="text-success">
@@ -631,7 +672,7 @@
         <!-- Graphique de l'évolution du solde -->
         <div class="card mt-4">
             <div class="card-header">
-                <h5 class="mb-0">Évolution du solde sur 30 jours</h5>
+                <h5 class="mb-0">Évolution du solde sur {% if nb_jours_periode %} {{ nb_jours_periode }} jours {% else %} 30 jours {% endif %}</h5>
             </div>
             <div class="card-body">
                 {% if graphique_svg %}
