@@ -413,7 +413,7 @@ def banking_compte_detail(compte_id):
             'points': points,
             'min_solde': min_solde,
             'max_solde': max_solde,
-            'dates': [s['date'].strftime('%d/%m') for s in soldes_quotidiens],
+            'dates': [s['date'].strftime('%d/%m/%Y') for s in soldes_quotidiens],
             'soldes': soldes_values
         }
     else:
@@ -435,7 +435,8 @@ def banking_compte_detail(compte_id):
                         date_debut_selected=date_debut_str,
                         date_fin_selected=date_fin_str,
                         mois_seletcted=mois_seletct,
-                        annee_selected=annee_select)
+                        annee_selected=annee_select,
+                        nb_jours_periode=nb_jours_periode)
 
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
