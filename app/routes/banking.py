@@ -674,7 +674,7 @@ def depot():
 @login_required
 def retrait():
     user_id = current_user.id
-    comptes = g.compte_model.get_by_user_id(user_id)
+    comptes = g.models.compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
     all_comptes = g.compte_model.get_all_accounts(g.db_manager)
     
@@ -719,7 +719,8 @@ def retrait():
 def banking_transfert():
     user_id = current_user.id
     comptes = g.models.compte_model.get_by_user_id(user_id)
-    
+    print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
+
     # Convertir les IDs en entiers pour éviter les problèmes de comparaison
     for compte in comptes:
         compte['id'] = int(compte['id'])
