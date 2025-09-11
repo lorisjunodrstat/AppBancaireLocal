@@ -2308,31 +2308,31 @@ class TransactionFinanciere:
             logging.error(f"Erreur récupération évolution soldes compte: {e}")
             return []
 
-def get_evolution_soldes_quotidiens_sous_compte(self, sous_compte_id: int, user_id: int, nb_jours: int = 30) -> List[Dict]:
-    """Récupère l'évolution quotidienne des soldes d'un sous-compte"""
-    try:
-        with self.db.get_cursor() as cursor:
-            query = """
-            SELECT 
-                DATE(date_transaction) as date,
-                solde_apres
-            FROM transactions
-            WHERE sous_compte_id = %s
-            AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-            AND id IN (
-                SELECT MAX(id)
+    def get_evolution_soldes_quotidiens_sous_compte(self, sous_compte_id: int, user_id: int, nb_jours: int = 30) -> List[Dict]:
+        """Récupère l'évolution quotidienne des soldes d'un sous-compte"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT 
+                    DATE(date_transaction) as date,
+                    solde_apres
                 FROM transactions
                 WHERE sous_compte_id = %s
                 AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-                GROUP BY DATE(date_transaction)
-            )
-            ORDER BY date
-            """
-            cursor.execute(query, (sous_compte_id, nb_jours, sous_compte_id, nb_jours))
-            return cursor.fetchall()
-    except Exception as e:
-        logging.error(f"Erreur récupération évolution soldes sous-compte: {e}")
-        return []
+                AND id IN (
+                    SELECT MAX(id)
+                    FROM transactions
+                    WHERE sous_compte_id = %s
+                    AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+                    GROUP BY DATE(date_transaction)
+                )
+                ORDER BY date
+                """
+                cursor.execute(query, (sous_compte_id, nb_jours, sous_compte_id, nb_jours))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur récupération évolution soldes sous-compte: {e}")
+            return []
 
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
