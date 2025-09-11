@@ -378,17 +378,18 @@ def banking_compte_detail(compte_id):
         compte_id=compte_id,
         user_id=current_user.id
         )
+    nb_jours_periode = (fin - debut).days
     transferts_externes_pending = g.models.transaction_financiere_model.get_transferts_externes_pending(user_id)
     soldes_quotidiens = g.models.transaction_financiere_model.get_evolution_soldes_quotidiens_compte(
         compte_id=compte_id, 
         user_id=user_id, 
-        nb_jours=30
+        nb_jours=nb_jours_periode
         )
 
     # Préparation des données pour le graphique SVG
     if soldes_quotidiens:
         # Trouver les valeurs min et max pour l'échelle
-        soldes_values = [s['solde_apres'] for s in soldes_quotidiens]
+        soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
         min_solde = min(soldes_values) if soldes_values else 0
         max_solde = max(soldes_values) if soldes_values else 0
         
