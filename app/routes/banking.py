@@ -234,7 +234,7 @@ def banking_dashboard():
     stats = g.models.stats_model.get_resume_utilisateur(user_id)
     logger.debug(f'Stats récupérées: {stats}')
     repartition = g.models.stats_model.get_repartition_par_banque(user_id)
-    comptes = g.models.compte_model.get_comptes_utilisateur(user_id)
+    comptes = get_comptes_utilisateur(user_id)
     logger.debug(f'Comptes récupérés: {comptes}')
         
     # Ajout des stats comptables
