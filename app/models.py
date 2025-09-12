@@ -1992,7 +1992,7 @@ class TransactionFinanciere:
                     return False, "Le sous-compte n'appartient pas à ce compte"
 
                 # Vérifier le solde du sous-compte
-                cursor.execute("SELECT solde FROM sous_comptes WHERE id = %s", (sous_compte_id,))
+                cursor.execute("SELECT solde_apres FROM sous_comptes WHERE id = %s", (sous_compte_id,))
                 result = cursor.fetchone()
                 if not result:
                     return False, "Sous-compte non trouvé"
@@ -2004,7 +2004,7 @@ class TransactionFinanciere:
                 # Débiter le sous-compte
                 nouveau_solde_sous_compte = solde_sous_compte - montant
                 cursor.execute(
-                    "UPDATE sous_comptes SET solde = %s WHERE id = %s",
+                    "UPDATE sous_comptes SET solde_apres = %s WHERE id = %s",
                     (float(nouveau_solde_sous_compte), sous_compte_id)
                 )
 
@@ -2312,6 +2312,7 @@ class TransactionFinanciere:
             # Le rollback est géré automatiquement par le bloc 'with'
             logging.error(f"Erreur annulation transfert externe: {e}")
             return False, f"Erreur lors de l'annulation: {str(e)}"
+    
     def get_evolution_soldes_quotidiens_compte(self, compte_id: int, user_id: int, nb_jours: int = 30) -> List[Dict]:
         """Récupère l'évolution quotidienne des soldes d'un compte principal"""
         try:
