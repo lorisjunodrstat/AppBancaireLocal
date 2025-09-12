@@ -230,9 +230,12 @@ def banking_nouveau_sous_compte(compte_id):
 @login_required
 def banking_dashboard():
     user_id = current_user.id
+    logger.debug(f'Accès au dashboard bancaire pour l\'utilisateur {user_id}')
     stats = g.models.stats_model.get_resume_utilisateur(user_id)
+    logger.debug(f'Stats récupérées: {stats}')
     repartition = g.models.stats_model.get_repartition_par_banque(user_id)
     comptes = get_comptes_utilisateur(user_id)
+    logger.debug(f'Comptes récupérés: {comptes}')
         
     # Ajout des stats comptables
     now = datetime.now()
@@ -676,7 +679,7 @@ def retrait():
     user_id = current_user.id
     comptes = g.models.compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
-    all_comptes = g.compte_model.get_all_accounts(g.db_manager)
+    all_comptes = g.models.compte_model.get_all_accounts(g.db_manager)
     
     if request.method == 'POST':
         # Récupération des données du formulaire
@@ -698,7 +701,7 @@ def retrait():
             date_transaction = datetime.now()
         
         # Appel de la fonction create_retrait avec la date
-        success, message = g.transaction_financiere_model.create_retrait(
+        success, message = g.models.transaction_financiere_model.create_retrait(
             compte_id, user_id, montant, description, compte_type, date_transaction
         )
         
