@@ -599,7 +599,7 @@ class ComptePrincipal:
                 query = """
                 SELECT 
                     c.id, c.banque_id, c.nom_compte, c.numero_compte, c.iban, c.bic,
-                    c.type_compte, c.solde, c.devise, c.date_ouverture,
+                    c.type_compte, c.solde_apres, c.devise, c.date_ouverture,
                     c.actif, c.date_creation,
                     b.id as banque_id, b.nom as nom_banque, b.code_banque, b.couleur as couleur_banque,
                     b.logo_url
@@ -943,9 +943,9 @@ class TransactionFinanciere:
         try:
             with self.db.get_cursor() as cursor:
                 if compte_type == 'compte_principal':
-                    cursor.execute("SELECT solde FROM comptes_principaux WHERE id = %s", (compte_id,))
+                    cursor.execute("SELECT solde_apres FROM comptes_principaux WHERE id = %s", (compte_id,))
                 elif compte_type == 'sous_compte':
-                    cursor.execute("SELECT solde FROM sous_comptes WHERE id = %s", (compte_id,))
+                    cursor.execute("SELECT solde_apres FROM sous_comptes WHERE id = %s", (compte_id,))
                 else:
                     logging.error(f"Type de compte invalide: {compte_type}")
                     return False, Decimal('0')
@@ -955,7 +955,7 @@ class TransactionFinanciere:
                     logging.warning(f"Aucun solde trouvé pour {compte_type} ID {compte_id}")
                     return False, Decimal('0')
                     
-                solde_actuel = Decimal(str(result['solde']))
+                solde_actuel = Decimal(str(result['solde_apres']))
                 return solde_actuel >= montant, solde_actuel
         except Error as e:
             logging.error(f"Erreur validation solde: {e}")
@@ -993,12 +993,12 @@ class TransactionFinanciere:
         try:
             with self.db.get_cursor() as cursor:
                 if compte_type == 'compte_principal':
-                    cursor.execute("SELECT solde FROM comptes_principaux WHERE id = %s", (compte_id,))
+                    cursor.execute("SELECT solde_initial FROM comptes_principaux WHERE id = %s", (compte_id,))
                 else:
-                    cursor.execute("SELECT solde FROM sous_comptes WHERE id = %s", (compte_id,))
+                    cursor.execute("SELECT solde_initial FROM sous_comptes WHERE id = %s", (compte_id,))
                 
                 result = cursor.fetchone()
-                return Decimal(str(result['solde'])) if result and 'solde' in result else Decimal('0')
+                return Decimal(str(result['solde_initial'])) if result and 'solde_initial' in result else Decimal('0')
         except Error as e:
             logging.error(f"Erreur récupération solde initial: {e}")
             return Decimal('0')
@@ -1078,15 +1078,15 @@ class TransactionFinanciere:
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """
                     cursor.execute(query, (compte_id, type_transaction, float(montant), 
-                                         description, user_id, date_transaction, float(solde_apres)))
+                                        description, user_id, date_transaction, float(solde_apres)))
                 else:
                     query = """
                     INSERT INTO transactions 
                     (sous_compte_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """
-                    cursor.execute(query, (compot_id, type_transaction, float(montant), 
-                                         description, user_id, date_transaction, float(solde_apres)))
+                    cursor.execute(query, (compte_id, type_transaction, float(montant), 
+                                        description, user_id, date_transaction, float(solde_apres)))
                 
                 transaction_id = cursor.lastrowid
                 
@@ -1162,7 +1162,7 @@ class TransactionFinanciere:
             return False
 
     def get_solde_historique(self, compte_type: str, compte_id: int, user_id: int, 
-                           date_debut: str = None, date_fin: str = None) -> List[Dict]:
+                        date_debut: str = None, date_fin: str = None) -> List[Dict]:
         """Récupère l'évolution historique du solde d'un compte"""
         if not self._verifier_appartenance_compte(compte_type, compte_id, user_id):
             return []
@@ -1203,9 +1203,9 @@ class TransactionFinanciere:
         try:
             with self.db.get_cursor() as cursor:
                 if compte_type == 'compte_principal':
-                    query = "UPDATE comptes_principaux SET solde = %s WHERE id = %s"
+                    query = "UPDATE comptes_principaux SET solde_apres = %s WHERE id = %s"
                 else:
-                    query = "UPDATE sous_comptes SET solde = %s WHERE id = %s" 
+                    query = "UPDATE sous_comptes SET solde_apres = %s WHERE id = %s"
                 cursor.execute(query, (float(nouveau_solde), compte_id))
                 return cursor.rowcount > 0
         except Error as e:
@@ -1479,6 +1479,36 @@ class TransactionFinanciere:
         logging.error(f"Récupération solde pour {compte_type} ID {compte_id}")
         
         if compte_type == 'compte_principal':
+            query = "SELECT solde_apres FROM comptes_principaux WHERE id = %s"
+        else: # Supposant que le seul autre type est 'sous_compte'
+            query = "SELECT solde_apres FROM sous_comptes WHERE id = %s"
+        
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute(query, (compte_id,))
+                result = cursor.fetchone()
+                solde = Decimal(result['solde_apres']) if result  and 'solde_apres' in result else Decimal('0')
+                logging.error(f"Solde trouvé: {solde}")
+                return solde
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération du solde: {e}")
+            return Decimal('0')
+        
+    def _get_solde_compte(self, compte_type: str, compte_id: int) -> Decimal:
+        """
+        Récupère le solde actuel d'un sous_compte.
+        Cette fonction ouvre et ferme sa propre connexion.
+        
+        Args:
+            compte_type (str): 'compte_principal' ou 'sous_compte'.
+            compte_id (int): L'identifiant du compte.
+            
+        Returns:
+            Decimal: Le solde du compte, ou 0 si une erreur survient.
+        """
+        logging.error(f"Récupération solde pour {compte_type} ID {compte_id}")
+        
+        if compte_type == 'compte_principal':
             query = "SELECT solde FROM comptes_principaux WHERE id = %s"
         else: # Supposant que le seul autre type est 'sous_compte'
             query = "SELECT solde FROM sous_comptes WHERE id = %s"
@@ -1487,7 +1517,7 @@ class TransactionFinanciere:
             with self.db.get_cursor() as cursor:
                 cursor.execute(query, (compte_id,))
                 result = cursor.fetchone()
-                solde = Decimal(result['solde']) if result  and 'solde' in result else Decimal('0')
+                solde = Decimal(result['solde_apres']) if result  and 'solde' in result else Decimal('0')
                 logging.error(f"Solde trouvé: {solde}")
                 return solde
         except Exception as e:
@@ -2113,7 +2143,7 @@ class TransactionFinanciere:
                         t.description,
                         t.reference,
                         t.date_transaction,
-                        t.solde_apres,
+                        t.sous_,
                         cp.nom_compte as compte_principal_lie,
                         cp_dest.nom_compte as compte_principal_dest,
                         CASE 
@@ -2352,7 +2382,7 @@ class StatistiquesBancaires:
             nb_comptes = len(comptes)
             noms_banques = set(compte['nom_banque'] for compte in comptes)
             nb_banques = len(noms_banques)
-            solde_total_principal = sum(Decimal(str(compte['solde'])) for compte in comptes)
+            solde_total_principal = sum(Decimal(str(compte['solde_apres'])) for compte in comptes)
 
             # Récupérer et calculer les totaux des sous-comptes
             sous_compte_model = SousCompte(self.db)
@@ -2363,7 +2393,7 @@ class StatistiquesBancaires:
             for compte in comptes:
                 sous_comptes = sous_compte_model.get_by_compte_principal_id(compte['id'])
                 nb_sous_comptes += len(sous_comptes)
-                epargne_totale += sum(Decimal(str(sc['solde'])) for sc in sous_comptes)
+                epargne_totale += sum(Decimal(str(sc['solde_apres'])) for sc in sous_comptes)
                 objectifs_totaux += sum(Decimal(str(sc['objectif_montant'] or '0')) for sc in sous_comptes)
 
             # Calculer le patrimoine total
