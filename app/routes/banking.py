@@ -499,8 +499,8 @@ def banking_sous_compte_detail(sous_compte_id):
     # Préparation des données pour le graphique SVG (même code que pour le compte principal)
     if soldes_quotidiens:
         soldes_values = [s['solde_apres'] for s in soldes_quotidiens]
-        min_solde = min(soldes_values) if soldes_values else 0
-        max_solde = max(soldes_values) if soldes_values else 0
+        min_solde = min(int(soldes_values)) if soldes_values else 0
+        max_solde = max(int(soldes_values)) if soldes_values else 0
         
         if min_solde == max_solde:
             if min_solde == 0:
