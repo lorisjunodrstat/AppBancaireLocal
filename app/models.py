@@ -1779,18 +1779,18 @@ class TransactionFinanciere:
         Returns:
             Tuple[bool, str]: Un tuple indiquant le succès (True/False) et un message.
         """
-        logging.error(f"=== DÉBUT TRANSFERT INTERNE ===")
-        logging.error(f"Source: {source_type} ID {source_id}")
-        logging.error(f"Destination: {dest_type} ID {dest_id}")
-        logging.error(f"Utilisateur: {user_id}, Montant: {montant}")
+        logging.info(f"=== DÉBUT TRANSFERT INTERNE ===")
+        logging.info(f"Source: {source_type} ID {source_id}")
+        logging.info(f"Destination: {dest_type} ID {dest_id}")
+        logging.info(f"Utilisateur: {user_id}, Montant: {montant}")
         
         # Validations initiales
         if montant <= 0:
-            logging.error("❌ Échec: Le montant doit être positif")
+            logging.warning("❌ Échec: Le montant doit être positif")
             return False, "Le montant doit être positif"
         
         if source_type == dest_type and source_id == dest_id:
-            logging.error("❌ Échec: Les comptes source et destination doivent être différents")
+            logging.warning("❌ Échec: Les comptes source et destination doivent être différents")
             return False, "Les comptes source et destination doivent être différents"
         
         if date_transaction is None:
@@ -1821,7 +1821,7 @@ class TransactionFinanciere:
                 desc_complete = f"{description} (Réf: {reference})"
                 
                 # 1. Transaction de DÉBIT sur le compte source
-                success, message, transaction_id = self._inserer_transaction_with_cursor(
+                success, message, debit_tx_id = self._inserer_transaction_with_cursor(
                     cursor, source_type, source_id, 'transfert_sortant', montant, 
                     desc_complete, user_id, date_transaction, True
                 )
@@ -1829,20 +1829,8 @@ class TransactionFinanciere:
                 if not success:
                     return False, f"Erreur transaction débit: {message}"
                 
-                # Déterminer l'ID de destination en fonction du type
-                dest_compte_id = dest_id if dest_type == 'compte_principal' else None
-                dest_sous_compte_id = dest_id if dest_type == 'sous_compte' else None
-                
-                # Mettre à jour la transaction avec les informations de destination
-                update_query = """
-                UPDATE transactions 
-                SET compte_destination_id = %s, sous_compte_destination_id = %s 
-                WHERE id = %s
-                """
-                cursor.execute(update_query, (dest_compte_id, dest_sous_compte_id, transaction_id))
-                
                 # 2. Transaction de CRÉDIT sur le compte destination
-                success, message, transaction_id = self._inserer_transaction_with_cursor(
+                success, message, credit_tx_id = self._inserer_transaction_with_cursor(
                     cursor, dest_type, dest_id, 'transfert_entrant', montant, 
                     desc_complete, user_id, date_transaction, False
                 )
@@ -1850,36 +1838,41 @@ class TransactionFinanciere:
                 if not success:
                     return False, f"Erreur transaction crédit: {message}"
                 
-                # Déterminer l'ID de source en fonction du type
+                # Déterminer les IDs de source et de destination pour les liens
                 source_compte_id = source_id if source_type == 'compte_principal' else None
                 source_sous_compte_id = source_id if source_type == 'sous_compte' else None
                 
-                # Mettre à jour la transaction avec les informations de source
+                dest_compte_id = dest_id if dest_type == 'compte_principal' else None
+                dest_sous_compte_id = dest_id if dest_type == 'sous_compte' else None
+                
+                # Mettre à jour les deux transactions avec les liens bidirectionnels
                 update_query = """
                 UPDATE transactions 
-                SET compte_source_id = %s, sous_compte_source_id = %s 
-                WHERE id = %s
+                SET 
+                    compte_source_id = %s, 
+                    sous_compte_source_id = %s, 
+                    compte_destination_id = %s, 
+                    sous_compte_destination_id = %s 
+                WHERE id IN (%s, %s)
                 """
-                cursor.execute(update_query, (source_compte_id, source_sous_compte_id, transaction_id))
+                cursor.execute(update_query, (
+                    source_compte_id, source_sous_compte_id,
+                    dest_compte_id, dest_sous_compte_id,
+                    debit_tx_id, credit_tx_id
+                ))
                 
-                # Le commit est automatique à la sortie du bloc 'with' si aucune erreur
+                # Optionnel : loguer les IDs des transactions créées
+                logging.info(f"✅ Transfert interne réussi : débit={debit_tx_id}, crédit={credit_tx_id}")
+                
+                # Le commit est automatique à la sortie du bloc 'with'
                 return True, "Transfert interne effectué avec succès"
                     
         except Exception as e:
-            # Le rollback est automatique à la sortie du bloc 'with' en cas d'erreur
-            return False, f"Erreur lors du transfert: {str(e)}"
-        
+            logging.error(f"❌ Erreur lors du transfert interne: {e}", exc_info=True)
+            return False, f"Erreur lors du transfert: {str(e)}"   
     def transfert_compte_vers_sous_compte(self, compte_id, sous_compte_id, montant, user_id, description=""):
-        """Transfert d'un compte principal vers un sous-compte.   
-        Args:
-            compte_id (int): L'ID du compte principal.
-            sous_compte_id (int): L'ID du sous-compte de destination.
-            montant (Decimal): Le montant à transférer.
-            user_id (int): L'ID de l'utilisateur.
-            description (str): Une description optionnelle.
-            
-        Returns:
-            Tuple[bool, str]: Un tuple indiquant le succès (True/False) et un message.
+        """
+        Transfert d'un compte principal vers un sous-compte.
         """
         try:
             with self.db.get_cursor() as cursor:
@@ -1897,60 +1890,64 @@ class TransactionFinanciere:
                 if not result:
                     return False, "Compte non trouvé"
                 solde_compte = Decimal(str(result['solde']))
-                
                 if solde_compte < montant:
                     return False, "Solde insuffisant sur le compte"
 
-                # Débiter le compte
-                nouveau_solde_compte = solde_compte - montant
-                cursor.execute(
-                    "UPDATE comptes_principaux SET solde = %s WHERE id = %s",
-                    (float(nouveau_solde_compte), compte_id)
-                )
-
-                # Créditer le sous-compte
-                cursor.execute("SELECT solde FROM sous_comptes WHERE id = %s", (sous_compte_id,))
-                result = cursor.fetchone()
-                if not result:
-                    return False, "Sous-compte non trouvé"
-                solde_sous_compte = Decimal(str(result['solde']))
-                
-                nouveau_solde_sous_compte = solde_sous_compte + montant
-                cursor.execute(
-                    "UPDATE sous_comptes SET solde = %s WHERE id = %s",
-                    (float(nouveau_solde_sous_compte), sous_compte_id)
-                )
-
-                # Enregistrer la transaction
-                reference = f"TRF_CP_SC_{int(time.time())}"
+                # Générer référence et description
+                timestamp = int(time.time())
+                reference = f"TRF_CP_SC_{timestamp}"
                 desc_complete = f"{description} (Réf: {reference})"
-                
-                cursor.execute(
-                    """INSERT INTO transactions (type_transaction, montant, description, utilisateur_id, 
-                    compte_principal_id, sous_compte_destination_id, date_transaction)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW())""",
-                    ('transfert_compte_vers_sous', float(montant), desc_complete, user_id, compte_id, sous_compte_id)
-                )
 
-                # Le commit est automatique à la sortie du bloc 'with'
+                # ⚠️ UTILISER _inserer_transaction_with_cursor pour DÉBIT sur le compte principal
+                success, message, debit_transaction_id = self._inserer_transaction_with_cursor(
+                    cursor,
+                    compte_type='compte_principal',
+                    compte_id=compte_id,
+                    type_transaction='transfert_compte_vers_sous',
+                    montant=montant,
+                    description=desc_complete,
+                    user_id=user_id,
+                    date_transaction=datetime.now(),
+                    validate_balance=True  # Vérifie le solde
+                )
+                if not success:
+                    return False, f"Erreur débit compte principal: {message}"
+
+                # ⚠️ UTILISER _inserer_transaction_with_cursor pour CRÉDIT sur le sous-compte
+                success, message, credit_transaction_id = self._inserer_transaction_with_cursor(
+                    cursor,
+                    compte_type='sous_compte',
+                    compte_id=sous_compte_id,
+                    type_transaction='transfert_compte_vers_sous',  # Même type : c’est une seule opération logique
+                    montant=montant,
+                    description=desc_complete,
+                    user_id=user_id,
+                    date_transaction=datetime.now(),
+                    validate_balance=False  # Pas besoin de vérifier ici — on vient de débiter
+                )
+                if not success:
+                    return False, f"Erreur crédit sous-compte: {message}"
+
+                # Mettre à jour les relations entre les deux transactions
+                update_query = """
+                UPDATE transactions SET 
+                    compte_source_id = %s, 
+                    sous_compte_destination_id = %s 
+                WHERE id IN (%s, %s)
+                """
+                cursor.execute(update_query, (
+                    compte_id, sous_compte_id, debit_transaction_id, credit_transaction_id
+                ))
+
                 return True, "Transfert effectué avec succès"
 
         except Exception as e:
+            logging.error(f"Erreur transfert compte → sous-compte: {e}")
             return False, f"Erreur lors du transfert: {str(e)}"
 
     def transfert_sous_compte_vers_compte(self, sous_compte_id, compte_id, montant, user_id, description=""):
         """
         Transfert d'un sous-compte vers un compte principal.
-        
-        Args:
-            sous_compte_id (int): L'ID du sous-compte source.
-            compte_id (int): L'ID du compte principal de destination.
-            montant (Decimal): Le montant à transférer.
-            user_id (int): L'ID de l'utilisateur.
-            description (str): Une description optionnelle.
-            
-        Returns:
-            Tuple[bool, str]: Un tuple indiquant le succès (True/False) et un message.
         """
         try:
             with self.db.get_cursor() as cursor:
@@ -1967,48 +1964,62 @@ class TransactionFinanciere:
                 result = cursor.fetchone()
                 if not result:
                     return False, "Sous-compte non trouvé"
-                solde_sous_compte = Decimal(str(result[0]))
-                
+                solde_sous_compte = Decimal(str(result['solde']))
                 if solde_sous_compte < montant:
                     return False, "Solde insuffisant sur le sous-compte"
 
-                # Débiter le sous-compte
-                nouveau_solde_sous_compte = solde_sous_compte - montant
-                cursor.execute(
-                    "UPDATE sous_comptes SET solde_apres = %s WHERE id = %s",
-                    (float(nouveau_solde_sous_compte), sous_compte_id)
-                )
-
-                # Créditer le compte
-                cursor.execute("SELECT solde FROM comptes_principaux WHERE id = %s", (compte_id,))
-                result = cursor.fetchone()
-                if not result:
-                    return False, "Compte non trouvé"
-                solde_compte = Decimal(str(result[0]))
-                
-                nouveau_solde_compte = solde_compte + montant
-                cursor.execute(
-                    "UPDATE comptes_principaux SET solde = %s WHERE id = %s",
-                    (float(nouveau_solde_compte), compte_id)
-                )
-
-                # Enregistrer la transaction
-                reference = f"TRF_SC_CP_{int(time.time())}"
+                # Générer référence et description
+                timestamp = int(time.time())
+                reference = f"TRF_SC_CP_{timestamp}"
                 desc_complete = f"{description} (Réf: {reference})"
-                
-                cursor.execute(
-                    """INSERT INTO transactions (type_transaction, montant, description, utilisateur_id, 
-                    sous_compte_id, compte_destination_id, date_transaction)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW())""",
-                    ('transfert_sous_vers_compte', float(montant), desc_complete, user_id, sous_compte_id, compte_id)
+
+                # ⚠️ UTILISER _inserer_transaction_with_cursor pour DÉBIT sur le sous-compte
+                success, message, debit_transaction_id = self._inserer_transaction_with_cursor(
+                    cursor,
+                    compte_type='sous_compte',
+                    compte_id=sous_compte_id,
+                    type_transaction='transfert_sous_vers_compte',
+                    montant=montant,
+                    description=desc_complete,
+                    user_id=user_id,
+                    date_transaction=datetime.now(),
+                    validate_balance=True
                 )
-                
-                # Le commit est automatique à la sortie du bloc 'with'
+                if not success:
+                    return False, f"Erreur débit sous-compte: {message}"
+
+                # ⚠️ UTILISER _inserer_transaction_with_cursor pour CRÉDIT sur le compte principal
+                success, message, credit_transaction_id = self._inserer_transaction_with_cursor(
+                    cursor,
+                    compte_type='compte_principal',
+                    compte_id=compte_id,
+                    type_transaction='transfert_sous_vers_compte',  # Même type
+                    montant=montant,
+                    description=desc_complete,
+                    user_id=user_id,
+                    date_transaction=datetime.now(),
+                    validate_balance=False
+                )
+                if not success:
+                    return False, f"Erreur crédit compte principal: {message}"
+
+                # Mettre à jour les relations
+                update_query = """
+                UPDATE transactions SET 
+                    sous_compte_source_id = %s, 
+                    compte_destination_id = %s 
+                WHERE id IN (%s, %s)
+                """
+                cursor.execute(update_query, (
+                    sous_compte_id, compte_id, debit_transaction_id, credit_transaction_id
+                ))
+
                 return True, "Transfert effectué avec succès"
 
         except Exception as e:
+            logging.error(f"Erreur transfert sous-compte → compte: {e}")
             return False, f"Erreur lors du transfert: {str(e)}"
-        
+            
     # ===== TRANSFERTS EXTERNES =====
         
     def create_transfert_externe(self, source_type: str, source_id: int, user_id: int,
