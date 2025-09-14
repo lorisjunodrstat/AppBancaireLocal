@@ -856,7 +856,8 @@ class SousCompte:
                     data['compte_principal_id'], data['nom_sous_compte'],
                     data.get('description', ''), data.get('objectif_montant'),
                     data.get('couleur', '#28a745'), data.get('icone', 'piggy-bank'),
-                    data.get('date_objectif', data.get('utilisateur_id'))
+                    data.get('date_objectif'), 
+                    data.get('utilisateur_id')
                 )
                 cursor.execute(query, values)
                 return True
@@ -1621,10 +1622,22 @@ class TransactionFinanciere:
                     return False, "Solde insuffisant", None
             
             # Calculer le nouveau solde
-            if type_transaction in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
+            if type_transaction in ['depot', 'transfert_entrant', 'recredit_annulation']:
                 solde_apres = solde_avant + montant
-            elif type_transaction in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']:
+            elif type_transaction in ['retrait', 'transfert_sortant', 'transfert_externe']:
                 solde_apres = solde_avant - montant
+            elif type_transaction == 'transfert_compte_vers_sous':
+                # Ce type est utilisé pour le compte principal (débit) ET le sous-compte (crédit)
+                if compte_type == 'compte_principal':
+                    solde_apres = solde_avant - montant   # Débit sur le compte principal
+                else:  # compte_type == 'sous_compte'
+                    solde_apres = solde_avant + montant   # Crédit sur le sous-compte
+            elif type_transaction == 'transfert_sous_vers_compte':
+                # Ce type est utilisé pour le sous-compte (débit) ET le compte principal (crédit)
+                if compte_type == 'sous_compte':
+                    solde_apres = solde_avant - montant   # Débit sur le sous-compte
+                else:  # compte_type == 'compte_principal'
+                    solde_apres = solde_avant + montant   # Crédit sur le compte principal
             else:
                 return False, f"Type de transaction non reconnu: {type_transaction}", None
             
@@ -1885,6 +1898,7 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"❌ Erreur lors du transfert interne: {e}", exc_info=True)
             return False, f"Erreur lors du transfert: {str(e)}"   
+   
     def transfert_compte_vers_sous_compte(self, compte_id, sous_compte_id, montant, user_id, description=""):
         """
         Transfert d'un compte principal vers un sous-compte.
