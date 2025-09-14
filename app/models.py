@@ -849,14 +849,14 @@ class SousCompte:
                 query = """
                 INSERT INTO sous_comptes 
                 (compte_principal_id, nom_sous_compte, description, objectif_montant, 
-                 couleur, icone, date_objectif)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                 couleur, icone, date_objectif, utilisateur_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 values = (
                     data['compte_principal_id'], data['nom_sous_compte'],
                     data.get('description', ''), data.get('objectif_montant'),
                     data.get('couleur', '#28a745'), data.get('icone', 'piggy-bank'),
-                    data.get('date_objectif')
+                    data.get('date_objectif', data.get('utilisateur_id'))
                 )
                 cursor.execute(query, values)
                 return True
@@ -877,7 +877,7 @@ class SousCompte:
                 values = (
                     data['nom_sous_compte'], data.get('description', ''),
                     data.get('objectif_montant'), data.get('couleur', '#28a745'),
-                    data.get('icone', 'piggy-bank'), data.get('date_objectif'),
+                    data.get('icone', 'piggy-bank'), data.get('date_objectif', data.get('utilisateur_id')),
                     sous_compte_id
                 )
                 cursor.execute(query, values)

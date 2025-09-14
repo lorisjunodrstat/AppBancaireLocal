@@ -215,7 +215,8 @@ def banking_nouveau_sous_compte(compte_id):
                 'icone': request.form.get('icone', 'piggy-bank'),
                 'date_objectif': datetime.strptime(
                     request.form['date_objectif'], '%Y-%m-%d'
-                ).date() if request.form.get('date_objectif') else None
+                ).date() if request.form.get('date_objectif') else None,
+                'utilisateur_id': user_id
             }
             if  g.models.sous_compte_model.create(data):
                 flash(f'Sous-compte "{data["nom_sous_compte"]}" créé avec succès!', 'success')
