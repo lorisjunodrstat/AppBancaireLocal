@@ -843,25 +843,38 @@ class SousCompte:
             return None
     
     def create(self, data: Dict) -> bool:
-        """Crée un nouveau sous-compte"""
+        """Crée un nouveau compte principal"""
         try:
             with self.db.get_cursor() as cursor:
+                # Vérification de l'existence de l'utilisateur
+                cursor.execute("SELECT id FROM utilisateurs WHERE id = %s", (data['utilisateur_id'],))
+                if not cursor.fetchone():
+                    logging.error(f"Erreur: Utilisateur avec ID {data['utilisateur_id']} n'existe pas")
+                    return False
+                
+                # Vérification de l'existence de la banque
+                cursor.execute("SELECT id FROM banques WHERE id = %s", (data['banque_id'],))
+                if not cursor.fetchone():
+                    logging.error(f"Erreur: Banque avec ID {data['banque_id']} n'existe pas")
+                    return False
+                
+                # Requête INSERT corrigée pour inclure utilisateur_id
                 query = """
-                INSERT INTO sous_comptes 
-                (compte_principal_id, nom_sous_compte, description, objectif_montant, 
-                 couleur, icone, date_objectif, utilisateur_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO comptes_principaux 
+                (utilisateur_id, banque_id, nom_compte, numero_compte, iban, bic, 
+                type_compte, solde, devise, date_ouverture)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 values = (
-                    data['compte_principal_id'], data['nom_sous_compte'],
-                    data.get('description', ''), data.get('objectif_montant'),
-                    data.get('couleur', '#28a745'), data.get('icone', 'piggy-bank'),
-                    data.get('date_objectif', data.get('utilisateur_id'))
+                    data['utilisateur_id'], data['banque_id'], data['nom_compte'],
+                    data['numero_compte'], data.get('iban', ''), data.get('bic', ''),
+                    data['type_compte'], data.get('solde', 0), data.get('devise', 'CHF'),
+                    data.get('date_ouverture')
                 )
                 cursor.execute(query, values)
                 return True
         except Error as e:
-            logging.error(f"Erreur lors de la création du sous-compte: {e}")
+            logging.error(f"Erreur lors de la création du compte: {e}")
             return False
     
     def update(self, sous_compte_id: int, data: Dict) -> bool:
