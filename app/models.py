@@ -1494,7 +1494,28 @@ class TransactionFinanciere:
             logging.error(f"Erreur lors de la récupération du solde: {e}")
             return Decimal('0')
         
+    def _get_transaction_effect(self, transaction_type: str, compte_type: str) -> str:
+        """
+        Détermine si une transaction est un crédit ou un débit pour un type de compte donné.
+        Retourne 'credit' ou 'debit'.
+        """
+        credit_types = ['depot', 'transfert_entrant', 'recredit_annulation']
+        debit_types = ['retrait', 'transfert_sortant', 'transfert_externe']
         
+        # Types spéciaux qui dépendent du type de compte
+        if transaction_type == 'transfert_compte_vers_sous':
+            return 'debit' if compte_type == 'compte_principal' else 'credit'
+        elif transaction_type == 'transfert_sous_vers_compte':
+            return 'debit' if compte_type == 'sous_compte' else 'credit'
+        
+        # Types normaux
+        if transaction_type in credit_types:
+            return 'credit'
+        elif transaction_type in debit_types:
+            return 'debit'
+        
+        return 'unknown'
+
     def _verifier_appartenance_compte_with_cursor(self, cursor, compte_type: str, compte_id: int, user_id: int) -> bool:
         """
         Vérifie si un compte appartient à un utilisateur donné.
@@ -1577,8 +1598,8 @@ class TransactionFinanciere:
         return sous_compte is not None and sous_compte['compte_principal_id'] == compte_principal_id
         
     def _inserer_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, type_transaction: str, 
-                            montant: Decimal, description: str, user_id: int, 
-                            date_transaction: datetime, validate_balance: bool = True) -> Tuple[bool, str, Optional[int]]:
+                        montant: Decimal, description: str, user_id: int, 
+                        date_transaction: datetime, validate_balance: bool = True) -> Tuple[bool, str, Optional[int]]:
         """
         Insère une transaction dans la base de données et met à jour les soldes.
         """
@@ -1595,33 +1616,17 @@ class TransactionFinanciere:
                 solde_avant = solde_initial
             
             # Pour les transactions de débit, vérifier le solde suffisant si demandé
-            if validate_balance and type_transaction in ['retrait', 'transfert_sortant', 'transfert_externe']:
+            if validate_balance and type_transaction in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']:
                 if solde_avant < montant:
                     return False, "Solde insuffisant", None
             
-            # Calculer le nouveau solde - CORRECTION ICI
-            # Initialiser solde_apres avec une valeur par défaut
-            solde_apres = solde_avant
-            
-            if type_transaction in ['depot', 'transfert_entrant', 'recredit_annulation']:
+            # Calculer le nouveau solde
+            if type_transaction in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
                 solde_apres = solde_avant + montant
-            elif type_transaction in ['retrait', 'transfert_sortant', 'transfert_externe']:  # Correction de la faute de frappe
+            elif type_transaction in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']:
                 solde_apres = solde_avant - montant
             else:
-                # Gestion des types spécifiques
-                if type_transaction == 'transfert_compte_vers_sous':
-                    if compte_type == 'compte_principal':
-                        solde_apres = solde_avant - montant  # Débit pour le compte principal
-                    else:
-                        solde_apres = solde_avant + montant  # Crédit pour le sous-compte
-                elif type_transaction == 'transfert_sous_vers_compte':
-                    if compte_type == 'sous_compte':
-                        solde_apres = solde_avant - montant  # Débit pour le sous-compte
-                    else:
-                        solde_apres = solde_avant + montant  # Crédit pour le compte principal
-                else:
-                    # Type de transaction non reconnu
-                    return False, f"Type de transaction non reconnu: {type_transaction}", None
+                return False, f"Type de transaction non reconnu: {type_transaction}", None
             
             # Insérer la transaction
             if compte_type == 'compte_principal':
@@ -1673,7 +1678,7 @@ class TransactionFinanciere:
             query_simple = f"""
             SELECT id, date_transaction, solde_apres
             FROM transactions
-            WHERE {condition} AND date_transaction < %s
+            WHERE {condition} AND date_transaction <= %s
             ORDER BY date_transaction DESC, id DESC
             LIMIT 1
             """
@@ -1722,8 +1727,8 @@ class TransactionFinanciere:
             logging.error(f"Erreur lors de la mise à jour du solde: {e}")
             return False
         
-    def _update_subsequent_transactions_with_cursor(self, cursor, compte_type: str, compte_id: int, 
-                                                date_transaction: datetime, transaction_id: int, 
+    def _update_subsequent_transactions_with_cursor(self, cursor, compte_type: str, compte_id: int,
+                                                date_transaction: datetime, transaction_id: int,
                                                 solde_apres_insere: Decimal) -> Optional[Decimal]:
         """
         Met à jour les soldes des transactions suivantes après une insertion.
@@ -1737,7 +1742,10 @@ class TransactionFinanciere:
         query = f"""
         SELECT id, type_transaction, montant, date_transaction
         FROM transactions
-        WHERE {condition} AND (date_transaction > %s OR (date_transaction = %s AND id > %s))
+        WHERE {condition} AND (
+            date_transaction > %s OR 
+            (date_transaction = %s AND id > %s)
+        )
         ORDER BY date_transaction ASC, id ASC
         """
         
@@ -1751,10 +1759,14 @@ class TransactionFinanciere:
             montant_val = Decimal(str(transaction['montant']))
             type_transaction_val = transaction['type_transaction']
             
-            if type_transaction_val in ['depot', 'transfert_entrant', 'recredit_annulation']:
+            # Gestion de tous les types de transactions
+            if type_transaction_val in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
                 solde_courant += montant_val
-            else:
+            elif type_transaction_val in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']:
                 solde_courant -= montant_val
+            else:
+                logging.warning(f"Type de transaction non reconnu: {type_transaction_val}")
+                continue
             
             update_query = "UPDATE transactions SET solde_apres = %s WHERE id = %s"
             cursor.execute(update_query, (float(solde_courant), transaction['id']))
