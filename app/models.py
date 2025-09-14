@@ -1617,8 +1617,19 @@ class TransactionFinanciere:
             # Calculer le nouveau solde
             if type_transaction in ['depot', 'transfert_entrant', 'recredit_annulation']:
                 solde_apres = solde_avant + montant
-            else: # retrait, transfert_sortant, etc.
+            elif type_transaction in ['retrait', 'tranfert_sortant', 'transfert_externe']: # retrait, transfert_sortant, etc.
                 solde_apres = solde_avant - montant
+            else:
+                if type_transaction == 'transfert_compte_vers_sous':
+                    if compte_type == 'compte_principal':
+                        solde_apres = solde_avant - montant
+                    else:
+                        solde_apres = solde_avant + montant
+                elif type_transaction == 'transfert_sous_vers_compte':
+                    if compte_type == 'compte_principal':
+                        solde_apres = solde_avant + montant
+                    else:
+                        solde_apres = solde_avant - montant
             
             # Insérer la transaction
             if compte_type == 'compte_principal':
