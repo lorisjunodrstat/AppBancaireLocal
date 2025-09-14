@@ -442,6 +442,8 @@ def banking_compte_detail(compte_id):
                         annee_selected=annee_select,
                         nb_jours_periode=nb_jours_periode)
 
+
+
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
 def banking_sous_compte_detail(sous_compte_id):
@@ -485,35 +487,42 @@ def banking_sous_compte_detail(sous_compte_id):
     solde = g.models.sous_compte_model.get_solde(sous_compte_id)
     
     # Ajout du pourcentage calculé
-    if sous_compte['objectif_montant'] and sous_compte['objectif_montant'] > 0:
-        sous_compte['pourcentage_objectif'] = round((sous_compte['solde'] / sous_compte['objectif_montant']) * 100, 1)
+    if sous_compte['objectif_montant'] and Decimal(str(sous_compte['objectif_montant'])) > 0:
+        sous_compte['pourcentage_objectif'] = round((Decimal(str(sous_compte['solde'])) / Decimal(str(sous_compte['objectif_montant']))) * 100, 1)
     else:
         sous_compte['pourcentage_objectif'] = 0
     
-        # Récupération de l'évolution des soldes quotidiens pour les 30 derniers jours
+    # Récupération de l'évolution des soldes quotidiens pour les 30 derniers jours
     soldes_quotidiens = g.models.transaction_financiere_model.get_evolution_soldes_quotidiens_sous_compte(
         sous_compte_id=sous_compte_id, 
         user_id=user_id, 
         nb_jours=30
     )
 
-    # Préparation des données pour le graphique SVG (même code que pour le compte principal)
+    # Préparation des données pour le graphique SVG
     if soldes_quotidiens:
-        soldes_values = [s['solde_apres'] for s in soldes_quotidiens]
-        min_solde = int(min(soldes_values)) if soldes_values else 0
-        max_solde = int(max(soldes_values)) if soldes_values else 0
+        # Conversion des valeurs Decimal en float pour les calculs
+        soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
+        min_solde = min(soldes_values) if soldes_values else 0.0
+        max_solde = max(soldes_values) if soldes_values else 0.0
         
         if min_solde == max_solde:
             if min_solde == 0:
-                max_solde = 100
+                max_solde = 100.0
             else:
                 min_solde = min_solde * 0.9
                 max_solde = max_solde * 1.1
         
         points = []
-        for i, solde in enumerate(soldes_quotidiens):
+        for i, solde_data in enumerate(soldes_quotidiens):
             x = i * (350 / (len(soldes_quotidiens) - 1)) if len(soldes_quotidiens) > 1 else 175
-            y = 150 - ((solde['solde_apres'] - min_solde) / (max_solde - min_solde)) * 130 if max_solde != min_solde else 85
+            solde_value = float(solde_data['solde_apres'])
+            
+            if max_solde != min_solde:
+                y = 150 - ((solde_value - min_solde) / (max_solde - min_solde)) * 130
+            else:
+                y = 85
+                
             points.append(f"{x},{y}")
         
         graphique_svg = {
@@ -525,6 +534,7 @@ def banking_sous_compte_detail(sous_compte_id):
         }
     else:
         graphique_svg = None
+        
     return render_template(
         'banking/sous_compte_detail.html',
         sous_compte=sous_compte,
@@ -533,10 +543,9 @@ def banking_sous_compte_detail(sous_compte_id):
         compte=compte_principal,
         mouvements=mouvements,
         solde=solde,
-        stats_sous_compte=stats_sous_compte,  # Ajouter les stats au contexte
+        stats_sous_compte=stats_sous_compte,
         graphique_svg=graphique_svg
     )
-
 def est_transfert_valide(compte_source_id, compte_dest_id, user_id, comptes, sous_comptes):
     """
     Vérifie si un transfert entre deux comptes est valide avec les restrictions spécifiées:
