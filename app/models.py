@@ -1577,25 +1577,10 @@ class TransactionFinanciere:
         return sous_compte is not None and sous_compte['compte_principal_id'] == compte_principal_id
         
     def _inserer_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, type_transaction: str, 
-                                montant: Decimal, description: str, user_id: int, 
-                                date_transaction: datetime, validate_balance: bool = True) -> Tuple[bool, str, Optional[int]]:
+                            montant: Decimal, description: str, user_id: int, 
+                            date_transaction: datetime, validate_balance: bool = True) -> Tuple[bool, str, Optional[int]]:
         """
         Insère une transaction dans la base de données et met à jour les soldes.
-        
-        Args:
-            cursor: Le curseur de la base de données.
-            compte_type (str): 'compte_principal' ou 'sous_compte'.
-            compte_id (int): L'identifiant du compte.
-            type_transaction (str): Le type de la transaction (ex: 'depot', 'retrait').
-            montant (Decimal): Le montant de la transaction.
-            description (str): La description de la transaction.
-            user_id (int): L'identifiant de l'utilisateur.
-            date_transaction (datetime): La date et l'heure de la transaction.
-            validate_balance (bool): Si True, vérifie le solde pour les transactions de débit.
-        
-        Returns:
-            Tuple[bool, str, Optional[int]]: Un tuple avec le succès (bool), un message (str) et
-                                            l'ID de la transaction (int) si réussie.
         """
         try:
             # Trouver la transaction précédente pour calculer le solde_avant
@@ -1614,22 +1599,29 @@ class TransactionFinanciere:
                 if solde_avant < montant:
                     return False, "Solde insuffisant", None
             
-            # Calculer le nouveau solde
+            # Calculer le nouveau solde - CORRECTION ICI
+            # Initialiser solde_apres avec une valeur par défaut
+            solde_apres = solde_avant
+            
             if type_transaction in ['depot', 'transfert_entrant', 'recredit_annulation']:
                 solde_apres = solde_avant + montant
-            elif type_transaction in ['retrait', 'tranfert_sortant', 'transfert_externe']: # retrait, transfert_sortant, etc.
+            elif type_transaction in ['retrait', 'transfert_sortant', 'transfert_externe']:  # Correction de la faute de frappe
                 solde_apres = solde_avant - montant
             else:
+                # Gestion des types spécifiques
                 if type_transaction == 'transfert_compte_vers_sous':
                     if compte_type == 'compte_principal':
-                        solde_apres = solde_avant - montant
+                        solde_apres = solde_avant - montant  # Débit pour le compte principal
                     else:
-                        solde_apres = solde_avant + montant
+                        solde_apres = solde_avant + montant  # Crédit pour le sous-compte
                 elif type_transaction == 'transfert_sous_vers_compte':
-                    if compte_type == 'compte_principal':
-                        solde_apres = solde_avant + montant
+                    if compte_type == 'sous_compte':
+                        solde_apres = solde_avant - montant  # Débit pour le sous-compte
                     else:
-                        solde_apres = solde_avant - montant
+                        solde_apres = solde_avant + montant  # Crédit pour le compte principal
+                else:
+                    # Type de transaction non reconnu
+                    return False, f"Type de transaction non reconnu: {type_transaction}", None
             
             # Insérer la transaction
             if compte_type == 'compte_principal':
@@ -1664,7 +1656,7 @@ class TransactionFinanciere:
             return True, "Transaction insérée avec succès", transaction_id
             
         except Exception as e:
-            logging.error(f"Erreur lors de l'insertion de la transaction: {e}",  exc_info=True)
+            logging.error(f"Erreur lors de l'insertion de la transaction: {e}", exc_info=True)
             return False, f"Erreur lors de l'insertion: {str(e)}", None
         
     def _get_previous_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, date_transaction: datetime) -> Optional[tuple]:
