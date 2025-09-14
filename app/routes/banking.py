@@ -173,7 +173,7 @@ def banking_nouveau_compte():
                 'bic': request.form.get('bic', '').strip(),
                 'type_compte': request.form['type_compte'],
                 'solde': Decimal(request.form.get('solde', '0')),
-                'solde_initial': Decimal(request.form.get('solde_initial,0')),
+                'solde_initial': Decimal(request.form.get('solde_initial', '0')),
                 'devise': request.form.get('devise', 'CHF'),
                 'date_ouverture': datetime.strptime(
                     request.form['date_ouverture'], '%Y-%m-%d'

@@ -599,7 +599,7 @@ class ComptePrincipal:
                 query = """
                 SELECT 
                     c.id, c.banque_id, c.nom_compte, c.numero_compte, c.iban, c.bic,
-                    c.type_compte, c.solde, c.devise, c.date_ouverture,
+                    c.type_compte, c.solde, c.solde_initial, c.devise, c.date_ouverture,
                     c.actif, c.date_creation,
                     b.id as banque_id, b.nom as nom_banque, b.code_banque, b.couleur as couleur_banque,
                     b.logo_url
@@ -656,13 +656,13 @@ class ComptePrincipal:
                 query = """
                 INSERT INTO comptes_principaux 
                 (utilisateur_id, banque_id, nom_compte, numero_compte, iban, bic, 
-                type_compte, solde, devise, date_ouverture)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                type_compte, solde, solde_initial, devise, date_ouverture)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 values = (
                     data['utilisateur_id'], data['banque_id'], data['nom_compte'],
                     data['numero_compte'], data.get('iban', ''), data.get('bic', ''),
-                    data['type_compte'], data.get('solde', 0), data.get('devise', 'CHF'),
+                    data['type_compte'], data.get('solde', 0), data.get('solde_initial', 0), data.get('devise', 'CHF'),
                     data.get('date_ouverture')
                 )
                 cursor.execute(query, values)
@@ -753,7 +753,7 @@ class ComptePrincipal:
                 query = """
                 SELECT 
                     c.id, c.utilisateur_id, c.banque_id, c.nom_compte, c.numero_compte,
-                    c.iban, c.bic, c.type_compte, c.solde, c.devise, c.date_ouverture, c.actif,
+                    c.iban, c.bic, c.type_compte, c.solde, c.solde_initial, c.devise, c.date_ouverture, c.actif,
                     b.nom as banque_nom, b.code_banque, b.couleur as banque_couleur,
                     u.nom as utilisateur_nom, u.prenom as utilisateur_prenom
                 FROM comptes_principaux c
