@@ -1899,7 +1899,7 @@ class TransactionFinanciere:
             logging.error(f"❌ Erreur lors du transfert interne: {e}", exc_info=True)
             return False, f"Erreur lors du transfert: {str(e)}"   
    
-    def transfert_compte_vers_sous_compte(self, compte_id, sous_compte_id, montant, user_id, description=""):
+    def transfert_compte_vers_sous_compte(self, compte_id, sous_compte_id, montant, user_id, description="", date_transaction = datetime.now()):
         """
         Transfert d'un compte principal vers un sous-compte.
         """
