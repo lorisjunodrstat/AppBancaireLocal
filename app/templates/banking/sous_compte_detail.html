@@ -209,7 +209,7 @@
                 {% set min_value = 0 %}
                 
                 {% for m in soldes_quotidiens %}
-                    {% if m.solde_apres|float > max_value %}
+                    {% if (m.solde_apres/sous_compte.objectif_montant)|float > max_value %}
                         {% set max_value = m.solde_apres|float %}
                     {% endif %}
                 {% endfor %}
