@@ -68,6 +68,26 @@ def get_comptes_utilisateur(user_id):
             compte['solde_total'] = g.models.compte_model.get_solde_total_avec_sous_comptes(compte['id'])
         return comptes
 
+
+# Context processor pour les comptes utilisateur
+@bp.context_processor
+def inject_user_comptes():
+    if hasattr(g, 'user') and current_user.is_authenticated:
+        user_id = current_user.id
+        try:
+            # Récupérer les comptes de l'utilisateur
+            logging.info(f"Comptes récupérés pour l'utilisateur {user_id}: {comptes}")
+            comptes = g.models.compte_model.get_by_user_id(user_id)
+            for compte in comptes:
+                compte['sous_comptes'] = g.models.sous_compte_model.get_by_compte_principal_id(compte['id'])
+                compte['solde_total'] = g.models.compte_model.get_solde_total_avec_sous_comptes(compte['id'])
+            user_comptes = comptes
+            return dict(user_comptes=user_comptes)
+        except Exception as e:
+            logging.error(f"Erreur lors du chargement des comptes utilisateur: {e}")
+            return dict(user_comptes=[])
+    return dict(user_comptes=[])
+
     # ---- ROUTES ----
 @bp.route('/')
 def index():
