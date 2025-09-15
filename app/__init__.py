@@ -67,25 +67,7 @@ def load_user(user_id):
     db_manager = DatabaseManager(app.config['DB_CONFIG'])
     return Utilisateur.get_by_id(user_id, db_manager)
 
-# Context processor pour les comptes utilisateur
-@app.context_processor
-def inject_user_comptes():
-    if hasattr(g, 'user') and current_user.is_authenticated:
-        user_id = current_user.id
-        try:
-            # Récupérer les comptes de l'utilisateur
-            comptes = g.models.compte_model.get_by_user_id(user_id)
-            logging.info(f"Comptes récupérés pour l'utilisateur {user_id}: {comptes}")
-            
-            # Pour chaque compte, récupérer les sous-comptes
-            for compte in comptes:
-                compte['sous_comptes'] = g.models.sous_compte_model.get_by_compte_principal_id(compte['id'])
-                logging
-            return dict(user_comptes=comptes)
-        except Exception as e:
-            logging.error(f"Erreur lors du chargement des comptes utilisateur: {e}")
-            return dict(user_comptes=[])
-    return dict(user_comptes=[])
+
 
 # Import des routes (APRES la création de l'app)
 from app.routes import auth, admin, banking
@@ -134,6 +116,26 @@ def utility_processor():
 
     return dict(get_month_name=get_month_name)
 
+# Context processor GLOBAL pour injecter les comptes utilisateur dans tous les templates
+@app.context_processor
+def inject_user_comptes():
+    from flask_login import current_user
+    if current_user.is_authenticated:
+        try:
+            # Vérifie que g.models est bien initialisé
+            if not hasattr(g, 'models') or g.models is None:
+                logging.warning("g.models non initialisé lors de l'injection des comptes utilisateur.")
+                return dict(user_comptes=[])
+
+            # Récupère les comptes via la fonction utilitaire
+            from app.routes.banking import get_comptes_utilisateur
+            user_id = current_user.id
+            user_comptes = get_comptes_utilisateur(user_id)
+            return dict(user_comptes=user_comptes)
+        except Exception as e:
+            logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}")
+            return dict(user_comptes=[])
+    return dict(user_comptes=[])
 # Remplacer la fonction before_request par un signal
 def create_managers_on_request_start(sender, **extra):
     from app.models import DatabaseManager, ModelManager
