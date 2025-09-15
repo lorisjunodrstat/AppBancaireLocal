@@ -1976,7 +1976,7 @@ class TransactionFinanciere:
             logging.error(f"Erreur transfert compte → sous-compte: {e}")
             return False, f"Erreur lors du transfert: {str(e)}"
 
-    def transfert_sous_compte_vers_compte(self, sous_compte_id, compte_id, montant, user_id, description=""):
+    def transfert_sous_compte_vers_compte(self, sous_compte_id, compte_id, montant, user_id, description="", date_transaction = datetime.now()):
         """
         Transfert d'un sous-compte vers un compte principal.
         """

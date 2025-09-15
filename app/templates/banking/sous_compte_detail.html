@@ -202,16 +202,17 @@
                 </style>
                 {% if sous_compte.objectif_montant %}
                     {% set max_value = sous_compte.objectif_montant|float %}
-                    {% set min_value = 0 %}
                 {% else %}
-                    {% set min_value = 0.0 %}
-                    {% set max_value = [100.0]|max %}
-                    {% for m in mouvements %}
-                        {% if m.solde_apres|float > max_value %}
-                            {% set max_value = m.solde_apres|float %}
-                        {% endif %}
-                    {% endfor %}
+                    {% set max_value = 100.0 %}
                 {% endif %}
+                
+                {% set min_value = 0 %}
+                
+                {% for m in mouvements %}
+                    {% if m.solde_apres|float > max_value %}
+                        {% set max_value = m.solde_apres|float %}
+                    {% endif %}
+                {% endfor %}
         
                 <div class="graph-container">
                     <!-- Axe Y avec labels -->
