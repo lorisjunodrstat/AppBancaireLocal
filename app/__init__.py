@@ -131,11 +131,10 @@ def inject_user_comptes():
             from app.routes.banking import get_comptes_utilisateur
             user_id = current_user.id
             user_comptes = get_comptes_utilisateur(user_id)
-            return dict(user_comptes=user_comptes)
+            return dict(user_comptes=user_comptes, user_id=user_id)
         except Exception as e:
             logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}")
-            return dict(user_comptes=[])
-    return dict(user_comptes=[])
+            return dict(user_comptes=[], user_id=None)
 # Remplacer la fonction before_request par un signal
 def create_managers_on_request_start(sender, **extra):
     from app.models import DatabaseManager, ModelManager
