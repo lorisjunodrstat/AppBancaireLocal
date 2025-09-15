@@ -114,7 +114,7 @@
                                     {% if user_comptes and current_user.is_authenticated %}
                                     {% for compte in user_comptes %}
                                     <li>
-                                        <a class="dropdown-item" href="{{ url_for('banking.compte_detail', compte_id=compte.id) }}">
+                                        <a class="dropdown-item" href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}">
                                             <i class="fas fa-info-circle me-2"></i>Détails du compte {{ compte.nom_compte }} [{{ compte.id }}]
                                         </a>
                                     </li>
