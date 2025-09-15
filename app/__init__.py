@@ -67,6 +67,24 @@ def load_user(user_id):
     db_manager = DatabaseManager(app.config['DB_CONFIG'])
     return Utilisateur.get_by_id(user_id, db_manager)
 
+# Context processor pour les comptes utilisateur
+@app.context_processor
+def inject_user_comptes():
+    if hasattr(g, 'user') and g.user.is_authenticated:
+        try:
+            # Récupérer les comptes de l'utilisateur
+            comptes = g.models.compte_model.get_by_user_id(g.user.id)
+            
+            # Pour chaque compte, récupérer les sous-comptes
+            for compte in comptes:
+                compte['sous_comptes'] = g.models.sous_compte_model.get_by_compte_principal_id(compte['id'])
+            
+            return dict(user_comptes=comptes)
+        except Exception as e:
+            logging.error(f"Erreur lors du chargement des comptes utilisateur: {e}")
+            return dict(user_comptes=[])
+    return dict(user_comptes=[])
+
 # Import des routes (APRES la création de l'app)
 from app.routes import auth, admin, banking
 
