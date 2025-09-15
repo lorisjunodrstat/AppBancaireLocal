@@ -967,10 +967,13 @@ def banking_transfert_compte_sous_compte():
                 success, message = g.models.transaction_financiere_model.transfert_compte_vers_sous_compte(
                     compte_id, sous_compte_id, montant, user_id, commentaire, date_transaction
                 )
+                logger.debug(f'voici les données envoyées : {compte_id}, {sous_compte_id}, {montant}, {user_id}, {date_transaction}')
             else:
                 success, message = g.models.transaction_financiere_model.transfert_sous_compte_vers_compte(
                     sous_compte_id, compte_id, montant, user_id, commentaire, date_transaction
                 )
+                logger.debug(f'voici les données envoyées : {compte_id}, {sous_compte_id}, {montant}, {user_id}, {date_transaction}')
+
 
             if success:
                 flash(message, "success")
