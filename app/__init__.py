@@ -120,21 +120,25 @@ def utility_processor():
 @app.context_processor
 def inject_user_comptes():
     from flask_login import current_user
-    if current_user.is_authenticated:
-        try:
+    try:
+        if current_user.is_authenticated:
             # Vérifie que g.models est bien initialisé
             if not hasattr(g, 'models') or g.models is None:
                 logging.warning("g.models non initialisé lors de l'injection des comptes utilisateur.")
-                return dict(user_comptes=[])
+                return dict(user_comptes=[], user_id=current_user.id)
 
             # Récupère les comptes via la fonction utilitaire
             from app.routes.banking import get_comptes_utilisateur
             user_id = current_user.id
             user_comptes = get_comptes_utilisateur(user_id)
             return dict(user_comptes=user_comptes, user_id=user_id)
-        except Exception as e:
-            logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}")
+        else:
+            # 👈👈👈 IMPORTANT : Toujours retourner un dict même si non connecté
             return dict(user_comptes=[], user_id=None)
+    except Exception as e:
+        logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}", exc_info=True)
+        return dict(user_comptes=[], user_id=None)  # Toujours un dict, même en cas d'erreur
+    
 # Remplacer la fonction before_request par un signal
 def create_managers_on_request_start(sender, **extra):
     from app.models import DatabaseManager, ModelManager
