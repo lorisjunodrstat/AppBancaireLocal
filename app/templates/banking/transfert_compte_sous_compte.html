@@ -52,7 +52,7 @@
         </div>
 
         <div class="row mb-4">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label for="direction" class="form-label">Direction du transfert*</label>
                 <select class="form-select" name="direction" id="direction" required>
                     <option value="compte_vers_sous">Compte → Sous-compte</option>
@@ -60,7 +60,7 @@
                 </select>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label for="montant" class="form-label">Montant*</label>
                 <div class="input-group">
                     <input type="text" name="montant" id="montant" class="form-control"
@@ -72,6 +72,11 @@
                     Format invalide. Ex: 150 ou 150.50
                 </div>
             </div>
+            <div class="col md-4">
+                <label for="date_transaction" class="form-label">Date et heure du transfert*</label>
+                <input type="datetime-local" name="date_transaction" id="date_transaction" class="form-control"
+                    value="{{ request.form.get('date_transaction', now.strftime('%Y-%m-%dT%H:%M')) }}" required>
+            </div>
         </div>
 
         <div class="row mb-3">
@@ -81,6 +86,7 @@
                     placeholder="Description du transfert">{{ request.form.get('commentaire', '') }}</textarea>
             </div>
         </div>
+        
 
         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
             <a href="{{ url_for('banking.banking_transfert') }}" class="btn btn-secondary me-md-2">Retour aux transferts</a>

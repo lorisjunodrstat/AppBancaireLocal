@@ -1926,6 +1926,8 @@ class TransactionFinanciere:
                 timestamp = int(time.time())
                 reference = f"TRF_CP_SC_{timestamp}"
                 desc_complete = f"{description} (Réf: {reference})"
+                if date_transaction is None:
+                    date_transaction = datetime.now()
 
                 # ⚠️ UTILISER _inserer_transaction_with_cursor pour DÉBIT sur le compte principal
                 success, message, debit_transaction_id = self._inserer_transaction_with_cursor(
@@ -1936,7 +1938,7 @@ class TransactionFinanciere:
                     montant=montant,
                     description=desc_complete,
                     user_id=user_id,
-                    date_transaction=datetime.now(),
+                    date_transaction=date_transaction,
                     validate_balance=True  # Vérifie le solde
                 )
                 if not success:
@@ -1951,7 +1953,7 @@ class TransactionFinanciere:
                     montant=montant,
                     description=desc_complete,
                     user_id=user_id,
-                    date_transaction=datetime.now(),
+                    date_transaction=date_transaction,
                     validate_balance=False  # Pas besoin de vérifier ici — on vient de débiter
                 )
                 if not success:
@@ -2001,6 +2003,8 @@ class TransactionFinanciere:
                 timestamp = int(time.time())
                 reference = f"TRF_SC_CP_{timestamp}"
                 desc_complete = f"{description} (Réf: {reference})"
+                if date_transaction is None:
+                    date_transaction = datetime.now()
 
                 # ⚠️ UTILISER _inserer_transaction_with_cursor pour DÉBIT sur le sous-compte
                 success, message, debit_transaction_id = self._inserer_transaction_with_cursor(
@@ -2011,7 +2015,7 @@ class TransactionFinanciere:
                     montant=montant,
                     description=desc_complete,
                     user_id=user_id,
-                    date_transaction=datetime.now(),
+                    date_transaction=date_transaction,
                     validate_balance=True
                 )
                 if not success:
@@ -2026,7 +2030,7 @@ class TransactionFinanciere:
                     montant=montant,
                     description=desc_complete,
                     user_id=user_id,
-                    date_transaction=datetime.now(),
+                    date_transaction=date_transaction,
                     validate_balance=False
                 )
                 if not success:

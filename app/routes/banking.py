@@ -546,6 +546,7 @@ def banking_sous_compte_detail(sous_compte_id):
         stats_sous_compte=stats_sous_compte,
         graphique_svg=graphique_svg
     )
+
 def est_transfert_valide(compte_source_id, compte_dest_id, user_id, comptes, sous_comptes):
     """
     Vérifie si un transfert entre deux comptes est valide avec les restrictions spécifiées:
@@ -936,7 +937,13 @@ def banking_transfert_compte_sous_compte():
             montant_str = request.form.get('montant', '').replace(',', '.').strip()
             direction = request.form.get('direction')  # 'compte_vers_sous' ou 'sous_vers_compte'
             commentaire = request.form.get('commentaire', '').strip()
-
+            date_transaction_str = request.form.get('date_transaction')
+            if date_transaction_str:
+                try:
+                    date_transaction = datetime.strptime(date_transaction_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    flash("Format de date invalide", 'error')
+                    return redirect(url_for("banking.banking_transfert_compte_sous_compte"))
             # Validation du montant
             try:
                 montant = Decimal(montant_str)
@@ -958,11 +965,11 @@ def banking_transfert_compte_sous_compte():
             # Exécution du transfert
             if direction == 'compte_vers_sous':
                 success, message = g.models.transaction_financiere_model.transfert_compte_vers_sous_compte(
-                    compte_id, sous_compte_id, montant, user_id, commentaire
+                    compte_id, sous_compte_id, montant, user_id, commentaire, date_transaction
                 )
             else:
                 success, message = g.models.transaction_financiere_model.transfert_sous_compte_vers_compte(
-                    sous_compte_id, compte_id, montant, user_id, commentaire
+                    sous_compte_id, compte_id, montant, user_id, commentaire, date_transaction
                 )
 
             if success:
