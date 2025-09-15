@@ -498,7 +498,8 @@ def banking_sous_compte_detail(sous_compte_id):
         user_id=user_id, 
         nb_jours=30
     )
-
+    logger.debug(f'{len(soldes_quotidiens)} Soldes quotidiens récupérés: {soldes_quotidiens}')
+    soldes_quotidiens_len = len(soldes_quotidiens)
     # Préparation des données pour le graphique SVG
     if soldes_quotidiens:
         # Conversion des valeurs Decimal en float pour les calculs
@@ -544,7 +545,8 @@ def banking_sous_compte_detail(sous_compte_id):
         mouvements=mouvements,
         solde=solde,
         stats_sous_compte=stats_sous_compte,
-        graphique_svg=graphique_svg
+        graphique_svg=graphique_svg,
+        soldes_quotidiens_len=soldes_quotidiens_len
     )
 
 def est_transfert_valide(compte_source_id, compte_dest_id, user_id, comptes, sous_comptes):
