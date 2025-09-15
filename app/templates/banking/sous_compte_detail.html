@@ -273,7 +273,7 @@
                     <div class="info-panel" style="display: flex; justify-content: space-around;">
                         <div class="info-item">
                             <div>Nombre de points</div>
-                            <div class="info-value">{{ mouvements|length }}</div>
+                            <div class="info-value">{{ soldes_quotidienslength }}</div>
                         </div>
                         <div class="info-item">
                             <div>Valeur max</div>
@@ -296,7 +296,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for m in mouvements %}
+                        {% for m in soldes_quotidiens%}
                         <tr>
                             <td>{{ m.date_transaction }}</td>
                             <td>{{ "%.2f"|format(m.solde_apres) }}</td>

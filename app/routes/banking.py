@@ -475,6 +475,9 @@ def banking_sous_compte_detail(sous_compte_id):
         compte_id=sous_compte_id,
         user_id=user_id,
         limit=50)
+    logger.debug(f'{len(mouvements)} Mouvements récupérés pour le sous-compte {sous_compte_id}: {mouvements}')
+    mouvements = mouvements.get('sous_compte_id' == sous_compte_id, [])
+    logger.debug(f'{len(mouvements)} Mouvements après filtrage pour le sous-compte {sous_compte_id}: {mouvements}')
         
     # Ajouter les statistiques du sous-compte
     stats_sous_compte = g.models.transaction_financiere_model.get_statistiques_compte(
@@ -546,7 +549,7 @@ def banking_sous_compte_detail(sous_compte_id):
         solde=solde,
         stats_sous_compte=stats_sous_compte,
         graphique_svg=graphique_svg,
-        soldes_quotidiens=soldes_quotidiens
+        soldes_quotidiens=soldes_quotidiens,
         soldes_quotidiens_len=soldes_quotidiens_len
     )
 
