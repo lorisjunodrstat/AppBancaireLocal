@@ -59,12 +59,12 @@
 
 <body>
     <!-- DEBUG -->
-    <p>DEBUG: {{ user_comptes|length }} comptes chargés pour {{ current_user.email if current_user.is_authenticated }}</p>
+    <p>DEBUG: {{ user_comptes|length }} comptes chargés pour {{ current_user.id if current_user.is_authenticated }}</p>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="#">
-                <i class="fas fa-users me-2"></i>Mon App Flask :{% if current_user.is_authenticated %}Hi {{ current_user.name }}! {% endif %}
+                <i class="fas fa-users me-2"></i>Mon App Flask :{% if current_user %}Hi {{ current_user.nom }}! {% endif %}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -115,7 +115,7 @@
                                     {% for compte in user_comptes %}
                                     <li>
                                         <a class="dropdown-item" href="{{ url_for('banking.compte_detail', compte_id=compte.id) }}">
-                                            <i class="fas fa-info-circle me-2"></i>Détails du compte {{ compte.nom }}
+                                            <i class="fas fa-info-circle me-2"></i>Détails du compte {{ compte.nom_compte }} [{{ compte.id }}]
                                         </a>
                                     </li>
                                     {% endfor %}
