@@ -75,11 +75,12 @@ def inject_user_comptes():
         try:
             # Récupérer les comptes de l'utilisateur
             comptes = g.models.compte_model.get_by_user_id(user_id)
+            logging.info(f"Comptes récupérés pour l'utilisateur {user_id}: {comptes}")
             
             # Pour chaque compte, récupérer les sous-comptes
             for compte in comptes:
                 compte['sous_comptes'] = g.models.sous_compte_model.get_by_compte_principal_id(compte['id'])
-            
+                logging
             return dict(user_comptes=comptes)
         except Exception as e:
             logging.error(f"Erreur lors du chargement des comptes utilisateur: {e}")
