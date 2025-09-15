@@ -110,7 +110,7 @@
                                     {% for compte in user_comptes %}
                                     <li class="dropdown-submenu">
                                         <a class="dropdown-item dropdown-toggle" href="#">
-                                            <i class="fas fa-chevron-right me-2"></i>{{ compte.nom }}
+                                            <i class="fas fa-chevron-right me-2"></i>Voici les comptes :{{ compte.nom }}
                                         </a>
                                         <ul class="dropdown-menu">
                                             <li>
@@ -135,7 +135,7 @@
                                     </li>
                                     {% endfor %}
                                     {% else %}
-                                    <li class="dropdown-item-text">Aucun compte</li>
+                                    <li class="dropdown-item-text" style="color:black;">Aucun compte</li>
                                     {% endif %}
                                 </ul>
                             </li>
