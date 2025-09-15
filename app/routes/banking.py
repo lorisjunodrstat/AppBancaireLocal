@@ -546,6 +546,7 @@ def banking_sous_compte_detail(sous_compte_id):
         solde=solde,
         stats_sous_compte=stats_sous_compte,
         graphique_svg=graphique_svg,
+        soldes_quotidiens=soldes_quotidiens
         soldes_quotidiens_len=soldes_quotidiens_len
     )
 
