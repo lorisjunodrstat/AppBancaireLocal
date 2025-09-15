@@ -476,7 +476,7 @@ def banking_sous_compte_detail(sous_compte_id):
         user_id=user_id,
         limit=50)
     logger.debug(f'{len(mouvements)} Mouvements récupérés pour le sous-compte {sous_compte_id}: {mouvements}')
-    mouvements = [m for m in mouvements if m['sous_compte_id'] == sous_compte_id]
+    mouvements = [m for m in mouvements if m['compte_principal_lie'] == 'Compte principal']
     logger.debug(f'{len(mouvements)} Mouvements après filtrage pour le sous-compte {sous_compte_id}: {mouvements}')
         
     # Ajouter les statistiques du sous-compte
