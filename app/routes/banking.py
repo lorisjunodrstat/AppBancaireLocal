@@ -986,7 +986,8 @@ def banking_transfert_compte_sous_compte():
     return render_template(
         "banking/transfert_compte_sous_compte.html",
         comptes=comptes,
-        sous_comptes=sous_comptes
+        sous_comptes=sous_comptes,
+        now=datetime.now()
     )
 
 @bp.route('/banking/annuler_transfert_externe/<int:transfert_id>', methods=['POST'])
