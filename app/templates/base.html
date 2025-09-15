@@ -58,6 +58,8 @@
 </head>
 
 <body>
+    <!-- DEBUG -->
+    <p>DEBUG: {{ user_comptes|length }} comptes chargés pour {{ current_user.email if current_user.is_authenticated }}</p>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
@@ -108,7 +110,7 @@
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-wallet me-1"></i>Mes Comptes
                                 </a>
-                                <ul class="nav-item dropdown">
+                                <ul class="dropdown-menu"> <!-- ⚠️ ICI : c'était "nav-item dropdown", c'est FAUX -->
                                     {% if user_comptes and current_user.is_authenticated %}
                                     {% for compte in user_comptes %}
                                     <li>
@@ -118,7 +120,7 @@
                                     </li>
                                     {% endfor %}
                                     {% else %}
-                                    <li class="dropdown-item-text" style="color:black;">Aucun compte</li>
+                                    <li><span class="dropdown-item-text text-muted">Aucun compte</span></li>
                                     {% endif %}
                                 </ul>
                             </li>
