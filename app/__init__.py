@@ -70,10 +70,11 @@ def load_user(user_id):
 # Context processor pour les comptes utilisateur
 @app.context_processor
 def inject_user_comptes():
-    if hasattr(g, 'user') and g.user.is_authenticated:
+    if hasattr(g, 'user') and current_user.is_authenticated:
+        user_id = current_user.id
         try:
             # Récupérer les comptes de l'utilisateur
-            comptes = g.models.compte_model.get_by_user_id(g.user.id)
+            comptes = g.models.compte_model.get_by_user_id(user_id)
             
             # Pour chaque compte, récupérer les sous-comptes
             for compte in comptes:
