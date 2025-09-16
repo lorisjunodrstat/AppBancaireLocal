@@ -1,5 +1,25 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<style>
+    .graphique-container {
+        max-width: 600px;
+        margin: auto;
+    }
+
+    .graphique-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        aspect-ratio: {{ largeur_svg }}/ {{ hauteur_svg }};
+        max-width: 100%;
+        max-height: 70vh;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+    }
+</style>
+{% endblock %}
 {% block title %}{{ compte.nom_compte }} - {{ compte.nom_banque }}{% endblock %}
 
 {% block content %}
@@ -680,42 +700,52 @@
             </div>
             <div class="card-body">
                 {% if graphique_svg %}
-                <div class="text-center" style="max-width: {{ max_width }}px;margin:auto;">
-                    <svg width="500" height="200" viewBox="0 0 {{ largeur_svg }} {{ hauteur_svg }}" preserveAspectRatio="xMidYMid meet" class="w-100" style="width: 100%; height: auto;border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+                <div class="text-center graphique-container">
+                    <svg viewBox="0 0 {{ largeur_svg }} {{ hauteur_svg }}" preserveAspectRatio="xMidYMid meet" class="graphique-svg"
+                        style="border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+                
                         <!-- Ligne de fond -->
-                        <line x1="{{ largeur_svg / 10 }}" y1="{{ hauteur_svg * (9 / 10) }}%" 
-                        x2="{{ largeur_svg * (9 / 10) }}" y2="{{ hauteur_svg * (9 / 10) }}" stroke="#ddd" stroke-width="1" /><!-- ligne qui va de 10% en x1 et 90% en y1 à 90% en x2 et 90% en y2-->
-                        <line x1="{{ largeur_svg / 10 }}" y1="{{ hauteur_svg * (1 / 10) }}" 
-                        x2="{{ largeur_svg * (9 / 10) }}" y2="{{ hauteur_svg * (1 / 10) }}" stroke="#dee2e6" stroke-width="2" />
-                        <line x1="{{ largeur_svg / 10 }}" y1="{{ hauteur_svg /10 }}" 
-                        x2="{{ largeur_svg / 10 }}" y2="{{ hauteur_svg * (9 / 10) }}" stroke="#dee2e6" stroke-width="3" />
-                        <line x1="{{ largeur_svg * (9/ 10) }}" y1="{{ hauteur_svg /10 }}" 
-                        x2="{{ (largeur_svg * (9/10)) }}" y2="{{ hauteur_svg * ( 9/10) }}" stroke="#dee2e6" stroke-width="4" />
-
+                        <line x1="{{ largeur_svg * 0.1 }}" y1="{{ hauteur_svg * 0.9 }}" x2="{{ largeur_svg * 0.9 }}"
+                            y2="{{ hauteur_svg * 0.9 }}" stroke="#ddd" stroke-width="1" />
+                        <line x1="{{ largeur_svg * 0.1 }}" y1="{{ hauteur_svg * 0.1 }}" x2="{{ largeur_svg * 0.9 }}"
+                            y2="{{ hauteur_svg * 0.1 }}" stroke="#dee2e6" stroke-width="2" />
+                        <line x1="{{ largeur_svg * 0.1 }}" y1="{{ hauteur_svg * 0.1 }}" x2="{{ largeur_svg * 0.1 }}"
+                            y2="{{ hauteur_svg * 0.9 }}" stroke="#dee2e6" stroke-width="3" />
+                        <line x1="{{ largeur_svg * 0.9 }}" y1="{{ hauteur_svg * 0.1 }}" x2="{{ largeur_svg * 0.9 }}"
+                            y2="{{ hauteur_svg * 0.9 }}" stroke="#dee2e6" stroke-width="4" />
+                
                         <!-- Ligne du graphique -->
                         <polyline points="{{ graphique_svg.points|join(' ') }}" fill="none" stroke="#007bff" stroke-width="2" />
-        
+                
                         <!-- Points sur la ligne -->
                         {% for point in graphique_svg.points %}
                         <circle cx="{{ point.split(',')[0] }}" cy="{{ point.split(',')[1] }}" r="3" fill="#007bff" />
                         {% endfor %}
-        
+                
                         <!-- Échelle verticale -->
-                        <text x="2" y="20" font-size="10" text-anchor="middle" transform="rotate(0, 10, 20)">{{
-                            graphique_svg.max_solde|round(2) }} <small>CHF</small></text>
-                        <text x="2" y="180" font-size="10" text-anchor="middle" transform="rotate(0, 10, 180)">{{
-                            graphique_svg.min_solde|round(2) }} <small>CHF</small></text>
-        
+                        <text x="{{ largeur_svg * 0.05 }}" y="{{ hauteur_svg * 0.1 }}" font-size="10" text-anchor="start">
+                            {{ graphique_svg.max_solde|round(2) }} <small>CHF</small>
+                        </text>
+                        <text x="{{ largeur_svg * 0.05 }}" y="{{ hauteur_svg * 0.9 }}" font-size="10" text-anchor="start">
+                            {{ graphique_svg.min_solde|round(2) }} <small>CHF</small>
+                        </text>
+                
                         <!-- Dates -->
                         {% if graphique_svg.dates|length > 0 %}
-                        <text x="20" y="195" font-size="10" text-anchor="middle">{{ graphique_svg.dates[0] }}</text>
+                        <text x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.95 }}" font-size="10" text-anchor="start">
+                            {{ graphique_svg.dates[0] }}
+                        </text>
                         {% if graphique_svg.dates|length > 1 %}
-                        <text x="380" y="195" font-size="10" text-anchor="middle">{{ graphique_svg.dates[-1] }}</text>
+                        <text x="{{ largeur_svg * 0.9 }}" y="{{ hauteur_svg * 0.95 }}" font-size="10" text-anchor="end">
+                            {{ graphique_svg.dates[-1] }}
+                        </text>
                         {% endif %}
                         {% endif %}
-        
+                
                         <!-- Légende -->
-                        <text x="200" y="195" font-size="10" text-anchor="middle">Date</text>
+                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.95 }}" font-size="10" text-anchor="middle">
+                            Date
+                        </text>
                     </svg>
                 </div>
         
