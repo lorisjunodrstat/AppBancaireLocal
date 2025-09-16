@@ -429,6 +429,8 @@ def banking_compte_detail(compte_id):
         }
     else:
         graphique_svg = None
+    largeur_svg = 500
+    hauteur_svg = 200
     return render_template('banking/compte_detail.html',
                         compte=compte,
                         sous_comptes=sous_comptes,
@@ -447,7 +449,9 @@ def banking_compte_detail(compte_id):
                         date_fin_selected=date_fin_str,
                         mois_seletcted=mois_seletct,
                         annee_selected=annee_select,
-                        nb_jours_periode=nb_jours_periode)
+                        nb_jours_periode=nb_jours_periode,
+                        largeur_svg=largeur_svg,
+                        hauteur_svg=hauteur_svg)
 
 
 
