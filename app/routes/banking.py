@@ -398,39 +398,50 @@ def banking_compte_detail(compte_id):
         )
 
     # Préparation des données pour le graphique SVG
+    largeur_svg = 500
+    hauteur_svg = 200
     if soldes_quotidiens:
-        # Convertir toutes les valeurs Decimal en float pour les calculs
         soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
         min_solde = min(soldes_values) if soldes_values else 0.0
         max_solde = max(soldes_values) if soldes_values else 0.0
-        
-        # Ajuster l'échelle pour éviter les problèmes de division par zéro
+
         if min_solde == max_solde:
             if min_solde == 0:
-                max_solde = 100.0  # Valeur par défaut si tous les soldes sont à zéro
+                max_solde = 100.0
             else:
-                min_solde = min_solde * 0.9  # Réduire de 10% pour avoir une échelle
-                max_solde = max_solde * 1.1  # Augmenter de 10%
-        
-        # Préparer les points pour le graphique
+                min_solde *= 0.9
+                max_solde *= 1.1
+
+        n = len(soldes_quotidiens)
         points = []
+        margin_x = largeur_svg * 0.1
+        margin_y = hauteur_svg * 0.1
+        plot_width = largeur_svg * 0.8
+        plot_height = hauteur_svg * 0.8
+
         for i, solde in enumerate(soldes_quotidiens):
-            solde_float = float(solde['solde_apres'])  # Convertir en float pour le calcul
-            x = i * (350 / (len(soldes_quotidiens) - 1)) if len(soldes_quotidiens) > 1 else 175
-            y = 150 - ((solde_float - min_solde) / (max_solde - min_solde)) * 130 if max_solde != min_solde else 85
+            solde_float = float(solde['solde_apres'])
+            x = margin_x + (i / (n - 1)) * plot_width if n > 1 else margin_x + plot_width / 2
+            y = margin_y + plot_height - ((solde_float - min_solde) / (max_solde - min_solde)) * plot_height if max_solde != min_solde else margin_y + plot_height / 2
             points.append(f"{x},{y}")
-        
+
+        # On crée le dict COMPLET ici
         graphique_svg = {
             'points': points,
             'min_solde': min_solde,
             'max_solde': max_solde,
             'dates': [s['date'].strftime('%d/%m/%Y') for s in soldes_quotidiens],
-            'soldes': soldes_values
-        }
+            'soldes': soldes_values,
+            'nb_points': n,
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'plot_width': plot_width,
+            'plot_height': plot_height
+        }   
+# Sin
     else:
         graphique_svg = None
-    largeur_svg = 500
-    hauteur_svg = 200
+    
     return render_template('banking/compte_detail.html',
                         compte=compte,
                         sous_comptes=sous_comptes,
@@ -515,6 +526,7 @@ def banking_sous_compte_detail(sous_compte_id):
     logger.debug(f'{len(soldes_quotidiens)} Soldes quotidiens récupérés: {soldes_quotidiens}')
     soldes_quotidiens_len = len(soldes_quotidiens)
     # Préparation des données pour le graphique SVG
+    graphique_svg = None
     if soldes_quotidiens:
         soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
         min_solde = min(soldes_values) if soldes_values else 0.0
