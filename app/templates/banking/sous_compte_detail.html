@@ -1,26 +1,39 @@
 {% extends "base.html" %}
 {% block extra_css %}
-.graphique-container {
-max-width: 600px;
-margin: 1rem auto;
-}
+<style>
+    .graphique-container {
+        max-width: 600px;
+        margin: 1rem auto;
+    }
 
-.graphique-svg {
-width: 100%;
-height: auto;
-display: block;
-aspect-ratio: {{ largeur_svg }} / {{ hauteur_svg }};
-max-width: 100%;
-max-height: 70vh;
-border: 1px solid #ddd;
-border-radius: 5px;
-background: #f9f9f9;
-}
+    .graphique-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+
+        aspect-ratio: {
+                {
+                largeur_svg
+            }
+        }
+
+        / {
+                {
+                hauteur_svg
+            }
+        }
+
+        ;
+        max-width: 100%;
+        max-height: 70vh;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+    }
+</style>
 {% endblock %}
 {% block title %}{{ sous_compte.nom_sous_compte }} - {{ compte.nom_compte }}{% endblock %}
-<style>
 
-</style>
 {% block content %}
 <div class="row">
     <div class="col-12">
