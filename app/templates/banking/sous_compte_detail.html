@@ -177,7 +177,7 @@ background: #f9f9f9;
                         <!-- Ligne d'objectif (si définie) -->
                         {% if graphique_svg.objectif_y is not none %}
                         <line x1="{{ largeur_svg * 0.1 }}" y1="{{ graphique_svg.objectif_y }}" x2="{{ largeur_svg * 0.9 }}"
-                            y2="{{ graphique_svg.objectif_y }}" stroke="#ff6b35" stroke-width="1" stroke-dasharray=",3" />
+                            y2="{{ graphique_svg.objectif_y }}" stroke="{{ sous_compte.couleur }}" stroke-width="1" stroke-dasharray=",3" />
                         <text x="{{ largeur_svg * 0.92 }}" y="{{ graphique_svg.objectif_y + 4 }}" font-size="9"
                             text-anchor="start" fill="#ff6b35" font-weight="bold">
                             Objectif: {{ "%.2f"|format(graphique_svg.objectif) }} CHF
