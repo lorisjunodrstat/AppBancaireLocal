@@ -680,15 +680,18 @@
             </div>
             <div class="card-body">
                 {% if graphique_svg %}
-                <div class="text-center">
-                    <svg width="500" height="200" viewBox="0 0 400 200" class="w-100">
+                <div class="text-center" style="max-width: {{ max_width }}px;margin:auto;">
+                    <svg width="500" height="200" viewBox="0 0 {{ largeur_svg }} {{ hauteur_svg }}" preserveAspectRatio="xMidYMid meet" class="w-100" style="width: 100%; height: auto;border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
                         <!-- Ligne de fond -->
-                        <line x1="20" y1="180" x2="380" y2="180" stroke="#ddd" stroke-width="1" />
-                        <line x1="20%" y1="180" x2="80%" y2="180" stroke="#dee2e6" stroke-width="2" />
-                        <line x1="20%" y1="0" x2="80%" y2="0" stroke="#dee2e6" stroke-width="2" />
-                        <line x1="20%" y1="0" x2="20%" y2="200" stroke="#dee2e6" stroke-width="1.5" />
-                        <line x1="80%" y1="0" x2="80%" y2="200" stroke="#dee2e6" stroke-width="1.5" />
-                                
+                        <line x1="{{ largeur_svg / 10 }}" y1="{{ hauteur_svg * (9 / 10) }}%" 
+                        x2="{{ largeur_svg * (9 / 10) }}" y2="{{ hauteur_svg * (9 / 10) }}" stroke="#ddd" stroke-width="1" /><!-- ligne qui va de 10% en x1 et 90% en y1 à 90% en x2 et 90% en y2-->
+                        <line x1="{{ largeur_svg / 10 }}" y1="{{ hauteur_svg * (1 / 10) }}" 
+                        x2="{{ largeur_svg * (9 / 10) }}" y2="{{ hauteur_svg * (1 / 10) }}" stroke="#dee2e6" stroke-width="2" />
+                        <line x1="{{ largeur_svg / 10 }}" y1="{{ hauteur_svg /10 }}" 
+                        x2="{{ largeur_svg / 10 }}" y2="{{ hauteur_svg * (9 / 10) }}" stroke="#dee2e6" stroke-width="3" />
+                        <line x1="{{ largeur_svg * (9/ 10) }}" y1="{{ hauteur_svg /10 }}" 
+                        x2="{{ (largeur_svg * (9/10)) }}" y2="{{ hauteur_svg * ( 9/10) }}" stroke="#dee2e6" stroke-width="4" />
+
                         <!-- Ligne du graphique -->
                         <polyline points="{{ graphique_svg.points|join(' ') }}" fill="none" stroke="#007bff" stroke-width="2" />
         
