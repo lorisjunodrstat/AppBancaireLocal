@@ -803,16 +803,21 @@ def banking_transfert():
     for compte in comptes:
         compte['id'] = int(compte['id'])
     
-    all_comptes = g.models.compte_model.get_all_accounts(g.db_manager)
-    sous_comptes = []
+    # Récupérer TOUS les comptes pour le transfert global
+    all_comptes_global = g.models.compte_model.get_all_accounts(g.db_manager)
     
+    # Sous-comptes de l'utilisateur
+    sous_comptes = []
     for c in comptes:
         subs = g.models.sous_compte_model.get_by_compte_principal_id(c['id'])
         for sub in subs:
-            sub['id'] = int(sub['id'])  # Convertir les IDs en entiers
+            sub['id'] = int(sub['id'])
         sous_comptes += subs
 
-    all_comptes = [c for c in g.models.compte_model.get_all_accounts(g.db_manager) if c['utilisateur_id'] != user_id]
+    # Comptes externes (autres utilisateurs) pour transfert "externe"
+    all_comptes = [c for c in all_comptes_global if c['utilisateur_id'] != user_id]
+
+    #all_comptes = [c for c in g.models.compte_model.get_all_accounts(g.db_manager) if c['utilisateur_id'] != user_id]
     
     if request.method == "POST":
         step = request.form.get('step')
@@ -827,6 +832,7 @@ def banking_transfert():
                 comptes=comptes,
                 sous_comptes=sous_comptes,
                 all_comptes=all_comptes,
+                all_comptes_global=all_comptes_global,
                 transfert_type=transfert_type,
                 now=datetime.now()
             )
@@ -860,6 +866,9 @@ def banking_transfert():
                         return redirect(url_for("banking.banking_transfert"))
                 else:
                     date_transaction = datetime.now()
+
+                success = False
+                message = ""
 
                 if transfert_type == 'interne':
                     # Vérification et conversion des IDs de compte
@@ -941,9 +950,106 @@ def banking_transfert():
                         date_transaction=date_transaction
                     )
                                             
-                else:  # transfert externe
-                    # [Code pour le transfert externe reste inchangé]
-                    pass
+                elif transfert_type == 'externe':
+                    # Récupérer compte source (doit appartenir à l'utilisateur)
+                    source_id_str = request.form.get('compte_source')
+                    if not source_id_str:
+                        flash("Compte source manquant", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+                    
+                    try:
+                        source_id = int(source_id_str)
+                    except (ValueError, TypeError):
+                        flash("Identifiant de compte invalide", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+
+                    # Vérifier que le compte source appartient à l'utilisateur
+                    source_compte = next((c for c in comptes + sous_comptes if c['id'] == source_id), None)
+                    if not source_compte:
+                        flash("Vous ne pouvez transférer que depuis vos propres comptes", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+
+                    # Déterminer type de compte source
+                    source_type = 'compte_principal' if any(c['id'] == source_id for c in comptes) else 'sous_compte'
+
+                    # Récupérer infos externes
+                    iban_dest = request.form.get('iban_dest', '').strip()
+                    bic_dest = request.form.get('bic_dest', '').strip()
+                    nom_dest = request.form.get('nom_dest', '').strip()
+                    devise = request.form.get('devise', 'CHF')
+
+                    if not iban_dest:
+                        flash("IBAN destination requis", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+                    if not nom_dest:
+                        flash("Nom du bénéficiaire requis", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+
+                    commentaire = request.form.get('commentaire', '').strip()
+
+                    success, message = g.models.transaction_financiere_model.create_transfert_externe(
+                        source_type=source_type,
+                        source_id=source_id,
+                        user_id=user_id,
+                        iban_dest=iban_dest,
+                        bic_dest=bic_dest,
+                        nom_dest=nom_dest,
+                        montant=montant,
+                        devise=devise,
+                        description=commentaire,
+                        date_transaction=date_transaction
+                    )
+
+                elif transfert_type == 'global':
+                    # Récupérer et valider les IDs
+                    source_id_str = request.form.get('compte_source_global')
+                    dest_id_str = request.form.get('compte_dest_global')
+
+                    if not source_id_str or not dest_id_str:
+                        flash("Compte source ou destination manquant", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+
+                    try:
+                        source_id = int(source_id_str)
+                        dest_id = int(dest_id_str)
+                    except (ValueError, TypeError):
+                        flash("Identifiant de compte invalide", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+
+                    # Vérifier que les comptes existent et sont actifs
+                    source_compte = g.models.compte_model.get_by_id(source_id)
+                    dest_compte = g.models.compte_model.get_by_id(dest_id)
+
+                    if not source_compte:
+                        flash("Le compte source n'existe pas ou est inactif", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+
+                    if not dest_compte:
+                        flash("Le compte destinataire n'existe pas ou est inactif", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+
+                    if source_id == dest_id:
+                        flash("Le compte source et destination doivent être différents", "danger")
+                        return redirect(url_for("banking.banking_transfert"))
+
+                    # Exécuter le transfert global
+                    commentaire = request.form.get('commentaire', '').strip()
+                    commentaire = f"[GLOBAL] {commentaire}"
+
+                    success, message = g.models.transaction_financiere_model.create_transfert_interne(
+                        source_type='compte_principal',
+                        source_id=source_id,
+                        dest_type='compte_principal',
+                        dest_id=dest_id,
+                        user_id=user_id,
+                        montant=montant,
+                        description=commentaire,
+                        date_transaction=date_transaction
+                    )
+
+                else:
+                    flash("Type de transfert non reconnu", "danger")
+                    return redirect(url_for("banking.banking_transfert"))
 
                 if success:
                     flash(message, "success")
@@ -961,6 +1067,7 @@ def banking_transfert():
         comptes=comptes,
         sous_comptes=sous_comptes,
         all_comptes=all_comptes,
+        all_comptes_global=all_comptes_global,  # <-- Ajouté
         now=datetime.now()
     )
 

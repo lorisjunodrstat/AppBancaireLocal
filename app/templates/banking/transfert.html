@@ -28,6 +28,7 @@
                     <option value="" disabled selected>-- Sélectionnez --</option>
                     <option value="interne">Entre mes comptes</option>
                     <option value="externe">Vers un compte externe</option>
+                    <option value="global">Entre les comptes</option> <!-- Supprimé "(admin)" -->
                 </select>
             </div>
         </div>
@@ -46,41 +47,55 @@
         <div class="row mb-4">
             <div class="col-md-6">
                 <label for="compte_source" class="form-label">Compte source*</label>
+                {% if transfert_type == 'global' %}
+                <select class="form-select" name="compte_source_global" id="compte_source" required>
+                    <option value="" disabled selected>-- Choisir un compte --</option>
+                    {% for c in all_comptes_global %}
+                    <option value="{{ c.id }}">
+                        {{ c.nom_compte }} ({{ c.utilisateur_nom }} {{ c.utilisateur_prenom }} - {{ c.solde }} {{
+                        c.devise }})
+                    </option>
+                    {% endfor %}
+                </select>
+                {% else %}
                 <select class="form-select" name="compte_source" id="compte_source" required>
                     <option value="" disabled selected>-- Choisir un compte --</option>
                     {% for compte in comptes %}
                     <option value="{{ compte.id }}">
-                        {{ compte.nom_banque }} - {{ compte.nom_compte }} ({{ compte.solde }} {{ compte.devise }}) ({{ compte.id }})
+                        {{ compte.nom_banque }} - {{ compte.nom_compte }} ({{ compte.solde }} {{ compte.devise }}) ({{
+                        compte.id }})
                     </option>
                     {% endfor %}
                     {% for sous_compte in sous_comptes %}
                     <option value="{{ sous_compte.id }}">
-                        {{ sous_compte.nom_banque }} - {{ sous_compte.nom_sous_compte }} ({{ sous_compte.solde }} CHF) ({{ sous_compte.id }})
+                        {{ sous_compte.nom_banque }} - {{ sous_compte.nom_sous_compte }} ({{ sous_compte.solde }} CHF)
+                        ({{ sous_compte.id }})
                     </option>
                     {% endfor %}
                 </select>
+                {% endif %}
             </div>
 
-            {% if transfert_type == 'interne' %}
             <div class="col-md-6">
+                {% if transfert_type == 'interne' %}
                 <label for="compte_dest" class="form-label">Compte destination*</label>
                 <select class="form-select" name="compte_dest" id="compte_dest" required>
                     <option value="" disabled selected>-- Choisir un compte --</option>
                     {% for compte in comptes %}
                     <option value="{{ compte.id }}">
-                        {{ compte.nom_banque }} - {{ compte.nom_compte }} {{ compte.solde }} ({{ compte.id }})
+                        {{ compte.nom_banque }} - {{ compte.nom_compte }} ({{ compte.solde }} {{ compte.devise }}) ({{
+                        compte.id }})
                     </option>
                     {% endfor %}
                     {% for sous_compte in sous_comptes %}
                     <option value="{{ sous_compte.id }}">
-                        {{ sous_compte.nom_banque }} - {{ sous_compte.nom_sous_compte }} - {{ sous_compte.solde }} ({{ sous_compte.id }})
+                        {{ sous_compte.nom_banque }} - {{ sous_compte.nom_sous_compte }} ({{ sous_compte.solde }} CHF)
+                        ({{ sous_compte.id }})
                     </option>
                     {% endfor %}
                 </select>
-            </div>
-            {% else %}
-            <!-- Champs pour transfert externe -->
-            <div class="col-md-6">
+
+                {% elif transfert_type == 'externe' %}
                 <label for="iban_dest" class="form-label">IBAN destination*</label>
                 <input type="text" name="iban_dest" id="iban_dest" class="form-control"
                     value="{{ request.form.get('iban_dest', '') }}" required pattern="[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}"
@@ -88,8 +103,23 @@
                 <div class="invalid-feedback">
                     Format IBAN invalide (ex: CH9300762011623852957)
                 </div>
+
+                {% elif transfert_type == 'global' %}
+                <label for="compte_dest_global" class="form-label">Compte destination*</label>
+                <select class="form-select" name="compte_dest_global" id="compte_dest_global" required>
+                    <option value="" disabled selected>-- Choisir un compte --</option>
+                    {% for c in all_comptes_global %}
+                    <option value="{{ c.id }}">
+                        {{ c.nom_compte }} ({{ c.utilisateur_nom }} {{ c.utilisateur_prenom }} - {{ c.solde }} {{
+                        c.devise }})
+                    </option>
+                    {% endfor %}
+                </select>
+
+                {% else %}
+                <div class="alert alert-warning">Type de transfert inconnu.</div>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
 
         {% if transfert_type == 'externe' %}
@@ -111,8 +141,8 @@
             <div class="col-md-6">
                 <label for="devise" class="form-label">Devise*</label>
                 <select name="devise" id="devise" class="form-select" required>
-                    <option value="EUR" selected>EUR (Euro)</option>
-                    <option value="CHF">CHF (Franc suisse)</option>
+                    <option value="EUR">EUR (Euro)</option>
+                    <option value="CHF" selected>CHF (Franc suisse)</option>
                     <option value="USD">USD (Dollar US)</option>
                     <option value="GBP">GBP (Livre sterling)</option>
                 </select>
