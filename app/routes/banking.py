@@ -516,36 +516,43 @@ def banking_sous_compte_detail(sous_compte_id):
     soldes_quotidiens_len = len(soldes_quotidiens)
     # Préparation des données pour le graphique SVG
     if soldes_quotidiens:
-        # Conversion des valeurs Decimal en float pour les calculs
         soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
         min_solde = min(soldes_values) if soldes_values else 0.0
         max_solde = max(soldes_values) if soldes_values else 0.0
-        
+
         if min_solde == max_solde:
             if min_solde == 0:
                 max_solde = 100.0
             else:
-                min_solde = min_solde * 0.9
-                max_solde = max_solde * 1.1
-        
+                min_solde *= 0.9
+                max_solde *= 1.1
+
+        n = len(soldes_quotidiens)
         points = []
-        for i, solde_data in enumerate(soldes_quotidiens):
-            x = i * (350 / (len(soldes_quotidiens) - 1)) if len(soldes_quotidiens) > 1 else 175
-            solde_value = float(solde_data['solde_apres'])
-            
-            if max_solde != min_solde:
-                y = 150 - ((solde_value - min_solde) / (max_solde - min_solde)) * 130
-            else:
-                y = 85
-                
+        margin_x = largeur_svg * 0.1  # 10% de marge gauche/droite
+        margin_y = hauteur_svg * 0.1  # 10% de marge haut/bas
+        plot_width = largeur_svg * 0.8  # 80% de la largeur pour le tracé
+        plot_height = hauteur_svg * 0.8  # 80% de la hauteur pour le tracé
+
+        for i, solde in enumerate(soldes_quotidiens):
+            solde_float = float(solde['solde_apres'])
+            # X : interpolation linéaire entre margin_x et margin_x + plot_width
+            x = margin_x + (i / (n - 1)) * plot_width if n > 1 else margin_x + plot_width / 2
+            # Y : inversion car SVG part du haut → plus le solde est élevé, plus Y est petit
+            y = margin_y + plot_height - ((solde_float - min_solde) / (max_solde - min_solde)) * plot_height if max_solde != min_solde else margin_y + plot_height / 2
             points.append(f"{x},{y}")
-        
+
         graphique_svg = {
             'points': points,
             'min_solde': min_solde,
             'max_solde': max_solde,
-            'dates': [s['date'].strftime('%d/%m') for s in soldes_quotidiens],
-            'soldes': soldes_values
+            'dates': [s['date'].strftime('%d/%m/%Y') for s in soldes_quotidiens],
+            'soldes': soldes_values,
+            'nb_points': n,
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'plot_width': plot_width,
+            'plot_height': plot_height
         }
     else:
         graphique_svg = None
