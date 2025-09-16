@@ -529,17 +529,35 @@ def banking_sous_compte_detail(sous_compte_id):
     graphique_svg = None
     largeur_svg = 500
     hauteur_svg = 200
+
     if soldes_quotidiens:
         soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
         min_solde = min(soldes_values) if soldes_values else 0.0
         max_solde = max(soldes_values) if soldes_values else 0.0
 
-        if min_solde == max_solde:
-            if min_solde == 0:
-                max_solde = 100.0
-            else:
-                min_solde *= 0.9
-                max_solde *= 1.1
+        # Si un objectif est défini, on l'utilise comme référence
+        objectif = float(sous_compte['objectif_montant']) if sous_compte.get('objectif_montant') else None
+
+        # Limiter l'axe Y à 150% de l'objectif si défini
+        if objectif and objectif > 0:
+            max_affichage = objectif * 1.5
+            min_affichage = 0.0  # On part de 0 pour plus de clarté visuelle
+            # On ajuste max_solde pour ne pas dépasser max_affichage
+            if max_solde > max_affichage:
+                max_solde = max_affichage
+            # On garde min_solde à 0 sauf s'il y a des valeurs négatives (rare pour un objectif)
+            if min_solde < 0:
+                min_affichage = min_solde  # On conserve les négatifs si présents
+        else:
+            # Pas d'objectif → on garde les valeurs min/max réelles, avec marge
+            if min_solde == max_solde:
+                if min_solde == 0:
+                    max_solde = 100.0
+                else:
+                    min_solde *= 0.9
+                    max_solde *= 1.1
+            min_affichage = min_solde
+            max_affichage = max_solde
 
         n = len(soldes_quotidiens)
         points = []
@@ -551,25 +569,30 @@ def banking_sous_compte_detail(sous_compte_id):
         for i, solde in enumerate(soldes_quotidiens):
             solde_float = float(solde['solde_apres'])
             x = margin_x + (i / (n - 1)) * plot_width if n > 1 else margin_x + plot_width / 2
-            y = margin_y + plot_height - ((solde_float - min_solde) / (max_solde - min_solde)) * plot_height if max_solde != min_solde else margin_y + plot_height / 2
+            # Calcul de y en fonction de min_affichage / max_affichage
+            y = margin_y + plot_height - ((solde_float - min_affichage) / (max_affichage - min_affichage)) * plot_height if max_affichage != min_affichage else margin_y + plot_height / 2
             points.append(f"{x},{y}")
 
-        # On crée le dict COMPLET ici
+        # Ajouter l'objectif au contexte graphique s'il existe
+        objectif_y = None
+        if objectif and max_affichage != min_affichage:
+            # Position Y de la ligne d'objectif
+            objectif_y = margin_y + plot_height - ((objectif - min_affichage) / (max_affichage - min_affichage)) * plot_height
+
         graphique_svg = {
             'points': points,
-            'min_solde': min_solde,
-            'max_solde': max_solde,
+            'min_solde': min_affichage,
+            'max_solde': max_affichage,
             'dates': [s['date'].strftime('%d/%m/%Y') for s in soldes_quotidiens],
             'soldes': soldes_values,
             'nb_points': n,
             'margin_x': margin_x,
             'margin_y': margin_y,
             'plot_width': plot_width,
-            'plot_height': plot_height
+            'plot_height': plot_height,
+            'objectif': objectif,
+            'objectif_y': objectif_y  # Position Y pour tracer la ligne
         }
-
-    else:
-        graphique_svg = None
         
     return render_template(
         'banking/sous_compte_detail.html',
