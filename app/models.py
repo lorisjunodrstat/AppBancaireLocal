@@ -1830,8 +1830,8 @@ class TransactionFinanciere:
                 if not self._verifier_appartenance_compte_with_cursor(cursor, source_type, source_id, user_id):
                     return False, "Compte source non trouvé ou non autorisé"
                 
-                if not self._verifier_appartenance_compte_with_cursor(cursor, dest_type, dest_id, user_id):
-                    return False, "Compte destination non trouvé ou non autorisé"
+                #if not self._verifier_appartenance_compte_with_cursor(cursor, dest_type, dest_id, user_id):
+                #    return False, "Compte destination non trouvé ou non autorisé"
                 
                 # Récupérer les soldes
                 solde_source = self._get_solde_compte_with_cursor(cursor, source_type, source_id)
