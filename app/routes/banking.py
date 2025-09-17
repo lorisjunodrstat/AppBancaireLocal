@@ -1302,9 +1302,8 @@ def liste_transferts():
     # Utilisez une méthode unifiée qui peut récupérer à la fois les transactions et les transferts
     # NOTE: Cette méthode est une hypothèse, elle doit être implémentée dans votre modèle
     # transaction_financiere_model.
-    mouvements = g.models.transaction_financiere_model.get_by_filters(filters)
-    total_mouvements = g.models.transaction_financiere_model.count_by_filters(filters)
-    pages = (total_mouvements + per_page - 1) // per_page
+    mouvements = g.models.transaction_financiere_model.get_by_compte_id(user_id)
+    pages = (mouvements + per_page - 1) // per_page
 
     # Export CSV
     if request.args.get('export') == 'csv':

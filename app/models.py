@@ -1425,17 +1425,13 @@ class TransactionFinanciere:
                     t.date_transaction,
                     t.solde_apres,
                     sc.nom_sous_compte as sous_compte_source,
-                    sc_dest.nom_sous_compte as sous_compte_dest,
-                    te.iban_dest,
-                    te.nom_dest,
-                    te.statut as statut_externe
+                    sc_dest.nom_sous_compte as sous_compte_dest
                 FROM transactions t
                 LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
                 LEFT JOIN sous_comptes sc_dest ON t.sous_compte_destination_id = sc_dest.id
-                LEFT JOIN transferts_externes te ON t.id = te.transaction_id
                 WHERE t.compte_principal_id = %s
                 ORDER BY t.date_transaction DESC
-                LIMIT %s
+
                 """
                 
                 cursor.execute(query, (compte_id, limit))
@@ -1478,7 +1474,6 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur création dépôt: {e}")
             return False, f"Erreur lors de la création du dépôt: {str(e)}"
-
 
     def create_retrait(self, compte_id: int, user_id: int, montant: Decimal, 
                     description: str = "", compte_type: str = 'compte_principal',
