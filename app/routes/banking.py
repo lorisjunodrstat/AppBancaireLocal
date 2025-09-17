@@ -1303,8 +1303,8 @@ def liste_transferts():
     # NOTE: Cette méthode est une hypothèse, elle doit être implémentée dans votre modèle
     # transaction_financiere_model.
     mouvements = []
-    for c in comptes['id']:
-        mouvements += g.models.transaction_financiere_model.get_by_compte_id(user_id, c)
+    for c in comptes:
+        mouvements += g.models.transaction_financiere_model.get_by_compte_id(user_id, c['id'])
     pages = (mouvements + per_page - 1) // per_page
 
     # Export CSV
