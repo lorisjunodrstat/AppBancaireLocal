@@ -287,7 +287,7 @@ def banking_compte_detail(compte_id):
     
     date_debut_str = request.args.get('date_debut')
     date_fin_str = request.args.get('date_fin')
-    mois_seletct = request.args.get('mois_select')
+    mois_select = request.args.get('mois_select')
     annee_select = request.args.get('annee_select')
     # Calcul des dates selon la période
     maintenant = datetime.now()
@@ -302,14 +302,14 @@ def banking_compte_detail(compte_id):
         except ValueError:
             flash('Dates personnalisées invalides', 'error')
             return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
-    elif periode == 'mois_annee' and mois_seletct and annee_select:
+    elif periode == 'mois_annee' and mois_select and annee_select:
         try:
-            mois = int(mois_seletct)
+            mois = int(mois_select)
             annee = int(annee_select)
             debut = datetime(annee, mois, 1)
             fin = (debut + timedelta(days=32)).replace(day=1) - timedelta(days=1)
             fin = fin.replace(hour=23, minute=59, second=59)
-            libelle_periode =f'{debut.strftime('%B %Y')}'
+            libelle_periode =debut.strftime('%B %Y')
         except ValueError:
             flash('Mois/Année invalides', 'error')
             return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
@@ -344,7 +344,8 @@ def banking_compte_detail(compte_id):
         compte_type='compte_principal',
         compte_id=compte_id,
         user_id=user_id,
-        periode_jours=(fin - debut).days
+        date_debut=debut.strftime('%Y-%m-%d'),
+        date_fin=fin.strftime('%Y-%m-%d')
     )
     filtred_mouvements = mouvements
     if filter_type!='tous':
@@ -401,7 +402,8 @@ def banking_compte_detail(compte_id):
     soldes_quotidiens = g.models.transaction_financiere_model.get_evolution_soldes_quotidiens_compte(
         compte_id=compte_id, 
         user_id=user_id, 
-        nb_jours=nb_jours_periode
+        date_debut=debut.strftime('%Y-%m-%d'),
+        date_fin=fin.strftime('%Y-%m-%d')
         )
 
     # Préparation des données pour le graphique SVG
@@ -465,11 +467,12 @@ def banking_compte_detail(compte_id):
                         graphique_svg=graphique_svg,
                         date_debut_selected=date_debut_str,
                         date_fin_selected=date_fin_str,
-                        mois_seletcted=mois_seletct,
+                        mois_selected=mois_select,
                         annee_selected=annee_select,
                         nb_jours_periode=nb_jours_periode,
                         largeur_svg=largeur_svg,
-                        hauteur_svg=hauteur_svg)
+                        hauteur_svg=hauteur_svg,
+                        sort=sort)
 
 
 
