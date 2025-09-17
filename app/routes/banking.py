@@ -1302,7 +1302,9 @@ def liste_transferts():
     # Utilisez une méthode unifiée qui peut récupérer à la fois les transactions et les transferts
     # NOTE: Cette méthode est une hypothèse, elle doit être implémentée dans votre modèle
     # transaction_financiere_model.
-    mouvements = g.models.transaction_financiere_model.get_by_compte_id(user_id)
+    mouvements = []
+    for c in comptes['id']:
+        mouvements += g.models.transaction_financiere_model.get_by_compte_id(user_id, c)
     pages = (mouvements + per_page - 1) // per_page
 
     # Export CSV
@@ -1349,7 +1351,7 @@ def liste_transferts():
 
     # Rendu de la page unifiée
     return render_template(
-        'banking/liste_transferts.html', # Nom de la nouvelle page unifiée
+        'banking/liste_transactions.html', # Nom de la nouvelle page unifiée
         transactions=mouvements, # Renommé pour correspondre à la page HTML
         comptes=comptes,
         sous_comptes=sous_comptes,
