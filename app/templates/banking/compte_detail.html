@@ -177,7 +177,127 @@
                     </div>
                 </div>
             </div>
-
+        <!-- Section filtre de la période-->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-calendar me-2"></i> Sélection de la période</h5>
+                        <span class="badge bg-primary">{{ libelle_periode }}</span>
+                    </div>
+                    <div class="card-body">
+                        <form method="GET" class="period-form">
+                            <!-- Champs cachés pour conserver les autres paramètres -->
+                            <input type="hidden" name="sort" value="{{ request.args.get('sort', 'date_desc') }}">
+                            <input type="hidden" name="filter_type" value="{{ request.args.get('filter_type', 'tous') }}">
+                            <input type="hidden" name="filter_min_amount"
+                                value="{{ request.args.get('filter_min_amount', '') }}">
+                            <input type="hidden" name="filter_max_amount"
+                                value="{{ request.args.get('filter_max_amount', '') }}">
+                            <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+        
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label for="periode" class="form-label">Type de période</label>
+                                    <select class="form-select" id="periode" name="periode">
+                                        <option value="mois" {% if request.args.get('periode', 'mois' )=='mois' %}selected{%
+                                            endif %}>Ce mois</option>
+                                        <option value="trimestre" {% if request.args.get('periode')=='trimestre' %}selected{%
+                                            endif %}>Ce trimestre</option>
+                                        <option value="annee" {% if request.args.get('periode')=='annee' %}selected{% endif %}>
+                                            Cette année</option>
+                                        <option value="mois_annee" {% if request.args.get('periode')=='mois_annee' %}selected{%
+                                            endif %}>Mois/Année spécifique</option>
+                                        <option value="personnalisee" {% if request.args.get('periode')=='personnalisee'
+                                            %}selected{% endif %}>Période personnalisée</option>
+                                    </select>
+                                </div>
+        
+                                <!-- Options pour mois/année spécifique -->
+                                <div class="col-md-5 mb-3 {% if request.args.get('periode') != 'mois_annee' %}d-none{% endif %}"
+                                    id="moisAnneeContainer">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="mois_select" class="form-label">Mois</label>
+                                            <select class="form-select" id="mois_select" name="mois_select">
+                                                <option value="">Sélectionner un mois</option>
+                                                <option value="1" {% if request.args.get('mois_select')=='1' %}selected{% endif
+                                                    %}>Janvier</option>
+                                                <option value="2" {% if request.args.get('mois_select')=='2' %}selected{% endif
+                                                    %}>Février</option>
+                                                <option value="3" {% if request.args.get('mois_select')=='3' %}selected{% endif
+                                                    %}>Mars</option>
+                                                <option value="4" {% if request.args.get('mois_select')=='4' %}selected{% endif
+                                                    %}>Avril</option>
+                                                <option value="5" {% if request.args.get('mois_select')=='5' %}selected{% endif
+                                                    %}>Mai</option>
+                                                <option value="6" {% if request.args.get('mois_select')=='6' %}selected{% endif
+                                                    %}>Juin</option>
+                                                <option value="7" {% if request.args.get('mois_select')=='7' %}selected{% endif
+                                                    %}>Juillet</option>
+                                                <option value="8" {% if request.args.get('mois_select')=='8' %}selected{% endif
+                                                    %}>Août</option>
+                                                <option value="9" {% if request.args.get('mois_select')=='9' %}selected{% endif
+                                                    %}>Septembre</option>
+                                                <option value="10" {% if request.args.get('mois_select')=='10' %}selected{%
+                                                    endif %}>Octobre</option>
+                                                <option value="11" {% if request.args.get('mois_select')=='11' %}selected{%
+                                                    endif %}>Novembre</option>
+                                                <option value="12" {% if request.args.get('mois_select')=='12' %}selected{%
+                                                    endif %}>Décembre</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="annee_select" class="form-label">Année</label>
+                                            <select class="form-select" id="annee_select" name="annee_select">
+                                                <option value="">Sélectionner une année</option>
+                                                {% set current_year = now.year if now else 2025 %}
+                                                {% for year in range(current_year - 10, current_year + 2) %}
+                                                <option value="{{ year }}" {% if request.args.get('annee_select')|int==year
+                                                    %}selected{% endif %}>{{ year }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+        
+                                <!-- Options pour période personnalisée -->
+                                <div class="col-md-5 mb-3 {% if request.args.get('periode') != 'personnalisee' %}d-none{% endif %}"
+                                    id="dateRangeContainer">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="date_debut" class="form-label">Date de début</label>
+                                            <input type="date" class="form-control" id="date_debut" name="date_debut"
+                                                value="{{ request.args.get('date_debut', '') }}">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="date_fin" class="form-label">Date de fin</label>
+                                            <input type="date" class="form-control" id="date_fin" name="date_fin"
+                                                value="{{ request.args.get('date_fin', '') }}">
+                                        </div>
+                                    </div>
+                                </div>
+        
+                                <div class="col-md-4 d-flex align-items-end mb-3">
+                                    <button type="submit" class="btn btn-primary me-2">Appliquer</button>
+                                    <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
+                                        class="btn btn-outline-secondary">Réinitialiser</a>
+                                </div>
+                            </div>
+        
+                            <!-- Indications pour l'utilisateur -->
+                            <div class="alert alert-info mt-3">
+                                <small>
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Sélectionnez le type de période souhaitée et remplissez les champs correspondants.
+                                    Les options s'afficheront automatiquement selon votre choix.
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
             <!-- Activité récente (Transactions + Transferts) -->
             <div class="col-lg-4">
                 <div class="card">
@@ -299,127 +419,7 @@
                 </div>
             </div>
         </div>
-        <!-- Section filtre de la période-->
-        <div class="row mt-4">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-calendar me-2"></i> Sélection de la période</h5>
-                        <span class="badge bg-primary">{{ libelle_periode }}</span>
-                    </div>
-                    <div class="card-body">
-                        <form method="GET" class="period-form">
-                            <!-- Champs cachés pour conserver les autres paramètres -->
-                            <input type="hidden" name="sort" value="{{ request.args.get('sort', 'date_desc') }}">
-                            <input type="hidden" name="filter_type" value="{{ request.args.get('filter_type', 'tous') }}">
-                            <input type="hidden" name="filter_min_amount"
-                                value="{{ request.args.get('filter_min_amount', '') }}">
-                            <input type="hidden" name="filter_max_amount"
-                                value="{{ request.args.get('filter_max_amount', '') }}">
-                            <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
         
-                            <div class="row">
-                                <div class="col-md-3 mb-3">
-                                    <label for="periode" class="form-label">Type de période</label>
-                                    <select class="form-select" id="periode" name="periode">
-                                        <option value="mois" {% if request.args.get('periode', 'mois' )=='mois' %}selected{%
-                                            endif %}>Ce mois</option>
-                                        <option value="trimestre" {% if request.args.get('periode')=='trimestre' %}selected{%
-                                            endif %}>Ce trimestre</option>
-                                        <option value="annee" {% if request.args.get('periode')=='annee' %}selected{% endif %}>
-                                            Cette année</option>
-                                        <option value="mois_annee" {% if request.args.get('periode')=='mois_annee' %}selected{%
-                                            endif %}>Mois/Année spécifique</option>
-                                        <option value="personnalisee" {% if request.args.get('periode')=='personnalisee'
-                                            %}selected{% endif %}>Période personnalisée</option>
-                                    </select>
-                                </div>
-        
-                                <!-- Options pour mois/année spécifique -->
-                                <div class="col-md-5 mb-3 {% if request.args.get('periode') != 'mois_annee' %}d-none{% endif %}"
-                                    id="moisAnneeContainer">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <label for="mois_select" class="form-label">Mois</label>
-                                            <select class="form-select" id="mois_select" name="mois_select">
-                                                <option value="">Sélectionner un mois</option>
-                                                <option value="1" {% if request.args.get('mois_select')=='1' %}selected{% endif
-                                                    %}>Janvier</option>
-                                                <option value="2" {% if request.args.get('mois_select')=='2' %}selected{% endif
-                                                    %}>Février</option>
-                                                <option value="3" {% if request.args.get('mois_select')=='3' %}selected{% endif
-                                                    %}>Mars</option>
-                                                <option value="4" {% if request.args.get('mois_select')=='4' %}selected{% endif
-                                                    %}>Avril</option>
-                                                <option value="5" {% if request.args.get('mois_select')=='5' %}selected{% endif
-                                                    %}>Mai</option>
-                                                <option value="6" {% if request.args.get('mois_select')=='6' %}selected{% endif
-                                                    %}>Juin</option>
-                                                <option value="7" {% if request.args.get('mois_select')=='7' %}selected{% endif
-                                                    %}>Juillet</option>
-                                                <option value="8" {% if request.args.get('mois_select')=='8' %}selected{% endif
-                                                    %}>Août</option>
-                                                <option value="9" {% if request.args.get('mois_select')=='9' %}selected{% endif
-                                                    %}>Septembre</option>
-                                                <option value="10" {% if request.args.get('mois_select')=='10' %}selected{%
-                                                    endif %}>Octobre</option>
-                                                <option value="11" {% if request.args.get('mois_select')=='11' %}selected{%
-                                                    endif %}>Novembre</option>
-                                                <option value="12" {% if request.args.get('mois_select')=='12' %}selected{%
-                                                    endif %}>Décembre</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="annee_select" class="form-label">Année</label>
-                                            <select class="form-select" id="annee_select" name="annee_select">
-                                                <option value="">Sélectionner une année</option>
-                                                {% set current_year = now.year if now else 2023 %}
-                                                {% for year in range(current_year - 5, current_year + 1) %}
-                                                <option value="{{ year }}" {% if request.args.get('annee_select')|int==year
-                                                    %}selected{% endif %}>{{ year }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-        
-                                <!-- Options pour période personnalisée -->
-                                <div class="col-md-5 mb-3 {% if request.args.get('periode') != 'personnalisee' %}d-none{% endif %}"
-                                    id="dateRangeContainer">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <label for="date_debut" class="form-label">Date de début</label>
-                                            <input type="date" class="form-control" id="date_debut" name="date_debut"
-                                                value="{{ request.args.get('date_debut', '') }}">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="date_fin" class="form-label">Date de fin</label>
-                                            <input type="date" class="form-control" id="date_fin" name="date_fin"
-                                                value="{{ request.args.get('date_fin', '') }}">
-                                        </div>
-                                    </div>
-                                </div>
-        
-                                <div class="col-md-4 d-flex align-items-end mb-3">
-                                    <button type="submit" class="btn btn-primary me-2">Appliquer</button>
-                                    <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
-                                        class="btn btn-outline-secondary">Réinitialiser</a>
-                                </div>
-                            </div>
-        
-                            <!-- Indications pour l'utilisateur -->
-                            <div class="alert alert-info mt-3">
-                                <small>
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Sélectionnez le type de période souhaitée et remplissez les champs correspondants.
-                                    Les options s'afficheront automatiquement selon votre choix.
-                                </small>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
     
         <!-- Trésorerie -->
         <div class="row mt-4">

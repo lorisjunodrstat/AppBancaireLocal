@@ -407,8 +407,8 @@ def banking_compte_detail(compte_id):
         )
 
     # Préparation des données pour le graphique SVG
-    largeur_svg = 500
-    hauteur_svg = 200
+    largeur_svg = 800
+    hauteur_svg = 400
     if soldes_quotidiens:
         soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
         min_solde = min(soldes_values) if soldes_values else 0.0
