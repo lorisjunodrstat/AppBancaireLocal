@@ -518,8 +518,12 @@ def banking_sous_compte_detail(sous_compte_id):
         fin = fin_mois.replace(hour=23, minute=59, second=59)
         libelle_periode = f"{['1er', '2ème', '3ème', '4ème'][trimestre-1]} trimestre"
     else:  # mois par défaut
-    # Récupérer tous les sous-comptes de l'utilisateur
-        sous_comptes_ = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
+        # Récupérer tous les sous-comptes de l'utilisateur
+        debut = maintenant.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        fin_mois = (debut.replace(month=debut.month+1, day=1) - timedelta(days=1))
+        fin = fin_mois.replace(hour=23, minute=59, second=59)
+        libelle_periode = "Ce mois"
+    sous_comptes_ = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
     # Convertir les IDs en entiers
     for sous_compte in sous_comptes_:
