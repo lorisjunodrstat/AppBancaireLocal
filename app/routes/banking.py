@@ -348,7 +348,13 @@ def banking_compte_detail(compte_id):
     )
     filtred_mouvements = mouvements
     if filter_type!='tous':
-        filtred_mouvements
+        if filter_type == 'entree':
+            filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction'] in ['depot', 'transfert_entrant', 'transfert_sous_vers_compte', 'recredit_annulation']]
+        elif filter_type == 'sortie':
+            filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction'] in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']]
+        elif filter_type == 'transfert':
+            filtred_mouvements = [m for m in filtred_mouvements if 'transfert' in m['type_transaction']]
+
     if filter_min_amount:
         try:
             min_amount = Decimal(filter_min_amount)
@@ -356,19 +362,20 @@ def banking_compte_detail(compte_id):
         except InvalidOperation:
             flash('Montant minimum invalide', 'error')
     if filter_max_amount:
-        search_lower = search_query.lower()
-        filtred_mouvements = [
-            m for m in filtred_mouvements if (m.get('description','') and search_lower in m['description'].lower()) or
-            (m.get('categorie','') and search_lower in m['categorie'].lower())
-        ]
         try:
             max_amount = Decimal(filter_max_amount)
             filtred_mouvements = [m for m in filtred_mouvements if m['montant'] <= max_amount]
         except InvalidOperation:
             flash('Montant maximum invalide', 'error')
     if search_query:
-        filtred_mouvements = [m for m in filtred_mouvements if search_query.lower() in (m.get('description','') or '').lower() or search_query.lower() in (m.get('categorie','') or '').lower()]
-
+        search_lower = search_query.lower()
+        filtred_mouvements = [
+            m for m in filtred_mouvements 
+            if (m.get('description','') and search_lower in m['description'].lower()) 
+            or (m.get('categorie', '') and search_lower in m['categorie'].lower())
+            or (m.get('reference', '') and search_lower in m['reference'].lower())
+            or (m.get('beneficiaire', '') and search_lower in m['beneficiaire'].lower())
+        ]
     total_recettes = Decimal(str(stats_compte.get('total_entrees', 0)))
     total_depenses = Decimal(str(stats_compte.get('total_sorties', 0)))
 
@@ -445,7 +452,7 @@ def banking_compte_detail(compte_id):
     return render_template('banking/compte_detail.html',
                         compte=compte,
                         sous_comptes=sous_comptes,
-                        mouvements=mouvements,
+                        mouvements=filtred_mouvements,
                         solde_total=solde_total,
                         tresorerie_data=tresorerie_data,
                         periode_selectionnee=periode,

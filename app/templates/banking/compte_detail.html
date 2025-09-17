@@ -696,7 +696,7 @@
         <!-- Graphique de l'évolution du solde -->
         <div class="card mt-4">
             <div class="card-header">
-                <h5 class="mb-0">Évolution du solde sur {% if nb_jours_periode %} {{ nb_jours_periode }} jours {% else %} 30 jours {% endif %}</h5>
+                <h5 class="mb-0">Évolution du solde : {{ libelle_periode }}</h5>
             </div>
             <div class="card-body">
                 {% if graphique_svg %}
@@ -715,7 +715,7 @@
                 
                         <!-- Ligne du graphique -->
                         <polyline points="{{ graphique_svg.points|join(' ') }}" fill="none" stroke="{{ compte.couleur_banque }}" stroke-width="2" />
-                
+                        
                         <!-- Points sur la ligne -->
                         {% for point in graphique_svg.points %}
                         <circle cx="{{ point.split(',')[0] }}" cy="{{ point.split(',')[1] }}" r="3" fill="#007bff" />

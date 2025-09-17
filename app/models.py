@@ -2200,21 +2200,18 @@ class TransactionFinanciere:
             logging.error(f"Erreur récupération historique: {e}")
             return []
 
-    def get_statistiques_compte(self, compte_type: str, compte_id: int, 
-                                user_id: int, periode_jours: int = 30) -> Dict:
-        """Récupère les statistiques d'un compte sur une période"""
-        
+    def get_statistiques_compte(self, compte_type: str, compte_id: int, user_id: int, date_debut: str = None, date_fin: str = None) -> Dict:
+        """Récupère les statistiques d'un compte sur une période personnalisée"""
         try:
             with self.db.get_cursor() as cursor:
                 if not self._verifier_appartenance_compte_with_cursor(cursor, compte_type, compte_id, user_id):
                     return {}
-                
+
                 if compte_type == 'compte_principal':
                     condition_compte = "t.compte_principal_id = %s"
                 else:
                     condition_compte = "t.sous_compte_id = %s"
-                
-                # Requête corrigée pour inclure tous les types de transactions
+
                 query = f"""
                 SELECT 
                     SUM(CASE 
@@ -2227,12 +2224,12 @@ class TransactionFinanciere:
                     AVG(t.montant) as montant_moyen
                 FROM transactions t
                 WHERE {condition_compte}
-                AND t.date_transaction >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                AND t.date_transaction BETWEEN %s AND %s
                 """
-                
-                cursor.execute(query, (compte_id, periode_jours))
+
+                cursor.execute(query, (compte_id, date_debut, date_fin))
                 stats = cursor.fetchone()
-                
+
                 if stats:
                     return {
                         'total_entrees': float(stats['total_entrees'] or 0),
@@ -2241,9 +2238,7 @@ class TransactionFinanciere:
                         'nombre_transactions': int(stats['nombre_transactions'] or 0),
                         'montant_moyen': float(stats['montant_moyen'] or 0)
                     }
-                
                 return {}
-                
         except Exception as e:
             logging.error(f"Erreur récupération statistiques: {e}")
             return {}
@@ -2328,27 +2323,32 @@ class TransactionFinanciere:
             logging.error(f"Erreur annulation transfert externe: {e}")
             return False, f"Erreur lors de l'annulation: {str(e)}"
     
-    def get_evolution_soldes_quotidiens_compte(self, compte_id: int, user_id: int, nb_jours: int = 30) -> List[Dict]:
+    def get_evolution_soldes_quotidiens_compte(self, compte_id: int, user_id: int, date_debut: str = None, date_fin: str = None) -> List[Dict]:
+
         """Récupère l'évolution quotidienne des soldes d'un compte principal"""
         try:
             with self.db.get_cursor() as cursor:
+                # Vérifier l'appartenance
+                cursor.execute("SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", (compte_id, user_id))
+                if not cursor.fetchone():
+                    return []
                 query = """
                 SELECT 
                     DATE(date_transaction) as date,
                     solde_apres
                 FROM transactions
                 WHERE compte_principal_id = %s
-                AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+                AND date_transaction BETWEEN %s AND %s
                 AND id IN (
                     SELECT MAX(id)
                     FROM transactions
                     WHERE compte_principal_id = %s
-                    AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+                    AND date_transaction BETWEEN %s AND %s
                     GROUP BY DATE(date_transaction)
                 )
                 ORDER BY date
                 """
-                cursor.execute(query, (compte_id, nb_jours, compte_id, nb_jours))
+                cursor.execute(query, (compte_id, date_debut, date_fin, compte_id, date_debut, date_fin))
                 return cursor.fetchall()
         except Exception as e:
             logging.error(f"Erreur récupération évolution soldes compte: {e}")
