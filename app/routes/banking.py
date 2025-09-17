@@ -485,7 +485,8 @@ def banking_sous_compte_detail(sous_compte_id):
     mois_select = request.args.get('mois_select')
     annee_select = request.args.get('annee_select')
     libelle_periode = "période personnalisée "
-    
+    periode = request.args.get('periode', 'mois')  # Valeurs possibles: mois, trimestre, annee
+
     if periode == 'personnalisee' and date_debut_str and date_fin_str:
         try:
             debut = datetime.strptime(date_debut_str, '%Y-%m-%d')
@@ -516,7 +517,7 @@ def banking_sous_compte_detail(sous_compte_id):
         libelle_periode = f"{['1er', '2ème', '3ème', '4ème'][trimestre-1]} trimestre"
     else:  # mois par défaut
     # Récupérer tous les sous-comptes de l'utilisateur
-    sous_comptes_ = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
+        sous_comptes_ = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
     # Convertir les IDs en entiers
     for sous_compte in sous_comptes_:
