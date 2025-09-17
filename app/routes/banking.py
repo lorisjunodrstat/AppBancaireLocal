@@ -485,6 +485,7 @@ def banking_sous_compte_detail(sous_compte_id):
     mois_select = request.args.get('mois_select')
     annee_select = request.args.get('annee_select')
     libelle_periode = "période personnalisée "
+    maintenant = datetime.now()
     periode = request.args.get('periode', 'mois')  # Valeurs possibles: mois, trimestre, annee
     debut = None
     fin = None
@@ -494,7 +495,7 @@ def banking_sous_compte_detail(sous_compte_id):
             fin = datetime.strptime(date_fin_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
         except ValueError:
             flash('Dates personnalisées invalides', 'error')
-            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+            return redirect(url_for('banking.banking_sous_compte_detail', sous_compte_id=sous_compte_id))
     elif periode == 'mois_annee' and mois_select and annee_select:
         try:
             mois = int(mois_select)
@@ -505,7 +506,7 @@ def banking_sous_compte_detail(sous_compte_id):
             libelle_periode =debut.strftime('%B %Y')
         except ValueError:
             flash('Mois/Année invalides', 'error')
-            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+            return redirect(url_for('banking.banking_sous_compte_detail', sous_compte_id=sous_compte_id))
     elif periode == 'annee':
         debut = maintenant.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
         fin = maintenant.replace(month=12, day=31, hour=23, minute=59, second=59)
