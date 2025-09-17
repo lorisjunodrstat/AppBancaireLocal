@@ -474,15 +474,47 @@ def banking_compte_detail(compte_id):
                         hauteur_svg=hauteur_svg,
                         sort=sort)
 
-
-
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
 def banking_sous_compte_detail(sous_compte_id):
     user_id = current_user.id
     # Récupérer les comptes de l'utilisateur
     comptes_ = g.models.compte_model.get_by_user_id(user_id)
+    date_debut_str = request.args.get('date_debut')
+    date_fin_str = request.args.get('date_fin')
+    mois_select = request.args.get('mois_select')
+    annee_select = request.args.get('annee_select')
+    libelle_periode = "période personnalisée "
     
+    if periode == 'personnalisee' and date_debut_str and date_fin_str:
+        try:
+            debut = datetime.strptime(date_debut_str, '%Y-%m-%d')
+            fin = datetime.strptime(date_fin_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        except ValueError:
+            flash('Dates personnalisées invalides', 'error')
+            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+    elif periode == 'mois_annee' and mois_select and annee_select:
+        try:
+            mois = int(mois_select)
+            annee = int(annee_select)
+            debut = datetime(annee, mois, 1)
+            fin = (debut + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            fin = fin.replace(hour=23, minute=59, second=59)
+            libelle_periode =debut.strftime('%B %Y')
+        except ValueError:
+            flash('Mois/Année invalides', 'error')
+            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+    elif periode == 'annee':
+        debut = maintenant.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        fin = maintenant.replace(month=12, day=31, hour=23, minute=59, second=59)
+        libelle_periode = "Cette année"
+    elif periode == 'trimestre':
+        trimestre = (maintenant.month - 1) // 3 + 1
+        debut = maintenant.replace(month=(trimestre-1)*3+1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        fin_mois = (debut.replace(month=debut.month+3, day=1) - timedelta(days=1))
+        fin = fin_mois.replace(hour=23, minute=59, second=59)
+        libelle_periode = f"{['1er', '2ème', '3ème', '4ème'][trimestre-1]} trimestre"
+    else:  # mois par défaut
     # Récupérer tous les sous-comptes de l'utilisateur
     sous_comptes_ = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
@@ -516,7 +548,8 @@ def banking_sous_compte_detail(sous_compte_id):
         compte_type='sous_compte',
         compte_id=sous_compte_id,
         user_id=user_id,
-        periode_jours=30
+        date_debut=debut.strftime('%Y-%m-%d'),
+        date_fin=fin.strftime('%Y-%m-%d')
     )
     
     solde = g.models.sous_compte_model.get_solde(sous_compte_id)
@@ -617,7 +650,11 @@ def banking_sous_compte_detail(sous_compte_id):
         soldes_quotidiens=soldes_quotidiens,
         soldes_quotidiens_len=soldes_quotidiens_len,
         largeur_svg=largeur_svg,
-        hauteur_svg=hauteur_svg
+        hauteur_svg=hauteur_svg,
+        date_debut_selected=date_debut_str,
+        date_fin_selected=date_fin_str,
+        mois_selected=mois_select,
+        annee_selected=annee_select
     )
 
 def est_transfert_valide(compte_source_id, compte_dest_id, user_id, comptes, sous_comptes):
