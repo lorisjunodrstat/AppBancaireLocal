@@ -486,7 +486,8 @@ def banking_sous_compte_detail(sous_compte_id):
     annee_select = request.args.get('annee_select')
     libelle_periode = "période personnalisée "
     periode = request.args.get('periode', 'mois')  # Valeurs possibles: mois, trimestre, annee
-
+    debut = None
+    fin = None
     if periode == 'personnalisee' and date_debut_str and date_fin_str:
         try:
             debut = datetime.strptime(date_debut_str, '%Y-%m-%d')
