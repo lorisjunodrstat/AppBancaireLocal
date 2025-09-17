@@ -1361,6 +1361,7 @@ def liste_transferts():
         date_to=date_to,
         compte_source_filter=compte_source_id,
         compte_dest_filter=compte_dest_id,
+        sous_compte_source_id=sc_filter,
         sc_source_filter=sous_compte_source_id,
         sc_dest_filter=sous_compte_dest_id,
         type_filter=type_transfert,
