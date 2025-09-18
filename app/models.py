@@ -1264,8 +1264,11 @@ class TransactionFinanciere:
             logging.error(f"Erreur mise à jour solde: {e}")
             return False
 
-    def modifier_transaction(self, transaction_id: int, user_id: int, nouveau_montant: Decimal, 
-                    nouvelle_description: str = None) -> Tuple[bool, str]:
+    def modifier_transaction(self, transaction_id: int, user_id: int, 
+                            nouveau_montant: Decimal,
+                            nouvelle_description: str = None,
+                            nouvelle_date: datetime = None,
+                            nouvelle_reference: str = None ) -> Tuple[bool, str]:
         """Modifie une transaction existante et recalcule les soldes suivants SEULEMENT si le montant change"""
         try:
             with self.db.get_cursor() as cursor:
@@ -1292,22 +1295,34 @@ class TransactionFinanciere:
                 compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
                 compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
                 ancien_montant = Decimal(str(transaction['montant']))
+                ancienne_date = transaction['date_transaction']
 
                 # Vérifier si le montant a réellement changé
-                montant_modifie = nouveau_montant != ancien_montant
-
+                if nouveau_montant != ancien_montant:
+                    montant_modifie = nouveau_montant
+            
                 # Mettre à jour la transaction
                 update_fields = []
                 update_params = []
                 
-                if montant_modifie:
+                if montant_modifie is not None and montant_modifie != ancien_montant:
                     update_fields.append("montant = %s")
                     update_params.append(float(nouveau_montant))
                 
                 if nouvelle_description is not None and nouvelle_description != transaction.get('description', ''):
                     update_fields.append("description = %s")
                     update_params.append(nouvelle_description)
-
+                # Vérifier et ajouter la date
+                if nouvelle_date is not None and nouvelle_date != ancienne_date:
+                    # S'assurer que la nouvelle date est valide
+                    if nouvelle_date > datetime.now() + timedelta(days=1):
+                        return False, "La date ne peut pas être dans le futur lointain"
+                    update_fields.append("date_transaction = %s")
+                    update_params.append(nouvelle_date)
+                    # Vérifier et ajouter la référence
+            if nouvelle_reference is not None and nouvelle_reference != transaction.get('reference', ''):
+                update_fields.append("reference = %s")
+                update_params.append(nouvelle_reference)
                 # Si rien n'a changé, on ne fait rien
                 if not update_fields:
                     return True, "Aucune modification nécessaire"
@@ -1317,19 +1332,27 @@ class TransactionFinanciere:
                 cursor.execute(query, update_params)
 
                 # Recalculer les soldes suivants SEULEMENT si le montant a changé
-                if montant_modifie:
-                    success = self._recalculer_soldes_apres_date_with_cursor(
-                        cursor,  # <-- ⚠️ On passe le curseur pour éviter d'ouvrir une nouvelle connexion
-                        compte_type, 
-                        compte_id, 
-                        transaction['date_transaction']
-                    )
-                    if not success:
-                        raise Exception("Erreur lors du recalcul des soldes")
-                    else:
-                        logging.info(f"✅ Recalcul des soldes déclenché car montant modifié : {ancien_montant} → {nouveau_montant}")
+                recalcul_necessaire = (
+                (nouveau_montant is not None and nouveau_montant != ancien_montant) or
+                (nouvelle_date is not None and nouvelle_date != ancienne_date)
+            )
 
-                return True, "Transaction modifiée avec succès"
+            if recalcul_necessaire:
+                # La date de référence pour le recalcul est la PLUS ANCIENNE entre l'ancienne et la nouvelle
+                date_reference = min(ancienne_date, nouvelle_date) if nouvelle_date else ancienne_date
+                
+                success = self._recalculer_soldes_apres_date_with_cursor(
+                    cursor,
+                    compte_type, 
+                    compte_id, 
+                    date_reference  # On recalcule à partir de la date la plus ancienne
+                )
+                if not success:
+                    raise Exception("Erreur lors du recalcul des soldes")
+                else:
+                    logging.info(f"✅ Recalcul des soldes déclenché car montant ou date modifiée")
+
+            return True, "Transaction modifiée avec succès"
 
         except Exception as e:
             logging.error(f"Erreur modification transaction: {e}")
@@ -2690,6 +2713,30 @@ class StatistiquesBancaires:
             logging.error(f"Erreur lors du calcul de l'évolution quotidienne: {e}")
             return {'comptes_principaux': [], 'sous_comptes': [], 'total': []}
 
+    def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict]:
+        """Récupère une transaction par son ID avec les infos de propriété"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT t.*, 
+                    COALESCE(cp.utilisateur_id, (
+                        SELECT cp2.utilisateur_id 
+                        FROM sous_comptes sc 
+                        JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
+                        WHERE sc.id = t.sous_compte_id
+                    )) as owner_user_id,
+                    cp.nom_compte as compte_nom,
+                    sc.nom_sous_compte as sous_compte_nom
+                FROM transactions t
+                LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                WHERE t.id = %s
+                """
+                cursor.execute(query, (transaction_id,))
+                return cursor.fetchone()
+        except Exception as e:
+            logging.error(f"Erreur récupération transaction: {e}")
+            return None
 class PlanComptable:
     """Modèle pour gérer le plan comptable"""
     
