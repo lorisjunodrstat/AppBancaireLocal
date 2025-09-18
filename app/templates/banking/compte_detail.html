@@ -664,7 +664,7 @@
                                             {{ "%.2f"|format(mv.montant) }} {{ compte.devise }}
                                         </td>
                                         <td class="text-end">
-                                            <a href="{{ url_for('banking.manage_transaction', transaction_id=mv.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <a href="{{ url_for('banking.modifier_transfert', transaction_id=mv.id) }}" class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-edit"></i> Gérer
                                             </a>
                                         </td>
