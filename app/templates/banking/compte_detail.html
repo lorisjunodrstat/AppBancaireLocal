@@ -781,7 +781,6 @@
                                 <tr>
                                     <th>Date</th>
                                     <th>Solde</th>
-                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -789,12 +788,6 @@
                                 <tr>
                                     <td>{{ graphique_svg.dates[i] }}</td>
                                     <td>{{ graphique_svg.soldes[i]|round(2) }} €</td>
-                                    <td class="text-end">
-                                        <a href="{{ url_for('banking.manage_transaction', transaction_id=mv.id, compte_id=compte.id) }}"
-                                            class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-edit"></i> Gérer
-                                        </a>
-                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
