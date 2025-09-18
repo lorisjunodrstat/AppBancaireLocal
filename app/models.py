@@ -1290,54 +1290,47 @@ class TransactionFinanciere:
                     return False, "Transaction non trouvée"
                 if transaction['owner_user_id'] != user_id:
                     return False, "Non autorisé à modifier cette transaction"
-
                 compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
                 compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
                 ancien_montant = Decimal(str(transaction['montant']))
                 ancienne_date = transaction['date_transaction']
+                ancien_type = transaction['type_transaction'] # <-- Ajouté
 
                 # Préparer les champs à mettre à jour
                 update_fields = []
                 update_params = []
-
                 # Vérifier et ajouter le montant
                 if nouveau_montant is not None and nouveau_montant != ancien_montant:
                     update_fields.append("montant = %s")
                     update_params.append(float(nouveau_montant))
-
                 # Vérifier et ajouter la description
                 if nouvelle_description is not None and nouvelle_description != transaction.get('description', ''):
                     update_fields.append("description = %s")
                     update_params.append(nouvelle_description)
-
                 # Vérifier et ajouter la date
                 if nouvelle_date is not None and nouvelle_date != ancienne_date:
                     if nouvelle_date > datetime.now() + timedelta(days=365):
                         return False, "La date ne peut pas être dans le futur lointain"
                     update_fields.append("date_transaction = %s")
                     update_params.append(nouvelle_date)
-
                 # Vérifier et ajouter la référence
                 if nouvelle_reference is not None and nouvelle_reference != transaction.get('reference', ''):
                     update_fields.append("reference = %s")
                     update_params.append(nouvelle_reference)
-
                 # Si rien n'a changé, on ne fait rien
                 if not update_fields:
                     return True, "Aucune modification nécessaire"
-
                 # Construire et exécuter la requête
                 update_params.append(transaction_id)
                 query = f"UPDATE transactions SET {', '.join(update_fields)} WHERE id = %s"
                 cursor.execute(query, update_params)
-
                 # Déterminer si un recalcul des soldes est nécessaire
                 recalcul_necessaire = (
                     (nouveau_montant is not None and nouveau_montant != ancien_montant) or
                     (nouvelle_date is not None and nouvelle_date != ancienne_date)
                     )
-
                 if recalcul_necessaire:
+                    # Calculer la date de référence pour le recalcul
                     ancienne_dt = ancienne_date if isinstance(ancienne_date, datetime) else datetime.combine(ancienne_date, datetime.min.time())
                     nouvelle_dt = nouvelle_date if nouvelle_date and not isinstance(nouvelle_date, datetime) else nouvelle_date
                     if nouvelle_dt:
@@ -1345,19 +1338,55 @@ class TransactionFinanciere:
                     else:
                         date_reference = ancienne_dt
 
-                    success = self._recalculer_soldes_apres_date_with_cursor(
-                        cursor,
-                        compte_type,
-                        compte_id,
-                        date_reference
-                    )
-                    if not success:
-                        raise Exception("Erreur lors du recalcul des soldes")
+                    # Récupérer la transaction précédente pour obtenir le solde de départ
+                    previous = self._get_previous_transaction_with_cursor(cursor, compte_type, compte_id, date_reference)
+                    solde_depart = Decimal(str(previous[2])) if previous else self._get_solde_initial_with_cursor(cursor, compte_type, compte_id)
+
+                    # Calculer la différence de montant
+                    # Si c'est un crédit, la différence est (nouveau - ancien)
+                    # Si c'est un débit, la différence est (ancien - nouveau) car on veut l'ajouter au solde
+                    if ancien_type in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
+                        difference = nouveau_montant - ancien_montant
+                    else: # ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']
+                        difference = ancien_montant - nouveau_montant
+
+                    # Mettre à jour les transactions suivantes en ajoutant la différence
+                    if compte_type == 'compte_principal':
+                        condition_compte = "compte_principal_id = %s"
                     else:
-                        logging.info(f"✅ Recalcul des soldes déclenché car montant ou date modifiée")
+                        condition_compte = "sous_compte_id = %s"
 
+                    query_update_solde = f"""
+                    UPDATE transactions
+                    SET solde_apres = solde_apres + %s
+                    WHERE {condition_compte} AND (
+                        date_transaction > %s OR 
+                        (date_transaction = %s AND id > %s)
+                    )
+                    ORDER BY date_transaction ASC, id ASC
+                    """
+                    cursor.execute(query_update_solde, (float(difference), compte_id, date_reference, date_reference, transaction_id))
+
+                    # Mettre à jour le solde final du compte
+                    # On récupère le dernier solde_apres mis à jour
+                    cursor.execute(f"""
+                        SELECT solde_apres
+                        FROM transactions
+                        WHERE {condition_compte} AND (
+                            date_transaction > %s OR 
+                            (date_transaction = %s AND id > %s)
+                        )
+                        ORDER BY date_transaction DESC, id DESC
+                        LIMIT 1
+                    """, (compte_id, date_reference, date_reference, transaction_id))
+                    dernier_solde_row = cursor.fetchone()
+                    solde_final = Decimal(str(dernier_solde_row['solde_apres'])) if dernier_solde_row else solde_depart + difference
+
+                    if not self._mettre_a_jour_solde_with_cursor(cursor, compte_type, compte_id, solde_final):
+                        raise Exception("Erreur lors de la mise à jour du solde du compte")
+
+                    logging.info(f"✅ Recalcul des soldes déclenché car montant ou date modifiée. Différence appliquée: {difference}")
                 return True, "Transaction modifiée avec succès"
-
         except Exception as e:
             logging.error(f"Erreur modification transaction: {e}")
             return False, f"Erreur lors de la modification: {str(e)}"
@@ -1366,7 +1395,7 @@ class TransactionFinanciere:
         """Supprime une transaction et recalcule les soldes suivants"""
         try:
             with self.db.get_cursor() as cursor:
-                # Récupérer la transaction
+                # Récupérer la transaction AVANT de la supprimer
                 cursor.execute("""
                     SELECT t.*, 
                            COALESCE(cp.utilisateur_id, (
@@ -1386,16 +1415,25 @@ class TransactionFinanciere:
                     return False, "Non autorisé à supprimer cette transaction"
                 if transaction['type_transaction'] in ['transfert_entrant', 'transfert_sortant']:
                     return False, "Les transactions de transfert ne peuvent pas être supprimées individuellement"
-                cursor.execute("DELETE FROM transactions WHERE id = %s", (transaction_id,))
+
                 compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
                 compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
-                success = self._recalculer_soldes_apres_date(
-                    compte_type, 
-                    compte_id, 
-                    transaction['date_transaction']
-                ) 
+                date_transaction = transaction['date_transaction']
+
+                # Supprimer la transaction
+                cursor.execute("DELETE FROM transactions WHERE id = %s", (transaction_id,))
+
+                # Utiliser la méthode robuste avec curseur pour recalculer TOUT à partir de la date de la transaction supprimée
+                success = self._recalculer_soldes_apres_date_with_cursor(
+                    cursor,
+                    compte_type,
+                    compte_id,
+                    date_transaction
+                )
+
                 if not success:
                     raise Exception("Erreur lors du recalcul des soldes")
+
                 return True, "Transaction supprimée avec succès"
         except Exception as e:
             logging.error(f"Erreur suppression transaction: {e}")
