@@ -1335,11 +1335,15 @@ class TransactionFinanciere:
                 recalcul_necessaire = (
                     (nouveau_montant is not None and nouveau_montant != ancien_montant) or
                     (nouvelle_date is not None and nouvelle_date != ancienne_date)
-                )
+                    )
 
                 if recalcul_necessaire:
-                    # La date de référence pour le recalcul est la PLUS ANCIENNE entre l'ancienne et la nouvelle
-                    date_reference = min(ancienne_date, nouvelle_date) if nouvelle_date else ancienne_date
+                    ancienne_dt = ancienne_date if isinstance(ancienne_date, datetime) else datetime.combine(ancienne_date, datetime.min.time())
+                    nouvelle_dt = nouvelle_date if nouvelle_date and not isinstance(nouvelle_date, datetime) else nouvelle_date
+                    if nouvelle_dt:
+                        date_reference = min(ancienne_dt, nouvelle_dt)
+                    else:
+                        date_reference = ancienne_dt
 
                     success = self._recalculer_soldes_apres_date_with_cursor(
                         cursor,
@@ -2497,6 +2501,7 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur récupération transaction: {e}")
             return None
+
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
 

@@ -3,23 +3,102 @@
 {% block extra_css %}
 <style>
     .graphique-container {
-    max-width: 600px;
-    margin: 1rem auto;
-}
+        max-width: 600px;
+        margin: 1rem auto;
+    }
 
-.graphique-svg {
-    width: 100%;
-    height: auto;
-    display: block;
-    aspect-ratio: {{ largeur_svg }} / {{ hauteur_svg }};
-    max-width: 100%;
-    max-height: 70vh;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    background: #f9f9f9;
-}
+    .graphique-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+
+        aspect-ratio: {
+                {
+                largeur_svg
+            }
+        }
+
+        / {
+                {
+                hauteur_svg
+            }
+        }
+
+        ;
+        max-width: 100%;
+        max-height: 70vh;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+    }
+
+    /* Styles pour les modals */
+    .modal-content {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        border-radius: 12px 12px 0 0;
+        padding: 1rem 1.5rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #e9ecef;
+        border-radius: 0 0 12px 12px;
+        padding: 1rem 1.5rem;
+    }
+
+    .transaction-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+
+    .custom-badge {
+        font-size: 0.75em;
+        padding: 0.35em 0.65em;
+        border-radius: 0.5rem;
+    }
+
+    .custom-btn {
+        border-radius: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        transition: all 0.15s ease-in-out;
+    }
+
+    .account-header {
+        background: linear-gradient(to right, #4e54c8, #8f94fb);
+        color: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .activity-item {
+        border-left: 3px solid transparent;
+        transition: border-left-color 0.2s ease;
+    }
+
+    .activity-item:hover {
+        border-left-color: #4e54c8;
+    }
 </style>
 {% endblock %}
+
 {% block title %}{{ compte.nom_compte }} - {{ compte.nom_banque }}{% endblock %}
 
 {% block content %}
@@ -27,56 +106,55 @@
 <div class="row" style="background-color: {{ compte.couleur_banque }};margin: top 10px">
     <div class="col-12">
         <!-- En-tête du compte -->
-        <div class="card mb-4 border-top" style="border-top: 4px solid {{ compte.couleur_banque }};">
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <!-- Informations principales -->
-                    <div class="col-md-8">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center me-3"
-                                style="width: 50px; height: 50px; background-color: {{ compte.couleur_banque }};">
-                                <i class="fas fa-university text-white fa-lg"></i>
-                            </div>
-                            <div>
-                                <h2 class="mb-0">{{ compte.nom_compte }}</h2><h5>{{ compte.id }}</h5>
-                                <p class="text-muted mb-0">{{ compte.nom_banque }} • {{ compte.type_compte|title }}</p>
-                            </div>
+        <div class="account-header">
+            <div class="row align-items-center">
+                <!-- Informations principales -->
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center me-3"
+                            style="width: 50px; height: 50px; background-color: {{ compte.couleur_banque }};">
+                            <i class="fas fa-university text-white fa-lg"></i>
                         </div>
-
-                        <div class="row">
-                            <div class="col-sm-6">
-                                <small class="text-muted">Numéro de compte :</small>
-                                <div><code>{{ compte.numero_compte }}</code></div>
-                            </div>
-                            {% if compte.iban %}
-                            <div class="col-sm-6">
-                                <small class="text-muted">IBAN :</small>
-                                <div><code>{{ compte.iban }}</code></div>
-                            </div>
-                            {% endif %}
+                        <div>
+                            <h2 class="mb-0">{{ compte.nom_compte }}</h2>
+                            <h5>{{ compte.id }}</h5>
+                            <p class="mb-0 opacity-75">{{ compte.nom_banque }} • {{ compte.type_compte|title }}</p>
                         </div>
                     </div>
 
-                    <!-- Solde et actions -->
-                    <div class="col-md-4 text-end">
-                        <div class="mb-2">
-                            <small class="text-muted">Solde disponible</small>
-                            <h3 class="mb-0">{{ "%.2f"|format(compte.solde) }} {{ compte.devise }}</h3>
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <small class="opacity-85">Numéro de compte :</small>
+                            <div><code>{{ compte.numero_compte }}</code></div>
                         </div>
-                        <div class="mb-3">
-                            <small class="text-muted">Patrimoine total</small>
-                            <h4 class="mb-0 text-success">{{ "%.2f"|format(solde_total) }} {{ compte.devise }}</h4>
+                        {% if compte.iban %}
+                        <div class="col-sm-6">
+                            <small class="opacity-85">IBAN :</small>
+                            <div><code>{{ compte.iban }}</code></div>
                         </div>
+                        {% endif %}
+                    </div>
+                </div>
 
-                        <div class="btn-group">
-                            <a href="{{ url_for('banking.banking_transfert') }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-exchange-alt me-1"></i>Transfert
-                            </a>
-                            <a href="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id) }}"
-                                class="btn btn-outline-success btn-sm">
-                                <i class="fas fa-piggy-bank me-1"></i>Épargne
-                            </a>
-                        </div>
+                <!-- Solde et actions -->
+                <div class="col-md-4 text-end">
+                    <div class="mb-2">
+                        <small class="opacity-85">Solde disponible</small>
+                        <h3 class="mb-0">{{ "%.2f"|format(compte.solde) }} {{ compte.devise }}</h3>
+                    </div>
+                    <div class="mb-3">
+                        <small class="opacity-85">Patrimoine total</small>
+                        <h4 class="mb-0 text-success">{{ "%.2f"|format(solde_total) }} {{ compte.devise }}</h4>
+                    </div>
+
+                    <div class="btn-group">
+                        <a href="{{ url_for('banking.banking_transfert') }}" class="btn btn-light btn-sm custom-btn">
+                            <i class="fas fa-exchange-alt me-1"></i>Transfert
+                        </a>
+                        <a href="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id) }}"
+                            class="btn btn-outline-light btn-sm custom-btn">
+                            <i class="fas fa-piggy-bank me-1"></i>Épargne
+                        </a>
                     </div>
                 </div>
             </div>
@@ -85,18 +163,18 @@
         <div class="row">
             <!-- Sous-comptes d'épargne -->
             <div class="col-lg-8 mb-4">
-                <div class="card">
+                <div class="card custom-card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-piggy-bank me-2"></i>Épargnes ({{ sous_comptes|length }})</h5>
                         <a href="{{ url_for('banking.banking_nouveau_sous_compte', compte_id=compte.id) }}"
-                            class="btn btn-success btn-sm">
+                            class="btn btn-success btn-sm custom-btn">
                             <i class="fas fa-plus me-1"></i>Nouvelle épargne
                         </a>
                     </div>
                     <div class="card-body">
                         {% if sous_comptes %}
                         {% for sc in sous_comptes %}
-                            
+
                         <div class="card mb-3 shadow-sm">
                             <div class="card-body">
                                 <div class="row align-items-center">
@@ -114,31 +192,31 @@
                                     </div>
                                     <div class="col-md-3">
                                         {% if sc.objectif_montant and sc.objectif_montant > 0%}
-                                            {% set pourcentage_objectif = (sc.solde / sc.objectif_montant) * 100 %}
+                                        {% set pourcentage_objectif = (sc.solde / sc.objectif_montant) * 100 %}
                                         {% elif sc.objectif_montant is none %}
-                                            {% set pourcentage_objectif = 0 %}
-                                            <div class="mb-2">
-                                                <div class="d-flex justify-content-between small">
-                                                    <span>{{ "%.0f"|format(sc.objectif_montant) }}</span>
-                                                    <span>{{ "%.1f"|format(pourcentage_objectif) }}%</span>
-                                                </div>
-                                                <div class="progress" style="height: 8px;">
-                                                    <div class="progress-bar"
-                                                        style="width: {{ pourcentage_objectif }}%; background-color: {{ sc.couleur }};">
-                                                    </div>
+                                        {% set pourcentage_objectif = 0 %}
+                                        <div class="mb-2">
+                                            <div class="d-flex justify-content-between small">
+                                                <span>{{ "%.0f"|format(sc.objectif_montant) }}</span>
+                                                <span>{{ "%.1f"|format(pourcentage_objectif) }}%</span>
+                                            </div>
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar"
+                                                    style="width: {{ pourcentage_objectif }}%; background-color: {{ sc.couleur }};">
                                                 </div>
                                             </div>
+                                        </div>
                                         {% endif %}
                                         {% if sc.date_objectif %}
                                         <small class="text-muted"><i class="fas fa-calendar me-1"></i>{{
                                             sc.date_objectif.strftime('%d/%m/%Y') }}</small>
                                         {% else %}
-                                        <span class="badge bg-secondary">Épargne libre</span>
+                                        <span class="badge bg-secondary custom-badge">Épargne libre</span>
                                         {% endif %}
                                     </div>
                                     <div class="col-md-1 text-end">
                                         <div class="dropdown">
-                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle custom-btn"
                                                 data-bs-toggle="dropdown"></button>
                                             <ul class="dropdown-menu">
                                                 <li><a class="dropdown-item"
@@ -177,42 +255,153 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Activité récente (Transactions + Transferts) -->
+            <div class="col-lg-4">
+                <div class="card custom-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activité récente</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if mouvements %}
+                        <div class="list-group list-group-flush">
+                            {% for m in mouvements %}
+                            <div class="list-group-item activity-item">
+                                <div class="d-flex align-items-center">
+                                    <div
+                                        class="transaction-icon {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte', 'transfert_entrant'] %}bg-success bg-opacity-10{% else %}bg-danger bg-opacity-10{% endif %}">
+                                        {% if m.type_transaction in ['depot', 'retrait', 'transfert_vers_sous_compte',
+                                        'transfert_depuis_sous_compte'] %}
+                                        {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte',
+                                        'transfert_entrant'] %}
+                                        <i class="fas fa-plus-circle text-success"></i>
+                                        {% else %}
+                                        <i class="fas fa-minus-circle text-danger"></i>
+                                        {% endif %}
+                                        {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
+                                        'transfert_externe'] %}
+                                        {% if m.type_transaction == 'transfert_entrant' %}
+                                        <i class="fas fa-arrow-down text-success"></i>
+                                        {% elif m.type_transaction == 'transfert_sortant' %}
+                                        <i class="fas fa-arrow-up text-danger"></i>
+                                        {% else %}
+                                        <i class="fas fa-exchange-alt text-primary"></i>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between">
+                                            <h6 class="mb-0">
+                                                {% if m.type_transaction in ['depot', 'retrait',
+                                                'transfert_vers_sous_compte', 'transfert_depuis_sous_compte'] %}
+                                                {% if m.type_transaction == 'depot' %}Dépôt
+                                                {% elif m.type_transaction == 'retrait' %}Retrait
+                                                {% elif m.type_transaction == 'transfert_vers_sous_compte' %}Vers {{
+                                                m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
+                                                {% elif m.type_transaction == 'transfert_depuis_sous_compte' %}Depuis {{
+                                                m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
+                                                {% else %}{{ m.type_transaction|replace('_', ' ')|title }}{% endif %}
+                                                {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
+                                                'transfert_externe'] %}
+                                                {% if m.type_transaction == 'transfert_entrant' %}
+                                                <span class="text-success">Transfert reçu</span>
+                                                {% elif m.type_transaction == 'transfert_sortant' %}
+                                                <span class="text-danger">Transfert envoyé</span>
+                                                {% else %}
+                                                Transfert externe
+                                                {% endif %}
+
+                                                <!-- Afficher statut pour transferts externes -->
+                                                {% if m.statut and m.statut != 'completed' %}
+                                                <span class="badge bg-warning ms-2 custom-badge">{{ m.statut|title
+                                                    }}</span>
+                                                {% endif %}
+
+                                                <!-- Afficher si externe -->
+                                                {% if m.type_transaction == 'transfert_externe' %}
+                                                <small class="text-muted">(externe)</small>
+                                                {% endif %}
+                                                {% endif %}
+                                            </h6>
+                                            <span
+                                                class="{{ 'text-success' if m.montant > 0 else 'text-danger' if m.montant < 0 else 'text-muted' }}">
+                                                {% if m.montant != 0 %}
+                                                {{ '+' if m.montant > 0 else '' }}{{ "%.2f"|format(m.montant) }} {{
+                                                compte.devise }}
+                                                {% else %}
+                                                ⇄ <!-- Symbole pour transfert interne -->
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ m.date_transaction.strftime('%d/%m/%Y %H:%M') }}
+                                            {% if m.reference %}
+                                            • {{ m.reference }}
+                                            {% endif %}
+                                            <br>
+                                            {% if m.description %}
+                                            {{ m.description }}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">Aucune activité récente</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if mouvements|length >= 20 %}
+                    <div class="card-footer text-center">
+                        <a href="#" class="btn btn-outline-primary btn-sm custom-btn">Voir toute l'activité</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
         <!-- Section filtre de la période-->
         <div class="row mt-4">
             <div class="col-md-12">
-                <div class="card">
+                <div class="card custom-card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-calendar me-2"></i> Sélection de la période</h5>
-                        <span class="badge bg-primary">{{ libelle_periode }}</span>
+                        <span class="badge bg-primary custom-badge">{{ libelle_periode }}</span>
                     </div>
                     <div class="card-body">
                         <form method="GET" class="period-form">
                             <!-- Champs cachés pour conserver les autres paramètres -->
                             <input type="hidden" name="sort" value="{{ request.args.get('sort', 'date_desc') }}">
-                            <input type="hidden" name="filter_type" value="{{ request.args.get('filter_type', 'tous') }}">
+                            <input type="hidden" name="filter_type"
+                                value="{{ request.args.get('filter_type', 'tous') }}">
                             <input type="hidden" name="filter_min_amount"
                                 value="{{ request.args.get('filter_min_amount', '') }}">
                             <input type="hidden" name="filter_max_amount"
                                 value="{{ request.args.get('filter_max_amount', '') }}">
                             <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
-        
+
                             <div class="row">
                                 <div class="col-md-3 mb-3">
                                     <label for="periode" class="form-label">Type de période</label>
                                     <select class="form-select" id="periode" name="periode">
-                                        <option value="mois" {% if request.args.get('periode', 'mois' )=='mois' %}selected{%
-                                            endif %}>Ce mois</option>
-                                        <option value="trimestre" {% if request.args.get('periode')=='trimestre' %}selected{%
-                                            endif %}>Ce trimestre</option>
-                                        <option value="annee" {% if request.args.get('periode')=='annee' %}selected{% endif %}>
+                                        <option value="mois" {% if request.args.get('periode', 'mois' )=='mois'
+                                            %}selected{% endif %}>Ce mois</option>
+                                        <option value="trimestre" {% if request.args.get('periode')=='trimestre'
+                                            %}selected{% endif %}>Ce trimestre</option>
+                                        <option value="annee" {% if request.args.get('periode')=='annee' %}selected{%
+                                            endif %}>
                                             Cette année</option>
-                                        <option value="mois_annee" {% if request.args.get('periode')=='mois_annee' %}selected{%
-                                            endif %}>Mois/Année spécifique</option>
+                                        <option value="mois_annee" {% if request.args.get('periode')=='mois_annee'
+                                            %}selected{% endif %}>Mois/Année spécifique</option>
                                         <option value="personnalisee" {% if request.args.get('periode')=='personnalisee'
                                             %}selected{% endif %}>Période personnalisée</option>
                                     </select>
                                 </div>
-        
+
                                 <!-- Options pour mois/année spécifique -->
                                 <div class="col-md-5 mb-3 {% if request.args.get('periode') != 'mois_annee' %}d-none{% endif %}"
                                     id="moisAnneeContainer">
@@ -221,30 +410,30 @@
                                             <label for="mois_select" class="form-label">Mois</label>
                                             <select class="form-select" id="mois_select" name="mois_select">
                                                 <option value="">Sélectionner un mois</option>
-                                                <option value="1" {% if request.args.get('mois_select')=='1' %}selected{% endif
-                                                    %}>Janvier</option>
-                                                <option value="2" {% if request.args.get('mois_select')=='2' %}selected{% endif
-                                                    %}>Février</option>
-                                                <option value="3" {% if request.args.get('mois_select')=='3' %}selected{% endif
-                                                    %}>Mars</option>
-                                                <option value="4" {% if request.args.get('mois_select')=='4' %}selected{% endif
-                                                    %}>Avril</option>
-                                                <option value="5" {% if request.args.get('mois_select')=='5' %}selected{% endif
-                                                    %}>Mai</option>
-                                                <option value="6" {% if request.args.get('mois_select')=='6' %}selected{% endif
-                                                    %}>Juin</option>
-                                                <option value="7" {% if request.args.get('mois_select')=='7' %}selected{% endif
-                                                    %}>Juillet</option>
-                                                <option value="8" {% if request.args.get('mois_select')=='8' %}selected{% endif
-                                                    %}>Août</option>
-                                                <option value="9" {% if request.args.get('mois_select')=='9' %}selected{% endif
-                                                    %}>Septembre</option>
-                                                <option value="10" {% if request.args.get('mois_select')=='10' %}selected{%
-                                                    endif %}>Octobre</option>
-                                                <option value="11" {% if request.args.get('mois_select')=='11' %}selected{%
-                                                    endif %}>Novembre</option>
-                                                <option value="12" {% if request.args.get('mois_select')=='12' %}selected{%
-                                                    endif %}>Décembre</option>
+                                                <option value="1" {% if request.args.get('mois_select')=='1'
+                                                    %}selected{% endif %}>Janvier</option>
+                                                <option value="2" {% if request.args.get('mois_select')=='2'
+                                                    %}selected{% endif %}>Février</option>
+                                                <option value="3" {% if request.args.get('mois_select')=='3'
+                                                    %}selected{% endif %}>Mars</option>
+                                                <option value="4" {% if request.args.get('mois_select')=='4'
+                                                    %}selected{% endif %}>Avril</option>
+                                                <option value="5" {% if request.args.get('mois_select')=='5'
+                                                    %}selected{% endif %}>Mai</option>
+                                                <option value="6" {% if request.args.get('mois_select')=='6'
+                                                    %}selected{% endif %}>Juin</option>
+                                                <option value="7" {% if request.args.get('mois_select')=='7'
+                                                    %}selected{% endif %}>Juillet</option>
+                                                <option value="8" {% if request.args.get('mois_select')=='8'
+                                                    %}selected{% endif %}>Août</option>
+                                                <option value="9" {% if request.args.get('mois_select')=='9'
+                                                    %}selected{% endif %}>Septembre</option>
+                                                <option value="10" {% if request.args.get('mois_select')=='10'
+                                                    %}selected{% endif %}>Octobre</option>
+                                                <option value="11" {% if request.args.get('mois_select')=='11'
+                                                    %}selected{% endif %}>Novembre</option>
+                                                <option value="12" {% if request.args.get('mois_select')=='12'
+                                                    %}selected{% endif %}>Décembre</option>
                                             </select>
                                         </div>
                                         <div class="col-md-6">
@@ -253,14 +442,15 @@
                                                 <option value="">Sélectionner une année</option>
                                                 {% set current_year = now.year if now else 2025 %}
                                                 {% for year in range(current_year - 10, current_year + 2) %}
-                                                <option value="{{ year }}" {% if request.args.get('annee_select')|int==year
-                                                    %}selected{% endif %}>{{ year }}</option>
+                                                <option value="{{ year }}" {% if
+                                                    request.args.get('annee_select')|int==year %}selected{% endif %}>{{
+                                                    year }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                     </div>
                                 </div>
-        
+
                                 <!-- Options pour période personnalisée -->
                                 <div class="col-md-5 mb-3 {% if request.args.get('periode') != 'personnalisee' %}d-none{% endif %}"
                                     id="dateRangeContainer">
@@ -277,14 +467,14 @@
                                         </div>
                                     </div>
                                 </div>
-        
+
                                 <div class="col-md-4 d-flex align-items-end mb-3">
-                                    <button type="submit" class="btn btn-primary me-2">Appliquer</button>
+                                    <button type="submit" class="btn btn-primary me-2 custom-btn">Appliquer</button>
                                     <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
-                                        class="btn btn-outline-secondary">Réinitialiser</a>
+                                        class="btn btn-outline-secondary custom-btn">Réinitialiser</a>
                                 </div>
                             </div>
-        
+
                             <!-- Indications pour l'utilisateur -->
                             <div class="alert alert-info mt-3">
                                 <small>
@@ -298,116 +488,12 @@
                 </div>
             </div>
         </div>
-            <!-- Activité récente (Transactions + Transferts) -->
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activité récente</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        {% if mouvements %}
-                        <div class="list-group list-group-flush">
-                            {% for m in mouvements %}
-                            <div class="list-group-item d-flex align-items-center">
-                                <div class="me-3">
-                                    <!-- Icônes améliorées pour différencier les types -->
-                                    {% if m.type_transaction in ['depot', 'retrait', 'transfert_vers_sous_compte',
-                                    'transfert_depuis_sous_compte'] %}
-                                    {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte',
-                                    'transfert_entrant'] %}
-                                    <i class="fas fa-plus-circle text-success"></i>
-                                    {% else %}
-                                    <i class="fas fa-minus-circle text-danger"></i>
-                                    {% endif %}
-                                    {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
-                                    'transfert_externe'] %}
-                                    {% if m.type_transaction == 'transfert_entrant' %}
-                                    <i class="fas fa-arrow-down text-success"></i>
-                                    {% elif m.type_transaction == 'transfert_sortant' %}
-                                    <i class="fas fa-arrow-up text-danger"></i>
-                                    {% else %}
-                                    <i class="fas fa-exchange-alt text-primary"></i>
-                                    {% endif %}
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between">
-                                        <h6 class="mb-0">
-                                            {% if m.type_transaction in ['depot', 'retrait',
-                                            'transfert_vers_sous_compte', 'transfert_depuis_sous_compte'] %}
-                                            {% if m.type_transaction == 'depot' %}Dépôt
-                                            {% elif m.type_transaction == 'retrait' %}Retrait
-                                            {% elif m.type_transaction == 'transfert_vers_sous_compte' %}Vers {{
-                                            m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
-                                            {% elif m.type_transaction == 'transfert_depuis_sous_compte' %}Depuis {{
-                                            m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
-                                            {% else %}{{ m.type_transaction|replace('_', ' ')|title }}{% endif %}
-                                            {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
-                                            'transfert_externe'] %}
-                                            {% if m.type_transaction == 'transfert_entrant' %}
-                                            <span class="text-success">Transfert reçu</span>
-                                            {% elif m.type_transaction == 'transfert_sortant' %}
-                                            <span class="text-danger">Transfert envoyé</span>
-                                            {% else %}
-                                            Transfert externe
-                                            {% endif %}
-
-                                            <!-- Afficher statut pour transferts externes -->
-                                            {% if m.statut and m.statut != 'completed' %}
-                                            <span class="badge bg-warning ms-2">{{ m.statut|title }}</span>
-                                            {% endif %}
-
-                                            <!-- Afficher si externe -->
-                                            {% if m.type_transaction == 'transfert_externe' %}
-                                            <small class="text-muted">(externe)</small>
-                                            {% endif %}
-                                            {% endif %}
-                                        </h6>
-                                        <span
-                                            class="{{ 'text-success' if m.montant > 0 else 'text-danger' if m.montant < 0 else 'text-muted' }}">
-                                            {% if m.montant != 0 %}
-                                            {{ '+' if m.montant > 0 else '' }}{{ "%.2f"|format(m.montant) }} {{
-                                            compte.devise }}
-                                            {% else %}
-                                            ⇄ <!-- Symbole pour transfert interne -->
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                    <small class="text-muted">
-                                        {{ m.date_transaction.strftime('%d/%m/%Y %H:%M') }}
-                                        {% if m.reference %}
-                                        • {{ m.reference }}
-                                        {% endif %}
-                                        <br>
-                                        {% if m.description %}
-                                        {{ m.description }}
-                                        {% endif %}
-                                    </small>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">Aucune activité récente</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% if mouvements|length >= 20 %}
-                    <div class="card-footer text-center">
-                        <a href="#" class="btn btn-outline-primary btn-sm">Voir toute l'activité</a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
 
         <!-- Graphiques -->
         <!-- Section Graphique : Répartition des soldes -->
         <div class="row mt-4">
             <div class="col-12">
-                <div class="card">
+                <div class="card custom-card">
                     <div class="card-header">
                         <h5 class="mb-0">
                             <i class="fas fa-chart-pie me-2"></i>Répartition des soldes
@@ -419,17 +505,13 @@
                 </div>
             </div>
         </div>
-        
-    
+
         <!-- Trésorerie -->
         <div class="row mt-4">
             <div class="col-md-6">
-                <div class="card">
+                <div class="card custom-card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Trésorerie - {{ libelle_periode }} </h5>
-
-                        <!-- Sélecteur de période (sans JS) -->
-                        
                     </div>
                     <div class="card-body">
                         <!-- Graphique SVG en barres -->
@@ -442,16 +524,14 @@
                                         width="20%"
                                         height="{{ (total_recettes / (total_recettes + total_depenses) * 180 if (total_recettes + total_depenses) > 0 else 0) }}"
                                         fill="#28a745" rx="2" ry="2" />
-                                    <text x="35%"
-                                        y="10"
-                                        text-anchor="middle" font-size="12" fill="#28a745">
+                                    <text x="35%" y="10" text-anchor="middle" font-size="12" fill="#28a745">
                                         {{ "%.2f"|format(total_recettes) }}
                                     </text>
                                     <text x="35%" y="195" text-anchor="middle" font-size="12" fill="#6c757d">
                                         Recettes
                                     </text>
                                 </g>
-                    
+
                                 <!-- Barre des dépenses -->
                                 <g class="bar-group">
                                     <rect x="55%"
@@ -459,24 +539,22 @@
                                         width="20%"
                                         height="{{ ((total_depenses / (total_recettes + total_depenses) * 180) - 15 if (total_recettes + total_depenses) > 0 else 0) }}"
                                         fill="#dc3545" rx="2" ry="2" />
-                                    <text x="65%"
-                                        y="10"
-                                        text-anchor="middle" font-size="12" fill="#dc3545">
+                                    <text x="65%" y="10" text-anchor="middle" font-size="12" fill="#dc3545">
                                         {{ "%.2f"|format(total_depenses) }}
                                     </text>
                                     <text x="65%" y="195" text-anchor="middle" font-size="12" fill="#6c757d">
                                         Dépenses
                                     </text>
                                 </g>
-                    
+
                                 <!-- Ligne de base -->
                                 <line x1="20%" y1="180" x2="80%" y2="180" stroke="#dee2e6" stroke-width="2" />
                                 <line x1="20%" y1="0" x2="80%" y2="0" stroke="#dee2e6" stroke-width="2" />
-                                <line x1="20%" y1="0" x2="20%" y2="200" stroke="#dee2e6" stroke-width="1.5" /><
-                                <line x1="80%" y1="0" x2="80%" y2="200" stroke="#dee2e6" stroke-width="1.5" /><
+                                <line x1="20%" y1="0" x2="20%" y2="200" stroke="#dee2e6" stroke-width="1.5" />
+                                <line x1="80%" y1="0" x2="80%" y2="200" stroke="#dee2e6" stroke-width="1.5" />
                             </svg>
                         </div>
-                    
+
                         <div class="mt-3">
                             <div class="d-flex justify-content-between">
                                 <span class="text-success">
@@ -495,7 +573,7 @@
 
             <!-- Statistiques des transferts -->
             <div class="col-md-6">
-                <div class="card">
+                <div class="card custom-card">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Statistiques des transferts</h5>
                     </div>
@@ -551,7 +629,7 @@
         <!--Liste des transactions et transferts-->
         <div class="row mt-4">
             <div class="col-12">
-                <div class="card">
+                <div class="card custom-card">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Liste des Mouvements</h5>
                     </div>
@@ -595,7 +673,7 @@
                                                 <input class="form-control me-2" type="search" placeholder="Rechercher"
                                                     aria-label="Search" name="search"
                                                     value="{{ request.args.get('search', '') }}">
-                                                <button class="btn btn-outline-success"
+                                                <button class="btn btn-outline-success custom-btn"
                                                     type="submit">Rechercher</button>
                                             </form>
                                         </li>
@@ -614,7 +692,7 @@
                                         <th>Destination</th>
                                         <th>Description</th>
                                         <th class="text-end">Montant</th>
-                                        <th>Action</th> <!-- ✅ 7ème colonne -->
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -624,7 +702,7 @@
                                         <td>{{ mv.date_transaction.strftime('%d/%m/%Y %H:%M') }}</td>
                                         <td>
                                             <span
-                                                class="badge bg-{{ 'success' if mv.montant > 0 else 'danger' if mv.montant < 0 else 'secondary' }}">
+                                                class="badge custom-badge bg-{{ 'success' if mv.montant > 0 else 'danger' if mv.montant < 0 else 'secondary' }}">
                                                 {{ mv.type_transaction|replace('_', ' ')|title }}
                                             </span>
                                         </td>
@@ -659,23 +737,23 @@
                                         </td>
                                         <td
                                             class="text-end {{ 'text-success' if mv.montant > 0 else 'text-danger' if mv.montant < 0 else 'text-muted' }}">
-                                            {{ '-' if mv.type_transaction in ['transfert_sortant', 'transfert_compte_vers_sous', 'retrait',
+                                            {{ '-' if mv.type_transaction in ['transfert_sortant',
+                                            'transfert_compte_vers_sous', 'retrait',
                                             'recredit_annulation'] else '+' }}
                                             {{ "%.2f"|format(mv.montant) }} {{ compte.devise }}
                                         </td>
                                         <td class="text-end">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                                                data-bs-target="#modalTransaction{{ mv.id }}">
+                                            <button type="button" class="btn btn-sm btn-outline-primary custom-btn"
+                                                data-bs-toggle="modal" data-bs-target="#modalTransaction{{ mv.id }}">
                                                 <i class="fas fa-edit"></i> Gérer
                                             </button>
                                         </td>
-                                        </tr>
-                                        {% include "banking/transaction_modal.html" with mv=mv, compte=mv.compte %}
-                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
                                     {% else %}
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted">Aucun mouvement trouvé pour cette période.</td>
-                                        <!-- ✅ colspan=7 -->
+                                        <td colspan="7" class="text-center text-muted">Aucun mouvement trouvé pour cette
+                                            période.</td>
                                     </tr>
                                     {% endif %}
                                 </tbody>
@@ -698,82 +776,87 @@
                             </ul>
                         </nav>
                         {% endif %}
+
                     </div>
                 </div>
             </div>
         </div>
         <!-- Graphique de l'évolution du solde -->
-        <div class="card mt-4">
+        <div class="card custom-card mt-4">
             <div class="card-header">
                 <h5 class="mb-0">Évolution du solde : {{ libelle_periode }}</h5>
             </div>
             <div class="card-body">
                 {% if graphique_svg %}
                 <div class="text-center graphique-container">
-                    <svg viewBox="0 0 {{ largeur_svg }} {{ hauteur_svg }}" preserveAspectRatio="xMidYMid meet" class="graphique-svg"
-                        style="border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
-                
+                    <svg viewBox="0 0 {{ largeur_svg }} {{ hauteur_svg }}" preserveAspectRatio="xMidYMid meet"
+                        class="graphique-svg" style="border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+
                         <!-- Cadre du graphique -->
                         <rect x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.1 }}" width="{{ largeur_svg * 0.8 }}"
                             height="{{ hauteur_svg * 0.8 }}" fill="none" stroke="#ccc" stroke-dasharray="2,2" />
-                
+
                         <!-- Lignes de grille horizontales (optionnelles, très subtiles) -->
                         {% set mid_y = hauteur_svg * 0.1 + graphique_svg.plot_height / 2 %}
-                        <line x1="{{ largeur_svg * 0.1 }}" y1="{{ mid_y }}" x2="{{ largeur_svg * 0.9 }}" y2="{{ mid_y }}" stroke="#eee"
-                            stroke-width="1" stroke-dasharray="2,4" />
-                
+                        <line x1="{{ largeur_svg * 0.1 }}" y1="{{ mid_y }}" x2="{{ largeur_svg * 0.9 }}"
+                            y2="{{ mid_y }}" stroke="#eee" stroke-width="1" stroke-dasharray="2,4" />
+
                         <!-- Ligne du graphique -->
-                        <polyline points="{{ graphique_svg.points|join(' ') }}" fill="none" stroke="{{ compte.couleur_banque }}" stroke-width="2" />
-                        
+                        <polyline points="{{ graphique_svg.points|join(' ') }}" fill="none"
+                            stroke="{{ compte.couleur_banque }}" stroke-width="2" />
+
                         <!-- Points sur la ligne -->
                         {% for point in graphique_svg.points %}
                         <circle cx="{{ point.split(',')[0] }}" cy="{{ point.split(',')[1] }}" r="3" fill="#007bff" />
                         {% endfor %}
-                
+
                         <!-- Étiquettes sur l'axe Y (gauche) -->
                         <!-- Max -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.1 + 12 }}" font-size="9" text-anchor="end"
-                            fill="#555">
+                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.1 + 12 }}" font-size="9"
+                            text-anchor="end" fill="#555">
                             {{ graphique_svg.max_solde|round(2) }} CHF
                         </text>
                         <!-- Milieu -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ mid_y + 4 }}" font-size="9" text-anchor="end" fill="#777">
+                        <text x="{{ largeur_svg * 0.08 }}" y="{{ mid_y + 4 }}" font-size="9" text-anchor="end"
+                            fill="#777">
                             {{ ((graphique_svg.max_solde + graphique_svg.min_solde) / 2)|round(2) }}
                         </text>
                         <!-- Min -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.9 + 4 }}" font-size="9" text-anchor="end" fill="#555">
+                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.9 + 4 }}" font-size="9"
+                            text-anchor="end" fill="#555">
                             {{ graphique_svg.min_solde|round(2) }}
                         </text>
-                
+
                         <!-- Étiquettes sur l'axe X (bas) -->
                         {% if graphique_svg.dates|length > 0 %}
                         <!-- Début -->
-                        <text x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9" text-anchor="start"
-                            fill="#555">
+                        <text x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9"
+                            text-anchor="start" fill="#555">
                             {{ graphique_svg.dates[0] }}
                         </text>
                         <!-- Fin -->
-                        <text x="{{ largeur_svg * 0.9 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9" text-anchor="end" fill="#555">
+                        <text x="{{ largeur_svg * 0.9 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9"
+                            text-anchor="end" fill="#555">
                             {{ graphique_svg.dates[-1] }}
                         </text>
                         <!-- Milieu (seulement si assez de points pour éviter chevauchement) -->
                         {% if graphique_svg.nb_points > 5 %}
-                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9" text-anchor="middle"
-                            fill="#777">
+                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9"
+                            text-anchor="middle" fill="#777">
                             {{ graphique_svg.dates[(graphique_svg.nb_points // 2)] }}
                         </text>
                         {% endif %}
                         {% endif %}
-                
+
                         <!-- Légende axe X -->
-                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.9 + 35 }}" font-size="11" text-anchor="middle" fill="#333"
-                            font-weight="bold">
+                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.9 + 35 }}" font-size="11"
+                            text-anchor="middle" fill="#333" font-weight="bold">
                             Date
                         </text>
-                
+
                     </svg>
                 </div>
-        
+
                 <!-- Tableau des valeurs -->
                 <div class="mt-3">
                     <div class="table-responsive">
@@ -803,6 +886,54 @@
     </div>
 </div>
 
+<!-- Modals pour les transactions -->
+{% if mouvements %}
+{% for mv in mouvements %}
+<div class="modal fade" id="modalTransaction{{ mv.id }}" tabindex="-1"
+    aria-labelledby="modalTransactionLabel{{ mv.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTransactionLabel{{ mv.id }}">Détails de la transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <strong>Date:</strong> {{ mv.date_transaction.strftime('%d/%m/%Y %H:%M') }}
+                </div>
+                <div class="mb-3">
+                    <strong>Type:</strong>
+                    <span
+                        class="badge custom-badge bg-{{ 'success' if mv.montant > 0 else 'danger' if mv.montant < 0 else 'secondary' }}">
+                        {{ mv.type_transaction|replace('_', ' ')|title }}
+                    </span>
+                </div>
+                <div class="mb-3">
+                    <strong>Montant:</strong>
+                    <span
+                        class="{{ 'text-success' if mv.montant > 0 else 'text-danger' if mv.montant < 0 else 'text-muted' }}">
+                        {{ '+' if mv.montant > 0 else '' }}{{ "%.2f"|format(mv.montant) }} {{ compte.devise }}
+                    </span>
+                </div>
+                <div class="mb-3">
+                    <strong>Description:</strong> {{ mv.description|default('Aucune description', true) }}
+                </div>
+                {% if mv.reference %}
+                <div class="mb-3">
+                    <strong>Référence:</strong> {{ mv.reference }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary custom-btn" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-primary custom-btn">Modifier</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -816,48 +947,16 @@
             data: {
                 labels: ['Solde principal', 'Épargnes'],
                 datasets: [{
-                    data: [{{ compte.solde }}, {{ solde_total - compte.solde }}
-                ],
-            backgroundColor: [
-            '{{ compte.couleur_banque }}',
-            '#28a745'
-        ]
+                    data: [{{ compte.solde }}, {{ solde_total - compte.solde }}],
+                    backgroundColor: [
+                        '{{ compte.couleur_banque }}',
+                        '#28a745'
+                    ]
                 }]
             },
         options: {
         responsive: true,
         maintainAspectRatio: false
-    }
-        });
-
-    // Graphique de trésorerie
-    var ctxTresorerie = document.getElementById('chartTresorerie').getContext('2d');
-    var chartTresorerie = new Chart(ctxTresorerie, {
-        type: 'bar',
-        data: {
-            labels: ['Recettes', 'Dépenses'],
-            datasets: [{
-                label: 'Montant',
-                data: [{{ total_recettes }}, {{ total_depenses }}],
-        backgroundColor: [
-            'rgba(40, 167, 69, 0.7)',
-            'rgba(220, 53, 69, 0.7)'
-        ],
-        borderColor: [
-            'rgba(40, 167, 69, 1)',
-            'rgba(220, 53, 69, 1)'
-        ],
-        borderWidth: 1
-    }]
-            },
-    options: {
-        responsive: true,
-            maintainAspectRatio: false,
-                scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
     }
         });
     });
@@ -877,5 +976,4 @@
         window.location.href = "{{ url_for('banking.banking_transfert') }}?source_type=sous_compte&source=" + sousCompteId + "&destination=" + compteId;
     }
 </script>
-
 {% endblock %}
