@@ -1240,13 +1240,15 @@ def modifier_transfert(transfert_id):
         flash("Transaction non trouvée ou non autorisée", "danger")
         return redirect(url_for('banking.banking_dashboard'))
 
-    # Récupérer le compte pour la devise
+    # Récupérer le compte pour la devise — GÉRER LE CAS OÙ C'EST UN SOUS-COMPTE
     compte_id = transaction.get('compte_principal_id') or transaction.get('sous_compte_id')
-    compte = g.models.compte_model.get_by_id(compte_id) if compte_id else None
-
-    if not compte:
-        flash("Compte associé introuvable", "danger")
-        return redirect(url_for('banking.banking_dashboard'))
+    compte = None
+    if transaction.get('compte_principal_id'):
+        compte = g.models.compte_model.get_by_id(transaction.get('compte_principal_id'))
+    elif transaction.get('sous_compte_id'):
+        sous_compte = g.models.sous_compte_model.get_by_id(transaction.get('sous_compte_id'))
+        if sous_compte:
+            compte = g.models.compte_model.get_by_id(sous_compte['compte_principal_id'])
 
     if request.method == 'POST':
         action = request.form.get('action')

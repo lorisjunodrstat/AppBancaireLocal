@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+
 
 {% block title %}Gestion de la transaction{% endblock %}
 
@@ -16,7 +16,7 @@
             </div>
 
             <form method="POST"
-                action="{{ url_for('banking.update_transaction', transaction_id=transaction.id, compte_id=compte.id) }}"
+                action="{{ url_for('banking.modifier_transfert', transfert_id=transaction.id, compte_id=compte.id) }}"
                 class="needs-validation" novalidate>
                 <input type="hidden" name="action" value="modifier">
 
@@ -120,4 +120,3 @@
         modal.show();
     });
 </script>
-{% endblock %}
