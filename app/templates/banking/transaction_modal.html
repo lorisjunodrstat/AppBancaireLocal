@@ -1,8 +1,4 @@
 
-
-{% block title %}Gestion de la transaction{% endblock %}
-
-{% block content %}
 <!-- Modal pour gérer une transaction -->
 <div class="modal fade" id="modalGestionTransaction" tabindex="-1" aria-labelledby="modalGestionTransactionLabel"
     aria-hidden="true">
@@ -15,8 +11,7 @@
                     aria-label="Close"></button>
             </div>
 
-            <form method="POST"
-                action="{{ url_for('banking.modifier_transfert', transfert_id=transaction.id, compte_id=compte.id) }}"
+            <form method="POST" action="{{ url_for('banking.modifier_transfert', transfert_id=transaction.id) }}"
                 class="needs-validation" novalidate>
                 <input type="hidden" name="action" value="modifier">
 
@@ -47,12 +42,12 @@
                                         <span
                                             class="{{ 'text-success' if transaction.montant > 0 else 'text-danger' }}">
                                             {{ '+' if transaction.montant > 0 else '' }}{{
-                                            "%.2f"|format(transaction.montant) }} {{ compte.devise }}
+                                            "%.2f"|format(transaction.montant) }} {{ transaction.devise or 'CHF' }}
                                         </span>
                                     </p>
                                     <p><strong>Solde après :</strong>
                                         <span class="text-success">{{ "%.2f"|format(transaction.solde_apres) }} {{
-                                            compte.devise }}</span>
+                                            transaction.devise or 'CHF' }}</span>
                                     </p>
                                     <p><strong>Date :</strong> {{ transaction.date_transaction.strftime('%d/%m/%Y
                                         %H:%M') }}</p>
@@ -68,7 +63,7 @@
                             <div class="input-group">
                                 <input type="text" class="form-control" id="nouveau_montant" name="nouveau_montant"
                                     value="{{ " %.2f"|format(transaction.montant) }}" required>
-                                <span class="input-group-text">{{ compte.devise }}</span>
+                                <span class="input-group-text">{{ transaction.devise or 'CHF' }}</span>
                             </div>
                             <div class="invalid-feedback">Veuillez entrer un montant valide.</div>
                         </div>
@@ -95,10 +90,15 @@
 
                 <div class="modal-footer d-flex justify-content-between">
                     <!-- Bouton Supprimer -->
-                    <button type="submit" name="action" value="supprimer" class="btn btn-danger"
-                        onclick="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')">
-                        <i class="fas fa-trash me-1"></i> Supprimer
-                    </button>
+                    <form method="POST"
+                        action="{{ url_for('banking.modifier_transfert', transfert_id=transaction.id) }}"
+                        class="d-inline">
+                        <input type="hidden" name="action" value="supprimer">
+                        <button type="submit" class="btn btn-danger"
+                            onclick="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')">
+                            <i class="fas fa-trash me-1"></i> Supprimer
+                        </button>
+                    </form>
 
                     <!-- Boutons Annuler / Enregistrer -->
                     <div>
