@@ -614,6 +614,7 @@
                                         <th>Destination</th>
                                         <th>Description</th>
                                         <th class="text-end">Montant</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -660,6 +661,12 @@
                                             class="text-end {{ 'text-success' if mv.montant > 0 else 'text-danger' if mv.montant < 0 else 'text-muted' }}">
                                             {{ '-' if mv.type_transaction == 'transfert_sortant' or mv.type_transaction == 'transfert_compte_vers_sous' or mv.type_transaction == 'retrait'  or mv.type_transaction == 'recredit_annulation' else '+' }}{{ "%.2f"|format(mv.montant) }} {{
                                             compte.devise }}
+                                        </td>
+                                        <td class="text-end">
+                                            <a href="{{ url_for('banking.manage_transaction', transaction_id=mv.id, compte_id=compte.id) }}"
+                                                class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i> Gérer
+                                            </a>
                                         </td>
                                     </tr>
                                     {% endfor %}
