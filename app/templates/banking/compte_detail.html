@@ -614,7 +614,7 @@
                                         <th>Destination</th>
                                         <th>Description</th>
                                         <th class="text-end">Montant</th>
-                                        <th>Action</th>
+                                        <th>Action</th> <!-- ✅ 7ème colonne -->
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -659,8 +659,9 @@
                                         </td>
                                         <td
                                             class="text-end {{ 'text-success' if mv.montant > 0 else 'text-danger' if mv.montant < 0 else 'text-muted' }}">
-                                            {{ '-' if mv.type_transaction == 'transfert_sortant' or mv.type_transaction == 'transfert_compte_vers_sous' or mv.type_transaction == 'retrait'  or mv.type_transaction == 'recredit_annulation' else '+' }}{{ "%.2f"|format(mv.montant) }} {{
-                                            compte.devise }}
+                                            {{ '-' if mv.type_transaction in ['transfert_sortant', 'transfert_compte_vers_sous', 'retrait',
+                                            'recredit_annulation'] else '+' }}
+                                            {{ "%.2f"|format(mv.montant) }} {{ compte.devise }}
                                         </td>
                                         <td class="text-end">
                                             <a href="{{ url_for('banking.manage_transaction', transaction_id=mv.id, compte_id=compte.id) }}"
@@ -672,8 +673,8 @@
                                     {% endfor %}
                                     {% else %}
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted">Aucun mouvement trouvé pour cette
-                                            période.</td>
+                                        <td colspan="7" class="text-center text-muted">Aucun mouvement trouvé pour cette période.</td>
+                                        <!-- ✅ colspan=7 -->
                                     </tr>
                                     {% endif %}
                                 </tbody>
