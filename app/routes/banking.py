@@ -1231,25 +1231,67 @@ def annuler_transfert_externe(transfert_id):
 
 @bp.route('/banking/modifier_transfert/<int:transfert_id>', methods=['GET', 'POST'])
 @login_required
-def modifier_transfert(transfert_id):        
+def modifier_transfert(transfert_id):
+    user_id = current_user.id
+
+    # Récupérer la transaction
+    transaction = g.models.transaction_financiere_model.get_transaction_by_id(transfert_id)
+    if not transaction or transaction.get('owner_user_id') != user_id:
+        flash("Transaction non trouvée ou non autorisée", "danger")
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Récupérer le compte pour la devise
+    compte_id = transaction.get('compte_principal_id') or transaction.get('sous_compte_id')
+    compte = g.models.compte_model.get_by_id(compte_id) if compte_id else None
+
+    if not compte:
+        flash("Compte associé introuvable", "danger")
+        return redirect(url_for('banking.banking_dashboard'))
+
     if request.method == 'POST':
-        nouveau_montant = Decimal(request.form.get('montant'))
-        nouvelle_description = request.form.get('description', '').strip()
-        
-        success, message = g.models.transaction_financiere_model.modifier_transaction(
-            transaction_id=transfert_id,
-            user_id=current_user.id,
-            nouveau_montant=nouveau_montant,
-            nouvelle_description=nouvelle_description)
-        if success:
-            flash(message, "success")
-        else:
-            flash(message, "danger")        
-        return redirect(request.referrer or url_for('banking.banking_dashboard'))
-    # Méthode GET - afficher le formulaire de modification
-    # (à implémenter selon vos besoins)
-    flash("Fonctionnalité non implémentée", "warning")
-    return redirect(url_for('banking.banking_dashboard'))
+        action = request.form.get('action')
+
+        if action == 'supprimer':
+            success, message = g.models.transaction_financiere_model.supprimer_transaction(transfert_id, user_id)
+            if success:
+                flash("Transaction supprimée avec succès", "success")
+            else:
+                flash(message, "danger")
+            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+
+        elif action == 'modifier':
+            try:
+                nouveau_montant = Decimal(request.form.get('nouveau_montant', '0'))
+                nouvelle_date_str = request.form.get('nouvelle_date')
+                nouvelle_description = request.form.get('nouvelle_description', '').strip()
+                nouvelle_reference = request.form.get('nouvelle_reference', '').strip()
+
+                if not nouvelle_date_str:
+                    flash("La date est obligatoire", "danger")
+                    return render_template('banking/transaction_modal.html', transaction=transaction, compte=compte)
+
+                nouvelle_date = datetime.fromisoformat(nouvelle_date_str)
+
+                success, message = g.models.transaction_financiere_model.modifier_transaction(
+                    transaction_id=transfert_id,
+                    user_id=user_id,
+                    nouveau_montant=nouveau_montant,
+                    nouvelle_description=nouvelle_description,
+                    nouvelle_date=nouvelle_date,
+                    nouvelle_reference=nouvelle_reference
+                )
+
+                if success:
+                    flash("Transaction modifiée avec succès", "success")
+                    return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+                else:
+                    flash(message, "danger")
+
+            except Exception as e:
+                flash(f"Erreur de validation : {str(e)}", "danger")
+
+    # Afficher le formulaire de modification
+    return render_template('banking/transaction_modal.html', transaction=transaction, compte=compte)
 
 @bp.route('/banking/supprimer_transfert/<int:transfert_id>', methods=['POST'])
 @login_required
@@ -1361,12 +1403,72 @@ def liste_transferts():
         date_to=date_to,
         compte_source_filter=compte_source_id,
         compte_dest_filter=compte_dest_id,
-        sous_compte_source_id=sc_filter,
-        sc_source_filter=sous_compte_source_id,
+        sc_filter=sous_compte_source_id,
+        dest_sc_filter=sous_compte_dest_id,
         sc_dest_filter=sous_compte_dest_id,
         type_filter=type_transfert,
         statut_filter=statut
     )
+
+@bp.route('/banking/transaction/<int:transaction_id>/manage', methods=['GET', 'POST'])
+@login_required
+def manage_transaction(transaction_id):
+    user_id = current_user.id
+
+    # Récupérer la transaction
+    transaction = g.models.transaction_financiere_model.get_transaction_by_id(transaction_id)
+    if not transaction or transaction.get('owner_user_id') != user_id:
+        flash("Transaction non trouvée ou non autorisée", "danger")
+        return redirect(url_for('banking.banking_compte_detail', compte_id=request.args.get('compte_id')))
+
+    # Récupérer le compte pour la devise
+    compte_id = transaction.get('compte_principal_id') or transaction.get('sous_compte_id')
+    compte = g.models.compte_model.get_by_id(compte_id) if transaction.get('compte_principal_id') else None
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'supprimer':
+            success, message = g.models.transaction_financiere_model.supprimer_transaction(transaction_id, user_id)
+            if success:
+                flash("Transaction supprimée avec succès", "success")
+            else:
+                flash(message, "danger")
+            return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+
+        elif action == 'modifier':
+            try:
+                nouveau_montant = Decimal(request.form.get('nouveau_montant', '0'))
+                nouvelle_date_str = request.form.get('nouvelle_date')
+                nouvelle_description = request.form.get('nouvelle_description', '').strip()
+                nouvelle_reference = request.form.get('nouvelle_reference', '').strip()
+
+                if not nouvelle_date_str:
+                    flash("La date est obligatoire", "danger")
+                    return render_template('banking/transaction_modal.html', transaction=transaction, compte=compte)
+
+                nouvelle_date = datetime.fromisoformat(nouvelle_date_str)
+
+                success, message = g.models.transaction_financiere_model.modifier_transaction(
+                    transaction_id=transaction_id,
+                    user_id=user_id,
+                    nouveau_montant=nouveau_montant,
+                    nouvelle_description=nouvelle_description,
+                    nouvelle_date=nouvelle_date,
+                    nouvelle_reference=nouvelle_reference
+                )
+
+                if success:
+                    flash("Transaction modifiée avec succès", "success")
+                    return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+                else:
+                    flash(message, "danger")
+
+            except Exception as e:
+                flash(f"Erreur de validation : {str(e)}", "danger")
+
+    # Pour GET ou en cas d'erreur de validation
+    return render_template('banking/transaction_modal.html', transaction=transaction, compte=compte)
 
 # ---- APIs ----
 @bp.route('/api/banking/sous-comptes/<int:compte_id>')
