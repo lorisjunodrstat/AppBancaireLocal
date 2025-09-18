@@ -1,10 +1,12 @@
-<!-- Modal pour gérer la transaction -->
+<!-- banking/transaction_modal.html -->
 <div class="modal fade" id="modalTransaction{{ mv.id }}" tabindex="-1"
     aria-labelledby="modalTransactionLabel{{ mv.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="modalTransactionLabel{{ mv.id }}">Gérer la transaction #{{ mv.id }}</h5>
+                <h5 class="modal-title" id="modalTransactionLabel{{ mv.id }}">
+                    Gérer la transaction #{{ mv.id }}
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
@@ -26,8 +28,9 @@
                                         {% elif mv.sous_compte_source_nom %}{{ mv.sous_compte_source_nom }}
                                         {% else %}Inconnu{% endif %}
                                     </p>
-                                    <p><strong>Référence :</strong> <span class="text-muted">{{ mv.reference or '-'
-                                            }}</span></p>
+                                    <p><strong>Référence :</strong>
+                                        <span class="text-muted">{{ mv.reference or '-' }}</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -53,7 +56,7 @@
                             <label for="nouveau_montant{{ mv.id }}" class="form-label">Montant *</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="nouveau_montant{{ mv.id }}"
-                                    name="nouveau_montant" value="{{ " %.2f"|format(mv.montant) }}" required>
+                                    name="nouveau_montant" value="{{ '%.2f'|format(mv.montant) }}" required>
                                 <span class="input-group-text">{{ compte.devise }}</span>
                             </div>
                             <div class="invalid-feedback">Veuillez entrer un montant valide.</div>

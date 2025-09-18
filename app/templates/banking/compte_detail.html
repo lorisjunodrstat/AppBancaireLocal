@@ -664,15 +664,14 @@
                                             {{ "%.2f"|format(mv.montant) }} {{ compte.devise }}
                                         </td>
                                         <td class="text-end">
-                                            <!-- ✅ Bouton qui ouvre le modal via data-bs-target -->
                                             <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                                                 data-bs-target="#modalTransaction{{ mv.id }}">
                                                 <i class="fas fa-edit"></i> Gérer
                                             </button>
                                         </td>
-                                    </tr>
-                                    {% include "banking/transaction_modal.html" %}
-                                    {% endfor %}
+                                        </tr>
+                                        {% include "banking/transaction_modal.html" with mv=mv, compte=mv.compte %}
+                                        {% endfor %}
                                     {% else %}
                                     <tr>
                                         <td colspan="7" class="text-center text-muted">Aucun mouvement trouvé pour cette période.</td>
