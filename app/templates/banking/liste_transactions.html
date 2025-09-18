@@ -48,7 +48,7 @@
     </div>
 
     <div class="col-auto"><label>Sous‑compte destination :</label>
-      <select name="sous_compte_dest_id">
+      <select name="sous_compte_dest_id">x
         <option value="">Tous</option>
         {% for sc in sous_comptes %}
         <option value="{{ sc.id }}" {% if dest_sc_filter|int==sc.id %}selected{% endif %}>
