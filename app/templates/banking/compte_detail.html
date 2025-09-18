@@ -663,10 +663,12 @@
                                             'recredit_annulation'] else '+' }}
                                             {{ "%.2f"|format(mv.montant) }} {{ compte.devise }}
                                         </td>
-                                        <td class="text-end">
-                                            <a href="{{ url_for('banking.modifier_transfert', transaction_id=mv.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                                data-bs-target="#modalGestionTransaction"
+                                                onclick="chargerTransactionDansModal('{{ url_for('banking.modifier_transfert', transaction_id=mv.id) }}')">
                                                 <i class="fas fa-edit"></i> Gérer
-                                            </a>
+                                            </button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -796,6 +798,21 @@
                 {% else %}
                 <p class="text-muted">Aucune donnée disponible pour afficher l'évolution du solde.</p>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Modal vide pour gérer une transaction -->
+<div class="modal fade" id="modalGestionTransaction" tabindex="-1" aria-labelledby="modalGestionTransactionLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalGestionTransactionLabel">Gestion de la transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-center">Chargement...</p>
             </div>
         </div>
     </div>
