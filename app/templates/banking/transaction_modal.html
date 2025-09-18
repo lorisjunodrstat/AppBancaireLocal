@@ -1,200 +1,101 @@
-{% block extra_css %}
-    <style>
-        .transaction-modal .modal-content {
-            border-radius: 12px;
-            border: none;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
+<!-- Modal pour gérer la transaction -->
+<div class="modal fade" id="modalTransaction{{ mv.id }}" tabindex="-1"
+    aria-labelledby="modalTransactionLabel{{ mv.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalTransactionLabel{{ mv.id }}">Gérer la transaction #{{ mv.id }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
 
-        .transaction-modal .modal-header {
-            background: linear-gradient(135deg, #4e54c8, #8f94fb);
-            color: white;
-            border-radius: 12px 12px 0 0;
-            border: none;
-        }
+            <form method="POST" action="{{ url_for('banking.modifier_transfert', transfert_id=mv.id) }}"
+                class="needs-validation" novalidate>
+                <input type="hidden" name="action" value="modifier">
 
-        .transaction-modal .btn-close {
-            filter: invert(1);
-        }
+                <div class="modal-body">
+                    <!-- Informations en lecture seule -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-muted">Informations de base</h6>
+                                    <p><strong>Type :</strong> {{ mv.type_transaction|replace('_', ' ')|title }}</p>
+                                    <p><strong>Compte :</strong>
+                                        {% if mv.compte_source_nom %}{{ mv.compte_source_nom }}
+                                        {% elif mv.sous_compte_source_nom %}{{ mv.sous_compte_source_nom }}
+                                        {% else %}Inconnu{% endif %}
+                                    </p>
+                                    <p><strong>Référence :</strong> <span class="text-muted">{{ mv.reference or '-'
+                                            }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-muted">Montant & Solde</h6>
+                                    <p><strong>Montant :</strong>
+                                        <span class="{{ 'text-success' if mv.montant > 0 else 'text-danger' }}">
+                                            {{ '+' if mv.montant > 0 else '' }}{{ "%.2f"|format(mv.montant) }} {{
+                                            compte.devise }}
+                                        </span>
+                                    </p>
+                                    <p><strong>Date :</strong> {{ mv.date_transaction.strftime('%d/%m/%Y %H:%M') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-        .transaction-modal .card {
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            transition: transform 0.2s;
-        }
+                    <!-- Champs modifiables -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nouveau_montant{{ mv.id }}" class="form-label">Montant *</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="nouveau_montant{{ mv.id }}"
+                                    name="nouveau_montant" value="{{ " %.2f"|format(mv.montant) }}" required>
+                                <span class="input-group-text">{{ compte.devise }}</span>
+                            </div>
+                            <div class="invalid-feedback">Veuillez entrer un montant valide.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="nouvelle_date{{ mv.id }}" class="form-label">Date *</label>
+                            <input type="datetime-local" class="form-control" id="nouvelle_date{{ mv.id }}"
+                                name="nouvelle_date" value="{{ mv.date_transaction.strftime('%Y-%m-%dT%H:%M') }}"
+                                required>
+                            <div class="invalid-feedback">Veuillez entrer une date valide.</div>
+                        </div>
+                    </div>
 
-        .transaction-modal .card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-        }
+                    <div class="mb-3">
+                        <label for="nouvelle_description{{ mv.id }}" class="form-label">Description</label>
+                        <textarea class="form-control" id="nouvelle_description{{ mv.id }}" name="nouvelle_description"
+                            rows="2" maxlength="255">{{ mv.description or '' }}</textarea>
+                    </div>
 
-        .transaction-modal .btn-primary {
-            background: linear-gradient(135deg, #4e54c8, #8f94fb);
-            border: none;
-            border-radius: 6px;
-            padding: 8px 20px;
-        }
-
-        .transaction-modal .btn-danger {
-            border-radius: 6px;
-            padding: 8px 20px;
-        }
-
-        .transaction-modal .form-control:focus {
-            border-color: #8f94fb;
-            box-shadow: 0 0 0 0.25rem rgba(143, 148, 251, 0.25);
-        }
-
-        .amount-positive {
-            color: #28a745;
-            font-weight: bold;
-        }
-
-        .amount-negative {
-            color: #dc3545;
-            font-weight: bold;
-        }
-    </style>
-{% endblock %}
-    <div class="modal fade transaction-modal" id="transactionModal" tabindex="-1"
-        aria-labelledby="transactionModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="transactionModalLabel"><i class="fas fa-exchange-alt me-2"></i>Gérer la
-                        transaction</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="mb-3">
+                        <label for="nouvelle_reference{{ mv.id }}" class="form-label">Référence (optionnel)</label>
+                        <input type="text" class="form-control" id="nouvelle_reference{{ mv.id }}"
+                            name="nouvelle_reference" maxlength="50" value="{{ mv.reference or '' }}">
+                    </div>
                 </div>
 
-                <!-- Formulaire de modification -->
-                <form method="POST" action="/banking/modifier_transfert/123" class="needs-validation" novalidate>
-                    <input type="hidden" name="action" value="modifier">
+                <div class="modal-footer d-flex justify-content-between">
+                    <!-- Bouton Supprimer -->
+                    <button type="submit" name="action" value="supprimer" class="btn btn-danger"
+                        onclick="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')">
+                        <i class="fas fa-trash me-1"></i> Supprimer
+                    </button>
 
-                    <div class="modal-body">
-                        <!-- Informations en lecture seule -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <h6 class="card-title text-muted"><i
-                                                class="fas fa-info-circle me-1"></i>Informations de base</h6>
-                                        <p><strong>Type :</strong> Virement bancaire</p>
-                                        <p><strong>Compte :</strong> Compte Épargne</p>
-                                        <p><strong>Référence :</strong> <span class="text-muted">REF-2023-0098</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <h6 class="card-title text-muted"><i class="fas fa-chart-line me-1"></i>Montant
-                                            & Solde</h6>
-                                        <p><strong>Montant :</strong>
-                                            <span class="amount-positive">
-                                                +1,250.00 CHF
-                                            </span>
-                                        </p>
-                                        <p><strong>Solde après :</strong>
-                                            <span class="amount-positive">15,782.35 CHF</span>
-                                        </p>
-                                        <p><strong>Date :</strong> 18/09/2023 14:30</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Champs modifiables -->
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="nouveau_montant" class="form-label">Montant *</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="nouveau_montant" name="nouveau_montant"
-                                        value="1250.00" required>
-                                    <span class="input-group-text">CHF</span>
-                                </div>
-                                <div class="invalid-feedback">Veuillez entrer un montant valide.</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="nouvelle_date" class="form-label">Date *</label>
-                                <input type="datetime-local" class="form-control" id="nouvelle_date"
-                                    name="nouvelle_date" value="2023-09-18T14:30" required>
-                                <div class="invalid-feedback">Veuillez entrer une date valide.</div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="nouvelle_description" class="form-label">Description</label>
-                            <textarea class="form-control" id="nouvelle_description" name="nouvelle_description"
-                                rows="2" maxlength="255">Virement salaire septembre</textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="nouvelle_reference" class="form-label">Référence (optionnel)</label>
-                            <input type="text" class="form-control" id="nouvelle_reference" name="nouvelle_reference"
-                                maxlength="50" value="REF-2023-0098">
-                        </div>
-                    </div>
-
-                    <div class="modal-footer d-flex justify-content-between">
-                        <!-- Bouton Supprimer -->
-                        <button type="button" class="btn btn-danger" id="deleteButton">
-                            <i class="fas fa-trash me-1"></i> Supprimer
+                    <!-- Boutons Annuler / Enregistrer -->
+                    <div>
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Enregistrer
                         </button>
-
-                        <!-- Boutons Annuler / Enregistrer -->
-                        <div>
-                            <button type="button" class="btn btn-secondary me-2"
-                                data-bs-dismiss="modal">Annuler</button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i> Enregistrer
-                            </button>
-                        </div>
                     </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
-
-    <!-- Formulaire de suppression caché -->
-    <form id="deleteForm" method="POST" action="/banking/modifier_transfert/123" style="display: none;">
-        <input type="hidden" name="action" value="supprimer">
-    </form>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Initialisation du modal une fois que le DOM est chargé
-            const transactionModal = new bootstrap.Modal(document.getElementById('transactionModal'));
-
-            // Ouvrir automatiquement le modal (pour démonstration)
-            transactionModal.show();
-
-            // Fonction pour confirmer la suppression
-            function confirmDelete() {
-                if (confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')) {
-                    document.getElementById('deleteForm').submit();
-                }
-            }
-
-            // Ajout de l'événement au bouton de suppression
-            document.getElementById('deleteButton').addEventListener('click', confirmDelete);
-
-            // Validation du formulaire
-            (function () {
-                'use strict'
-                var forms = document.querySelectorAll('.needs-validation')
-                Array.prototype.slice.call(forms)
-                    .forEach(function (form) {
-                        form.addEventListener('submit', function (event) {
-                            if (!form.checkValidity()) {
-                                event.preventDefault()
-                                event.stopPropagation()
-                            }
-                            form.classList.add('was-validated')
-                        }, false)
-                    })
-            })()
-        });
-    </script>
+</div>
