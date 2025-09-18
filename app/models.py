@@ -2501,7 +2501,56 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur récupération transaction: {e}")
             return None
+    
+    def get_solde_courant(self, compte_type: str, compte_id: int, user_id: int) -> Decimal:
+        """Récupère le solde courant d'un compte"""
+        try:
+            with self.db.get_cursor() as cursor:
+                if compte_type == 'compte_principal':
+                    cursor.execute("SELECT solde FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", 
+                                (compte_id, user_id))
+                else:
+                    cursor.execute("""
+                        SELECT sc.solde 
+                        FROM sous_comptes sc
+                        JOIN comptes_principaux cp ON sc.compte_principal_id = cp.id
+                        WHERE sc.id = %s AND cp.utilisateur_id = %s
+                    """, (compte_id, user_id))
+                
+                result = cursor.fetchone()
+                return Decimal(str(result['solde'])) if result and 'solde' in result else Decimal('0')
+        except Exception as e:
+            logging.error(f"Erreur récupération solde courant: {e}")
+            return Decimal('0')
 
+    def get_solde_total_avec_sous_comptes(self, compte_principal_id: int, user_id: int) -> Decimal:
+        """Calcule le solde total d'un compte principal incluant ses sous-comptes"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que le compte principal appartient à l'utilisateur
+                cursor.execute("SELECT solde FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", 
+                            (compte_principal_id, user_id))
+                result = cursor.fetchone()
+                if not result:
+                    return Decimal('0')
+                
+                solde_total = Decimal(str(result['solde']))
+                
+                # Ajouter les soldes des sous-comptes
+                cursor.execute("""
+                    SELECT solde FROM sous_comptes 
+                    WHERE compte_principal_id = %s
+                """, (compte_principal_id,))
+                
+                sous_comptes = cursor.fetchall()
+                for sc in sous_comptes:
+                    solde_total += Decimal(str(sc['solde']))
+                
+                return solde_total
+        except Exception as e:
+            logging.error(f"Erreur calcul solde total: {e}")
+            return Decimal('0')
+        
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
 

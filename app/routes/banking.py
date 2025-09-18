@@ -275,25 +275,27 @@ def banking_compte_detail(compte_id):
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))
-    #Paramètre de filtrage et tri
-    sort = request.args.get('sort', 'date_desc')  # Valeurs possibles: date_asc, date_desc, montant_asc, montant_desc
-    filter_type = request.args.get('filter_type', 'tous')  # Valeurs possibles: tous, entree, sortie, transfert 
+    
+    # Paramètre de filtrage et tri
+    sort = request.args.get('sort', 'date_desc')
+    filter_type = request.args.get('filter_type', 'tous')
     filter_min_amount = request.args.get('filter_min_amount')
     filter_max_amount = request.args.get('filter_max_amount')
     search_query = request.args.get('search', '').strip()
 
     # Gestion de la période sélectionnée
-    periode = request.args.get('periode', 'mois')  # Valeurs possibles: mois, trimestre, annee
+    periode = request.args.get('periode', 'mois')
     
     date_debut_str = request.args.get('date_debut')
     date_fin_str = request.args.get('date_fin')
     mois_select = request.args.get('mois_select')
     annee_select = request.args.get('annee_select')
+    
     # Calcul des dates selon la période
     maintenant = datetime.now()
     debut = None
     fin = None
-    libelle_periode = "période personnalisée "
+    libelle_periode = "période personnalisée"
     
     if periode == 'personnalisee' and date_debut_str and date_fin_str:
         try:
@@ -309,7 +311,7 @@ def banking_compte_detail(compte_id):
             debut = datetime(annee, mois, 1)
             fin = (debut + timedelta(days=32)).replace(day=1) - timedelta(days=1)
             fin = fin.replace(hour=23, minute=59, second=59)
-            libelle_periode =debut.strftime('%B %Y')
+            libelle_periode = debut.strftime('%B %Y')
         except ValueError:
             flash('Mois/Année invalides', 'error')
             return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
@@ -336,7 +338,7 @@ def banking_compte_detail(compte_id):
         user_id=user_id,
         date_from=debut.strftime('%Y-%m-%d'),
         date_to=fin.strftime('%Y-%m-%d'),
-        limit=200  # Augmenter la limite pour la période
+        limit=200
     )
     
     # Utiliser les statistiques corrigées plutôt que le calcul manuel
@@ -347,8 +349,10 @@ def banking_compte_detail(compte_id):
         date_debut=debut.strftime('%Y-%m-%d'),
         date_fin=fin.strftime('%Y-%m-%d')
     )
+    
+    # Filtrer les mouvements
     filtred_mouvements = mouvements
-    if filter_type!='tous':
+    if filter_type != 'tous':
         if filter_type == 'entree':
             filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction'] in ['depot', 'transfert_entrant', 'transfert_sous_vers_compte', 'recredit_annulation']]
         elif filter_type == 'sortie':
@@ -377,8 +381,10 @@ def banking_compte_detail(compte_id):
             or (m.get('reference', '') and search_lower in m['reference'].lower())
             or (m.get('beneficiaire', '') and search_lower in m['beneficiaire'].lower())
         ]
-    total_recettes = Decimal(str(stats_compte.get('total_entrees', 0)))
-    total_depenses = Decimal(str(stats_compte.get('total_sorties', 0)))
+    
+    # Correction des totaux - utilisation des statistiques plutôt que du calcul manuel
+    total_recettes = Decimal(str(stats_compte.get('total_entrees', 0))) if stats_compte else Decimal('0')
+    total_depenses = Decimal(str(stats_compte.get('total_sorties', 0))) if stats_compte else Decimal('0')
 
     # Récupération des données existantes
     sous_comptes = g.models.sous_compte_model.get_by_compte_principal_id(compte_id)
@@ -396,19 +402,23 @@ def banking_compte_detail(compte_id):
     ecritures_non_liees = g.models.ecriture_comptable_model.get_ecritures_non_synchronisees(
         compte_id=compte_id,
         user_id=current_user.id
-        )
+    )
+    
     nb_jours_periode = (fin - debut).days
     transferts_externes_pending = g.models.transaction_financiere_model.get_transferts_externes_pending(user_id)
+    
     soldes_quotidiens = g.models.transaction_financiere_model.get_evolution_soldes_quotidiens_compte(
         compte_id=compte_id, 
         user_id=user_id, 
         date_debut=debut.strftime('%Y-%m-%d'),
         date_fin=fin.strftime('%Y-%m-%d')
-        )
+    )
 
     # Préparation des données pour le graphique SVG
     largeur_svg = 800
     hauteur_svg = 400
+    graphique_svg = None
+    
     if soldes_quotidiens:
         soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
         min_solde = min(soldes_values) if soldes_values else 0.0
@@ -434,7 +444,6 @@ def banking_compte_detail(compte_id):
             y = margin_y + plot_height - ((solde_float - min_solde) / (max_solde - min_solde)) * plot_height if max_solde != min_solde else margin_y + plot_height / 2
             points.append(f"{x},{y}")
 
-        # On crée le dict COMPLET ici
         graphique_svg = {
             'points': points,
             'min_solde': min_solde,
@@ -446,10 +455,7 @@ def banking_compte_detail(compte_id):
             'margin_y': margin_y,
             'plot_width': plot_width,
             'plot_height': plot_height
-        }   
-# Sin
-    else:
-        graphique_svg = None
+        }
     
     return render_template('banking/compte_detail.html',
                         compte=compte,
@@ -473,7 +479,6 @@ def banking_compte_detail(compte_id):
                         largeur_svg=largeur_svg,
                         hauteur_svg=hauteur_svg,
                         sort=sort)
-
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
 def banking_sous_compte_detail(sous_compte_id):
