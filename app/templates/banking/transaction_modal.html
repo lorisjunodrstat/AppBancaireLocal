@@ -3,15 +3,21 @@
 {% block title %}Gestion de la transaction{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<!-- Modal pour gérer une transaction -->
+<div class="modal fade" id="modalGestionTransaction" tabindex="-1" aria-labelledby="modalGestionTransactionLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Gestion de la transaction</h5>
-                <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}" class="btn-close btn-close-white" aria-label="Close"></a>
+                <h5 class="modal-title" id="modalGestionTransactionLabel">Gestion de la transaction #{{ transaction.id
+                    }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
             </div>
 
-            <form method="POST" class="needs-validation" novalidate>
+            <form method="POST"
+                action="{{ url_for('banking.update_transaction', transaction_id=transaction.id, compte_id=compte.id) }}"
+                class="needs-validation" novalidate>
                 <input type="hidden" name="action" value="modifier">
 
                 <div class="modal-body">
@@ -21,13 +27,15 @@
                             <div class="card bg-light">
                                 <div class="card-body">
                                     <h6 class="card-title text-muted">Informations de base</h6>
-                                    <p><strong>Type :</strong> {{ transaction.type_transaction.replace('_', ' ') }}</p>
-                                    <p><strong>Compte :</strong> 
+                                    <p><strong>Type :</strong> {{ transaction.type_transaction.replace('_', ' ')|title
+                                        }}</p>
+                                    <p><strong>Compte :</strong>
                                         {% if transaction.compte_nom %}{{ transaction.compte_nom }}
                                         {% elif transaction.sous_compte_nom %}{{ transaction.sous_compte_nom }}
                                         {% else %}Inconnu{% endif %}
                                     </p>
-                                    <p><strong>Référence :</strong> <span class="text-muted">{{ transaction.reference or '-' }}</span></p>
+                                    <p><strong>Référence :</strong> <span class="text-muted">{{ transaction.reference or
+                                            '-' }}</span></p>
                                 </div>
                             </div>
                         </div>
@@ -35,15 +43,19 @@
                             <div class="card bg-light">
                                 <div class="card-body">
                                     <h6 class="card-title text-muted">Montant & Solde</h6>
-                                    <p><strong>Montant :</strong> 
-                                        <span class="{{ 'text-success' if transaction.montant > 0 else 'text-danger' }}">
-                                            {{ '+' if transaction.montant > 0 else '' }}{{ "%.2f"|format(transaction.montant) }} {{ compte.devise if compte else 'CHF' }}
+                                    <p><strong>Montant :</strong>
+                                        <span
+                                            class="{{ 'text-success' if transaction.montant > 0 else 'text-danger' }}">
+                                            {{ '+' if transaction.montant > 0 else '' }}{{
+                                            "%.2f"|format(transaction.montant) }} {{ compte.devise }}
                                         </span>
                                     </p>
-                                    <p><strong>Solde après :</strong> 
-                                        <span class="text-success">{{ "%.2f"|format(transaction.solde_apres) }} {{ compte.devise if compte else 'CHF' }}</span>
+                                    <p><strong>Solde après :</strong>
+                                        <span class="text-success">{{ "%.2f"|format(transaction.solde_apres) }} {{
+                                            compte.devise }}</span>
                                     </p>
-                                    <p><strong>Date :</strong> {{ transaction.date_transaction.strftime('%d/%m/%Y %H:%M') }}</p>
+                                    <p><strong>Date :</strong> {{ transaction.date_transaction.strftime('%d/%m/%Y
+                                        %H:%M') }}</p>
                                 </div>
                             </div>
                         </div>
@@ -54,41 +66,43 @@
                         <div class="col-md-6 mb-3">
                             <label for="nouveau_montant" class="form-label">Montant *</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="nouveau_montant" name="nouveau_montant" 
-                                       value="{{ "%.2f"|format(transaction.montant) }}" required>
-                                <span class="input-group-text">{{ compte.devise if compte else 'CHF' }}</span>
+                                <input type="text" class="form-control" id="nouveau_montant" name="nouveau_montant"
+                                    value="{{ " %.2f"|format(transaction.montant) }}" required>
+                                <span class="input-group-text">{{ compte.devise }}</span>
                             </div>
                             <div class="invalid-feedback">Veuillez entrer un montant valide.</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="nouvelle_date" class="form-label">Date *</label>
-                            <input type="datetime-local" class="form-control" id="nouvelle_date" name="nouvelle_date" 
-                                   value="{{ transaction.date_transaction.strftime('%Y-%m-%dT%H:%M') }}" required>
+                            <input type="datetime-local" class="form-control" id="nouvelle_date" name="nouvelle_date"
+                                value="{{ transaction.date_transaction.strftime('%Y-%m-%dT%H:%M') }}" required>
                             <div class="invalid-feedback">Veuillez entrer une date valide.</div>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="nouvelle_description" class="form-label">Description</label>
-                        <textarea class="form-control" id="nouvelle_description" name="nouvelle_description" rows="2" maxlength="255">{{ transaction.description or '' }}</textarea>
+                        <textarea class="form-control" id="nouvelle_description" name="nouvelle_description" rows="2"
+                            maxlength="255">{{ transaction.description or '' }}</textarea>
                     </div>
 
                     <div class="mb-3">
                         <label for="nouvelle_reference" class="form-label">Référence (optionnel)</label>
-                        <input type="text" class="form-control" id="nouvelle_reference" name="nouvelle_reference" maxlength="50" value="{{ transaction.reference or '' }}">
+                        <input type="text" class="form-control" id="nouvelle_reference" name="nouvelle_reference"
+                            maxlength="50" value="{{ transaction.reference or '' }}">
                     </div>
                 </div>
 
                 <div class="modal-footer d-flex justify-content-between">
                     <!-- Bouton Supprimer -->
                     <button type="submit" name="action" value="supprimer" class="btn btn-danger"
-                            onclick="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')">
+                        onclick="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')">
                         <i class="fas fa-trash me-1"></i> Supprimer
                     </button>
 
                     <!-- Boutons Annuler / Enregistrer -->
                     <div>
-                        <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}" class="btn btn-secondary me-2">Annuler</a>
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Annuler</button>
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-1"></i> Enregistrer les modifications
                         </button>
@@ -98,4 +112,12 @@
         </div>
     </div>
 </div>
+
+<!-- Script pour afficher automatiquement le modal quand la page est chargée -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var modal = new bootstrap.Modal(document.getElementById('modalGestionTransaction'));
+        modal.show();
+    });
+</script>
 {% endblock %}

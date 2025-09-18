@@ -875,4 +875,20 @@
         window.location.href = "{{ url_for('banking.banking_transfert') }}?source_type=sous_compte&source=" + sousCompteId + "&destination=" + compteId;
     }
 </script>
+<script>
+    function chargerTransactionDansModal(url) {
+        fetch(url)
+            .then(response => response.text())
+            .then(html => {
+                document.querySelector('#modalGestionTransaction .modal-body').innerHTML = html;
+                const modal = new bootstrap.Modal(document.getElementById('modalGestionTransaction'));
+                modal.show();
+            })
+            .catch(err => {
+                document.querySelector('#modalGestionTransaction .modal-body').innerHTML = '<p class="text-danger">Erreur de chargement</p>';
+                const modal = new bootstrap.Modal(document.getElementById('modalGestionTransaction'));
+                modal.show();
+            });
+    }
+</script>
 {% endblock %}

@@ -2473,6 +2473,30 @@ class TransactionFinanciere:
             logging.error(f"Erreur récupération évolution soldes sous-compte: {e}")
             return []
 
+    def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict]:
+        """Récupère une transaction par son ID avec les infos de propriété"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT t.*, 
+                    COALESCE(cp.utilisateur_id, (
+                        SELECT cp2.utilisateur_id 
+                        FROM sous_comptes sc 
+                        JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
+                        WHERE sc.id = t.sous_compte_id
+                    )) as owner_user_id,
+                    cp.nom_compte as compte_nom,
+                    sc.nom_sous_compte as sous_compte_nom
+                FROM transactions t
+                LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                WHERE t.id = %s
+                """
+                cursor.execute(query, (transaction_id,))
+                return cursor.fetchone()
+        except Exception as e:
+            logging.error(f"Erreur récupération transaction: {e}")
+            return None
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
 
@@ -2713,30 +2737,7 @@ class StatistiquesBancaires:
             logging.error(f"Erreur lors du calcul de l'évolution quotidienne: {e}")
             return {'comptes_principaux': [], 'sous_comptes': [], 'total': []}
 
-    def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict]:
-        """Récupère une transaction par son ID avec les infos de propriété"""
-        try:
-            with self.db.get_cursor() as cursor:
-                query = """
-                SELECT t.*, 
-                    COALESCE(cp.utilisateur_id, (
-                        SELECT cp2.utilisateur_id 
-                        FROM sous_comptes sc 
-                        JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
-                        WHERE sc.id = t.sous_compte_id
-                    )) as owner_user_id,
-                    cp.nom_compte as compte_nom,
-                    sc.nom_sous_compte as sous_compte_nom
-                FROM transactions t
-                LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
-                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
-                WHERE t.id = %s
-                """
-                cursor.execute(query, (transaction_id,))
-                return cursor.fetchone()
-        except Exception as e:
-            logging.error(f"Erreur récupération transaction: {e}")
-            return None
+    
 class PlanComptable:
     """Modèle pour gérer le plan comptable"""
     
