@@ -1256,7 +1256,7 @@ def modifier_transfert(transfert_id):
         if action == 'supprimer':
             success, message = g.models.transaction_financiere_model.supprimer_transaction(transfert_id, user_id)
             if success:
-                flash("Transaction supprimée avec succès", "success")
+                flash(f"la Transaction {transfert_id} a été supprimée avec succès", "success")
             else:
                 flash(message, "danger")
             return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
@@ -1284,7 +1284,7 @@ def modifier_transfert(transfert_id):
                 )
 
                 if success:
-                    flash("Transaction modifiée avec succès", "success")
+                    flash(f"La transaction {transfert_id} a été modifiée avec succès", "success")
                     return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
                 else:
                     flash(message, "danger")
