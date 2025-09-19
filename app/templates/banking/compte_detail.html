@@ -96,7 +96,7 @@
                             <h5><i class="bi bi-tools"></i> Outils de maintenance</h5>
                             <p>Si les soldes de votre compte semblent incohérents, vous pouvez forcer un recalcul complet.</p>
                             <form method="POST" action="{{ url_for('banking.reparer_soldes_compte', compte_id=compte.id) }}"
-                                onsubmit="return confirm('Êtes-vous sûr de vouloir recalculer tous les soldes de ce compte ? Cette opération est sans risque mais peut prendre quelques secondes.')">
+                                  onsubmit="return confirm('Êtes-vous sûr de vouloir recalculer tous les soldes de ce compte ? Cette opération est sans risque mais peut prendre quelques secondes.');">
                                 <button type="submit" class="btn btn-danger">
                                     <i class="bi bi-arrow-clockwise"></i> Réparer les soldes
                                 </button>
