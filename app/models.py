@@ -1269,7 +1269,7 @@ class TransactionFinanciere:
                         nouvelle_description: str = None,
                         nouvelle_date: datetime = None,
                         nouvelle_reference: str = None) -> Tuple[bool, str]:
-        """Modifie une transaction existante et recalcule les soldes suivants SEULEMENT si le montant ou la date change"""
+        """Modifie une transaction existante et recalcule les soldes suivants si le montant ou la date change"""
         try:
             with self.db.get_cursor() as cursor:
                 # Récupérer la transaction originale
@@ -1290,11 +1290,12 @@ class TransactionFinanciere:
                     return False, "Transaction non trouvée"
                 if transaction['owner_user_id'] != user_id:
                     return False, "Non autorisé à modifier cette transaction"
+                
                 compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
                 compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
                 ancien_montant = Decimal(str(transaction['montant']))
                 ancienne_date = transaction['date_transaction']
-                ancien_type = transaction['type_transaction'] # <-- Ajouté
+                ancien_type = transaction['type_transaction'] # On garde l'ancien type pour la logique
 
                 # Préparer les champs à mettre à jour
                 update_fields = []
@@ -1320,77 +1321,71 @@ class TransactionFinanciere:
                 # Si rien n'a changé, on ne fait rien
                 if not update_fields:
                     return True, "Aucune modification nécessaire"
-                # Construire et exécuter la requête
+                
+                # Construire et exécuter la requête de mise à jour
                 update_params.append(transaction_id)
                 query = f"UPDATE transactions SET {', '.join(update_fields)} WHERE id = %s"
                 cursor.execute(query, update_params)
+
                 # Déterminer si un recalcul des soldes est nécessaire
                 recalcul_necessaire = (
                     (nouveau_montant is not None and nouveau_montant != ancien_montant) or
                     (nouvelle_date is not None and nouvelle_date != ancienne_date)
-                    )
+                )
+
                 if recalcul_necessaire:
-                    # Calculer la date de référence pour le recalcul
-                    ancienne_dt = ancienne_date if isinstance(ancienne_date, datetime) else datetime.combine(ancienne_date, datetime.min.time())
-                    nouvelle_dt = nouvelle_date if nouvelle_date and not isinstance(nouvelle_date, datetime) else nouvelle_date
-                    if nouvelle_dt:
+                    # Déterminer la date de référence pour le recalcul
+                    # Si la date a changé, on prend la plus ancienne pour être sûr de tout recalculer
+                    if nouvelle_date is not None:
+                        ancienne_dt = ancienne_date if isinstance(ancienne_date, datetime) else datetime.combine(ancienne_date, datetime.min.time())
+                        nouvelle_dt = nouvelle_date if isinstance(nouvelle_date, datetime) else datetime.combine(nouvelle_date, datetime.min.time())
                         date_reference = min(ancienne_dt, nouvelle_dt)
                     else:
-                        date_reference = ancienne_dt
+                        # Si seule le montant change, on garde l'ancienne date (qui est aussi la nouvelle)
+                        date_reference = ancienne_date if isinstance(ancienne_date, datetime) else datetime.combine(ancienne_date, datetime.min.time())
 
-                    # Récupérer la transaction précédente pour obtenir le solde de départ
+                    # Étape 1 : Récupérer la transaction précédente pour avoir le point de départ
                     previous = self._get_previous_transaction_with_cursor(cursor, compte_type, compte_id, date_reference)
                     solde_depart = Decimal(str(previous[2])) if previous else self._get_solde_initial_with_cursor(cursor, compte_type, compte_id)
 
-                    # Calculer la différence de montant
-                    # Si c'est un crédit, la différence est (nouveau - ancien)
-                    # Si c'est un débit, la différence est (ancien - nouveau) car on veut l'ajouter au solde
-                    if ancien_type in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
-                        difference = nouveau_montant - ancien_montant
+                    # Étape 2 : Récupérer la transaction modifiée avec ses NOUVELLES valeurs (montant, type)
+                    cursor.execute("SELECT type_transaction, montant FROM transactions WHERE id = %s", (transaction_id,))
+                    tx_modifiee = cursor.fetchone()
+                    if not tx_modifiee:
+                        raise Exception("Impossible de récupérer la transaction modifiée après mise à jour")
+
+                    nouveau_montant_reel = Decimal(str(tx_modifiee['montant']))
+                    type_tx_modifiee = tx_modifiee['type_transaction']
+
+                    # Étape 3 : Calculer le NOUVEAU solde_apres pour la transaction modifiée
+                    if type_tx_modifiee in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
+                        nouveau_solde_apres = solde_depart + nouveau_montant_reel
                     else: # ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']
-                        difference = ancien_montant - nouveau_montant
+                        nouveau_solde_apres = solde_depart - nouveau_montant_reel
 
-                    # Mettre à jour les transactions suivantes en ajoutant la différence
-                    if compte_type == 'compte_principal':
-                        condition_compte = "compte_principal_id = %s"
-                    else:
-                        condition_compte = "sous_compte_id = %s"
+                    # Étape 4 : Mettre à jour le solde_apres de la transaction modifiée
+                    cursor.execute("UPDATE transactions SET solde_apres = %s WHERE id = %s", (float(nouveau_solde_apres), transaction_id))
 
-                    query_update_solde = f"""
-                    UPDATE transactions
-                    SET solde_apres = solde_apres + %s
-                    WHERE {condition_compte} AND (
-                        date_transaction > %s OR 
-                        (date_transaction = %s AND id > %s)
+                    # Étape 5 : Recalculer TOUTES les transactions suivantes en partant de ce nouveau solde_apres
+                    # La méthode _recalculer_soldes_apres_date_with_cursor va prendre le relais
+                    # et recalculer toutes les transactions STRICTEMENT POSTÉRIEURES (date > OU (date = ET id >))
+                    success = self._recalculer_soldes_apres_date_with_cursor(
+                        cursor,
+                        compte_type,
+                        compte_id,
+                        date_reference
                     )
-                    ORDER BY date_transaction ASC, id ASC
-                    """
-                    cursor.execute(query_update_solde, (float(difference), compte_id, date_reference, date_reference, transaction_id))
 
-                    # Mettre à jour le solde final du compte
-                    # On récupère le dernier solde_apres mis à jour
-                    cursor.execute(f"""
-                        SELECT solde_apres
-                        FROM transactions
-                        WHERE {condition_compte} AND (
-                            date_transaction > %s OR 
-                            (date_transaction = %s AND id > %s)
-                        )
-                        ORDER BY date_transaction DESC, id DESC
-                        LIMIT 1
-                    """, (compte_id, date_reference, date_reference, transaction_id))
-                    dernier_solde_row = cursor.fetchone()
-                    solde_final = Decimal(str(dernier_solde_row['solde_apres'])) if dernier_solde_row else solde_depart + difference
+                    if not success:
+                        raise Exception("Erreur lors du recalcul des soldes des transactions suivantes")
+                    else:
+                        logging.info(f"✅ Recalcul des soldes terminé après modification de la transaction ID {transaction_id}")
 
-                    if not self._mettre_a_jour_solde_with_cursor(cursor, compte_type, compte_id, solde_final):
-                        raise Exception("Erreur lors de la mise à jour du solde du compte")
-
-                    logging.info(f"✅ Recalcul des soldes déclenché car montant ou date modifiée. Différence appliquée: {difference}")
                 return True, "Transaction modifiée avec succès"
+
         except Exception as e:
             logging.error(f"Erreur modification transaction: {e}")
-            return False, f"Erreur lors de la modification: {str(e)}"
-        
+            return False, f"Erreur lors de la modification: {str(e)}"  
     def supprimer_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
         """Supprime une transaction et recalcule les soldes suivants"""
         try:
@@ -1439,6 +1434,58 @@ class TransactionFinanciere:
             logging.error(f"Erreur suppression transaction: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
     
+    def reparer_soldes_compte(self, compte_type: str, compte_id: int, user_id: int) -> Tuple[bool, str]:
+        """
+        Script de réparation : Recalcule TOUTES les transactions d'un compte depuis le solde initial.
+        À utiliser UNIQUEMENT pour corriger les données corrompues.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Récupérer le solde initial
+                solde_initial = self._get_solde_initial_with_cursor(cursor, compte_type, compte_id)
+                solde_courant = solde_initial
+                # Vérifier que l'utilisateur est bien propriétaire du compte
+                if not self._verifier_appartenance_compte_with_cursor(cursor, compte_type, compte_id, user_id):
+                    return False, "Non autorisé"
+                logging.info(f"🔧 Réparation des soldes pour {compte_type} ID {compte_id}. Solde initial: {solde_initial}")
+                # Récupérer TOUTES les transactions du compte, triées par date
+                if compte_type == 'compte_principal':
+                    condition = "compte_principal_id = %s"
+                else:
+                    condition = "sous_compte_id = %s"
+
+                query = f"""
+                SELECT id, type_transaction, montant, date_transaction
+                FROM transactions
+                WHERE {condition}
+                ORDER BY date_transaction ASC, id ASC
+                """
+                cursor.execute(query, (compte_id,))
+                transactions = cursor.fetchall()
+
+                # Mettre à jour le solde_apres de chaque transaction
+                for tx in transactions:
+                    montant = Decimal(str(tx['montant']))
+                    if tx['type_transaction'] in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
+                        solde_courant += montant
+                    elif tx['type_transaction'] in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']:
+                        solde_courant -= montant
+
+                    cursor.execute(
+                        "UPDATE transactions SET solde_apres = %s WHERE id = %s",
+                        (float(solde_courant), tx['id'])
+                    )
+
+                # Mettre à jour le solde final du compte
+                if not self._mettre_a_jour_solde_with_cursor(cursor, compte_type, compte_id, solde_courant):
+                    raise Exception("Échec de la mise à jour du solde du compte")
+
+                logging.info(f"✅ Soldes du {compte_type} ID {compte_id} réparés avec succès. Nouveau solde: {solde_courant}")
+                return True, "Soldes réparés avec succès"
+
+        except Exception as e:
+            logging.error(f"Erreur lors de la réparation des soldes: {e}")
+            return False, f"Erreur: {str(e)}"
     def _verifier_appartenance_compte(self, compte_type: str, compte_id: int, user_id: int) -> bool:
         """Vérifie que le compte appartient à l'utilisateur"""
         logging.debug(f"Vérification appartenance: {compte_type} ID {compte_id} pour user {user_id}")

@@ -11,6 +11,7 @@
                     aria-label="Close"></button>
             </div>
 
+            <!-- Formulaire de MODIFICATION -->
             <form method="POST" action="{{ url_for('banking.modifier_transfert', transfert_id=mv.id) }}"
                 class="needs-validation" novalidate>
                 <input type="hidden" name="action" value="modifier">
@@ -84,11 +85,14 @@
                 </div>
 
                 <div class="modal-footer d-flex justify-content-between">
-                    <!-- Bouton Supprimer -->
-                    <button type="submit" name="action" value="supprimer" class="btn btn-danger"
-                        onclick="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')">
-                        <i class="fas fa-trash me-1"></i> Supprimer
-                    </button>
+                    <!-- Formulaire de SUPPRESSION (imbriqué) -->
+                    <form method="POST" action="{{ url_for('banking.supprimer_transfert', transfert_id=mv.id) }}"
+                        class="d-inline"
+                        onsubmit="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-1"></i> Supprimer
+                        </button>
+                    </form>
 
                     <!-- Boutons Annuler / Enregistrer -->
                     <div>
