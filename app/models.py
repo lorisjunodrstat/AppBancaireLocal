@@ -1385,53 +1385,67 @@ class TransactionFinanciere:
 
         except Exception as e:
             logging.error(f"Erreur modification transaction: {e}")
-            return False, f"Erreur lors de la modification: {str(e)}"  
+            return False, f"Erreur lors de la modification: {str(e)}"
+        
     def supprimer_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
         """Supprime une transaction et recalcule les soldes suivants"""
         try:
             with self.db.get_cursor() as cursor:
-                # Récupérer la transaction AVANT de la supprimer
-                cursor.execute("""
-                    SELECT t.*, 
-                           COALESCE(cp.utilisateur_id, (
-                               SELECT cp2.utilisateur_id 
-                               FROM sous_comptes sc 
-                               JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
-                               WHERE sc.id = t.sous_compte_id
-                           )) as owner_user_id
-                    FROM transactions t
-                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
-                    WHERE t.id = %s
-                """, (transaction_id,))
-                transaction = cursor.fetchone()
-                if not transaction:
-                    return False, "Transaction non trouvée"
-                if transaction['owner_user_id'] != user_id:
-                    return False, "Non autorisé à supprimer cette transaction"
-                if transaction['type_transaction'] in ['transfert_entrant', 'transfert_sortant']:
-                    return False, "Les transactions de transfert ne peuvent pas être supprimées individuellement"
+                try:
+                    # Récupérer la transaction AVANT de la supprimer
+                    cursor.execute("""
+                        SELECT t.*, 
+                            COALESCE(cp.utilisateur_id, (
+                                SELECT cp2.utilisateur_id 
+                                FROM sous_comptes sc 
+                                JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
+                                WHERE sc.id = t.sous_compte_id
+                            )) as owner_user_id
+                        FROM transactions t
+                        LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                        WHERE t.id = %s
+                    """, (transaction_id,))
+                    transaction = cursor.fetchone()
+                    
+                    if not transaction:
+                        return False, "Transaction non trouvée"
+                    
+                    if transaction['owner_user_id'] != user_id:
+                        return False, "Non autorisé à supprimer cette transaction"
+                    
+                    if transaction['type_transaction'] in ['transfert_entrant', 'transfert_sortant']:
+                        return False, "Les transactions de transfert ne peuvent pas être supprimées individuellement"
 
-                compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
-                compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
-                date_transaction = transaction['date_transaction']
+                    compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
+                    compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
+                    date_transaction = transaction['date_transaction']
 
-                # Supprimer la transaction
-                cursor.execute("DELETE FROM transactions WHERE id = %s", (transaction_id,))
+                    # Supprimer la transaction
+                    cursor.execute("DELETE FROM transactions WHERE id = %s", (transaction_id,))
 
-                # Utiliser la méthode robuste avec curseur pour recalculer TOUT à partir de la date de la transaction supprimée
-                success = self._recalculer_soldes_apres_date_with_cursor(
-                    cursor,
-                    compte_type,
-                    compte_id,
-                    date_transaction
-                )
+                    # Utiliser la méthode robuste avec curseur pour recalculer TOUT à partir de la date de la transaction supprimée
+                    success = self._recalculer_soldes_apres_date_with_cursor(
+                        cursor,
+                        compte_type,
+                        compte_id,
+                        date_transaction
+                    )
 
-                if not success:
-                    raise Exception("Erreur lors du recalcul des soldes")
+                    if not success:
+                        raise Exception("Erreur lors du recalcul des soldes")
 
-                return True, "Transaction supprimée avec succès"
+                    # Validation explicite de la transaction
+                    cursor.commit()
+                    return True, "Transaction supprimée avec succès"
+                    
+                except Exception as inner_e:
+                    # Annulation explicite en cas d'erreur
+                    cursor.rollback()
+                    logging.error(f"Erreur interne suppression transaction: {inner_e}")
+                    return False, f"Erreur interne lors de la suppression: {str(inner_e)}"
+                    
         except Exception as e:
-            logging.error(f"Erreur suppression transaction: {e}")
+            logging.error(f"Erreur générale suppression transaction: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
     
     def reparer_soldes_compte(self, compte_type: str, compte_id: int, user_id: int) -> Tuple[bool, str]:
