@@ -479,6 +479,41 @@ def banking_compte_detail(compte_id):
                         largeur_svg=largeur_svg,
                         hauteur_svg=hauteur_svg,
                         sort=sort)
+
+@bp.route('/banking/compte/<int:compte_id>/reparer_soldes', methods=['POST'])
+@login_required
+def reparer_soldes_compte(compte_id):
+    """
+    Route pour déclencher la réparation manuelle des soldes d'un compte.
+    """
+    user_id = current_user.id
+
+    # Récupérer le compte pour déterminer son type
+    compte = g.models.compte_model.get_by_id(compte_id)
+    if not compte or compte['utilisateur_id'] != user_id:
+        flash('Compte non trouvé ou non autorisé', 'danger')
+        return redirect(url_for('banking.banking_dashboard'))
+    # Vérifier que l'utilisateur est propriétaire
+    if compte.get('utilisateur_id') != user_id:
+        flash('Non autorisé', 'danger')
+        return redirect(url_for('banking.banking_dashboard'))
+    # Déterminer le type de compte
+    compte_type = 'compte_principal' if compte.get('compte_principal_id') is None else 'sous_compte'
+    # Appeler la méthode de réparation
+    success, message = g.models.transaction_financiere_model.reparer_soldes_compte(
+        compte_type=compte_type,
+        compte_id=compte_id,
+        user_id=user_id
+    )
+
+    if success:
+        flash(f"✅ {message}", "success")
+    else:
+        flash(f"❌ {message}", "danger")
+
+    # Rediriger vers la page de détail du compte
+    return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
 def banking_sous_compte_detail(sous_compte_id):
