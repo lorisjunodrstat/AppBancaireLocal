@@ -1259,7 +1259,8 @@ class TransactionFinanciere:
                         nouveau_montant: Decimal,
                         nouvelle_description: str,
                         nouvelle_date: datetime,
-                        nouvelle_reference: str) -> Tuple[bool, str]:
+                        nouvelle_reference: str,
+                        nouvelle_reference_transfert: str) -> Tuple[bool, str]:
         """Modifie une transaction existante et recalcule les soldes suivants si le montant ou la date change"""
         try:
             with self.db.get_cursor() as cursor:
@@ -1940,6 +1941,7 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur lors de la recherche de la transaction précédente: {e}")
             return None
+    
     def _get_solde_initial_with_cursor(self, cursor, compte_type: str, compte_id: int) -> Decimal:
         """
         Récupère le solde initial d'un compte en utilisant un curseur existant.
