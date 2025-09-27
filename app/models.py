@@ -1266,9 +1266,9 @@ class TransactionFinanciere:
 
     def modifier_transaction(self, transaction_id: int, user_id: int,
                         nouveau_montant: Decimal,
-                        nouvelle_description: str = None,
-                        nouvelle_date: datetime = None,
-                        nouvelle_reference: str = None) -> Tuple[bool, str]:
+                        nouvelle_description: str,
+                        nouvelle_date: datetime,
+                        nouvelle_reference: str) -> Tuple[bool, str]:
         """Modifie une transaction existante et recalcule les soldes suivants si le montant ou la date change"""
         try:
             with self.db.get_cursor() as cursor:
@@ -1301,7 +1301,7 @@ class TransactionFinanciere:
                 update_fields = []
                 update_params = []
                 # Vérifier et ajouter le montant
-                if nouveau_montant is not None and nouveau_montant != ancien_montant:
+                if nouveau_montant is not None and nouveau_montant != ancien_montant and nouveau_montant >= 0:
                     update_fields.append("montant = %s")
                     update_params.append(float(nouveau_montant))
                 # Vérifier et ajouter la description
@@ -1345,26 +1345,26 @@ class TransactionFinanciere:
                         date_reference = ancienne_date if isinstance(ancienne_date, datetime) else datetime.combine(ancienne_date, datetime.min.time())
 
                     # Étape 1 : Récupérer la transaction précédente pour avoir le point de départ
-                    previous = self._get_previous_transaction_with_cursor(cursor, compte_type, compte_id, date_reference)
-                    solde_depart = Decimal(str(previous[2])) if previous else self._get_solde_initial_with_cursor(cursor, compte_type, compte_id)
+                    #previous = self._get_previous_transaction_with_cursor(cursor, compte_type, compte_id, date_reference)
+                    #solde_depart = Decimal(str(previous[2])) if previous else self._get_solde_initial_with_cursor(cursor, compte_type, compte_id)
 
                     # Étape 2 : Récupérer la transaction modifiée avec ses NOUVELLES valeurs (montant, type)
-                    cursor.execute("SELECT type_transaction, montant FROM transactions WHERE id = %s", (transaction_id,))
-                    tx_modifiee = cursor.fetchone()
-                    if not tx_modifiee:
-                        raise Exception("Impossible de récupérer la transaction modifiée après mise à jour")
+                    #cursor.execute("SELECT type_transaction, montant FROM transactions WHERE id = %s", (transaction_id,))
+                    #tx_modifiee = cursor.fetchone()
+                    #if not tx_modifiee:
+                    #    raise Exception("Impossible de récupérer la transaction modifiée après mise à jour")
 
-                    nouveau_montant_reel = Decimal(str(tx_modifiee['montant']))
-                    type_tx_modifiee = tx_modifiee['type_transaction']
+                    #nouveau_montant_reel = Decimal(str(tx_modifiee['montant']))
+                    #type_tx_modifiee = tx_modifiee['type_transaction']
 
                     # Étape 3 : Calculer le NOUVEAU solde_apres pour la transaction modifiée
-                    if type_tx_modifiee in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
-                        nouveau_solde_apres = solde_depart + nouveau_montant_reel
-                    else: # ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']
-                        nouveau_solde_apres = solde_depart - nouveau_montant_reel
+                    #if type_tx_modifiee in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
+                    #    nouveau_solde_apres = solde_depart + nouveau_montant_reel
+                    #else: # ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']
+                    #    nouveau_solde_apres = solde_depart - nouveau_montant_reel
 
                     # Étape 4 : Mettre à jour le solde_apres de la transaction modifiée
-                    cursor.execute("UPDATE transactions SET solde_apres = %s WHERE id = %s", (float(nouveau_solde_apres), transaction_id))
+                    #ursor.execute("UPDATE transactions SET solde_apres = %s WHERE id = %s", (float(nouveau_solde_apres), transaction_id))
 
                     # Étape 5 : Recalculer TOUTES les transactions suivantes en partant de ce nouveau solde_apres
                     # La méthode _recalculer_soldes_apres_date_with_cursor va prendre le relais
@@ -1500,6 +1500,7 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur lors de la réparation des soldes: {e}")
             return False, f"Erreur: {str(e)}"
+    
     def _verifier_appartenance_compte(self, compte_type: str, compte_id: int, user_id: int) -> bool:
         """Vérifie que le compte appartient à l'utilisateur"""
         logging.debug(f"Vérification appartenance: {compte_type} ID {compte_id} pour user {user_id}")
@@ -1887,7 +1888,7 @@ class TransactionFinanciere:
             query_simple = f"""
             SELECT id, date_transaction, solde_apres
             FROM transactions
-            WHERE {condition} AND date_transaction <= %s
+            WHERE {condition} AND date_transaction < %s
             ORDER BY date_transaction DESC, id DESC
             LIMIT 1
             """
@@ -1901,7 +1902,6 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur lors de la recherche de la transaction précédente: {e}")
             return None
-    
     def _get_solde_initial_with_cursor(self, cursor, compte_type: str, compte_id: int) -> Decimal:
         """
         Récupère le solde initial d'un compte en utilisant un curseur existant.

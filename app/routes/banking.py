@@ -490,13 +490,13 @@ def reparer_soldes_compte(compte_id):
 
     # Récupérer le compte pour déterminer son type
     compte = g.models.compte_model.get_by_id(compte_id)
-    if not compte or compte['utilisateur_id'] != user_id:
-        flash('Compte non trouvé ou non autorisé', 'danger')
+    if not compte:
+        flash('Compte non trouvé', 'danger')
         return redirect(url_for('banking.banking_dashboard'))
-    # Vérifier que l'utilisateur est propriétaire
-    if compte.get('utilisateur_id') != user_id:
-        flash('Non autorisé', 'danger')
+    if  compte.get('utilisateur_id') != user_id:
+        flash('Compte non autorisé', 'danger')
         return redirect(url_for('banking.banking_dashboard'))
+
     # Déterminer le type de compte
     compte_type = 'compte_principal' if compte.get('compte_principal_id') is None else 'sous_compte'
     # Appeler la méthode de réparation
@@ -1338,11 +1338,28 @@ def modifier_transfert(transfert_id):
 @bp.route('/banking/supprimer_transfert/<int:transfert_id>', methods=['POST'])
 @login_required
 def supprimer_transfert(transfert_id):
+    user_id = current_user.id
+    transaction = g.models.transaction_financiere_model.get_transaction_by_id(transfert_id)
+    if not transaction or transaction.get('owner_user_id') != user_id:
+        flash("Transaction non trouvée ou non autorisée", "danger")
+        return redirect(url_for('banking.banking_dashboard'))
+    compte_type = 'compte_principal' if transaction.get('compte_principal_id') else 'sous_compte'
+    compte_id = transaction.get('compte_principal_id') or transaction.get('sous_compte_id')
     success, message = g.models.transaction_financiere_model.supprimer_transaction(
         transaction_id=transfert_id,
-        user_id=current_user.id)
+        user_id=user_id)
     if success:
         flash(message, "success")
+        success_rep, message_rep = g.models.transaction_financiere_model.reparer_soldes_compte(
+            compte_type=compte_type,
+            compte_id=compte_id,
+            user_id=user_id
+        )
+
+        if success_rep:
+            flash(f"Transaction {transfert_id} supprimée et soldes réparés avec succès", "success")
+        else:
+            flash(f"Transaction {transfert_id} supprimée mais erreur lors de la réparation des soldes: {message_rep}", "warning")
     else:
         flash(message, "danger")        
     return redirect(request.referrer or url_for('banking.banking_dashboard'))
