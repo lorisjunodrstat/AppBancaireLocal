@@ -18,6 +18,7 @@ from contextlib import contextmanager
 from flask_login import UserMixin
 import logging
 from flask import current_app
+import secrets
 
 
 class DatabaseManager:
@@ -1043,51 +1044,47 @@ class TransactionFinanciere:
         return dernier_solde
 
     def _inserer_transaction(self, compte_type: str, compte_id: int, type_transaction: str, 
-                           montant: Decimal, description: str, user_id: int, 
-                           date_transaction: datetime, validate_balance: bool = True) -> Tuple[bool, str, Optional[int]]:
+                            montant: Decimal, description: str, user_id: int, 
+                            date_transaction: datetime, validate_balance: bool = True) -> Tuple[bool, str, Optional[int]]:
         """Insère une transaction avec calcul intelligent du solde et mise à jour des transactions suivantes"""
         logging.info(f"Insertion de la transaction de type '{type_transaction}'")
-        
         try:
             with self.db.get_cursor() as cursor:
                 # Trouver la transaction précédente
                 previous = self._get_previous_transaction(compte_type, compte_id, date_transaction)
-                
                 # Calculer le solde_avant
                 if previous:
                     solde_avant = Decimal(str(previous['solde_apres']))
                 else:
                     solde_initial = self._get_solde_initial(compte_type, compte_id)
                     solde_avant = solde_initial
-                
                 # Pour les transactions de débit, vérifier le solde suffisant si demandé
                 if validate_balance and type_transaction in ['retrait', 'transfert_sortant', 'transfert_externe']:
                     if solde_avant < montant:
                         return False, "Solde insuffisant", None
-                
                 # Calculer le nouveau solde
                 if type_transaction in ['depot', 'transfert_entrant', 'recredit_annulation']:
                     solde_apres = solde_avant + montant
                 else:
                     solde_apres = solde_avant - montant
-                
+                reference_transfert = f"TRF_{int(time.time())}_{user_id}_{secrets.token_hex(6)}"
                 # Insérer la transaction
                 if compte_type == 'compte_principal':
                     query = """
                     INSERT INTO transactions 
-                    (compte_principal_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (compte_principal_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres, reference_transfert)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """
                     cursor.execute(query, (compte_id, type_transaction, float(montant), 
-                                        description, user_id, date_transaction, float(solde_apres)))
+                                        description, user_id, date_transaction, float(solde_apres), reference_transfert))
                 else:
                     query = """
                     INSERT INTO transactions 
-                    (sous_compte_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (sous_compte_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres, referreference_transfert)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """
                     cursor.execute(query, (compte_id, type_transaction, float(montant), 
-                                        description, user_id, date_transaction, float(solde_apres)))
+                                        description, user_id, date_transaction, float(solde_apres), reference_transfert))
                 
                 transaction_id = cursor.lastrowid
                 
@@ -1109,7 +1106,6 @@ class TransactionFinanciere:
     def _recalculer_soldes_apres_date(self, compte_type: str, compte_id: int, date_modification: datetime) -> bool:
         """Recalcule tous les soldes_apres des transactions postérieures à une date"""
         logging.info("Recalcul des soldes après modification")
-
         try:
             with self.db.get_cursor() as cursor:
                 # Récupérer toutes les transactions à partir de la date de modification, triées chronologiquement
@@ -1117,24 +1113,19 @@ class TransactionFinanciere:
                     condition_compte = "compte_principal_id = %s"
                 else:
                     condition_compte = "sous_compte_id = %s"
-                
                 query = f"""
                 SELECT id, montant, type_transaction, date_transaction
                 FROM transactions
                 WHERE {condition_compte} AND date_transaction >= %s
                 ORDER BY date_transaction, id
                 """
-                
                 cursor.execute(query, (compte_id, date_modification))
                 transactions = cursor.fetchall()
-                
                 if not transactions:
                     return True
-                
                 # Trouver la transaction précédente pour obtenir le solde initial
                 premiere_transaction = transactions[0]
                 previous = self._get_previous_transaction(compte_type, compte_id, premiere_transaction['date_transaction'])
-                
                 if previous:
                     solde_courant = Decimal(str(previous['solde_apres']))
                 else:
@@ -1296,7 +1287,7 @@ class TransactionFinanciere:
                 ancien_montant = Decimal(str(transaction['montant']))
                 ancienne_date = transaction['date_transaction']
                 ancien_type = transaction['type_transaction'] # On garde l'ancien type pour la logique
-
+                ancien_reference_transfert = transaction.get('reference_transfert', None)
                 # Préparer les champs à mettre à jour
                 update_fields = []
                 update_params = []
@@ -1318,6 +1309,9 @@ class TransactionFinanciere:
                 if nouvelle_reference is not None and nouvelle_reference != transaction.get('reference', ''):
                     update_fields.append("reference = %s")
                     update_params.append(nouvelle_reference)
+                if nouvelle_reference_transfert is not None and nouvelle_reference_transfert != ancien_reference_transfert:
+                    update_fields.append("reference_transfert = %s")
+                    update_params.append(nouvelle_reference_transfert)
                 # Si rien n'a changé, on ne fait rien
                 if not update_fields:
                     return True, "Aucune modification nécessaire"
@@ -1388,66 +1382,109 @@ class TransactionFinanciere:
             return False, f"Erreur lors de la modification: {str(e)}"
         
     def supprimer_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
-        """Supprime une transaction et recalcule les soldes suivants"""
+        """Supprime une transaction. Si c'est un transfert, supprime les deux transactions liées."""
         try:
             with self.db.get_cursor() as cursor:
-                try:
-                    # Récupérer la transaction AVANT de la supprimer
+                # Récupérer la transaction AVANT de la supprimer
+                cursor.execute("""
+                    SELECT t.*, 
+                        COALESCE(cp.utilisateur_id, (
+                            SELECT cp2.utilisateur_id 
+                            FROM sous_comptes sc 
+                            JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
+                            WHERE sc.id = t.sous_compte_id
+                        )) as owner_user_id
+                    FROM transactions t
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    WHERE t.id = %s
+                """, (transaction_id,))
+                transaction = cursor.fetchone()
+                
+                if not transaction:
+                    return False, "Transaction non trouvée"
+                if transaction['owner_user_id'] != user_id:
+                    return False, "Non autorisé à supprimer cette transaction"
+
+                type_tx = transaction['type_transaction']
+                compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
+                compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
+                date_transaction = transaction['date_transaction']
+
+                # === CAS SPÉCIAL : TRANSFERT INTERNE (entrant/sortant) ===
+                if type_tx in ['transfert_entrant', 'transfert_sortant']:
+                    reference_transfert = transaction.get('reference_transfert')
+                    if not reference_transfert:
+                        return False, "Transfert corrompu : référence manquante"
+
+                    # Récupérer les deux transactions liées
                     cursor.execute("""
-                        SELECT t.*, 
-                            COALESCE(cp.utilisateur_id, (
-                                SELECT cp2.utilisateur_id 
-                                FROM sous_comptes sc 
-                                JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
-                                WHERE sc.id = t.sous_compte_id
-                            )) as owner_user_id
-                        FROM transactions t
-                        LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
-                        WHERE t.id = %s
-                    """, (transaction_id,))
-                    transaction = cursor.fetchone()
-                    
-                    if not transaction:
-                        return False, "Transaction non trouvée"
-                    
-                    if transaction['owner_user_id'] != user_id:
-                        return False, "Non autorisé à supprimer cette transaction"
-                    
-                    if transaction['type_transaction'] in ['transfert_entrant', 'transfert_sortant']:
-                        return False, "Les transactions de transfert ne peuvent pas être supprimées individuellement"
+                        SELECT id, type_transaction, compte_principal_id, sous_compte_id, date_transaction
+                        FROM transactions
+                        WHERE reference_transfert = %s
+                    """, (reference_transfert,))
+                    transactions_liees = cursor.fetchall()
 
-                    compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
-                    compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
-                    date_transaction = transaction['date_transaction']
+                    if len(transactions_liees) != 2:
+                        return False, f"Transfert invalide : {len(transactions_liees)} transactions trouvées"
 
-                    # Supprimer la transaction
+                    # Identifier la transaction source (sortante) pour vérifier la propriété
+                    tx_source = next((tx for tx in transactions_liees if tx['type_transaction'] == 'transfert_sortant'), None)
+                    if not tx_source:
+                        return False, "Transfert mal formé : transaction source manquante"
+
+                    # Vérifier que l'utilisateur est propriétaire du compte source
+                    if tx_source['compte_principal_id']:
+                        cursor.execute("SELECT utilisateur_id FROM comptes_principaux WHERE id = %s", 
+                                    (tx_source['compte_principal_id'],))
+                    else:
+                        cursor.execute("""
+                            SELECT cp.utilisateur_id 
+                            FROM sous_comptes sc
+                            JOIN comptes_principaux cp ON sc.compte_principal_id = cp.id
+                            WHERE sc.id = %s
+                        """, (tx_source['sous_compte_id'],))
+                    owner_row = cursor.fetchone()
+                    if not owner_row or owner_row['utilisateur_id'] != user_id:
+                        return False, "Non autorisé à annuler ce transfert"
+
+                    # Supprimer les deux transactions
+                    cursor.execute("DELETE FROM transactions WHERE reference_transfert = %s", (reference_transfert,))
+
+                    # Recalculer les soldes pour chaque compte impliqué
+                    for tx in transactions_liees:
+                        tx_compte_type = 'compte_principal' if tx['compte_principal_id'] else 'sous_compte'
+                        tx_compte_id = tx['compte_principal_id'] or tx['sous_compte_id']
+                        tx_date = tx['date_transaction']
+
+                        # On ne recalcule que si l'utilisateur est propriétaire (sécurité)
+                        if not self._verifier_appartenance_compte_with_cursor(cursor, tx_compte_type, tx_compte_id, user_id):
+                            continue
+
+                        success = self._recalculer_soldes_apres_date_with_cursor(
+                            cursor, tx_compte_type, tx_compte_id, tx_date
+                        )
+                        if not success:
+                            raise Exception(f"Échec du recalcul du solde pour le compte {tx_compte_type} ID {tx_compte_id}")
+
+                    return True, "Transfert annulé avec succès"
+
+                # === CAS NORMAL : transaction simple (dépôt, retrait, etc.) ===
+                else:
+                    # Supprimer la transaction unique
                     cursor.execute("DELETE FROM transactions WHERE id = %s", (transaction_id,))
 
-                    # Utiliser la méthode robuste avec curseur pour recalculer TOUT à partir de la date de la transaction supprimée
+                    # Recalculer les soldes à partir de la date de la transaction
                     success = self._recalculer_soldes_apres_date_with_cursor(
-                        cursor,
-                        compte_type,
-                        compte_id,
-                        date_transaction
+                        cursor, compte_type, compte_id, date_transaction
                     )
-
                     if not success:
                         raise Exception("Erreur lors du recalcul des soldes")
 
-                    # Validation explicite de la transaction
-                    #cursor.commit()
                     return True, "Transaction supprimée avec succès"
-                    
-                except Exception as inner_e:
-                    # Annulation explicite en cas d'erreur
-                    #cursor.rollback()
-                    logging.error(f"Erreur interne suppression transaction: {inner_e}")
-                    return False, f"Erreur interne lors de la suppression: {str(inner_e)}"
-                    
+
         except Exception as e:
-            logging.error(f"Erreur générale suppression transaction: {e}")
-            return False, f"Erreur lors de la suppression: {str(e)}"
-    
+            logging.error(f"Erreur lors de la suppression de la transaction {transaction_id}: {e}", exc_info=True)
+            return False, f"Erreur lors de la suppression : {str(e)}"
     def reparer_soldes_compte(self, compte_type: str, compte_id: int, user_id: int) -> Tuple[bool, str]:
         """
         Script de réparation : Recalcule TOUTES les transactions d'un compte depuis le solde initial.
@@ -1551,6 +1588,7 @@ class TransactionFinanciere:
                     t.reference,
                     t.date_transaction,
                     t.solde_apres,
+                    t.referece_transfert,
                     sc.nom_sous_compte as sous_compte_source,
                     sc_dest.nom_sous_compte as sous_compte_dest
                 FROM transactions t
@@ -1797,7 +1835,7 @@ class TransactionFinanciere:
         
     def _inserer_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, type_transaction: str, 
                         montant: Decimal, description: str, user_id: int, 
-                        date_transaction: datetime, validate_balance: bool = True) -> Tuple[bool, str, Optional[int]]:
+                        date_transaction: datetime, validate_balance: bool = True, reference_transfert: Optional[str] = None) -> Tuple[bool, str, Optional[int]]:
         """
         Insère une transaction dans la base de données et met à jour les soldes.
         """
@@ -1842,20 +1880,20 @@ class TransactionFinanciere:
             if compte_type == 'compte_principal':
                 query = """
                 INSERT INTO transactions 
-                (compte_principal_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (compte_principal_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres, reference_transfert)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 cursor.execute(query, (compte_id, type_transaction, float(montant), 
-                                    description, user_id, date_transaction, float(solde_apres)))
+                                    description, user_id, date_transaction, float(solde_apres), reference_transfert))
             else:
                 query = """
                 INSERT INTO transactions 
-                (sous_compte_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (sous_compte_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres, reference_transfert)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 cursor.execute(query, (compte_id, type_transaction, float(montant), 
-                                    description, user_id, date_transaction, float(solde_apres)))
-            
+                                    description, user_id, date_transaction, float(solde_apres), reference_transfert))
+
             transaction_id = cursor.lastrowid
             
             # Mettre à jour les transactions suivantes
@@ -2056,7 +2094,7 @@ class TransactionFinanciere:
                 # 2. Transaction de CRÉDIT sur le compte destination
                 success, message, credit_tx_id = self._inserer_transaction_with_cursor(
                     cursor, dest_type, dest_id, 'transfert_entrant', montant, 
-                    desc_complete, user_id, date_transaction, False
+                    desc_complete, user_id, date_transaction,  False
                 )
                 
                 if not success:
@@ -2122,6 +2160,7 @@ class TransactionFinanciere:
                 timestamp = int(time.time())
                 reference = f"TRF_CP_SC_{timestamp}"
                 desc_complete = f"{description} (Réf: {reference})"
+                reference_transfert = f"TRF_{int(time.time())}_{user_id}_{secrets.token_hex(6)}"
                 if date_transaction is None:
                     date_transaction = datetime.now()
 
@@ -2135,7 +2174,9 @@ class TransactionFinanciere:
                     description=desc_complete,
                     user_id=user_id,
                     date_transaction=date_transaction,
-                    validate_balance=True  # Vérifie le solde
+                    validate_balance=True,  # Vérifie le solde
+                    reference_transfert=reference_transfert,
+                
                 )
                 if not success:
                     return False, f"Erreur débit compte principal: {message}"
@@ -2198,6 +2239,7 @@ class TransactionFinanciere:
                 # Générer référence et description
                 timestamp = int(time.time())
                 reference = f"TRF_SC_CP_{timestamp}"
+                reference_transfert = f"TRF_{int(time.time())}_{user_id}_{secrets.token_hex(6)}"
                 desc_complete = f"{description} (Réf: {reference})"
                 if date_transaction is None:
                     date_transaction = datetime.now()
@@ -2212,7 +2254,8 @@ class TransactionFinanciere:
                     description=desc_complete,
                     user_id=user_id,
                     date_transaction=date_transaction,
-                    validate_balance=True
+                    validate_balance=True,
+                    reference_transfert=reference_transfert
                 )
                 if not success:
                     return False, f"Erreur débit sous-compte: {message}"
@@ -2227,7 +2270,8 @@ class TransactionFinanciere:
                     description=desc_complete,
                     user_id=user_id,
                     date_transaction=date_transaction,
-                    validate_balance=False
+                    validate_balance=False,
+                    reference_transfert=reference_transfert
                 )
                 if not success:
                     return False, f"Erreur crédit compte principal: {message}"
