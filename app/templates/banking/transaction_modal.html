@@ -34,6 +34,9 @@
                                     <p><strong>Référence :</strong>
                                         <span class="text-muted">{{ mv.reference or '-' }}</span>
                                     </p>
+                                    <p><strong>Référence de transfert :</strong>
+                                        <span class="text-muted">{{ mv.reference_transfert or '-' }}</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -46,6 +49,11 @@
                                             {{ '+' if mv.montant > 0 else '' }}{{ "%.2f"|format(mv.montant) }} {{
                                             compte.devise }}
                                         </span>
+                                    </p>
+                                    <p><strong>Solde Actuel</strong>
+                                    <span class="{{ 'text-success' if mv.solde_apres > 0 else 'text-danger' }}">
+                                        {{ '%.2f'|format(mv.solde_apres) }} {% if compte.devise %}{{ compte.devise }}{% else %} CHF{% endif %}
+                                    </span>
                                     </p>
                                     <p><strong>Date :</strong> {{ mv.date_transaction.strftime('%d/%m/%Y %H:%M') }}</p>
                                 </div>

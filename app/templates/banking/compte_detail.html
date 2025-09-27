@@ -641,6 +641,7 @@
                                         <th>Description</th>
                                         <th class="text-end">Montant</th>
                                         <th>Action</th>
+                                        <th>Solde</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -695,6 +696,13 @@
                                                 data-bs-toggle="modal" data-bs-target="#modalTransaction{{ mv.id }}">
                                                 <i class="fas fa-edit"></i> Gérer
                                             </button>
+                                        </td>
+                                        <td>
+                                            {% if mv.solde_apres %}
+                                                {{ '%.2f'|format(mv.solde_apres) }} {% if compte.devise %}{{ compte.devise }}{% else %} CHF{% endif %}
+                                            {% else %}
+                                                -
+                                            {% endif %}
                                         </td>
                                     </tr>
                                     {% endfor %}
