@@ -1435,12 +1435,12 @@ class TransactionFinanciere:
                         raise Exception("Erreur lors du recalcul des soldes")
 
                     # Validation explicite de la transaction
-                    cursor.commit()
+                    #cursor.commit()
                     return True, "Transaction supprimée avec succès"
                     
                 except Exception as inner_e:
                     # Annulation explicite en cas d'erreur
-                    cursor.rollback()
+                    #cursor.rollback()
                     logging.error(f"Erreur interne suppression transaction: {inner_e}")
                     return False, f"Erreur interne lors de la suppression: {str(inner_e)}"
                     
