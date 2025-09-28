@@ -1259,8 +1259,7 @@ class TransactionFinanciere:
                         nouveau_montant: Decimal,
                         nouvelle_description: str,
                         nouvelle_date: datetime,
-                        nouvelle_reference: str,
-                        nouvelle_reference_transfert: str) -> Tuple[bool, str]:
+                        nouvelle_reference: str ) -> Tuple[bool, str]:
         """Modifie une transaction existante et recalcule les soldes suivants si le montant ou la date change"""
         try:
             with self.db.get_cursor() as cursor:
@@ -1288,7 +1287,8 @@ class TransactionFinanciere:
                 ancien_montant = Decimal(str(transaction['montant']))
                 ancienne_date = transaction['date_transaction']
                 ancien_type = transaction['type_transaction'] # On garde l'ancien type pour la logique
-                ancien_reference_transfert = transaction.get('reference_transfert', None)
+                
+                
                 # Préparer les champs à mettre à jour
                 update_fields = []
                 update_params = []
@@ -1310,9 +1310,6 @@ class TransactionFinanciere:
                 if nouvelle_reference is not None and nouvelle_reference != transaction.get('reference', ''):
                     update_fields.append("reference = %s")
                     update_params.append(nouvelle_reference)
-                if nouvelle_reference_transfert is not None and nouvelle_reference_transfert != ancien_reference_transfert:
-                    update_fields.append("reference_transfert = %s")
-                    update_params.append(nouvelle_reference_transfert)
                 # Si rien n'a changé, on ne fait rien
                 if not update_fields:
                     return True, "Aucune modification nécessaire"
