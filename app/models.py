@@ -1359,6 +1359,8 @@ class TransactionFinanciere:
                     success1 = self._recalculer_soldes_apres_date_with_cursor(cursor, compte_type, compte_id, date_reference)
                     if not success1:
                         raise Exception("Erreur lors du recalcul des soldes des transactions suivantes")
+                    else: 
+                        logging.info("Recalcul des soldes réussi de la transaction après modification")
                     if est_transfert and autre_tx:
                         # Recalculer aussi pour l'autre transaction du transfert
                         cursor.execute("""
@@ -1372,7 +1374,8 @@ class TransactionFinanciere:
                             success2 = self._recalculer_soldes_apres_date_with_cursor(cursor, autre_compte_type, autre_compte_id, date_reference)
                             if not success2:
                                 raise Exception("Erreur lors du recalcul des soldes de l'autre transaction du transfert")
-                
+                            else: 
+                                logging.info("Recalcul des soldes réussi de l'autre transaction du transfert après modification")  
                 return True, "Transaction modifiée avec succès"
 
         except Exception as e:
@@ -2190,7 +2193,8 @@ class TransactionFinanciere:
                     description=desc_complete,
                     user_id=user_id,
                     date_transaction=date_transaction,
-                    validate_balance=False  # Pas besoin de vérifier ici — on vient de débiter
+                    validate_balance=False,  # Pas besoin de vérifier ici — on vient de débiter
+                    reference_transfert=reference_transfert
                 )
                 if not success:
                     return False, f"Erreur crédit sous-compte: {message}"

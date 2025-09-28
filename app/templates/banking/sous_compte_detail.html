@@ -243,37 +243,64 @@
         <!-- Historique des transactions -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5><i class="fas fa-exchange-alt me-2"></i>Historique des transactions</h5>
+                <h5><i class="fas fa-exchange-alt me-2"></i>Historique des transferts</h5>
             </div>
             <div class="card-body p-0">
                 {% if mouvements %}
-                
                 <div class="list-group list-group-flush">
                     {% for transaction in mouvements %}
-                    <div class="list-group-item">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <strong>
-                                    {% if transaction.type_transaction == 'transfert_compte_vers_sous' %}
-                                    + {{ "%.2f"|format(transaction.montant) }} {{ compte.devise }}
-                                    {% elif transaction.type_transaction == 'transfert_sous_vers_compte' %}
-                                    - {{ "%.2f"|format(transaction.montant) }} {{ compte.devise }}
-                                    {% endif %}
-                                </strong>
-                                <div class="text-muted small">
-                                    {{ transaction.date_transaction.strftime('%d/%m/%Y %H:%M') }} {% if transaction.solde_apres %} {{ transaction.solde_apres }} {% endif %}
-                                    {% if transaction.commentaire %}
-                                    <br>{{ transaction.commentaire }}
-                                    {% endif %}
+                    <div class="list-group-item d-flex align-items-center">
+                        <!-- Icône -->
+                        <div class="me-3">
+                            {% if transaction.type_transaction == 'transfert_compte_vers_sous' %}
+                            <i class="fas fa-arrow-right text-success"></i>
+                            {% elif transaction.type_transaction == 'transfert_sous_vers_compte' %}
+                            <i class="fas fa-arrow-left text-danger"></i>
+                            {% endif %}
+                        </div>
+        
+                        <!-- Détails du transfert -->
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">
+                                        {% if transaction.type_transaction == 'transfert_compte_vers_sous' %}
+                                        Alimentation
+                                        {% elif transaction.type_transaction == 'transfert_sous_vers_compte' %}
+                                        Retrait
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">
+                                        {{ transaction.date_transaction.strftime('%d/%m/%Y %H:%M') }}
+                                        {% if transaction.reference %}
+                                        • {{ transaction.reference }}
+                                        {% endif %}
+                                        <br>
+                                        {% if transaction.commentaire or transaction.description %}
+                                        {{ transaction.commentaire or transaction.description }}
+                                        {% endif %}
+                                    </small>
                                 </div>
+                                <span
+                                    class="{{ 'text-success' if transaction.type_transaction == 'transfert_compte_vers_sous' else 'text-danger' }}">
+                                    {% if transaction.type_transaction == 'transfert_compte_vers_sous' %}+{% else %}-{% endif %}
+                                    {{ "%.2f"|format(transaction.montant) }} {{ compte.devise }}
+                                </span>
                             </div>
-                            <div>
-                                {% if transaction.type_transaction == 'transfert_compte_vers_sous' %}
-                                <span class="badge bg-success">Alimentation</span>
-                                {% elif transaction.type_transaction == 'transfert_sous_vers_compte' %}
-                                <span class="badge bg-danger">Retrait</span>
-                                {% endif %}
-                            </div>
+        
+                            {% if transaction.solde_apres is not none %}
+                            <small class="text-muted mt-1 d-block">
+                                Solde après : {{ "%.2f"|format(transaction.solde_apres) }} {{ compte.devise }}
+                            </small>
+                            {% endif %}
+                        </div>
+        
+                        <!-- Bouton d'action -->
+                        <div class="ms-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                data-bs-target="#modalTransaction{{ transaction.id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
                         </div>
                     </div>
                     {% endfor %}
@@ -281,11 +308,18 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
-                    <p class="text-muted">Aucune transaction pour ce sous-compte</p>
+                    <p class="text-muted">Aucun transfert pour ce sous-compte</p>
                 </div>
                 {% endif %}
             </div>
         </div>
+        
+        <!-- Inclusion des modals de transaction -->
+        {% if mouvements %}
+            {% for mv in mouvements %}
+                {% include "banking/transaction_modal.html" %}
+            {% endfor %}
+        {% endif %}
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Visualisation du solde — {{ soldes_quotidiens_len }} points</span>
