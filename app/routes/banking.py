@@ -359,6 +359,12 @@ def banking_compte_detail(compte_id):
             filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction'] in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']]
         elif filter_type == 'transfert':
             filtred_mouvements = [m for m in filtred_mouvements if 'transfert' in m['type_transaction']]
+        elif filter_type == 'Transfert Compte Vers Sous':
+            filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction']  in ['transfert_compte_vers_sous' ]]
+        elif filter_type == 'Transfert Sous Vers Compte':
+            filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction']  in ['transfert_sous_vers_compte' ]]
+        elif filter_type == 'Transfert intra_compte':
+            filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction']  in ['transfert_compte_vers_sous', 'transfert_sous_vers_compte' ]]
 
     if filter_min_amount:
         try:
@@ -480,39 +486,6 @@ def banking_compte_detail(compte_id):
                         hauteur_svg=hauteur_svg,
                         sort=sort)
 
-@bp.route('/banking/compte/<int:compte_id>/reparer_soldes', methods=['POST'])
-@login_required
-def reparer_soldes_compte(compte_id):
-    """
-    Route pour déclencher la réparation manuelle des soldes d'un compte.
-    """
-    user_id = current_user.id
-
-    # Récupérer le compte pour déterminer son type
-    compte = g.models.compte_model.get_by_id(compte_id)
-    if not compte:
-        flash('Compte non trouvé', 'danger')
-        return redirect(url_for('banking.banking_dashboard'))
-    if  compte.get('utilisateur_id') != user_id:
-        flash('Compte non autorisé', 'danger')
-        return redirect(url_for('banking.banking_dashboard'))
-
-    # Déterminer le type de compte
-    compte_type = 'compte_principal' if compte.get('compte_principal_id') is None else 'sous_compte'
-    # Appeler la méthode de réparation
-    success, message = g.models.transaction_financiere_model.reparer_soldes_compte(
-        compte_type=compte_type,
-        compte_id=compte_id,
-        user_id=user_id
-    )
-
-    if success:
-        flash(f"✅ {message}", "success")
-    else:
-        flash(f"❌ {message}", "danger")
-
-    # Rediriger vers la page de détail du compte
-    return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
 
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
@@ -703,6 +676,40 @@ def banking_sous_compte_detail(sous_compte_id):
         mois_selected=mois_select,
         annee_selected=annee_select
     )
+
+@bp.route('/banking/compte/<int:compte_id>/reparer_soldes', methods=['POST'])
+@login_required
+def reparer_soldes_compte(compte_id):
+    """
+    Route pour déclencher la réparation manuelle des soldes d'un compte.
+    """
+    user_id = current_user.id
+
+    # Récupérer le compte pour déterminer son type
+    compte = g.models.compte_model.get_by_id(compte_id)
+    if not compte:
+        flash('Compte non trouvé', 'danger')
+        return redirect(url_for('banking.banking_dashboard'))
+    if  compte.get('utilisateur_id') != user_id:
+        flash('Compte non autorisé', 'danger')
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Déterminer le type de compte
+    compte_type = 'compte_principal' if compte.get('compte_principal_id') is None else 'sous_compte'
+    # Appeler la méthode de réparation
+    success, message = g.models.transaction_financiere_model.reparer_soldes_compte(
+        compte_type=compte_type,
+        compte_id=compte_id,
+        user_id=user_id
+    )
+
+    if success:
+        flash(f"✅ {message}", "success")
+    else:
+        flash(f"❌ {message}", "danger")
+
+    # Rediriger vers la page de détail du compte
+    return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
 
 def est_transfert_valide(compte_source_id, compte_dest_id, user_id, comptes, sous_comptes):
     """
@@ -1340,7 +1347,7 @@ def modifier_transfert(transfert_id):
 def supprimer_transfert(transfert_id):
     user_id = current_user.id
     transaction = g.models.transaction_financiere_model.get_transaction_by_id(transfert_id)
-    if not transaction or transaction.get('owner_user_id') != user_id:
+    if transaction.get('owner_user_id') != user_id:
         flash("Transaction non trouvée ou non autorisée", "danger")
         return redirect(url_for('banking.banking_dashboard'))
     compte_type = 'compte_principal' if transaction.get('compte_principal_id') else 'sous_compte'
