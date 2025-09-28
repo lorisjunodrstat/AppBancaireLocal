@@ -1281,7 +1281,9 @@ class TransactionFinanciere:
                     return False, "Transaction non trouvée"
                 if transaction['owner_user_id'] != user_id:
                     return False, "Non autorisé à modifier cette transaction"
-                
+                type_tx = transaction['type_transaction']
+                est_transfert = type_tx in ['transfert_entrant', 'transfert_sortant']
+
                 compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
                 compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
                 ancien_montant = Decimal(str(transaction['montant']))
@@ -1324,7 +1326,23 @@ class TransactionFinanciere:
                     (nouveau_montant is not None and nouveau_montant != ancien_montant) or
                     (nouvelle_date is not None and nouvelle_date != ancienne_date)
                 )
-
+                if est_transfert:
+                    reference_transfert = transaction.get('reference_transfert')
+                    if not reference_transfert:
+                        return False, "Transfert corrompu : référence manquante"
+                    cursor.execute("""
+                        SELECT id, type_transaction
+                        FROM transactions
+                        WHERE reference_transfert = %s AND id != %s
+                    """, (reference_transfert, transaction_id))
+                    autre_tx = cursor.fetchone()
+                    if not autre_tx:
+                        return False, "Transfert corrompu : transaction liée introuvable"
+                    update_params_autre = update_params[:-1]  # Même modifications sauf l'ID
+                    update_params_autre.append(autre_tx['id'])
+                    cursor.execute(query, update_params_autre)
+                    
+                    
                 if recalcul_necessaire:
                     # Déterminer la date de référence pour le recalcul
                     # Si la date a changé, on prend la plus ancienne pour être sûr de tout recalculer
@@ -1336,43 +1354,25 @@ class TransactionFinanciere:
                         # Si seule le montant change, on garde l'ancienne date (qui est aussi la nouvelle)
                         date_reference = ancienne_date if isinstance(ancienne_date, datetime) else datetime.combine(ancienne_date, datetime.min.time())
 
-                    # Étape 1 : Récupérer la transaction précédente pour avoir le point de départ
-                    #previous = self._get_previous_transaction_with_cursor(cursor, compte_type, compte_id, date_reference)
-                    #solde_depart = Decimal(str(previous[2])) if previous else self._get_solde_initial_with_cursor(cursor, compte_type, compte_id)
-
-                    # Étape 2 : Récupérer la transaction modifiée avec ses NOUVELLES valeurs (montant, type)
-                    #cursor.execute("SELECT type_transaction, montant FROM transactions WHERE id = %s", (transaction_id,))
-                    #tx_modifiee = cursor.fetchone()
-                    #if not tx_modifiee:
-                    #    raise Exception("Impossible de récupérer la transaction modifiée après mise à jour")
-
-                    #nouveau_montant_reel = Decimal(str(tx_modifiee['montant']))
-                    #type_tx_modifiee = tx_modifiee['type_transaction']
-
-                    # Étape 3 : Calculer le NOUVEAU solde_apres pour la transaction modifiée
-                    #if type_tx_modifiee in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
-                    #    nouveau_solde_apres = solde_depart + nouveau_montant_reel
-                    #else: # ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']
-                    #    nouveau_solde_apres = solde_depart - nouveau_montant_reel
-
-                    # Étape 4 : Mettre à jour le solde_apres de la transaction modifiée
-                    #ursor.execute("UPDATE transactions SET solde_apres = %s WHERE id = %s", (float(nouveau_solde_apres), transaction_id))
-
-                    # Étape 5 : Recalculer TOUTES les transactions suivantes en partant de ce nouveau solde_apres
-                    # La méthode _recalculer_soldes_apres_date_with_cursor va prendre le relais
-                    # et recalculer toutes les transactions STRICTEMENT POSTÉRIEURES (date > OU (date = ET id >))
-                    success = self._recalculer_soldes_apres_date_with_cursor(
-                        cursor,
-                        compte_type,
-                        compte_id,
-                        date_reference
-                    )
-
-                    if not success:
+                    compte_type = 'compte_principal' if transaction['compte_principal_id'] else 'sous_compte'
+                    compte_id = transaction['compte_principal_id'] or transaction['sous_compte_id']
+                    success1 = self._recalculer_soldes_apres_date_with_cursor(cursor, compte_type, compte_id, date_reference)
+                    if not success1:
                         raise Exception("Erreur lors du recalcul des soldes des transactions suivantes")
-                    else:
-                        logging.info(f"✅ Recalcul des soldes terminé après modification de la transaction ID {transaction_id}")
-
+                    if est_transfert and autre_tx:
+                        # Recalculer aussi pour l'autre transaction du transfert
+                        cursor.execute("""
+                            SELECT compte_principal_id, sous_compte_id
+                            FROM transactions WHERE id = %s
+                        """, (autre_tx['id'],))
+                        autre_details = cursor.fetchone()
+                        if autre_details:
+                            autre_compte_type = 'compte_principal' if autre_details['compte_principal_id'] else 'sous_compte'
+                            autre_compte_id = autre_details['compte_principal_id'] or autre_details['sous_compte_id']
+                            success2 = self._recalculer_soldes_apres_date_with_cursor(cursor, autre_compte_type, autre_compte_id, date_reference)
+                            if not success2:
+                                raise Exception("Erreur lors du recalcul des soldes de l'autre transaction du transfert")
+                
                 return True, "Transaction modifiée avec succès"
 
         except Exception as e:
