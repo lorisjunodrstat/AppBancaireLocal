@@ -665,7 +665,7 @@ def banking_sous_compte_detail(sous_compte_id):
         comptes_=comptes_,
         sous_comptes_=sous_comptes_,
         compte=compte_principal,
-        libelle_periode=libelle_periode
+        libelle_periode=libelle_periode,
         mouvements=mouvements,
         solde=solde,
         stats_sous_compte=stats_sous_compte,
@@ -679,6 +679,7 @@ def banking_sous_compte_detail(sous_compte_id):
         mois_selected=mois_select,
         annee_selected=annee_select
     )
+
 
 @bp.route('/banking/compte/<int:compte_id>/reparer_soldes', methods=['POST'])
 @login_required
