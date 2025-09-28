@@ -648,8 +648,8 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% if mouvements %}
-                                    {% for mv in mouvements %}
+                                    {% if filtered_mouvements %}
+                                    {% for mv in filtered_mouvements %}
                                     <tr>
                                         <td>{{ mv.date_transaction.strftime('%d/%m/%Y %H:%M') }}</td>
                                         <td>

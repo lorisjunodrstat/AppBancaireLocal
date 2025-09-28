@@ -359,11 +359,11 @@ def banking_compte_detail(compte_id):
             filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction'] in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']]
         elif filter_type == 'transfert':
             filtred_mouvements = [m for m in filtred_mouvements if 'transfert' in m['type_transaction']]
-        elif filter_type == 'Transfert Compte Vers Sous':
+        elif filter_type == 'Transfert_Compte_Vers_Sous':
             filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction']  in ['transfert_compte_vers_sous' ]]
-        elif filter_type == 'Transfert Sous Vers Compte':
+        elif filter_type == 'Transfert_Sous_Vers_Compte':
             filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction']  in ['transfert_sous_vers_compte' ]]
-        elif filter_type == 'Transfert intra_compte':
+        elif filter_type == 'Transfert_intra_compte':
             filtred_mouvements = [m for m in filtred_mouvements if m['type_transaction']  in ['transfert_compte_vers_sous', 'transfert_sous_vers_compte' ]]
 
     if filter_min_amount:
@@ -467,6 +467,7 @@ def banking_compte_detail(compte_id):
                         compte=compte,
                         sous_comptes=sous_comptes,
                         mouvements=filtred_mouvements,
+                        filtred_mouvements=filtred_mouvements,
                         solde_total=solde_total,
                         tresorerie_data=tresorerie_data,
                         periode_selectionnee=periode,
