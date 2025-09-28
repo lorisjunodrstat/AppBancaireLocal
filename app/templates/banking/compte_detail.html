@@ -584,48 +584,74 @@
                     <div class="card-body">
                         <nav class="navbar navbar-expand-lg bg-body-tertiary mb-3">
                             <div class="container-fluid">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
-                                    aria-expanded="false">
-                                    Trier par
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="?sort=date">Date</a></li>
-                                    <li><a class="dropdown-item" href="?sort=montant">Montant</a></li>
-                                    <li><a class="dropdown-item" href="?sort=type">Type</a></li>
-                                </ul>
-                                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                                    data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown"
-                                    aria-expanded="false" aria-label="Toggle navigation">
+                                <!-- Dropdown Trier par -->
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Trier par
+                                    </a>
+                                    <ul class="dropdown-menu">
+                                        {% set base_args = request.args.copy() %}
+                                        {% for sort_val, label in [
+                                        ('date_desc', 'Date (récent)'),
+                                        ('date_asc', 'Date (ancien)'),
+                                        ('montant_desc', 'Montant (↓)'),
+                                        ('montant_asc', 'Montant (↑)')
+                                        ] %}
+                                        {% set args = base_args.copy() %}
+                                        {% set _ = args.update({'sort': sort_val}) %}
+                                        <li><a class="dropdown-item"
+                                                href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id, **args) }}">{{ label
+                                                }}</a></li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                        
+                                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
+                                    aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
                                     <span class="navbar-toggler-icon"></span>
                                 </button>
+                        
                                 <div class="collapse navbar-collapse" id="navbarNavDropdown">
                                     <ul class="navbar-nav">
+                                        <!-- Dropdown Filtre par Type -->
                                         <li class="nav-item dropdown">
-                                            <a class="nav-link dropdown-toggle" href="#" role="button"
-                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                                                aria-expanded="false">
                                                 Filtre par Type
                                             </a>
                                             <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item" href="?filter=all">Tous</a></li>
-                                                <li><a class="dropdown-item" href="?filter=transfert">Transferts</a>
-                                                </li>
-                                                <li><a class="dropdown-item" href="?filter=transaction">Transactions</a>
-                                                </li>
-                                                <li><a class="dropdown-item" href="?filter=Transfert_Compte_Vers_Sous">Transfert Compte Vers Sous</a></li>
-                                                <li><a class="dropdown-item" href="?filter=Transfert_Sous_Vers_Compte">Transfert Sous Vers Compte</a></li>
-                                                <li><a class="dropdown-item" href="?filter=Transfert_intra_compte">Transfert_intra_compte</a></li>
+                                                {% set base_args = request.args.copy() %}
+                                                {% for filter_val, label in [
+                                                ('tous', 'Tous'),
+                                                ('entree', 'Entrées'),
+                                                ('sortie', 'Sorties'),
+                                                ('transfert', 'Tous les transferts'),
+                                                ('Transfert_Compte_Vers_Sous', '→ Vers sous-compte'),
+                                                ('Transfert_Sous_Vers_Compte', '← Depuis sous-compte'),
+                                                ('Transfert_intra_compte', '↔ Transferts internes')
+                                                ] %}
+                                                {% set args = base_args.copy() %}
+                                                {% set _ = args.update({'filter_type': filter_val}) %}
+                                                <li><a class="dropdown-item"
+                                                        href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id, **args) }}">{{
+                                                        label }}</a></li>
+                                                {% endfor %}
                                             </ul>
                                         </li>
+                        
+                                        <!-- Recherche -->
                                         <li class="nav-item ms-auto">
                                             <form class="d-flex" role="search"
-                                                action="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
-                                                method="GET">
-                                                <input type="hidden" name="periode" value="{{ periode_selectionnee }}">
-                                                <input class="form-control me-2" type="search" placeholder="Rechercher"
-                                                    aria-label="Search" name="search"
-                                                    value="{{ request.args.get('search', '') }}">
-                                                <button class="btn btn-outline-success"
-                                                    type="submit">Rechercher</button>
+                                                action="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}" method="GET">
+                                                <!-- Conserver tous les paramètres sauf "search" (qui sera remplacé) -->
+                                                {% for key, value in request.args.items() %}
+                                                {% if key != 'search' %}
+                                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                                {% endif %}
+                                                {% endfor %}
+                                                <input class="form-control me-2" type="search" placeholder="Rechercher" aria-label="Search"
+                                                    name="search" value="{{ request.args.get('search', '') }}">
+                                                <button class="btn btn-outline-success" type="submit">Rechercher</button>
                                             </form>
                                         </li>
                                     </ul>
