@@ -557,6 +557,7 @@ def update_periode_favorite(compte_id, periode_favorite_id):
     # Mettre à jour la période favorite
     success = g.models.periode_favorite_model.update(
         periode_id=periode_favorite_id,
+        compte_type=compte_type,
         user_id=user_id,
         compte_id=compte_id,
         nom=nom,
