@@ -317,14 +317,12 @@
                                             data-bs-target="#editPeriodeModal{{ pf.id }}">
                                             <i class="fas fa-star me-1"></i> Modifier la période favorite
                                         </button>
-                                        {% include "banking/periode_favorite_modal.html" %}
                                         {% else %}
                                         <!-- Bouton pour compte SANS période favorite -->
                                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                                             data-bs-target="#periode_favorite_modal_create">
                                             <i class="fas fa-star me-1"></i> Créer la période favorite
                                         </button>
-                                        {% include "banking/periode_favorite_modal_create.html" %}
                                         {% endif %}
                                     </div>
 
@@ -891,6 +889,14 @@
 {% for mv in mouvements %}
 {% include "banking/transaction_modal.html" %}
 {% endfor %}
+{% endif %}
+
+
+<!-- ✅ Modals pour périodes favorites : à déplacer ici -->
+{% if pf %}
+  {% include "banking/periode_favorite_modal.html" %}
+{% else %}
+  {% include "banking/periode_favorite_modal_create.html" %}
 {% endif %}
 
 {% endblock %}
