@@ -311,14 +311,16 @@
                                         <button type="submit" class="btn btn-primary me-2">Appliquer</button>
                                         <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
                                             class="btn btn-outline-secondary">Réinitialiser</a>
+                                        {% if pf %}
                                         <button type="submit" formaction="{{ url_for('banking.create_periode_favorite', compte_id=compte.id) }}" formmethod="POST"
                                         class="btn btn-success">
                                         <i class="fas fa-star me-1"></i> créer la période favorite
                                         </button>
-                                        <button type="submit" formaction="{{ url_for('banking.update_periode_favorite', compte_id=compte.id) }}"
+                                        <button type="submit" formaction="{{ url_for('banking.update_periode_favorite', compte_id=compte.id, periode_favorite_id=pf.id) }}"
                                             formmethod="POST" class="btn btn-success">
                                             <i class="fas fa-star me-1"></i> Modifier la période favorite
                                         </button>
+                                        {% endif %}
                                     </div>
 
                                     <!-- Indications pour l'utilisateur -->

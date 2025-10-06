@@ -499,7 +499,8 @@ def banking_compte_detail(compte_id):
                         nb_jours_periode=nb_jours_periode,
                         largeur_svg=largeur_svg,
                         hauteur_svg=hauteur_svg,
-                        sort=sort)
+                        sort=sort,
+                        pf=pf)
 
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required
@@ -530,7 +531,7 @@ def create_periode_favorite(compte_id):
 
 @bp.route("/compte/<int:compte_id>/modifier_periode_favorite/<int:periode_favorite_id>", methods=["POST"])
 @login_required
-def modifier_periode_favorite(compte_id, periode_favorite_id):
+def update_periode_favorite(compte_id, periode_favorite_id):
     user_id = current_user.id
 
     nom = request.form.get("periode_nom")
