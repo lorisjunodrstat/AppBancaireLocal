@@ -331,14 +331,14 @@ def banking_compte_detail(compte_id):
         libelle_periode = f"{['1er', '2ème', '3ème', '4ème'][trimestre-1]} trimestre"
     else:  # mois par défaut
         if pf:
-            # Si pf['date_debut'] est déjà un datetime, utilisez-le directement
+            # pf['date_debut'] est déjà un objet date ou datetime
             if isinstance(pf['date_debut'], datetime):
                 debut = pf['date_debut'].replace(hour=0, minute=0, second=0, microsecond=0)
                 fin = pf['date_fin'].replace(hour=23, minute=59, second=59, microsecond=0)
             else:
-                # Si c'est une string, convertissez-le en datetime
-                debut = datetime.strptime(pf['date_debut'], '%Y-%m-%d').replace(hour=0, minute=0, second=0, microsecond=0)
-                fin = datetime.strptime(pf['date_fin'], '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=0)
+                # C'est un datetime.date, on le convertit en datetime
+                debut = datetime.combine(pf['date_debut'], time.min)
+                fin = datetime.combine(pf['date_fin'], time.max).replace(microsecond=0)
             
             libelle_periode = f"Période favorite : {pf['nom']}"
             periode = 'favorite'
