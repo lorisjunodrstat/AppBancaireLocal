@@ -557,6 +557,7 @@ def update_periode_favorite(compte_id, periode_favorite_id):
     date_debut = request.form.get("date_debut")
     date_fin = request.form.get("date_fin")
     statut = request.form.get("statut", "active")
+    nom = request.form.get("nouveau_nom")
     # Mettre à jour la période favorite
     success = g.models.periode_favorite_model.update(
         periode_id=periode_favorite_id,
