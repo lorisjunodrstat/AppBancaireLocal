@@ -331,8 +331,8 @@ def banking_compte_detail(compte_id):
         libelle_periode = f"{['1er', '2ème', '3ème', '4ème'][trimestre-1]} trimestre"
     else:  # mois par défaut
         if pf:
-            debut = pf['date_debut'].replace(hour=0, minute=0, second=0)
-            fin = pf['date_fin'].replace(hour=23, minute=59, second=59)
+            debut = datetime.strptime(pf['date_debut'], '%Y-%m-%d')
+            fin = datetime.strptime(pf['date_fin'], '%Y-%m-%d').replace(hour=23, minute=59, second=59)
             libelle_periode = f"Période favorite : {pf['nom']}"
             periode = 'favorite'
         else:
