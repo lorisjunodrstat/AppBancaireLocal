@@ -539,7 +539,16 @@ def create_periode_favorite(compte_id):
 @login_required
 def update_periode_favorite(compte_id, periode_favorite_id):
     user_id = current_user.id
-    pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id=user_id, compte_id=compte_id)
+    
+    compte_type_str = g.models.compte_model.get_by_id(compte_id)
+    
+    if compte_type_str:
+        compte_type = 'principal'
+    else:
+        compte_type_str = g.models.sous_compte_model.get_by_id(compte_id)
+        compte_type = 'sous_compte'
+
+    pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id=user_id, compte_id=compte_id, compte_type=compte_type)
 
     nom = request.form.get("periode_nom")
     date_debut = request.form.get("date_debut")
