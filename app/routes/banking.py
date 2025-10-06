@@ -276,7 +276,7 @@ def banking_compte_detail(compte_id):
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))
-    pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id, compte_id, 'compte_principal')
+    pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id, compte_id, 'principal')
     if pf:
         date_debut_str = pf['date_debut'].strftime('%Y-%m-%d')
         date_fin_str = pf['date_fin'].strftime('%Y-%m-%d')
@@ -331,10 +331,10 @@ def banking_compte_detail(compte_id):
         libelle_periode = f"{['1er', '2ème', '3ème', '4ème'][trimestre-1]} trimestre"
     else:  # mois par défaut
         if pf:
-            debut = periode_fav['date_debut']
-            fin = periode_fav['date_fin']
+            debut = pf['date_debut']
+            fin = pf['date_fin']
             fin = fin.replace(hour=23, minute=59, second=59)
-            libelle_periode = f"Période favorite : {periode_fav['nom']}"
+            libelle_periode = f"Période favorite : {pf['nom']}"
             periode = 'favorite'
         else:
             # défaut : mois courant
@@ -555,7 +555,7 @@ def update_periode_favorite(compte_id, periode_favorite_id):
         return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
     
     flash("✅ Période favorite mise à jour avec succès", "success")
-    return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
+    return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id, pf=pf))
 
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
