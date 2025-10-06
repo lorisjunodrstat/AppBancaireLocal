@@ -15,18 +15,23 @@ import pymysql.cursors
 import logging
 from logging.handlers import RotatingFileHandler
 
+
 # Charge les variables d'environnement avec chemin absolu
-env_path = Path('/var/www/webroot/ROOT') / '.env'
+project_root = Path(__file__).parent.parent
+
+# Charger .env depuis la racine
+env_path = project_root / '.env'
 load_dotenv(dotenv_path=env_path)
 
-# --- Configuration de la journalisation ---
-log_dir = os.path.join('/var/www/webroot/ROOT', 'logs')
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+# Dossier logs dans le projet
+log_dir = project_root / 'logs'
+if not log_dir.exists():
+    log_dir.mkdir(exist_ok=True)
 
+log_file = log_dir / 'app.log'
 file_handler = RotatingFileHandler(
-    os.path.join(log_dir, 'app.log'),
-    maxBytes=1024 * 1024 * 10,  # 10 Mo
+    str(log_file),  # <-- conversion explicite en chaîne
+    maxBytes=1024 * 1024 * 10,
     backupCount=10
 )
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

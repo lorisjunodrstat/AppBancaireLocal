@@ -132,6 +132,22 @@ class DatabaseManager:
                 );
                 """
                 cursor.execute(create_users_table_query)
+                # Table PeriodeFavorite
+                create_periode_favorite_table_query = """
+                CREATE TABLE IF NOT EXISTS periode_favorite (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    compte_id INT NOT NULL,
+                    compte_type ENUM('principal','sous_compte') NOT NULL,
+                    nom VARCHAR(255) NOT NULL,
+                    date_debut DATE NOT NULL,
+                    date_fin DATE NOT NULL,
+                    statut ENUM('active','inactive') DEFAULT 'active',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_periode_favorite_table_query)
 
                 # Table banques
                 create_banques_table_query = """
@@ -508,6 +524,86 @@ class Utilisateur(UserMixin):
             logging.error(f"Erreur création utilisateur : {e}")
             return False
 
+class PeriodeFavorite:
+    def __init__(self, db):
+        self.db = db    
+
+    def get_by_user_id(self, user_id: int) -> List[Dict]:
+        """Récupère toutes les périodes favorites d'un utilisateur"""
+        periodes = []
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                    SELECT id, user_id, compte_id, compte_type, nom, date_debut, date_fin
+                    FROM periode_favorite 
+                    WHERE user_id = %s AND statut = 'active' 
+                    ORDER BY date_debut DESC
+                    """
+                cursor.execute(query, (user_id,))
+                periodes = cursor.fetchall()
+                return periodes
+        except Error as e:
+            logging.error(f"Erreur lors de la récupération des périodes favorites: {e}")
+            return []
+        return periodes
+
+    def create(self, user_id: int, compte_id: int, compte_type: str, nom: str, date_debut: date, date_fin: date, statut: str) -> bool:
+        """Crée une nouvelle période favorite."""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                INSERT INTO periode_favorite (user_id, compte_id, compte_type, nom, date_debut, date_fin, statut)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(query, (user_id, compte_id, compte_type, nom, date_debut, date_fin, statut))
+                return True
+        except Error as e:
+            logging.error(f"Erreur lors de la création de la période favorite: {e}")
+            return False
+
+    def update(self, user_id: int, periode_id: int, nom: str, date_debut: date, date_fin: date, statut: str) -> bool:
+        """Met à jour une période favorite existante."""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                UPDATE periode_favorite
+                SET nom = %s, date_debut = %s, date_fin = %s, statut = %s
+                WHERE id = %s AND user_id = %s
+                """
+                cursor.execute(query, (nom, date_debut, date_fin, statut, periode_id, user_id))
+                return cursor.rowcount > 0
+        except Error as e:
+            logging.error(f"Erreur lors de la mise à jour de la période favorite: {e}")
+            return False
+
+    def delete(self, user_id: int, periode_id: int) -> bool:
+        """Supprime une période favorite par son ID."""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "DELETE FROM periode_favorite WHERE id = %s AND user_id = %s"
+                cursor.execute(query, (periode_id, user_id))
+                return cursor.rowcount > 0
+        except Error as e:
+            logging.error(f"Erreur lors de la suppression de la période favorite: {e}")
+            return False
+    def get_by_user_and_compte(self, user_id: int, compte_id: int, compte_type: str) -> Optional[Dict]:
+        """Récupère une période favorite par utilisateur et compte"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT id, user_id, compte_id, compte_type, nom, date_debut, date_fin, statut
+                FROM periode_favorite 
+                WHERE user_id = %s AND compte_id = %s AND compte_type = %s AND statut = 'active'
+                ORDER BY date_debut DESC
+                LIMIT 1
+                """
+                cursor.execute(query, (user_id, compte_id, compte_type))
+                periode = cursor.fetchone()
+                return periode
+        except Error as e:
+            logging.error(f"Erreur lors de la récupération de la période favorite: {e}")
+            return None 
+   
 class Banque:
     """Modèle pour les banques - nettoyé de toute logique transactionnelle"""
     
@@ -584,7 +680,7 @@ class Banque:
         except Error as e:
             logging.error(f"Erreur lors de la suppression de la banque: {e}")
             return False
- 
+
 class ComptePrincipal:
     """Modèle pour les comptes principaux"""
     
@@ -1614,6 +1710,136 @@ class TransactionFinanciere:
             logging.error(f"Erreur récupération transactions par compte: {e}")
             return []
 
+    def get_all_user_transactions(self,
+                                user_id: int,
+                                date_from: str = None,
+                                date_to: str = None,
+                                compte_source_id: int = None,
+                                compte_dest_id: int = None,
+                                sous_compte_source_id: int = None,
+                                sous_compte_dest_id: int = None,
+                                reference: str = None,
+                                q: str = None,
+                                page: int = 1,
+                                per_page: int = 20
+                            ) -> Tuple[List[Dict], int]:
+        """
+        Récupère toutes les transactions d'un utilisateur avec filtres avancés.
+        Retourne (liste_de_transactions, total).
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Construire la requête avec jointures pour récupérer les noms
+                base_query = """
+                SELECT 
+                    t.id,
+                    t.type_transaction,
+                    t.montant,
+                    t.description,
+                    t.reference,
+                    t.date_transaction,
+                    t.solde_apres,
+                    t.compte_principal_id,
+                    t.sous_compte_id,
+                    t.compte_destination_id,
+                    t.sous_compte_destination_id,
+                    cp.nom_compte as nom_compte_source,
+                    cp_dest.nom_compte as nom_compte_dest,
+                    sc.nom_sous_compte as nom_sous_compte_source,
+                    sc_dest.nom_sous_compte as nom_sous_compte_dest
+                FROM transactions t
+                -- Jointures pour les comptes principaux
+                LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                LEFT JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id
+                -- Jointures pour les sous-comptes
+                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                LEFT JOIN sous_comptes sc_dest ON t.sous_compte_destination_id = sc_dest.id
+                -- Filtrer par utilisateur (via compte principal source ou destination)
+                WHERE (
+                    (cp.utilisateur_id = %(user_id)s) OR
+                    (sc.compte_principal_id IN (
+                        SELECT id FROM comptes_principaux WHERE utilisateur_id = %(user_id)s
+                    )) OR
+                    (cp_dest.utilisateur_id = %(user_id)s) OR
+                    (sc_dest.compte_principal_id IN (
+                        SELECT id FROM comptes_principaux WHERE utilisateur_id = %(user_id)s
+                    ))
+                )
+                """
+
+                count_query = "SELECT COUNT(*) as total FROM (" + base_query + ") AS filtered"
+
+                # Préparer les paramètres
+                params = {'user_id': user_id}
+
+                # === Filtres ===
+                if date_from:
+                    base_query += " AND DATE(t.date_transaction) >= %(date_from)s"
+                    params['date_from'] = date_from
+
+                if date_to:
+                    base_query += " AND DATE(t.date_transaction) <= %(date_to)s"
+                    params['date_to'] = date_to
+
+                if compte_source_id:
+                    base_query += " AND t.compte_principal_id = %(compte_source_id)s"
+                    params['compte_source_id'] = compte_source_id
+
+                if compte_dest_id:
+                    base_query += " AND t.compte_destination_id = %(compte_dest_id)s"
+                    params['compte_dest_id'] = compte_dest_id
+
+                if sous_compte_source_id:
+                    base_query += " AND t.sous_compte_id = %(sous_compte_source_id)s"
+                    params['sous_compte_source_id'] = sous_compte_source_id
+
+                if sous_compte_dest_id:
+                    base_query += " AND t.sous_compte_destination_id = %(sous_compte_dest_id)s"
+                    params['sous_compte_dest_id'] = sous_compte_dest_id
+
+                if reference:
+                    base_query += " AND t.reference = %(reference)s"
+                    params['reference'] = reference
+
+                if q:
+                    q_clean = f"%{q.strip()}%"
+                    base_query += """ AND (
+                        t.description ILIKE %(q)s OR
+                        t.reference ILIKE %(q)s OR
+                        cp.nom_compte ILIKE %(q)s OR
+                        cp_dest.nom_compte ILIKE %(q)s OR
+                        sc.nom_sous_compte ILIKE %(q)s OR
+                        sc_dest.nom_sous_compte ILIKE %(q)s
+                    )"""
+                    params['q'] = q_clean
+
+                # === Compter le total ===
+                cursor.execute(count_query, params)
+                total = cursor.fetchone()['total']
+
+                # === Ajouter l'ordre et la pagination ===
+                base_query += " ORDER BY t.date_transaction DESC, t.id DESC"
+                if page and per_page:
+                    offset = (page - 1) * per_page
+                    base_query += " LIMIT %(limit)s OFFSET %(offset)s"
+                    params['limit'] = per_page
+                    params['offset'] = offset
+
+                cursor.execute(base_query, params)
+                transactions = cursor.fetchall()
+
+                # Convertir les montants en Decimal (optionnel mais cohérent avec le reste)
+                for tx in transactions:
+                    if 'montant' in tx and tx['montant'] is not None:
+                        tx['montant'] = Decimal(str(tx['montant']))
+                    if 'solde_apres' in tx and tx['solde_apres'] is not None:
+                        tx['solde_apres'] = Decimal(str(tx['solde_apres']))
+
+                return list(transactions), total
+
+        except Exception as e:
+            logging.error(f"Erreur dans get_all_user_transactions: {e}", exc_info=True)
+            return [], 0
     # ===== DÉPÔTS ET RETRAITS =====
     
     def create_depot(self, compte_id: int, user_id: int, montant: Decimal, 
@@ -3860,7 +4086,6 @@ class Rapport:
             'solde': total_recettes - total_depenses,
             'nombre_ecritures': sum(item['nb_ecritures'] or 0 for item in ecritures)
         }
-   
 
 class Contrat:
     def __init__(self, db):
@@ -4981,6 +5206,7 @@ class ModelManager:
         self.db = db
         self.banque_model = Banque(self.db)
         self.user_model = Utilisateur(self.db)
+        self.periode_favorite_model = PeriodeFavorite(self.db)
         self.compte_model = ComptePrincipal(self.db)
         self.sous_compte_model = SousCompte(self.db)
         self.transaction_financiere_model = TransactionFinanciere(self.db)

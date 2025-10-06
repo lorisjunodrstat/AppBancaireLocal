@@ -272,10 +272,14 @@ def banking_dashboard():
 def banking_compte_detail(compte_id):
     user_id = current_user.id
     compte = g.models.compte_model.get_by_id(compte_id)
+
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))
-    
+    pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id, compte_id, 'compte_principal')
+    if pf:
+        date_debut_str = pf['date_debut'].strftime('%Y-%m-%d')
+        date_fin_str = pf['date_fin'].strftime('%Y-%m-%d')
     # Paramètre de filtrage et tri
     sort = request.args.get('sort', 'date_desc')
     filter_type = request.args.get('filter_type', 'tous')
@@ -326,10 +330,20 @@ def banking_compte_detail(compte_id):
         fin = fin_mois.replace(hour=23, minute=59, second=59)
         libelle_periode = f"{['1er', '2ème', '3ème', '4ème'][trimestre-1]} trimestre"
     else:  # mois par défaut
-        debut = maintenant.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        fin_mois = (debut.replace(month=debut.month+1, day=1) - timedelta(days=1))
-        fin = fin_mois.replace(hour=23, minute=59, second=59)
-        libelle_periode = "Ce mois"
+        if pf:
+            debut = periode_fav['date_debut']
+            fin = periode_fav['date_fin']
+            fin = fin.replace(hour=23, minute=59, second=59)
+            libelle_periode = f"Période favorite : {periode_fav['nom']}"
+            periode = 'favorite'
+        else:
+            # défaut : mois courant
+            debut = maintenant.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            fin_mois = (debut.replace(month=debut.month+1, day=1) - timedelta(days=1))
+            fin = fin_mois.replace(hour=23, minute=59, second=59)
+            libelle_periode = "Ce mois"
+            periode = 'mois'
+        
     
     # Récupération des mouvements avec la nouvelle classe unifiée
     mouvements = g.models.transaction_financiere_model.get_historique_compte(
@@ -487,6 +501,59 @@ def banking_compte_detail(compte_id):
                         hauteur_svg=hauteur_svg,
                         sort=sort)
 
+@bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
+@login_required
+def create_periode_favorite(compte_id):
+    user_id = current_user.id
+
+    nom = request.form.get("periode_nom ")
+    date_debut = request.form.get("date_debut")
+    date_fin = request.form.get("date_fin")
+    statut = request.form.get("statut", "active")
+    compte_id
+
+    # Mettre à jour / insérer la période favorite
+    nouveau_of = g.models.PeriodeFavoriteModel.create(
+        user_id=user_id,
+        compte_id=compte_id,
+        nom=nom,
+        date_debut=date_debut if date_debut else None,
+        date_fin=date_fin if date_fin else None,
+        statut='active'
+    )
+    if not nouveau_of:
+        flash("❌ Erreur lors de la création de la période favorite", "error")
+        return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
+    
+    flash("✅ Période favorite mise à jour avec succès", "success")
+    return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
+
+@bp.route("/compte/<int:compte_id>/modifier_periode_favorite/<int:periode_favorite_id>", methods=["POST"])
+@login_required
+def modifier_periode_favorite(compte_id, periode_favorite_id):
+    user_id = current_user.id
+
+    nom = request.form.get("periode_nom")
+    date_debut = request.form.get("date_debut")
+    date_fin = request.form.get("date_fin")
+    statut = request.form.get("statut", "active")
+
+    # Mettre à jour la période favorite
+    success = g.models.periode_favorite_model.update(
+        periode_favorite_id=periode_favorite_id,
+        user_id=user_id,
+        compte_id=compte_id,
+        nom=nom,
+        date_debut=date_debut if date_debut else None,
+        date_fin=date_fin if date_fin else None,
+        statut=statut
+    )
+    if not success:
+        flash("❌ Erreur lors de la mise à jour de la période favorite", "error")
+        return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
+    
+    flash("✅ Période favorite mise à jour avec succès", "success")
+    return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
 
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
@@ -896,7 +963,7 @@ def retrait():
     
     return render_template('banking/retrait.html', comptes=comptes, all_comptes=all_comptes, now=datetime.now())
 
-
+@bp.route('/banking/')
 @bp.route('/banking/transfert', methods=['GET', 'POST'])
 @login_required
 def banking_transfert():
@@ -1382,15 +1449,22 @@ def liste_transferts():
     # Récupération de tous les paramètres de filtrage possibles
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
-    compte_source_id = request.args.get('compte_source_id')
+    compte_source_id = request.args.get('compte_id')
     compte_dest_id = request.args.get('compte_dest_id')
-    sous_compte_source_id = request.args.get('sous_compte_source_id')
+    sous_compte_source_id = request.args.get('sous_compte_id')
     sous_compte_dest_id = request.args.get('sous_compte_dest_id')
     type_transfert = request.args.get('type_transfert') # Nom unifié
     statut = request.args.get('statut')
     page = int(request.args.get('page', 1))
+    text_search = request.args.get('text_search', '').strip()
+    ref_filter = request.args.get('ref_filter', '').strip()
     per_page = 20
-
+    #type_transfert = type_transfert if type_transfert in ['interne', 'externe', 'global'] else None
+    #statut= request.args.get('statut')
+    #statut = statut if statut in ['completed', 'pending'] else None
+    #montant_min = request.args.get('montant_min')
+    #montant_max = request.args.get('montant_max')
+    #compte_ou_sous_compte_id = request.args.get('compte_ou_sous_compte_id')
     # Récupération des comptes et sous-comptes pour les filtres
     comptes = g.models.compte_model.get_by_user_id(user_id)
     sous_comptes = []
@@ -1398,33 +1472,40 @@ def liste_transferts():
         sous_comptes += g.models.sous_compte_model.get_by_compte_principal_id(c['id'])
 
     # Récupération des mouvements financiers avec filtres
-    filters = {
-        'date_from': date_from,
-        'date_to': date_to,
-        'compte_source_id': compte_source_id,
-        'compte_dest_id': compte_dest_id,
-        'sous_compte_source_id': sous_compte_source_id,
-        'sous_compte_dest_id': sous_compte_dest_id,
-        'type_transfert': type_transfert,
-        'statut': statut,
-        'user_id': user_id,
-        'page': page,
-        'per_page': per_page
-    }
-    # Utilisez une méthode unifiée qui peut récupérer à la fois les transactions et les transferts
-    # NOTE: Cette méthode est une hypothèse, elle doit être implémentée dans votre modèle
-    # transaction_financiere_model.
-    mouvements = []
-    for c in comptes:
-        mouvements += g.models.transaction_financiere_model.get_by_compte_id(user_id, c['id'])
-    pages = (len(mouvements) + per_page - 1) // per_page
+    mouvements, total = g.models.transaction_financiere_model.get_all_user_transactions(
+        user_id=user_id,
+        date_from=date_from,
+        date_to=date_to,
+        compte_source_id=compte_source_id,      # ← maintenant bien nommé
+        compte_dest_id=compte_dest_id,
+        sous_compte_source_id=sous_compte_source_id,
+        sous_compte_dest_id=sous_compte_dest_id,
+        reference=ref_filter,
+        text_search=text_search,
+        page=page,
+        per_page=per_page)
+
+    pages = (total + per_page - 1) // per_page
 
     # Export CSV
     if request.args.get('export') == 'csv':
+        mouv, _ = g.models.transaction_financiere_model.get_all_user_transactions(
+        user_id=user_id,
+        date_from=date_from,
+        date_to=date_to,
+        compte_source_id=compte_source_id,
+        compte_dest_id=compte_dest_id,
+        sous_compte_source_id=sous_compte_source_id,
+        sous_compte_dest_id=sous_compte_dest_id,
+        reference=ref_filter,
+        text_search=text_search,
+        page=None,
+        per_page=None
+    )
         si = StringIO()
         cw = csv.writer(si, delimiter=';')
         # Entêtes de colonne unifiées
-        cw.writerow(['Date', 'Type', 'Description', 'Source', 'Destination', 'Montant', 'Statut'])
+        cw.writerow(['Date', 'Type', 'Description', 'Source', 'Destination', 'Montant'])
         for t in mouvements:
             # Logique pour déterminer la source et la destination
             source = ""
@@ -1442,9 +1523,25 @@ def liste_transferts():
                     destination += f" ({t.get('nom_sous_compte_dest', 'N/A')})"
             else:
                 destination = t.get('nom_dest_externe', 'Externe')
-
+            type=""
+            if t['compte_source_id'] and t['compte_dest_id']:
+                type = "interne"
+            elif t['sous_compte_source_id'] and t['compte_dest_id']:
+                type = "interne"
+            elif t['compte_source_id'] and t['sous_compte_dest_id']:
+                type = "interne"
+            elif t['sous_compte_source_id'] and t['sous_compte_dest_id']:
+                type = "interne"
+            elif t['compte_source_id'] and not t['compte_dest_id']:
+                type = "externe"
+            elif not t['compte_source_id'] and t['compte_dest_id']:
+                type = "externe"
+            elif not t['compte_source_id'] and not t['compte_dest_id']:
+                type = "global"
+            else:
+                type = "N/A"
             # Gestion du statut pour tous les types de mouvements
-            statut_display = 'Complété' if t.get('statut') == 'completed' else 'En attente' if t.get('statut') == 'pending' else 'N/A'
+            #statut_display = 'Complété' if t.get('statut') == 'completed' else 'En attente' if t.get('statut') == 'pending' else 'N/A'
 
             cw.writerow([
                 t['date_mouvement'].strftime("%Y-%m-%d %H:%M"), # Utiliser un champ de date générique
@@ -1452,8 +1549,8 @@ def liste_transferts():
                 t.get('description', ''),
                 source,
                 destination,
-                f"{t['montant']:.2f}",
-                statut_display
+                f"{t['montant']:.2f}"
+                #statut_display
             ])
         
         output = make_response(si.getvalue())
@@ -1475,9 +1572,13 @@ def liste_transferts():
         compte_dest_filter=compte_dest_id,
         sc_filter=sous_compte_source_id,
         dest_sc_filter=sous_compte_dest_id,
-        sc_dest_filter=sous_compte_dest_id,
+        sc_whdest_filter=sous_compte_dest_id,
         type_filter=type_transfert,
-        statut_filter=statut
+        statut_filter=statut,
+        ref_filter=ref_filter,
+        text_search=text_search,
+        total=total,
+        mouv=mouv
     )
 
 @bp.route('/banking/transaction/<int:transaction_id>/manage', methods=['GET', 'POST'])
