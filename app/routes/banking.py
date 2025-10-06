@@ -551,25 +551,25 @@ def update_periode_favorite(compte_id, periode_favorite_id):
             return redirect(url_for("banking.banking_comptes"))
         compte_type = 'sous_compte'
 
-    # Récupérer la période favorite existante
+    # Récupérer la période favorite existante → c'est un dict
     pf = g.models.periode_favorite_model.get_by_user_and_compte(
         user_id=user_id,
         compte_id=compte_id,
         compte_type=compte_type
     )
-    if not pf or pf.id != periode_favorite_id:
+    if not pf or pf['id'] != periode_favorite_id:
         flash("❌ Période favorite introuvable.", "error")
         return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
 
     # Récupérer les valeurs du formulaire OU conserver les anciennes
-    nom = request.form.get("nouveau_nom") or pf.nom
+    nom = request.form.get("nouveau_nom") or pf['nom']
     date_debut_str = request.form.get("nouveau_debut")
     date_fin_str = request.form.get("nouveau_fin")
-    statut = request.form.get("nouveau_statut") or pf.statut or "active"
+    statut = request.form.get("nouveau_statut") or pf.get('statut') or "active"
 
     # Conserver les anciennes dates si non fournies
-    date_debut = date_debut_str if date_debut_str else pf.date_debut
-    date_fin = date_fin_str if date_fin_str else pf.date_fin
+    date_debut = date_debut_str if date_debut_str else pf['date_debut']
+    date_fin = date_fin_str if date_fin_str else pf['date_fin']
 
     # Vérifier que les dates ne sont pas None (la DB l'interdit)
     if date_debut is None or date_fin is None:
