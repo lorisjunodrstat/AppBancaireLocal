@@ -345,12 +345,12 @@
             <div class="col-lg-4">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activité récente</h5>
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activité récente (10 derniers)</h5>
                     </div>
                     <div class="card-body p-0">
                         {% if mouvements %}
                         <div class="list-group list-group-flush">
-                            {% for m in mouvements %}
+                            {% for m in mouvements[:10] %}
                             <div class="list-group-item d-flex align-items-center">
                                 <div class="me-3">
                                     <!-- Icônes améliorées pour différencier les types -->
