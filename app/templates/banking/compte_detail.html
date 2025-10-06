@@ -341,123 +341,164 @@
                     </div>
                 </div>
             </div>
-            <!-- Activité récente (Transactions + Transferts) -->
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activité récente (5 derniers)</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        {% if mouvements %}
-                        <div class="list-group list-group-flush">
-                            {% for m in mouvements[:5] %}
-                            <div class="list-group-item d-flex align-items-center">
-                                <div class="me-3">
-                                    <!-- Icônes améliorées pour différencier les types -->
-                                    {% if m.type_transaction in ['depot', 'retrait', 'transfert_vers_sous_compte',
-                                    'transfert_depuis_sous_compte', ''] %}
-                                        {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte',
-                                            'transfert_entrant'] %}
-                                            <i class="fas fa-plus-circle text-success"></i>
-                                        {% else %}
-                                            <i class="fas fa-minus-circle text-danger"></i>
-                                        {% endif %}
-                                    {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
-                                        'transfert_externe'] %}
-                                        {% if m.type_transaction == 'transfert_entrant' %}
-                                            <i class="fas fa-arrow-down text-success"></i>
-                                        {% elif m.type_transaction == 'transfert_sortant' %}
-                                            <i class="fas fa-arrow-up text-danger"></i>
-                                        {% else %}
-                                            <i class="fas fa-exchange-alt text-primary"></i>
-                                        {% endif %}
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between">
-                                        <h6 class="mb-0">
-                                            {% if m.type_transaction in ['depot', 'retrait',
-                                            'transfert_vers_sous_compte', 'transfert_depuis_sous_compte'] %}
-                                                {% if m.type_transaction == 'depot' %}
-                                                    Dépôt
-                                                {% elif m.type_transaction == 'retrait' %}
-                                                    Retrait
-                                                {% elif m.type_transaction == 'transfert_vers_sous_compte' %}
-                                                    Vers {{ m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
-                                                {% elif m.type_transaction == 'transfert_depuis_sous_compte' %}
-                                                Depuis {{ m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
-                                                {% elif m.type_transaction == '' %}
-                                                    <span class="text-muted">Non défini</span>  
-                                                {% else %}
-                                                    {{ m.type_transaction|replace('_', ' ')|title }}
-                                                {% endif %}
-                                            {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
-                                            'transfert_externe'] %}
-                                                {% if m.type_transaction == 'transfert_entrant' %}
-                                                    <span class="text-success">Transfert reçu</span>
-                                                {% elif m.type_transaction == 'transfert_sortant' %}
-                                                    <span class="text-danger">Transfert envoyé</span>
-                                                {% else %}
-                                                    <span class="text-muted">Transfert externe</span>
-                                                {% endif %}
-
-                                            <!-- Afficher statut pour transferts externes -->
-                                            {% if m.statut and m.statut != 'completed' %}
-                                            <span class="badge bg-warning ms-2">{{ m.statut|title }}</span>
-                                            {% endif %}
-
-                                            <!-- Afficher si externe -->
-                                            {% if m.type_transaction == 'transfert_externe' %}
-                                            <small class="text-muted">(externe)</small>
-                                            {% endif %}
-                                            {% endif %}
-                                        </h6>
-                                        <span
-                                            class="{{ 'text-success' if m.montant > 0 else 'text-danger' if m.montant < 0 else 'text-muted' }}">
-                                            {% if m.montant < 0 %}
-                                                {% if m.type_transaction in ['transfert_sortant', 'retrait', 'transfert_vers_sous_compte'] %}
-                                                    + {{ "%.2f"|format(m.montant) }} {{compte.devise }}
-                                                {% else %}
-                                                    - {{ "%.2f"|format(m.montant) }} {{compte.devise }}
-                                                {% endif %}
-                                            {% elif m.montant > 0 %}
-                                                - {{ "%.2f"|format(m.montant) }} {{ compte.devise }}
-                                            {% else %}
-                                            ⇄ <!-- Symbole pour transfert interne -->
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                    <small class="text-muted">
-                                        {{ m.date_transaction.strftime('%d/%m/%Y %H:%M') }}
-                                        {% if m.reference %}
-                                            {{ m.reference }}
-                                        {% endif %}
-                                        <br>
-                                        {% if m.description %}
-                                            {{ m.description|truncate(50) }}
-                                        {% endif %}
-                                    </small>
-                                </div>
-                            
-                            </div>
-                                {% if mouvements|length >= 5 %}
-                                    <div class="card-footer text-center">
-                                        <a href="#" class="btn btn-outline-primary btn-sm">Voir toute l'activité</a>
-                                    </div>
+        <!-- Activité récente (Transactions + Transferts) -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activité récente</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if mouvements %}
+                    <div class="list-group list-group-flush" id="listeMouvements">
+                        <!-- Afficher les 5 premiers -->
+                        {% for m in mouvements[:5] %}
+                        <div class="list-group-item d-flex align-items-center">
+                            <!-- Contenu identique à votre version -->
+                            <div class="me-3">
+                                {% if m.type_transaction in ['depot', 'retrait', 'transfert_vers_sous_compte',
+                                'transfert_depuis_sous_compte'] %}
+                                {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte', 'transfert_entrant'] %}
+                                <i class="fas fa-plus-circle text-success"></i>
+                                {% else %}
+                                <i class="fas fa-minus-circle text-danger"></i>
                                 {% endif %}
-
-                            {% endfor %}
+                                {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant', 'transfert_externe'] %}
+                                {% if m.type_transaction == 'transfert_entrant' %}
+                                <i class="fas fa-arrow-down text-success"></i>
+                                {% elif m.type_transaction == 'transfert_sortant' %}
+                                <i class="fas fa-arrow-up text-danger"></i>
+                                {% else %}
+                                <i class="fas fa-exchange-alt text-primary"></i>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="mb-0">
+                                        {% if m.type_transaction == 'depot' %}
+                                        Dépôt
+                                        {% elif m.type_transaction == 'retrait' %}
+                                        Retrait
+                                        {% elif m.type_transaction == 'transfert_vers_sous_compte' %}
+                                        Vers {{ m.sous_compte_nom or 'Sous-compte' }}
+                                        {% elif m.type_transaction == 'transfert_depuis_sous_compte' %}
+                                        Depuis {{ m.sous_compte_nom or 'Sous-compte' }}
+                                        {% elif m.type_transaction == 'transfert_entrant' %}
+                                        <span class="text-success">Transfert reçu</span>
+                                        {% elif m.type_transaction == 'transfert_sortant' %}
+                                        <span class="text-danger">Transfert envoyé</span>
+                                        {% elif m.type_transaction == 'transfert_externe' %}
+                                        <span class="text-muted">Transfert externe</span>
+                                        {% if m.statut and m.statut != 'completed' %}
+                                        <span class="badge bg-warning ms-2">{{ m.statut|title }}</span>
+                                        {% endif %}
+                                        <small class="text-muted">(externe)</small>
+                                        {% else %}
+                                        {{ m.type_transaction|replace('_', ' ')|title }}
+                                        {% endif %}
+                                    </h6>
+                                    <span
+                                        class="{{ 'text-success' if m.montant > 0 else 'text-danger' if m.montant < 0 else 'text-muted' }}">
+                                        {% if m.montant != 0 %}
+                                        {{ '+' if m.montant > 0 else '' }}{{ "%.2f"|format(m.montant) }} {{ compte.devise }}
+                                        {% else %}
+                                        ⇄
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <small class="text-muted">
+                                    {{ m.date_transaction.strftime('%d/%m/%Y %H:%M') }}
+                                    {% if m.reference %} • {{ m.reference }}{% endif %}<br>
+                                    {% if m.description %}{{ m.description|truncate(50) }}{% endif %}
+                                </small>
+                            </div>
                         </div>
-                        {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">Aucune activité récente</p>
+                        {% endfor %}
+        
+                        <!-- Les mouvements supplémentaires (6 à 20), cachés par défaut -->
+                        {% for m in mouvements[5:20] %}
+                        <div class="list-group-item d-flex align-items-center d-none" id="plusMouvements">
+                            <!-- Même structure que ci-dessus -->
+                            <div class="me-3">
+                                {% if m.type_transaction in ['depot', 'retrait', 'transfert_vers_sous_compte',
+                                'transfert_depuis_sous_compte'] %}
+                                {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte', 'transfert_entrant'] %}
+                                <i class="fas fa-plus-circle text-success"></i>
+                                {% else %}
+                                <i class="fas fa-minus-circle text-danger"></i>
+                                {% endif %}
+                                {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant', 'transfert_externe'] %}
+                                {% if m.type_transaction == 'transfert_entrant' %}
+                                <i class="fas fa-arrow-down text-success"></i>
+                                {% elif m.type_transaction == 'transfert_sortant' %}
+                                <i class="fas fa-arrow-up text-danger"></i>
+                                {% else %}
+                                <i class="fas fa-exchange-alt text-primary"></i>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="mb-0">
+                                        {% if m.type_transaction == 'depot' %}
+                                        Dépôt
+                                        {% elif m.type_transaction == 'retrait' %}
+                                        Retrait
+                                        {% elif m.type_transaction == 'transfert_vers_sous_compte' %}
+                                        Vers {{ m.sous_compte_nom or 'Sous-compte' }}
+                                        {% elif m.type_transaction == 'transfert_depuis_sous_compte' %}
+                                        Depuis {{ m.sous_compte_nom or 'Sous-compte' }}
+                                        {% elif m.type_transaction == 'transfert_entrant' %}
+                                        <span class="text-success">Transfert reçu</span>
+                                        {% elif m.type_transaction == 'transfert_sortant' %}
+                                        <span class="text-danger">Transfert envoyé</span>
+                                        {% elif m.type_transaction == 'transfert_externe' %}
+                                        <span class="text-muted">Transfert externe</span>
+                                        {% if m.statut and m.statut != 'completed' %}
+                                        <span class="badge bg-warning ms-2">{{ m.statut|title }}</span>
+                                        {% endif %}
+                                        <small class="text-muted">(externe)</small>
+                                        {% else %}
+                                        {{ m.type_transaction|replace('_', ' ')|title }}
+                                        {% endif %}
+                                    </h6>
+                                    <span
+                                        class="{{ 'text-success' if m.montant > 0 else 'text-danger' if m.montant < 0 else 'text-muted' }}">
+                                        {% if m.montant != 0 %}
+                                        {{ '+' if m.montant > 0 else '' }}{{ "%.2f"|format(m.montant) }} {{ compte.devise }}
+                                        {% else %}
+                                        ⇄
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <small class="text-muted">
+                                    {{ m.date_transaction.strftime('%d/%m/%Y %H:%M') }}
+                                    {% if m.reference %} • {{ m.reference }}{% endif %}<br>
+                                    {% if m.description %}{{ m.description|truncate(50) }}{% endif %}
+                                </small>
+                            </div>
                         </div>
-                        {% endif %}
+                        {% endfor %}
                     </div>
-                    
+        
+                    <!-- Bouton "Voir plus" si plus de 5 mouvements -->
+                    {% if mouvements|length > 5 %}
+                    <div class="card-footer text-center">
+                        <button id="btnVoirPlus" class="btn btn-outline-primary btn-sm">
+                            Voir les {{ mouvements[5:20]|length }} suivants
+                        </button>
+                    </div>
+                    {% endif %}
+        
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Aucune activité récente</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
+        </div>
         </div>
 
         <!-- Graphiques -->
