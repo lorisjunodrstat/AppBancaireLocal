@@ -558,7 +558,6 @@ def update_periode_favorite(compte_id, periode_favorite_id):
     success = g.models.periode_favorite_model.update(
         periode_id=periode_favorite_id,
         user_id=user_id,
-        compte_id=compte_id,
         nom=nom,
         date_debut=date_debut if date_debut else None,
         date_fin=date_fin if date_fin else None,
