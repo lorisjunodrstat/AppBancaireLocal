@@ -540,16 +540,19 @@ def create_periode_favorite(compte_id):
 def update_periode_favorite(compte_id, periode_favorite_id):
     user_id = current_user.id
     
-    compte_type_str = g.models.compte_model.get_by_id(compte_id)
-    
-    if compte_type_str:
+    compte = g.models.compte_model.get_by_id(compte_id)
+    if compte:
         compte_type = 'principal'
     else:
-        compte_type_str = g.models.sous_compte_model.get_by_id(compte_id)
+        sous_compte = g.models.sous_compte_model.get_by_id(compte_id)
+        if not sous_compte:
+            flash("❌ Compte ou sous-compte introuvable.", "error")
+            return redirect(url_for("banking.banking_comptes"))
         compte_type = 'sous_compte'
-
-    pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id=user_id, compte_id=compte_id, compte_type=compte_type)
-
+    pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id=user_id,
+                                                                compte_id=compte_id,
+                                                                compte_type=compte_type  # ✅ requis ici
+                                                            )
     nom = request.form.get("periode_nom")
     date_debut = request.form.get("date_debut")
     date_fin = request.form.get("date_fin")
