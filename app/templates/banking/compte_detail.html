@@ -311,7 +311,10 @@
                                         <button type="submit" class="btn btn-primary me-2">Appliquer</button>
                                         <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
                                             class="btn btn-outline-secondary">Réinitialiser</a>
-                                    </div>
+                                        <button type="submit" formaction="{{ url_for('banking.creer_periode_favorite', compte_id=compte.id) }}" formmethod="POST"
+                                        class="btn btn-success">
+                                        <i class="fas fa-star me-1"></i> créer/modifier la période favorite
+                                    </button>
                                 </div>
 
                                 <!-- Indications pour l'utilisateur -->
