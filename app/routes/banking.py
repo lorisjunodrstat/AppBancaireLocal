@@ -2,7 +2,7 @@ import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app, g
 from flask_login import login_required, current_user
 from decimal import Decimal, InvalidOperation
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 from calendar import monthrange
 from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts
 from io import StringIO
