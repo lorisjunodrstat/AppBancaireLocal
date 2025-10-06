@@ -421,7 +421,7 @@
                                                     - {{ "%.2f"|format(m.montant) }} {{compte.devise }}
                                                 {% endif %}
                                             {% elif m.montant > 0 %}
-                                                - {{ "%.2f"|m.montant(m.montant) }} {{ compte.devise }}
+                                                - {{ "%.2f"|format(m.montant) }} {{ compte.devise }}
                                             {% else %}
                                             ⇄ <!-- Symbole pour transfert interne -->
                                             {% endif %}
