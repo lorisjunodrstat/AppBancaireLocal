@@ -606,7 +606,7 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Liste des Mouvements</h5>
+                        <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Liste des Mouvements [{{ mouvements|length }}]</h5>
                     </div>
                     <div class="card-body">
                         <nav class="navbar navbar-expand-lg bg-body-tertiary mb-3">
@@ -834,7 +834,7 @@
                             {{ ((graphique_svg.max_solde + graphique_svg.min_solde) / 2)|round(2) }}
                         </text>
                         <!-- Min -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.9 + 4 }}" font-size="9"
+                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.9 + 4 }}" font-size="10"
                             text-anchor="end" fill="#555">
                             {{ graphique_svg.min_solde|round(2) }}
                         </text>
@@ -842,12 +842,12 @@
                         <!-- Étiquettes sur l'axe X (bas) -->
                         {% if graphique_svg.dates|length > 0 %}
                         <!-- Début -->
-                        <text x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9"
+                        <text x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="10"
                             text-anchor="start" fill="#555">
                             {{ graphique_svg.dates[0] }}
                         </text>
                         <!-- Fin -->
-                        <text x="{{ largeur_svg * 0.9 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9"
+                        <text x="{{ largeur_svg * 0.9 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="10"
                             text-anchor="end" fill="#555">
                             {{ graphique_svg.dates[-1] }}
                         </text>
@@ -883,7 +883,7 @@
                                 {% for i in range(graphique_svg.dates|length) %}
                                 <tr>
                                     <td>{{ graphique_svg.dates[i] }}</td>
-                                    <td>{{ graphique_svg.soldes[i]|round(2) }} €</td>
+                                    <td>{{ graphique_svg.soldes[i]|round(2) }} {{ compte.devise }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
