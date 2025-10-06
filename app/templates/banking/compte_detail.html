@@ -313,15 +313,15 @@
                                             class="btn btn-outline-secondary">Réinitialiser</a>
                                         <!-- Bouton pour compte AVEC période favorite -->
                                         {% if pf %}
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal"
                                             data-bs-target="#editPeriodeModal{{ pf.id }}">
-                                            <i class="fas fa-star me-1"></i> Modifier la période favorite
+                                            <i class="fas fa-gear me-1"></i> Modifier la période favorite
                                         </button>
                                         {% else %}
                                         <!-- Bouton pour compte SANS période favorite -->
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal"
                                             data-bs-target="#periode_favorite_modal_create">
-                                            <i class="fas fa-star me-1"></i> Créer la période favorite
+                                            <i class="fas fa-gear me-1"></i> Créer la période favorite
                                         </button>
                                         {% endif %}
                                     </div>
@@ -355,22 +355,22 @@
                                 <div class="me-3">
                                     <!-- Icônes améliorées pour différencier les types -->
                                     {% if m.type_transaction in ['depot', 'retrait', 'transfert_vers_sous_compte',
-                                    'transfert_depuis_sous_compte'] %}
-                                    {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte',
-                                    'transfert_entrant'] %}
-                                    <i class="fas fa-plus-circle text-success"></i>
-                                    {% else %}
-                                    <i class="fas fa-minus-circle text-danger"></i>
-                                    {% endif %}
+                                    'transfert_depuis_sous_compte', ''] %}
+                                        {% if m.type_transaction in ['depot', 'transfert_depuis_sous_compte',
+                                            'transfert_entrant'] %}
+                                            <i class="fas fa-plus-circle text-success"></i>
+                                        {% else %}
+                                            <i class="fas fa-minus-circle text-danger"></i>
+                                        {% endif %}
                                     {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
-                                    'transfert_externe'] %}
-                                    {% if m.type_transaction == 'transfert_entrant' %}
-                                    <i class="fas fa-arrow-down text-success"></i>
-                                    {% elif m.type_transaction == 'transfert_sortant' %}
-                                    <i class="fas fa-arrow-up text-danger"></i>
-                                    {% else %}
-                                    <i class="fas fa-exchange-alt text-primary"></i>
-                                    {% endif %}
+                                        'transfert_externe'] %}
+                                        {% if m.type_transaction == 'transfert_entrant' %}
+                                            <i class="fas fa-arrow-down text-success"></i>
+                                        {% elif m.type_transaction == 'transfert_sortant' %}
+                                            <i class="fas fa-arrow-up text-danger"></i>
+                                        {% else %}
+                                            <i class="fas fa-exchange-alt text-primary"></i>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                                 <div class="flex-grow-1">
@@ -378,22 +378,28 @@
                                         <h6 class="mb-0">
                                             {% if m.type_transaction in ['depot', 'retrait',
                                             'transfert_vers_sous_compte', 'transfert_depuis_sous_compte'] %}
-                                            {% if m.type_transaction == 'depot' %}Dépôt
-                                            {% elif m.type_transaction == 'retrait' %}Retrait
-                                            {% elif m.type_transaction == 'transfert_vers_sous_compte' %}Vers {{
-                                            m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
-                                            {% elif m.type_transaction == 'transfert_depuis_sous_compte' %}Depuis {{
-                                            m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
-                                            {% else %}{{ m.type_transaction|replace('_', ' ')|title }}{% endif %}
+                                                {% if m.type_transaction == 'depot' %}
+                                                    Dépôt
+                                                {% elif m.type_transaction == 'retrait' %}
+                                                    Retrait
+                                                {% elif m.type_transaction == 'transfert_vers_sous_compte' %}
+                                                    Vers {{ m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
+                                                {% elif m.type_transaction == 'transfert_depuis_sous_compte' %}
+                                                Depuis {{ m.sous_compte_nom if m.sous_compte_nom else 'Sous-compte' }}
+                                                {% elif m.type_transaction == '' %}
+                                                    <span class="text-muted">Non défini</span>  
+                                                {% else %}
+                                                    {{ m.type_transaction|replace('_', ' ')|title }}
+                                                {% endif %}
                                             {% elif m.type_transaction in ['transfert_entrant', 'transfert_sortant',
                                             'transfert_externe'] %}
-                                            {% if m.type_transaction == 'transfert_entrant' %}
-                                            <span class="text-success">Transfert reçu</span>
-                                            {% elif m.type_transaction == 'transfert_sortant' %}
-                                            <span class="text-danger">Transfert envoyé</span>
-                                            {% else %}
-                                            Transfert externe
-                                            {% endif %}
+                                                {% if m.type_transaction == 'transfert_entrant' %}
+                                                    <span class="text-success">Transfert reçu</span>
+                                                {% elif m.type_transaction == 'transfert_sortant' %}
+                                                    <span class="text-danger">Transfert envoyé</span>
+                                                {% else %}
+                                                    <span class="text-muted">Transfert externe</span>
+                                                {% endif %}
 
                                             <!-- Afficher statut pour transferts externes -->
                                             {% if m.statut and m.statut != 'completed' %}
@@ -408,9 +414,14 @@
                                         </h6>
                                         <span
                                             class="{{ 'text-success' if m.montant > 0 else 'text-danger' if m.montant < 0 else 'text-muted' }}">
-                                            {% if m.montant != 0 %}
-                                            {{ '+' if m.montant > 0 else '' }}{{ "%.2f"|format(m.montant) }} {{
-                                            compte.devise }}
+                                            {% if m.montant < 0 %}
+                                                {% if m.type_transaction in ['transfert_sortant', 'retrait', 'transfert_vers_sous_compte'] %}
+                                                    + {{ "%.2f"|format(m.montant) }} {{compte.devise }}
+                                                {% else %}
+                                                    - {{ "%.2f"|format(m.montant) }} {{compte.devise }}
+                                                {% endif %}
+                                            {% elif m.montant > 0 %}
+                                                - {{ "%.2f"|montant(m.montant) }} {{ compte.devise }}
                                             {% else %}
                                             ⇄ <!-- Symbole pour transfert interne -->
                                             {% endif %}
@@ -419,11 +430,11 @@
                                     <small class="text-muted">
                                         {{ m.date_transaction.strftime('%d/%m/%Y %H:%M') }}
                                         {% if m.reference %}
-                                        • {{ m.reference }}
+                                            {{ m.reference }}
                                         {% endif %}
                                         <br>
                                         {% if m.description %}
-                                        {{ m.description }}
+                                            {{ m.description|truncate(50) }}
                                         {% endif %}
                                     </small>
                                 </div>
