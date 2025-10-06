@@ -1,71 +1,135 @@
-<form method="POST"
-    action="{{ url_for('banking.update_periode_favorite', periode_favorite_id=pf.id, compte_id=compte.id) }}"
-    class="needs-validation" novalidate>
-    <input type="hidden" name="action" value="modifier">
+<div class="modal fade" id="periode_favorite_modal{% if pf %}{{ pf.id }}{% else %}create{% endif %}" tabindex="-1"
+    aria-labelledby="periode_favorite_modalLabel{% if pf %}{{ pf.id }}{% else %}create{% endif %}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"
+                    id="periode_favorite_modalLabel{% if pf %}{{ pf.id }}{% else %}create{% endif %}">
+                    {% if pf %}Gérer la période favorite {{ pf.nom }} (#{{ pf.id }}){% else %}Créer une période
+                    favorite{% endif %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- === Formulaire de MODIFICATION === -->
+                {% if pf %}
+                <form method="POST"
+                    action="{{ url_for('banking.update_periode_favorite', periode_favorite_id=pf.id, compte_id=compte.id) }}"
+                    class="needs-validation" novalidate>
+                    <input type="hidden" name="action" value="modifier">
 
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h6 class="card-title text-muted">Informations de base</h6>
-                    <p><strong>Nom :</strong> {{ pf.nom|replace('_', ' ')|title }}</p>
-                    <p><strong>Compte :</strong>
-                        {% if pf.compte_type %}
-                        {{ pf.compte_type|capitalize }} - {{ pf.compte.id }}
-                        {% else %}
-                        Inconnu
-                        {% endif %}
-                    </p>
-                    <p><strong>Début :</strong>
-                        <span class="text-muted">{{ pf.date_debut or '-' }}</span>
-                    </p>
-                    <p><strong>Fin :</strong>
-                        <span class="text-muted">{{ pf.date_fin or '-' }}</span>
-                    </p>
-                    <p><strong>Statut :</strong>
-                        <span class="text-muted">{{ pf.statut or '-' }}</span>
-                    </p>
-                </div>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-muted">Informations de base</h6>
+                                    <p><strong>Nom :</strong> {{ pf.nom|replace('_', ' ')|title }}</p>
+                                    <p><strong>Compte :</strong>
+                                        {% if pf.compte_type %}
+                                        {{ pf.compte_type|capitalize }} - {{ pf.compte.id }}
+                                        {% else %}
+                                        Inconnu
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Début :</strong>
+                                        <span class="text-muted">{{ pf.date_debut or '-' }}</span>
+                                    </p>
+                                    <p><strong>Fin :</strong>
+                                        <span class="text-muted">{{ pf.date_fin or '-' }}</span>
+                                    </p>
+                                    <p><strong>Statut :</strong>
+                                        <span class="text-muted">{{ pf.statut or '-' }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Champs modifiables -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nouveau_nom{{ pf.id }}" class="form-label">Nom *</label>
+                            <input type="text" class="form-control" id="nouveau_nom{{ pf.id }}" name="nouveau_nom"
+                                value="{{ pf.nom }}" required>
+                            <div class="invalid-feedback">Veuillez entrer un nom valide.</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="nouveau_debut{{ pf.id }}" class="form-label">Date de début *</label>
+                            <div class="input-group mb-2">
+                                <input type="datetime-local" class="form-control" id="nouveau_debut{{ pf.id }}"
+                                    name="nouveau_debut"
+                                    value="{{ pf.date_debut.strftime('%Y-%m-%dT%H:%M') if pf.date_debut else '' }}"
+                                    required>
+                            </div>
+
+                            <label for="nouveau_fin{{ pf.id }}" class="form-label">Date de fin *</label>
+                            <div class="input-group">
+                                <input type="datetime-local" class="form-control" id="nouveau_fin{{ pf.id }}"
+                                    name="nouveau_fin"
+                                    value="{{ pf.date_fin.strftime('%Y-%m-%dT%H:%M') if pf.date_fin else '' }}"
+                                    required>
+                            </div>
+                            <div class="invalid-feedback">Veuillez entrer une date valide.</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="nouveau_statut{{ pf.id }}" class="form-label">Statut *</label>
+                            <select class="form-select" id="nouveau_statut{{ pf.id }}" name="nouveau_statut" required>
+                                <option value="active" {% if pf.statut=='active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if pf.statut=='inactive' %}selected{% endif %}>Inactive
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Enregistrer les modifications
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <!-- === Formulaire de CRÉATION === -->
+                <p class="text-danger">Période favorite non trouvée.</p>
+                <form action="{{ url_for('banking.create_periode_favorite', compte_id=compte.id) }}" method="POST"
+                    class="needs-validation" novalidate>
+                    <input type="hidden" name="action" value="create">
+                    <div class="mb-3">
+                        <label for="nom" class="form-label">Nom *</label>
+                        <input type="text" class="form-control" id="nom" name="nom" required>
+                        <div class="invalid-feedback">Veuillez entrer un nom valide.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_debut" class="form-label">Date de début *</label>
+                        <input type="datetime-local" class="form-control" id="date_debut" name="date_debut" required>
+                        <div class="invalid-feedback">Veuillez entrer une date valide.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_fin" class="form-label">Date de fin *</label>
+                        <input type="datetime-local" class="form-control" id="date_fin" name="date_fin" required>
+                        <div class="invalid-feedback">Veuillez entrer une date valide.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="statut" class="form-label">Statut *</label>
+                        <select class="form-select" id="statut" name="statut" required>
+                            <option value="active" selected>Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus me-1"></i> Créer la période favorite
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
             </div>
         </div>
     </div>
-
-    <!-- Champs modifiables -->
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label for="nouveau_nom{{ pf.id }}" class="form-label">Nom *</label>
-            <input type="text" class="form-control" id="nouveau_nom{{ pf.id }}" name="nouveau_nom" value="{{ pf.nom }}"
-                required>
-            <div class="invalid-feedback">Veuillez entrer un nom valide.</div>
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <label for="nouveau_debut{{ pf.id }}" class="form-label">Date de début *</label>
-            <div class="input-group mb-2">
-                <input type="datetime-local" class="form-control" id="nouveau_debut{{ pf.id }}" name="nouveau_debut"
-                    value="{{ pf.date_debut.strftime('%Y-%m-%dT%H:%M') if pf.date_debut else '' }}" required>
-            </div>
-
-            <label for="nouveau_fin{{ pf.id }}" class="form-label">Date de fin *</label>
-            <div class="input-group">
-                <input type="datetime-local" class="form-control" id="nouveau_fin{{ pf.id }}" name="nouveau_fin"
-                    value="{{ pf.date_fin.strftime('%Y-%m-%dT%H:%M') if pf.date_fin else '' }}" required>
-            </div>
-            <div class="invalid-feedback">Veuillez entrer une date valide.</div>
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <label for="nouveau_statut{{ pf.id }}" class="form-label">Statut *</label>
-            <select class="form-select" id="nouveau_statut{{ pf.id }}" name="nouveau_statut" required>
-                <option value="active" {% if pf.statut=='active' %}selected{% endif %}>Active</option>
-                <option value="inactive" {% if pf.statut=='inactive' %}selected{% endif %}>Inactive</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="d-flex justify-content-end mt-4">
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save me-1"></i> Enregistrer les modifications
-        </button>
-    </div>
-</form>
+</div>
