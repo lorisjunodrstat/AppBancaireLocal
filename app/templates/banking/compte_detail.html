@@ -311,18 +311,20 @@
                                         <button type="submit" class="btn btn-primary me-2">Appliquer</button>
                                         <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
                                             class="btn btn-outline-secondary">Réinitialiser</a>
+                                        <!-- Bouton pour compte AVEC période favorite -->
                                         {% if pf %}
-                                        {% include "banking/periode_favorite_modal.html" %}
                                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                                            data-bs-target="#periode_favorite_modal_edit_{{ pf.id }}">
+                                            data-bs-target="#editPeriodeModal{{ pf.id }}">
                                             <i class="fas fa-star me-1"></i> Modifier la période favorite
                                         </button>
+                                        {% include "banking/edit_periode_modal.html" %}
                                         {% else %}
-                                        {% include "banking/periode_favorite_modal_create.html" %}
+                                        <!-- Bouton pour compte SANS période favorite -->
                                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                                             data-bs-target="#periode_favorite_modal_create">
                                             <i class="fas fa-star me-1"></i> Créer la période favorite
                                         </button>
+                                        {% include "banking/create_periode_modal.html" %}
                                         {% endif %}
                                     </div>
 
