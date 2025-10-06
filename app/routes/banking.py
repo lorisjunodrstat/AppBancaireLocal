@@ -540,6 +540,7 @@ def create_periode_favorite(compte_id):
 def update_periode_favorite(compte_id, periode_favorite_id):
     user_id = current_user.id
     
+    # Déterminer le type de compte
     compte = g.models.compte_model.get_by_id(compte_id)
     if compte:
         compte_type = 'principal'
@@ -549,30 +550,48 @@ def update_periode_favorite(compte_id, periode_favorite_id):
             flash("❌ Compte ou sous-compte introuvable.", "error")
             return redirect(url_for("banking.banking_comptes"))
         compte_type = 'sous_compte'
-    pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id=user_id,
-                                                                compte_id=compte_id,
-                                                                compte_type=compte_type  # ✅ requis ici
-                                                            )
-    nom = request.form.get("periode_nom")
-    date_debut = request.form.get("date_debut")
-    date_fin = request.form.get("date_fin")
-    statut = request.form.get("statut", "active")
-    nom = request.form.get("nouveau_nom")
-    # Mettre à jour la période favorite
+
+    # Récupérer la période favorite existante
+    pf = g.models.periode_favorite_model.get_by_user_and_compte(
+        user_id=user_id,
+        compte_id=compte_id,
+        compte_type=compte_type
+    )
+    if not pf or pf.id != periode_favorite_id:
+        flash("❌ Période favorite introuvable.", "error")
+        return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
+
+    # Récupérer les valeurs du formulaire OU conserver les anciennes
+    nom = request.form.get("nouveau_nom") or pf.nom
+    date_debut_str = request.form.get("nouveau_debut")
+    date_fin_str = request.form.get("nouveau_fin")
+    statut = request.form.get("nouveau_statut") or pf.statut or "active"
+
+    # Conserver les anciennes dates si non fournies
+    date_debut = date_debut_str if date_debut_str else pf.date_debut
+    date_fin = date_fin_str if date_fin_str else pf.date_fin
+
+    # Vérifier que les dates ne sont pas None (la DB l'interdit)
+    if date_debut is None or date_fin is None:
+        flash("❌ Les dates de début et de fin sont obligatoires.", "error")
+        return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
+
+    # Mettre à jour
     success = g.models.periode_favorite_model.update(
         periode_id=periode_favorite_id,
         user_id=user_id,
         nom=nom,
-        date_debut=date_debut if date_debut else None,
-        date_fin=date_fin if date_fin else None,
+        date_debut=date_debut,
+        date_fin=date_fin,
         statut=statut
     )
+
     if not success:
-        flash("❌ Erreur lors de la mise à jour de la période favorite", "error")
-        return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
-    
-    flash("✅ Période favorite mise à jour avec succès", "success")
-    return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id, pf=pf))
+        flash("❌ Erreur lors de la mise à jour de la période favorite.", "error")
+    else:
+        flash("✅ Période favorite mise à jour avec succès.", "success")
+
+    return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
 
 @bp.route('/banking/sous-compte/<int:sous_compte_id>')
 @login_required
