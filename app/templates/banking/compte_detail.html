@@ -565,9 +565,9 @@
                                     {{ "%.2f"|format(total_depenses) }} {{ compte.devise }}
                                 </text>
                                 {% else %}
-                                <text x="62.5%" y="{{ 180 + depenses_height + 16 }}" text-anchor="middle" font-size="12" fill="#dc3545"
+                                <text x="62.5%" y="{{ 180 + depenses_height }}" text-anchor="middle" font-size="12" fill="#dc3545"
                                     font-weight="bold">
-                                    0.00
+                                    0.00 {{ compte.devise }}
                                 </text>
                                 {% endif %}
                                 <text x="62.5%" y="200" text-anchor="middle" font-size="12" fill="#6c757d">Dépenses</text>
