@@ -882,12 +882,12 @@
 
                         <!-- Étiquettes sur l'axe Y (gauche) -->
                         <!-- Max -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.1 + 12 }}" font-size="9"
+                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.1 + 12 }}" font-size="11"
                             text-anchor="end" fill="#555">
                             {{ graphique_svg.max_solde|round(2) }} CHF
                         </text>
                         <!-- Milieu -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ mid_y + 4 }}" font-size="9" text-anchor="end"
+                        <text x="{{ largeur_svg * 0.08 }}" y="{{ mid_y + 4 }}" font-size="11" text-anchor="end"
                             fill="#777">
                             {{ ((graphique_svg.max_solde + graphique_svg.min_solde) / 2)|round(2) }}
                         </text>
@@ -900,18 +900,18 @@
                         <!-- Étiquettes sur l'axe X (bas) -->
                         {% if graphique_svg.dates|length > 0 %}
                         <!-- Début -->
-                        <text x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="10"
+                        <text x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="11"
                             text-anchor="start" fill="#555">
                             {{ graphique_svg.dates[0] }}
                         </text>
                         <!-- Fin -->
-                        <text x="{{ largeur_svg * 0.9 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="10"
+                        <text x="{{ largeur_svg * 0.9 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="11"
                             text-anchor="end" fill="#555">
                             {{ graphique_svg.dates[-1] }}
                         </text>
                         <!-- Milieu (seulement si assez de points pour éviter chevauchement) -->
                         {% if graphique_svg.nb_points > 5 %}
-                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="9"
+                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="11"
                             text-anchor="middle" fill="#777">
                             {{ graphique_svg.dates[(graphique_svg.nb_points // 2)] }}
                         </text>
