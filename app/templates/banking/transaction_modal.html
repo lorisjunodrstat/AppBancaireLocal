@@ -29,7 +29,7 @@
                                     <p><strong>Compte :</strong>
                                         {% if mv.compte_source_nom %}{{ mv.compte_source_nom }}
                                         {% elif mv.sous_compte_source_nom %}{{ mv.sous_compte_source_nom }}
-                                        {% elif mv.compte_source.nom %}{{ mv.compte_source.nom }}
+                                        {% elif mv.compte_source %}{{ mv.compte_source }}
                                         {% else %}Inconnu{% endif %}
                                     </p>
                                     <p><strong>Référence :</strong>
