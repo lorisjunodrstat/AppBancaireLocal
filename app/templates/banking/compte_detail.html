@@ -551,7 +551,7 @@
                                     fill="{{ compte.couleur_banque }}" rx="4" ry="4" />
                                 <text x="37.5%" y="{{ 180 - recettes_height - 8 }}" text-anchor="middle" font-size="12"
                                     fill="{{ compte.couleur_banque }}" font-weight="bold">
-                                    {{ "%.2f"|format(total_recettes) }}
+                                    {{ "%.2f"|format(total_recettes) }} {{ compte.devise }}
                                 </text>
                                 {% endif %}
                                 <text x="37.5%" y="200" text-anchor="middle" font-size="12" fill="#6c757d">Recettes</text>
@@ -562,7 +562,12 @@
                                 <rect x="55%" y="180" width="15%" height="{{ depenses_height }}" fill="#dc3545" rx="4" ry="4" />
                                 <text x="62.5%" y="{{ 180 + depenses_height + 16 }}" text-anchor="middle" font-size="12" fill="#dc3545"
                                     font-weight="bold">
-                                    {{ "%.2f"|format(total_depenses) }}
+                                    {{ "%.2f"|format(total_depenses) }} {{ compte.devise }}
+                                </text>
+                                {% else %}
+                                <text x="62.5%" y="{{ 180 + depenses_height + 16 }}" text-anchor="middle" font-size="12" fill="#dc3545"
+                                    font-weight="bold">
+                                    0.00
                                 </text>
                                 {% endif %}
                                 <text x="62.5%" y="200" text-anchor="middle" font-size="12" fill="#6c757d">Dépenses</text>
