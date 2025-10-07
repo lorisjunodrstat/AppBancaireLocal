@@ -560,12 +560,12 @@
                                 {% if total_depenses > 0 %}
                                 {% set depenses_height = (total_depenses / max_value) * 120 %}
                                 <rect x="55%" y="180" width="15%" height="{{ depenses_height }}" fill="#dc3545" rx="4" ry="4" />
-                                <text x="62.5%" y="{{ 180 + depenses_height + 16 }}" text-anchor="middle" font-size="12" fill="#dc3545"
+                                <text x="62.5%" y="{{ 180 - depenses_height - 8 }}" text-anchor="middle" font-size="12" fill="#dc3545"
                                     font-weight="bold">
                                     {{ "%.2f"|format(total_depenses) }} {{ compte.devise }}
                                 </text>
                                 {% else %}
-                                <text x="62.5%" y="{{ 180 + depenses_height }}" text-anchor="middle" font-size="12" fill="#dc3545"
+                                <text x="62.5%" y="{{ 180 - 8 }}" text-anchor="middle" font-size="12" fill="#dc3545"
                                     font-weight="bold">
                                     0.00 {{ compte.devise }}
                                 </text>
