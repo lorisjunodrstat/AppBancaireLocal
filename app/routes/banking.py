@@ -1449,7 +1449,7 @@ def modifier_transfert(transfert_id):
                 flash(f"Erreur de validation : {str(e)}", "danger")
 
     # Afficher le formulaire de modification
-    return render_template('banking/transaction_modal.html', transaction=transaction, compte=compte)
+    return render_template('banking/transaction_modal.html', mv=transaction, compte=compte)
 
 @bp.route('/banking/supprimer_transfert/<int:transfert_id>', methods=['POST'])
 @login_required
