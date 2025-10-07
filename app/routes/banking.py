@@ -520,7 +520,7 @@ def create_periode_favorite(compte_id):
     compte_id
 
     # Mettre à jour / insérer la période favorite
-    nouveau_of = g.models.PeriodeFavoriteModel.create(
+    nouveau_of = g.models.periode_favorite_model.create(
         user_id=user_id,
         compte_id=compte_id,
         nom=nom,
