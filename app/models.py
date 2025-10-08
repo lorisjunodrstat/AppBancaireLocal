@@ -1582,6 +1582,7 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur lors de la suppression de la transaction {transaction_id}: {e}", exc_info=True)
             return False, f"Erreur lors de la suppression : {str(e)}"
+    
     def reparer_soldes_compte(self, compte_type: str, compte_id: int, user_id: int) -> Tuple[bool, str]:
         """
         Script de réparation : Recalcule TOUTES les transactions d'un compte depuis le solde initial.
@@ -1627,7 +1628,7 @@ class TransactionFinanciere:
                 # Mettre à jour le solde final du compte
                 if not self._mettre_a_jour_solde_with_cursor(cursor, compte_type, compte_id, solde_courant):
                     raise Exception("Échec de la mise à jour du solde du compte")
-
+                
                 logging.info(f"✅ Soldes du {compte_type} ID {compte_id} réparés avec succès. Nouveau solde: {solde_courant}")
                 return True, "Soldes réparés avec succès"
 
@@ -2190,6 +2191,8 @@ class TransactionFinanciere:
         Met à jour le solde d'un compte en utilisant un curseur existant.
         """
         try:
+            logging.info(f"➡️ Mise à jour solde: compte_type={compte_type}, compte_id={compte_id}, solde={nouveau_solde} (type={type(nouveau_solde)})")
+        
             if compte_type == 'compte_principal':
                 query = "UPDATE comptes_principaux SET solde = %s WHERE id = %s"
             else:
@@ -2242,7 +2245,7 @@ class TransactionFinanciere:
             else:
                 logging.warning(f"Type de transaction non reconnu: {type_transaction_val}")
                 continue
-            
+            logging.info(f"Solde final à enregistrer pour {transaction['id']}: {solde_courant} (type: {type(solde_courant)})")
             update_query = "UPDATE transactions SET solde_apres = %s WHERE id = %s"
             cursor.execute(update_query, (float(solde_courant), transaction['id']))
             dernier_solde = solde_courant
