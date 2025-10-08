@@ -761,9 +761,9 @@
                                         <td>
                                             {% if mv.compte_source_nom %}
 
-                                            {{ mv.sous_compte_source }}
+                                            {{ mv.compte_source_nom }}
                                             {% elif mv.sous_compte_source %}
-                                            {{ mv.sous_compte_source_nom }}
+                                            {{ mv.sous_compte_source }}
                                             {% elif mv.type_transaction == 'transfert_entrant' %}
                                             Compte externe
                                             {% else %}
