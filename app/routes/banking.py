@@ -521,7 +521,7 @@ def create_periode_favorite(compte_id):
             flash("❌ Compte ou sous-compte introuvable.", "error")
             return redirect(url_for("banking.banking_comptes"))
         compte_type = 'sous_compte'
-    nom = request.form.get("periode_nom ")
+    nom = request.form.get("periode_nom")
     date_debut = request.form.get("date_debut")
     date_fin = request.form.get("date_fin")
     statut = request.form.get("statut", "active")
@@ -537,7 +537,7 @@ def create_periode_favorite(compte_id):
         statut='active'
     )
     if not nouveau_of:
-        flash("❌ Erreur lors de la création de la période favorite", "error")
+        flash("❌ Erreur lors de la création de la période favorite pour {user_id}, compte {compte_id} ({compte_type}), nom: {nom}, début: {date_debut}, fin: {date_fin}, statut: {statut}", "error")
         return redirect(url_for("banking.banking_compte_detail", compte_id=compte_id))
     
     flash("✅ Période favorite mise à jour avec succès", "success")

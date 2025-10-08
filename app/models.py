@@ -2063,7 +2063,7 @@ class TransactionFinanciere:
         
     def _inserer_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, type_transaction: str, 
                         montant: Decimal, description: str, user_id: int, 
-                        date_transaction: datetime, validate_balance: bool = True, reference_transfert: Optional[str] = None) -> Tuple[bool, str, Optional[int]]:
+                        date_transaction: datetime, validate_balance: bool = True, reference_transfert: str = None) -> Tuple[bool, str, Optional[int]]:
         """
         Insère une transaction dans la base de données et met à jour les soldes.
         """
@@ -2103,7 +2103,7 @@ class TransactionFinanciere:
                     solde_apres = solde_avant + montant   # Crédit sur le compte principal
             else:
                 return False, f"Type de transaction non reconnu: {type_transaction}", None
-            
+            reference_transfert = f"TRF_{int(time.time())}_{user_id}_{secrets.token_hex(6)}"
             # Insérer la transaction
             if compte_type == 'compte_principal':
                 query = """
@@ -2595,29 +2595,39 @@ class TransactionFinanciere:
                 # Requête pour compte principal
                 if compte_type == 'compte_principal':
                     query = """
-                    SELECT 
-                        t.id,
-                        t.type_transaction,
-                        t.montant,
-                        t.description,
-                        t.reference,
-                        t.date_transaction,
-                        t.solde_apres,
-                        sc.nom_sous_compte as sous_compte_source,
-                        sc_dest.nom_sous_compte as sous_compte_dest,
-                        te.iban_dest,
-                        te.nom_dest,
-                        te.statut as statut_externe,
-                        CASE 
-                            WHEN t.type_transaction = 'transfert_compte_vers_sous' THEN 'Débit'
-                            WHEN t.type_transaction = 'transfert_sous_vers_compte' THEN 'Crédit'
-                            ELSE NULL
-                        END as sens_operation
-                    FROM transactions t
-                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
-                    LEFT JOIN sous_comptes sc_dest ON t.sous_compte_destination_id = sc_dest.id
-                    LEFT JOIN transferts_externes te ON t.id = te.transaction_id
-                    WHERE t.compte_principal_id = %s
+                    SELECT
+                    t.id,
+                    t.type_transaction,
+                    t.montant,
+                    t.description,
+                    t.reference,
+                    t.date_transaction,
+                    t.solde_apres,
+                    -- Sous-comptes
+                    sc.nom_sous_compte as sous_compte_source,
+                    sc_dest.nom_sous_compte as sous_compte_dest,
+                    -- Comptes principaux source/destination
+                    cp_source.nom_compte as compte_source_nom,
+                    cp_dest.nom_compte as compte_dest_nom,
+                    -- Transferts externes
+                    te.iban_dest,
+                    te.nom_dest,
+                    te.statut as statut_externe,
+                    CASE 
+                        WHEN t.type_transaction = 'transfert_compte_vers_sous' THEN 'Débit'
+                        WHEN t.type_transaction = 'transfert_sous_vers_compte' THEN 'Crédit'
+                        ELSE NULL
+                    END as sens_operation
+                FROM transactions t
+                -- Sous-comptes
+                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                LEFT JOIN sous_comptes sc_dest ON t.sous_compte_destination_id = sc_dest.id
+                -- Comptes principaux (à adapter selon vos colonnes réelles)
+                LEFT JOIN comptes_principaux cp_source ON t.compte_source_id = cp_source.id
+                LEFT JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id
+                -- Transferts externes
+                LEFT JOIN transferts_externes te ON t.id = te.transaction_id
+                WHERE t.compte_principal_id = %s
                     """
                     
                 # Requête pour sous-compte
