@@ -512,17 +512,25 @@ def banking_compte_detail(compte_id):
 @login_required
 def create_periode_favorite(compte_id):
     user_id = current_user.id
-
+    compte = g.models.compte_model.get_by_id(compte_id)
+    if compte:
+        compte_type = 'principal'
+    else:
+        sous_compte = g.models.sous_compte_model.get_by_id(compte_id)
+        if not sous_compte:
+            flash("❌ Compte ou sous-compte introuvable.", "error")
+            return redirect(url_for("banking.banking_comptes"))
+        compte_type = 'sous_compte'
     nom = request.form.get("periode_nom ")
     date_debut = request.form.get("date_debut")
     date_fin = request.form.get("date_fin")
     statut = request.form.get("statut", "active")
-    compte_id
 
     # Mettre à jour / insérer la période favorite
     nouveau_of = g.models.periode_favorite_model.create(
         user_id=user_id,
         compte_id=compte_id,
+        compte_type=compte_type,
         nom=nom,
         date_debut=date_debut if date_debut else None,
         date_fin=date_fin if date_fin else None,
@@ -806,6 +814,7 @@ def reparer_soldes_compte(compte_id):
     # Déterminer le type de compte
     compte_type = 'compte_principal' if compte.get('compte_principal_id') is None else 'sous_compte'
     # Appeler la méthode de réparation
+    logging.info(f"Appel reparation avec compte_type='{compte_type}', compte_id={compte_id}")
     success, message = g.models.transaction_financiere_model.reparer_soldes_compte(
         compte_type=compte_type,
         compte_id=compte_id,
