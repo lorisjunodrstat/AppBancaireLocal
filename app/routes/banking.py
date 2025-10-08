@@ -525,7 +525,7 @@ def create_periode_favorite(compte_id):
     date_debut = request.form.get("date_debut")
     date_fin = request.form.get("date_fin")
     statut = request.form.get("statut", "active")
-
+    logging.debug(f"Création période favorite pour user {user_id}, compte {compte_id} ({compte_type}), nom: {nom}, début: {date_debut}, fin: {date_fin}, statut: {statut}")
     # Mettre à jour / insérer la période favorite
     nouveau_of = g.models.periode_favorite_model.create(
         user_id=user_id,
