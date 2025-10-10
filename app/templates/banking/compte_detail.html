@@ -400,7 +400,7 @@
                                     <span
                                         class="{{ 'text-success' if m.montant > 0 else 'text-danger' if m.montant < 0 else 'text-muted' }}">
                                         {% if m.montant != 0 %}
-                                        {{ '+' if m.montant > 0 else '' }}{{ "%.2f"|format(m.montant) }} {{ compte.devise }}
+                                        {{ '+' if m.type_transaction in ['depot', 'transfert_depuis_sous_compte', 'transfert_entrant'] else '' }}{{ "%.2f"|format(m.montant) }} {{ compte.devise }}
                                         {% else %}
                                         ⇄
                                         {% endif %}
@@ -764,7 +764,7 @@
                                             {{ mv.compte_source_nom }}
                                             {% elif mv.sous_compte_source %}
                                             {{ mv.sous_compte_source }}
-                                            {% elif mv.type_transaction == 'transfert_entrant' %}
+                                            {% elif mv.type_transaction in ['transfert_entrant'] %}
                                             Compte externe
                                             {% else %}
                                             -
