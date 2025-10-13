@@ -2111,7 +2111,8 @@ class TransactionFinanciere:
                     solde_apres = solde_avant + montant   # Crédit sur le compte principal
             else:
                 return False, f"Type de transaction non reconnu: {type_transaction}", None
-            reference_transfert = f"TRF_{int(time.time())}_{user_id}_{secrets.token_hex(6)}"
+            if reference_transfert is None:
+                reference_transfert = f"TRF_{int(time.time())}_{user_id}_{secrets.token_hex(6)}"
             # Insérer la transaction
             if compte_type == 'compte_principal':
                 query = """
@@ -2376,7 +2377,7 @@ class TransactionFinanciere:
             logging.error(f"❌ Erreur lors du transfert interne: {e}", exc_info=True)
             return False, f"Erreur lors du transfert: {str(e)}"   
    
-    def transfert_compte_vers_sous_compte(self, compte_id, sous_compte_id, montant, user_id, description="", date_transaction = datetime.now()):
+    def transfert_compte_vers_sous_compte(self, compte_id, sous_compte_id, montant, user_id, description="", date_transaction = datetime.now(), reference_transfert=None):
         """
         Transfert d'un compte principal vers un sous-compte.
         """
@@ -2832,9 +2833,11 @@ class TransactionFinanciere:
                     logging.info(f"Vérification appartenance compte {compte_id} à user {user_id}: {'trouvé' if row else 'non trouvé'}: {row}")
                 if not row:
                     return []
-                
+                logging.info(f'Vérification des formats de dates : date_debut={date_debut} (type={type(date_debut)}) / date_fin={date_fin} (type={type(date_fin)})  ')
                 debut_dt = datetime.strptime(date_debut, '%Y-%m-%d')
+                logging.info(f"Date début: {debut_dt}")
                 fin_dt = datetime.strptime(date_fin, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                logging.info(f"Date fin: {fin_dt}")
                 current = debut_dt
                 dates = []
                 while current <= fin_dt:
