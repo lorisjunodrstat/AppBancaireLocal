@@ -2823,11 +2823,14 @@ class TransactionFinanciere:
         try:
             with self.db.get_cursor() as cursor:
                 # Vérifier l'appartenance
-                cursor.execute("SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", (compte_id, user_id))
+                cursor.execute("SELECT id, solde_initial FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", (compte_id, user_id))
                 row = cursor.fetchone()
+                if row and row[0] == user_id:
+                    solde_initial = Decimal(str(row[1] or '0.00'))
+                    logging.info(f"Vérification appartenance compte {compte_id} à user {user_id}: {'trouvé' if row else 'non trouvé'}: {row}")
                 if not row:
                     return []
-                solde_initial = Decimal(str(row[0] or '0.00'))
+                
                 debut_dt = datetime.strptime(date_debut, '%Y-%m-%d')
                 fin_dt = datetime.strptime(date_fin, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
                 current = debut_dt
