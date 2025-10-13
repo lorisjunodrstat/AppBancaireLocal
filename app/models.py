@@ -2206,7 +2206,7 @@ class TransactionFinanciere:
             cursor.execute(query, (nouveau_solde, compte_id))#cursor.execute(query, (float(nouveau_solde), compte_id))
             if cursor.rowcount > 0:
                 logging.info(f"✅ Nombre de lignes mises à jour : {cursor.rowcount}")
-            return cursor.rowcount > 0  
+            return True  
         except Exception as e:
             logging.error(f"Erreur lors de la mise à jour du solde: {e}")
             return False
@@ -2820,21 +2820,35 @@ class TransactionFinanciere:
                 cursor.execute("SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", (compte_id, user_id))
                 if not cursor.fetchone():
                     return []
+                #query = """
+                #SELECT 
+                #    DATE(date_transaction) as date,
+                #    solde_apres
+                #FROM transactions
+                #WHERE compte_principal_id = %s
+                #AND date_transaction BETWEEN %s AND %s
+                #AND id IN (
+                #    SELECT MAX(id)
+                #    FROM transactions
+                #    WHERE compte_principal_id = %s
+                #    AND date_transaction BETWEEN %s AND %s
+                #    GROUP BY DATE(date_transaction)
+                #)
+                #ORDER BY date
+                #"""
                 query = """
-                SELECT 
-                    DATE(date_transaction) as date,
-                    solde_apres
-                FROM transactions
-                WHERE compte_principal_id = %s
-                AND date_transaction BETWEEN %s AND %s
-                AND id IN (
-                    SELECT MAX(id)
-                    FROM transactions
-                    WHERE compte_principal_id = %s
-                    AND date_transaction BETWEEN %s AND %s
-                    GROUP BY DATE(date_transaction)
-                )
-                ORDER BY date
+                SELECT date, solde_apres
+                    FROM (
+                        SELECT 
+                            DATE(date_transaction) as date,
+                            solde_apres,
+                            ROW_NUMBER() OVER (PARTITION BY DATE(date_transaction) ORDER BY id DESC) as rn
+                        FROM transactions
+                        WHERE compte_principal_id = %s
+                        AND date_transaction BETWEEN %s AND %s
+                    ) t
+                    WHERE rn = 1
+                    ORDER BY date;
                 """
                 cursor.execute(query, (compte_id, date_debut, date_fin, compte_id, date_debut, date_fin))
                 return cursor.fetchall()
