@@ -147,10 +147,17 @@
                                     <code class="small">{{ compte.iban }}</code>
                                 </div>
                                 {% endif %}
+                                {% if compte.date_ouverture %}
                                 <div class="d-flex justify-content-between">
                                     <span>Ouvert le:</span>
                                     <span>{{ compte.date_ouverture.strftime('%d/%m/%Y') if compte.date_ouverture else 'N/A' }}</span>
                                 </div>
+                                {% else %}
+                                <div class="d-flex justify-content-between">
+                                    <span>Ouvert le:</span>
+                                    <span>N/A</span>
+                                </div>
+                                {% endif %}
                             </div>
                             
                             <div class="btn-group btn-group-sm">
