@@ -1499,7 +1499,9 @@ class TransactionFinanciere:
                 
                 if not transaction:
                     return False, "Transaction non trouvée"
+                    logging.info(f'Transaction {transaction_id} non trouvée pour suppression')
                 if transaction['owner_user_id'] != user_id:
+                    logging.info(f'Utilisateur {user_id} non autorisé à supprimer cette transaction')
                     return False, "Non autorisé à supprimer cette transaction"
 
                 type_tx = transaction['type_transaction']
@@ -1511,6 +1513,7 @@ class TransactionFinanciere:
                 if type_tx in ['transfert_entrant', 'transfert_sortant']:
                     reference_transfert = transaction.get('reference_transfert')
                     if not reference_transfert:
+                        logging.error(f"Transfert corrompu : référence manquante pour la transaction {transaction_id}") 
                         return False, "Transfert corrompu : référence manquante"
 
                     # Récupérer les deux transactions liées
@@ -1569,11 +1572,14 @@ class TransactionFinanciere:
                 else:
                     # Supprimer la transaction unique
                     cursor.execute("DELETE FROM transactions WHERE id = %s", (transaction_id,))
-
+                    logging.info(f"Demande de suppression de la Transaction {transaction_id} supprimée avec succès")
+                    cursor.execute("SELECT * FROM transactions WHERE id = %s", (transaction_id,))
+                    logging.info(f"Vérification post-suppression: {cursor.fetchone()} (devrait être None)")
                     # Recalculer les soldes à partir de la date de la transaction
                     success = self._recalculer_soldes_apres_date_with_cursor(
                         cursor, compte_type, compte_id, date_transaction
                     )
+                    logging.info(f"Recalcul des soldes après suppression de la transaction {transaction_id} du compte {compte_id} en date du {date_transaction} {'réussi' if success else 'échoué'}")
                     if not success:
                         raise Exception("Erreur lors du recalcul des soldes")
 
@@ -2818,8 +2824,17 @@ class TransactionFinanciere:
             with self.db.get_cursor() as cursor:
                 # Vérifier l'appartenance
                 cursor.execute("SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", (compte_id, user_id))
-                if not cursor.fetchone():
+                row = cursor.fetchone()
+                if not row:
                     return []
+                solde_initial = Decimal(str(row[0] or '0.00'))
+                debut_dt = datetime.strptime(date_debut, '%Y-%m-%d')
+                fin_dt = datetime.strptime(date_fin, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                current = debut_dt
+                dates = []
+                while current <= fin_dt:
+                    dates.append(current)
+                    current += timedelta(days=1)
                 #query = """
                 #SELECT 
                 #    DATE(date_transaction) as date,
@@ -2842,15 +2857,19 @@ class TransactionFinanciere:
                         SELECT 
                             DATE(date_transaction) as date,
                             solde_apres,
-                            ROW_NUMBER() OVER (PARTITION BY DATE(date_transaction) ORDER BY id DESC) as rn
+                            ROW_NUMBER() OVER (
+                                PARTITION BY DATE(date_transaction) 
+                                ORDER BY id DESC
+                            ) as rn
                         FROM transactions
                         WHERE compte_principal_id = %s
-                        AND date_transaction BETWEEN %s AND %s
-                    ) t
+                           AND date_transaction >= %s
+                           AND date_transaction <= %s
+                    ) ranked
                     WHERE rn = 1
                     ORDER BY date;
                 """
-                cursor.execute(query, (compte_id, date_debut, date_fin, compte_id, date_debut, date_fin))
+                cursor.execute(query, (compte_id, date_debut, date_fin))
                 return cursor.fetchall()
         except Exception as e:
             logging.error(f"Erreur récupération évolution soldes compte: {e}")
