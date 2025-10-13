@@ -2825,8 +2825,10 @@ class TransactionFinanciere:
                 # Vérifier l'appartenance
                 cursor.execute("SELECT id, solde_initial FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", (compte_id, user_id))
                 row = cursor.fetchone()
-                if row and row[0] == user_id:
-                    solde_initial = Decimal(str(row[1] or '0.00'))
+                row_id = row['id']
+                logging.info(f"Vérification appartenance compte {compte_id} à user {user_id}: {'trouvé' if row else 'non trouvé'}: row_id {row['id'] if row else 'N/A'} / solde_initial {row['solde_initial'] if row else 'N/A'}    ")
+                if row and row_id == user_id:
+                    solde_initial = Decimal(str(row['solde_initial'] or '0.00'))
                     logging.info(f"Vérification appartenance compte {compte_id} à user {user_id}: {'trouvé' if row else 'non trouvé'}: {row}")
                 if not row:
                     return []
