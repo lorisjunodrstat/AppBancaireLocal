@@ -2198,9 +2198,10 @@ class TransactionFinanciere:
             else:
                 query = "UPDATE sous_comptes SET solde = %s WHERE id = %s"
             
-            cursor.execute(query, (float(nouveau_solde), compte_id))
-            return cursor.rowcount > 0
-                
+            cursor.execute(query, (nouveau_solde, compte_id))#cursor.execute(query, (float(nouveau_solde), compte_id))
+            if cursor.rowcount > 0:
+                logging.info(f"✅ Nombre de lignes mises à jour : {cursor.rowcount}")
+            return cursor.rowcount > 0  
         except Exception as e:
             logging.error(f"Erreur lors de la mise à jour du solde: {e}")
             return False
