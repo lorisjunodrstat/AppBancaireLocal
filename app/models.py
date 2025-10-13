@@ -2113,16 +2113,19 @@ class TransactionFinanciere:
                 (compte_principal_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres, reference_transfert)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
-                cursor.execute(query, (compte_id, type_transaction, float(montant), 
-                                    description, user_id, date_transaction, float(solde_apres), reference_transfert))
+                cursor.execute(query, (compte_id, type_transaction, montant, 
+                                    description, user_id, date_transaction, solde_apres, reference_transfert))
+                #cursor.execute(query, (compte_id, type_transaction, float(montant), description, user_id, date_transaction, float(solde_apres), reference_transfert))
+
             else:
                 query = """
                 INSERT INTO transactions 
                 (sous_compte_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres, reference_transfert)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
-                cursor.execute(query, (compte_id, type_transaction, float(montant), 
-                                    description, user_id, date_transaction, float(solde_apres), reference_transfert))
+                cursor.execute(query, (compte_id, type_transaction, montant, 
+                                    description, user_id, date_transaction, solde_apres, reference_transfert))
+    #cursor.execute(query, (compte_id, type_transaction, float(montant), description, user_id, date_transaction, float(solde_apres), reference_transfert))
 
             transaction_id = cursor.lastrowid
             
