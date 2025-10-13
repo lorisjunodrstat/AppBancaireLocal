@@ -1622,7 +1622,7 @@ class TransactionFinanciere:
 
                     cursor.execute(
                         "UPDATE transactions SET solde_apres = %s WHERE id = %s",
-                        (float(solde_courant), tx['id'])
+                        (solde_courant, tx['id'])#(float(solde_courant), tx['id'])
                     )
 
                 # Mettre à jour le solde final du compte
@@ -2247,7 +2247,7 @@ class TransactionFinanciere:
                 continue
             logging.info(f"Solde final à enregistrer pour {transaction['id']}: {solde_courant} (type: {type(solde_courant)})")
             update_query = "UPDATE transactions SET solde_apres = %s WHERE id = %s"
-            cursor.execute(update_query, (float(solde_courant), transaction['id']))
+            cursor.execute(update_query, (float(solde_courant), transaction['id'])) #cursor.execute(update_query, (float(solde_courant), transaction['id']))
             dernier_solde = solde_courant
         
         return dernier_solde
