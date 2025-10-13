@@ -1624,9 +1624,11 @@ class TransactionFinanciere:
                         "UPDATE transactions SET solde_apres = %s WHERE id = %s",
                         (solde_courant, tx['id'])#(float(solde_courant), tx['id'])
                     )
+                    logging.info(f"  - Transaction ID {tx['id']} ({tx['type_transaction']} {montant} le {tx['date_transaction']}): solde_apres mis à jour à {solde_courant}")
 
                 # Mettre à jour le solde final du compte
                 if not self._mettre_a_jour_solde_with_cursor(cursor, compte_type, compte_id, solde_courant):
+                    logging.error(f"Échec de la mise à jour du solde {solde_courant} du compte {compte_id} de type {compte_type}après réparation")
                     raise Exception("Échec de la mise à jour du solde du compte")
                 
                 logging.info(f"✅ Soldes du {compte_type} ID {compte_id} réparés avec succès. Nouveau solde: {solde_courant}")
