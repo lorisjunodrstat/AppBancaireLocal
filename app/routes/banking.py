@@ -67,6 +67,7 @@ def get_comptes_utilisateur(user_id):
             for compte in comptes:
                 compte['sous_comptes'] = g.models.sous_compte_model.get_by_compte_principal_id(compte['id'])
                 compte['solde_total'] = g.models.compte_model.get_solde_total_avec_sous_comptes(compte['id'])
+            logging.info(f"Comptes détaillés pour l'utilisateur {user_id}: {comptes} : sous_comptes {compte['sous_comptes']} / solde_total {compte['solde_total']}")
             return comptes
         except Exception as e:
             logging.error(f"Erreur lors de la récupération des comptes pour l'utilisateur {user_id}: {e}")
@@ -242,7 +243,7 @@ def banking_dashboard():
     stats = g.models.stats_model.get_resume_utilisateur(user_id)
     logger.debug(f'Stats récupérées: {stats}')
     repartition = g.models.stats_model.get_repartition_par_banque(user_id)
-    comptes = g.models.compte_model.get_comptes_utilisateur(user_id)
+    comptes = get_comptes_utilisateur(user_id)
     logger.debug(f'Comptes récupérés: {comptes}')
         
     # Ajout des stats comptables
@@ -255,7 +256,9 @@ def banking_dashboard():
         date_from=first_day.strftime('%Y-%m-%d'),
         date_to=last_day.strftime('%Y-%m-%d')
     )
-    
+    les_comptes = []
+    for c in comptes:
+        c = les_comptes.append(g.models.compte_model.get_by_id(c['id']))
     recettes_mois = sum(s['total_recettes'] or 0 for s in stats_comptables)
     depenses_mois = sum(s['total_depenses'] or 0 for s in stats_comptables)
     
@@ -264,7 +267,8 @@ def banking_dashboard():
                         stats=stats, 
                         repartition=repartition,
                         recettes_mois=recettes_mois,
-                        depenses_mois=depenses_mois)
+                        depenses_mois=depenses_mois,
+                        les_comptes=les_comptes)
 
 
 @bp.route('/banking/compte/<int:compte_id>')
