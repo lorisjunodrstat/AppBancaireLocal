@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Étape 2 : Valider les comptes pour chaque ligne</h2>
+<form method="post" action="{{ url_for('banking.import_csv_final') }}">
+  {% for row in rows %}
+    <fieldset class="border p-3 mb-4">
+      <legend>Ligne {{ row.index + 1 }}</legend>
+      <p><strong>Source :</strong> "{{ row.source_val }}"</p>
+      <div class="mb-2">
+        <label>Compte source :
+          <select name="row_{{ row.index }}_source" class="form-select" required>
+            <option value="">-- Choisir --</option>
+            {% for c in session.comptes_possibles %}
+              <option value="{{ c.id }}|{{ c.type }}">{{ c.nom }} ({{ c.type }})</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      {% if row.dest_val %}
+        <p><strong>Destination :</strong> "{{ row.dest_val }}"</p>
+        <div class="mb-2">
+          <label>Compte destination :
+            <select name="row_{{ row.index }}_dest" class="form-select" required>
+              <option value="">-- Choisir --</option>
+              {% for c in session.comptes_possibles %}
+                <option value="{{ c.id }}|{{ c.type }}">{{ c.nom }} ({{ c.type }})</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+      {% endif %}
+    </fieldset>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Importer les transactions</button>
+</form>
+<a href="{{ url_for('banking.import_csv_upload') }}" class="btn btn-secondary">Annuler</a>
+{% endblock %}

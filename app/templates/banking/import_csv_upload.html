@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Importer un fichier CSV</h2>
+<form method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <label for="csv_file" class="form-label">Fichier CSV (colonnes: date, montant, type, description, compte_source, compte_dest)</label>
+    <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+  </div>
+  <button type="submit" class="btn btn-primary">Uploader</button>
+</form>
+{% endblock %}
