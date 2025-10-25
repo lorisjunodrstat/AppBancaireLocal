@@ -145,6 +145,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>Id du contrat</th>
+                            <th>Employeur</th>
                             <th>Heures/semaine</th>
                             <th>Salaire horaire</th>
                             <th>Date début</th>
@@ -160,6 +161,7 @@
                         <tr class="{% if contrat.id == (contrat_actuel.id if contrat_actuel else None) %}table-success{% endif %}"
                             data-contract-id="{{ contrat.id }}">
                             <td>{{ contrat.id }}</td>
+                            <td>{{ contrat.employeur }}</td>
                             <td>{{ contrat.heures_hebdo }}</td>
                             <td>{{ contrat.salaire_horaire | default('24.05') }}</td>
                             <td>{{ contrat.date_debut }}</td>
