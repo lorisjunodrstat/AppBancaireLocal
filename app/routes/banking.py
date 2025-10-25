@@ -2954,15 +2954,32 @@ def heures_travail():
     logging.debug(f"DEBUG: Mois={mois}, Semaine={semaine}, Mode={current_mode}, Employeur sélectionné={selected_employeur} avec tous_contrats={len(tous_contrats)}")
     logging.error(f"DEBUG: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
     employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
-    if not selected_employeur and employeurs_unique:
-        contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
-        selected_employeur = contrat_actuel['employeur'] if contrat_actuel else employeurs_unique[0]
+    if not selected_employeur:
+        if employeurs_unique:
+            contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
+            if contrat_actuel:
+                selected_employeur = contrat_actuel['employeur']
+            else:
+                for emp in employeurs_unique:
+                    if g.models.heure_model.has_hours_for_employeur(current_user_id, emp):
+                        selected_employeur = emp
+                        break
+                    else:
+                        selected_employeur = employeurs_unique[0]
+        else:
+            selected_employeur = None
+
     contrat = None
     if selected_employeur:
         for c in tous_contrats:
             if c['employeur'] == selected_employeur and (c['date_fin'] is None or c['date_fin'] >= date.today()):
                 contrat = c
                 break
+        if contrat is None:
+            candidats = [c for c in tous_contrats if c['employeur'] == selected_employeur]
+            if candidats:
+                contrat = max(candidats, key=lambda x: x['date_fin'])
+       
     heures_hebdo_contrat = contrat['heures_hebdo'] if contrat else 38.0
     # Actions POST
     if request.method == 'POST':
@@ -3033,6 +3050,12 @@ def heures_travail():
                         tous_contrats=tous_contrats,
                         employeurs_unique=employeurs_unique,
                         selected_employeur=selected_employeur)
+
+def has_heures_for_employeur(self, user_id, employeur):
+    """Vérifie si des heures existent pour cet employeur."""
+    query = "SELECT 1 FROM heures_travail WHERE user_id = %s AND employeur = %s LIMIT 1"
+    result = self.db_manager.fetch_one(query, (user_id, employeur))
+    return result is not None
 
 def is_valid_time(time_str):
     """Validation renforcée du format d'heure"""
@@ -3292,6 +3315,20 @@ def salaires():
     employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
     # Structure : salaires_par_mois[mois] = { 'employeurs': { 'Nom Employeur': données_salaire, ... }, 'totaux_mois': {...} }
     salaires_par_mois = {}
+    if not selected_employeur:
+        if employeurs_unique:
+            contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
+            if contrat_actuel:
+                selected_employeur = contrat_actuel['employeur']
+            else:
+                for emp in employeurs_unique:
+                    if g.models.heure_model.has_hours_for_employeur(current_user_id, emp):
+                        selected_employeur = emp
+                        break
+                    else:
+                        selected_employeur = employeurs_unique[0]
+        else:
+            selected_employeur = None
 
     # Initialiser tous les mois de l'année
     for m in range(1, 13):
@@ -3547,8 +3584,11 @@ def update_salaire():
     current_user_id = current_user.id
     
     # Récupération du contrat
-    contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
-    employeur = contrat['employeur'] if contrat else None
+    date_ref = f"{annee}-{mois:02d}-01"
+    contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, employeur, date_ref)
+    if not contrat:
+        flash("Aucun contrat trouvé pour cet employeur et cette période", "error")
+        return redirect(url_for('banking.salaires', annee=annee))
     try:
         salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
     except (TypeError, ValueError):
