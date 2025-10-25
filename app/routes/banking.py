@@ -2949,6 +2949,7 @@ def heures_travail():
         current_mode = request.args.get('mode', 'reel')
         selected_employeur = request.args.get('employeur')
     tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+    loggin.error(f"DEBUG: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
     employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
     if not selected_employeur and employeurs_unique:
         contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
@@ -2978,7 +2979,7 @@ def heures_travail():
     semaines = {}
     for day_date in generate_days(annee, mois, semaine):
         date_str = day_date.isoformat()
-        jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, selected_employeur) or {
+        jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, employeur=selected_employeur) or {
             'date': date_str,
             'h1d': '',
             'h1f': '',
@@ -3026,7 +3027,9 @@ def heures_travail():
                         current_annee=annee,
                         current_mode=current_mode,
                         now = datetime.now(),
+                        tous_contrats=tous_contrats,
                         employeurs_unique=employeurs_unique,
+                        
                         selected_employeur=selected_employeur)
 
 def is_valid_time(time_str):
@@ -3251,7 +3254,7 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur):
         flash(f"Erreur simulation pour les jours: {', '.join(errors)}", "error")
     if success_count > 0:
         flash(f"Heures simulées appliquées pour {success_count} jour(s)", "info")
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, selected_employeur=selected_employeur))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
 
 def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur):
     days = generate_days(annee, mois, semaine)
@@ -3469,9 +3472,6 @@ def salaires():
     for key in totaux_annuels:
         totaux_annuels[key] = round(totaux_annuels[key], 2)
 
-    # Récupérer tous les contrats pour l'affichage (liste déroulante optionnelle)
-    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
-
     return render_template(
         'salaires/calcul_salaires.html',
         salaires_par_mois=salaires_par_mois,
@@ -3504,7 +3504,7 @@ def details_calcul_salaire():
         
         # Calcul avec détails
         resultats = g.models.salaire_model.calculer_salaire_net_avec_details(heures_reelles, 
-                                                                             contrat, user_id=current_user_id, annee=annee, mois=mois)
+                                                                            contrat, user_id=current_user_id, annee=annee, mois=mois)
         
         # Ajout du mois et de l'année aux résultats
         resultats['mois'] = mois

@@ -4260,7 +4260,7 @@ class Contrat:
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut DESC;"
-                cursor.execute(query, (user_id,))
+                cursor.execute(query, (user_id))
                 return cursor.fetchall()
         except Exception as e:
             logging.error(f"Erreur lors de la récupération des contrats: {e}")
@@ -4520,7 +4520,7 @@ class HeureTravail:
             else:
                 record[field] = ''
 
-    def get_total_heures_mois(self, user_id: int, annee: int, mois: int, employeur: str) -> float:
+    def get_total_heures_mois(self, user_id: int, employeur: str, annee: int, mois: int) -> float:
         """Calcule le total des heures pour un mois donné"""
         try:
             with self.db.get_cursor() as cursor:
