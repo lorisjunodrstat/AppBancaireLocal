@@ -3366,7 +3366,8 @@ def salaires():
             salaires_existants = g.models.salaire_model.get_by_mois_annee(
                 user_id=current_user_id,
                 annee=annee,
-                mois=m
+                mois=m,
+                employeur=employeur
             )
             # Filtrer par employeur
             salaire_existant = None
