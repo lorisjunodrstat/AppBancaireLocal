@@ -3334,8 +3334,7 @@ def salaires():
             # Vérifier chevauchement
 
             # Récupérer les heures réelles pour cet employeur ce mois-ci
-            heures_reelles = g.models.heure_model.get_total_heures_mois(
-                current_user_id, annee, m, employeur) or 0.0
+            heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, m, employeur) or 0.0
             heures_reelles = round(heures_reelles, 2)
 
             # Valeurs par défaut
@@ -3727,13 +3726,14 @@ def gestion_contrat():
                         contrats=contrats,
                         today=date.today())
     
-@bp.route('/nouveau_contrat', methods=['GET'])
+@bp.route('/nouveau_contrat', methods=['GET', 'POST'])
 @login_required
 def nouveau_contrat():
     current_user_id = current_user.id
     contrat = {}
-    if request.method == 'GET':
-        action = request.args.get('action')
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
         if action == 'save_new':
             try:
                 data = {
@@ -3762,10 +3762,12 @@ def nouveau_contrat():
             except ValueError:
                 flash("Certaines valeurs numériques sont invalides.", "danger")
                 return redirect(url_for('banking.nouveau_contrat'))
+
             nouveau_contrat = g.models.contrat_model.create_or_update(data)
-            flash('Nouveau contrat enregistré avec succès!', 'success')
-            if not nouveau_contrat:
+            if nouveau_contrat:
+                flash('Nouveau contrat enregistré avec succès!', 'success')
+            else:
                 flash("Erreur lors de la création du contrat.", "danger")
             return redirect(url_for('banking.gestion_contrat'))
-        
+
     return render_template('salaires/nouveau_contrat.html', today=date.today(), contrat=contrat)

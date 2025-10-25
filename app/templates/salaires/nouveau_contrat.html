@@ -7,147 +7,130 @@
             <h5 class="m-0 font-weight-bold">Nouveau contrat</h5>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('banking.gestion_contrat') }}">
+            <form method="POST" action="{{ url_for('banking.nouveau_contrat') }}">
                 <input type="hidden" name="action" value="save_new">
-                <input type="hidden" name="contrat_id" value="{{ contrat_actuel.id if contrat_actuel else '' }}">
-                <p>Id du contrat {{ contrat_actuel.id }}</p>
-
+                <input type="hidden" name="contrat_id" value="{{ contrat.id if contrat else '' }}">
+            
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <label class="form-label">Employeur</label>
                         <input type="text" class="form-control" name="employeur"
-                            value="{{ contrat_actuel.employeur if contrat_actuel else '' }}" required>
+                            value="{{ contrat.employeur if contrat and contrat.employeur else '' }}" required>
+                    </div>
                 </div>
-
+            
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">Heures hebdomadaires</label>
                         <input type="number" step="0.01" class="form-control" name="heures_hebdo"
-                            value="{{ contrat_actuel.heures_hebdo if contrat_actuel else 38.0 }}" required>
+                            value="{{ contrat.heures_hebdo if contrat and contrat.heures_hebdo is not None else 38.0 }}" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Salaire horaire (CHF)</label>
                         <input type="number" step="0.01" class="form-control" name="salaire_horaire"
-                            value="{{ contrat_actuel.salaire_horaire if contrat_actuel and contrat_actuel.salaire_horaire else 24.05 }}"
+                            value="{{ contrat.salaire_horaire if contrat and contrat.salaire_horaire is not None else 24.05 }}"
                             required>
                     </div>
                 </div>
-
+            
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">Date de début</label>
                         <input type="date" class="form-control" name="date_debut"
-                            value="{{ contrat_actuel.date_debut if contrat_actuel else '' }}" required>
+                            value="{{ contrat.date_debut if contrat and contrat.date_debut else '' }}" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Date de fin (optionnel)</label>
                         <input type="date" class="form-control" name="date_fin"
-                            value="{{ contrat_actuel.date_fin if contrat_actuel else '' }}">
+                            value="{{ contrat.date_fin if contrat and contrat.date_fin else '' }}">
                     </div>
                 </div>
-
+            
+                <div class="col-md-6">
+                    <label class="form-label">Jour d'estimation du salaire (1-31)</label>
+                    <input type="number" min="1" max="31" class="form-control" name="jour_estimation_salaire"
+                        value="{{ contrat.jour_estimation_salaire if contrat and contrat.jour_estimation_salaire is not None else 15 }}"
+                        required>
+                </div>
+            
+                <div class="col-md-6">
+                    <label class="form-label">Versements</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="versement_10" id="versement_10" {% if contrat and
+                            contrat.versement_10 %}checked{% endif %}>
+                        <label class="form-check-label" for="versement_10">Versement le 10</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="versement_25" id="versement_25" {% if contrat and
+                            contrat.versement_25 %}checked{% endif %}>
+                        <label class="form-check-label" for="versement_25">Versement le 25</label>
+                    </div>
+                </div>
+            
+                <!-- Indemnités et cotisations avec noms CSS harmonisés -->
                 <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Jour d'estimation du salaire (1-31)</label>
-                        <input type="number" min="1" max="31" class="form-control" name="jour_estimation_salaire"
-                            value="{{ contrat_actuel.jour_estimation_salaire if contrat_actuel and contrat_actuel.jour_estimation_salaire else 15 }}"
-                            required>
+                    <div class="col">
+                        <label class="form-label">Vacances</label>
+                        <input type="number" step="0.01" class="form-control" name="indemnite_vacances_tx"
+                            value="{{ contrat.indemnite_vacances_tx if contrat and contrat.indemnite_vacances_tx is not None else 10.0 }}">
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Versements</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="versement_10" id="versement_10" {% if
-                                contrat_actuel and contrat_actuel.versement_10 %}checked{% else %}checked{% endif %}>
-                            <label class="form-check-label" for="versement_10">
-                                Versement le 10
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="versement_25" id="versement_25" {% if
-                                contrat_actuel and contrat_actuel.versement_25 %}checked{% else %}checked{% endif %}>
-                            <label class="form-check-label" for="versement_25">
-                                Versement le 25
-                            </label>
-                        </div>
+                    <div class="col">
+                        <label class="form-label">Jours fériés</label>
+                        <input type="number" step="0.01" class="form-control" name="indemnite_jours_feries_tx"
+                            value="{{ contrat.indemnite_jours_feries_tx if contrat and contrat.indemnite_jours_feries_tx is not None else 5.0 }}">
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Congés</label>
+                        <input type="number" step="0.01" class="form-control" name="indemnite_jour_conges_tx"
+                            value="{{ contrat.indemnite_jour_conges_tx if contrat and contrat.indemnite_jour_conges_tx is not None else 7.0 }}">
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Repas</label>
+                        <input type="number" step="0.01" class="form-control" name="indemnite_repas_tx"
+                            value="{{ contrat.indemnite_repas_tx if contrat and contrat.indemnite_repas_tx is not None else 5.0 }}">
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Retenues</label>
+                        <input type="number" step="0.01" class="form-control" name="indemnite_retenues_tx"
+                            value="{{ contrat.indemnite_retenues_tx if contrat and contrat.indemnite_retenues_tx is not None else 3.0 }}">
                     </div>
                 </div>
+            
                 <div class="row mb-3">
-                    <div class="col-md-12">
-                        <h6>Indemnités (en %)</h6>
+                    <div class="col">
+                        <label class="form-label">AVS</label>
+                        <input type="number" step="0.01" class="form-control" name="cotisation_avs_tx"
+                            value="{{ contrat.cotisation_avs_tx if contrat and contrat.cotisation_avs_tx is not None else 5.3 }}">
                     </div>
-                    <div class="row row-cols-2 row-cols-md-5 g-2">
-                        <div class="col">
-                            <label class="form-label">Vacances</label>
-                            <input type="number" step="0.01" class="form-control" name="indemnite_vacances_tx"
-                                value="{{ contrat_actuel.indemnite_vacances_tx if contrat_actuel and contrat_actuel.indemnite_vacances_tx is not none else '10.0' }}">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Jours fériés</label>
-                            <input type="number" step="0.01" class="form-control" name="indemnite_jours_feries_tx"
-                                value="{{ contrat_actuel.indemnite_jours_feries_tx if contrat_actuel and contrat_actuel.indemnite_jours_feries_tx is not none else '5.0' }}">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Congés</label>
-                            <input type="number" step="0.01" class="form-control" name="indemnite_jour_conges_tx"
-                                value="{{ contrat_actuel.indemnite_jour_conges_tx if contrat_actuel and contrat_actuel.indemnite_jour_conges_tx is not none else '7.0' }}">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Repas</label>
-                            <input type="number" step="0.01" class="form-control" name="indemnite_repas_tx"
-                                value="{{ contrat_actuel.indemnite_repas_tx if contrat_actuel and contrat_actuel.indemnite_repas_tx is not none else '5.0' }}">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Retenues</label>
-                            <input type="number" step="0.01" class="form-control" name="indemnite_retenues_tx"
-                                value="{{ contrat_actuel.indemnite_retenues_tx if contrat_actuel and contrat_actuel.indemnite_retenues_tx is not none else '3.0' }}">
-                        </div>
+                    <div class="col">
+                        <label class="form-label">AC</label>
+                        <input type="number" step="0.01" class="form-control" name="cotisation_ac_tx"
+                            value="{{ contrat.cotisation_ac_tx if contrat and contrat.cotisation_ac_tx is not None else 1.1 }}">
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Accident non-prof.</label>
+                        <input type="number" step="0.01" class="form-control" name="cotisation_accident_n_prof_tx"
+                            value="{{ contrat.cotisation_accident_n_prof_tx if contrat and contrat.cotisation_accident_n_prof_tx is not None else 1.0 }}">
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Assurance maladie</label>
+                        <input type="number" step="0.01" class="form-control" name="cotisation_assurance_indemnite_maladie_tx"
+                            value="{{ contrat.cotisation_assurance_indemnite_maladie_tx if contrat and contrat.cotisation_assurance_indemnite_maladie_tx is not None else 3.0 }}">
+                    </div>
+                    <div class="col">
+                        <label class="form-label">CAP</label>
+                        <input type="number" step="0.01" class="form-control" name="cotisation_cap_tx"
+                            value="{{ contrat.cotisation_cap_tx if contrat and contrat.cotisation_cap_tx is not None else 0.5 }}">
                     </div>
                 </div>
-
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <h6>Cotisations (en %)</h6>
-                    </div>
-                    <div class="row row-cols-2 row-cols-md-5 g-2">
-                        <div class="col">
-                            <label class="form-label">AVS</label>
-                            <input type="number" step="0.01" class="form-control" name="cotisation_avs_tx"
-                                value="{{ contrat_actuel.cotisation_avs_tx if contrat_actuel and contrat_actuel.cotisation_avs_tx is not none else '5.3' }}">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">AC</label>
-                            <input type="number" step="0.01" class="form-control" name="cotisation_ac_tx"
-                                value="{{ contrat_actuel.cotisation_ac_tx if contrat_actuel and contrat_actuel.cotisation_ac_tx is not none else '1.1' }}">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Accident non-prof.</label>
-                            <input type="number" step="0.01" class="form-control" name="cotisation_accident_n_prof_tx"
-                                value="{{ contrat_actuel.cotisation_accident_n_prof_tx if contrat_actuel and contrat_actuel.cotisation_accident_n_prof_tx is not none else '1.0' }}">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">Assurance maladie</label>
-                            <input type="number" step="0.01" class="form-control" name="cotisation_assurance_indemnite_maladie_tx"
-                                value="{{ contrat_actuel.cotisation_assurance_indemnite_maladie_tx if contrat_actuel and contrat_actuel.cotisation_assurance_indemnite_maladie_tx is not none else '3.0' }}">
-                        </div>
-                        <div class="col">
-                            <label class="form-label">CAP</label>
-                            <input type="number" step="0.01" class="form-control" name="cotisation_cap_tx"
-                                value="{{ contrat_actuel.cotisation_cap_tx if contrat_actuel and contrat_actuel.cotisation_cap_tx is not none else '0.5' }}">
-                        </div>
-                    </div>
-                </div>
-
+            
                 <div class="d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary me-2">
                         <i class="fas fa-save me-1"></i> Enregistrer
                     </button>
-                    {% if contrat_actuel %}
-                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                        <i class="fas fa-trash me-1"></i> Supprimer
-                    </button>
-                    {% endif %}
                 </div>
             </form>
+
         </div>
     </div>
 
