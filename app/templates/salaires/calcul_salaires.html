@@ -16,7 +16,7 @@
             <!-- Filtre par Employeur -->
             <div class="me-3">
                 <label class="form-label me-2">Employeur :</label>
-                <select name="employeur" class="form-select" style="width:auto;" display: inline-block;">
+                <select name="employeur" class="form-select" style="width:auto;display: inline-block;">
                 <option value="">Tous les employeurs ({{ employeurs_unique|length }})</option>
                 {% for emp in employeurs_unique %}
                     <option value="{{ emp }}" {% if selected_employeur == emp %}selected{% endif %}>
@@ -28,7 +28,7 @@
             <!-- Filtre par année -->
             <div class="me-3">
                 <label class="form-label me-2">Année:</label>
-                <select name="annee" class="form-select" style="width:auto;" display: inline-block;">
+                <select name="annee" class="form-select" style="width:auto;display: inline-block;">
                     <option value="">Toutes les années</option>
                     {% for year in range(annee_courante -2, annee_courante + 3) %}
                         <option value="{{ year }}" {% if annee_courante == year %}selected{% endif %}>

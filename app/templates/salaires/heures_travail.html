@@ -27,10 +27,10 @@
                 
                 <div class="row">
                     <div class="col-md-4"><!-- Filtre Employeur -->
-                        <label for="filter-employeur" class="form-label">Employeur</label>
+                        <label for="filter-employeur" class="form-label">Employeur {{ tous_contrats|length }} {{ employeurs_unique|length }}</label>
                         <select class="form-select" id="filter-employeur" name="employeur" aria-describedby="employeurHelp">
                             <option value="">-- Sélectionner --</option>
-                            {% for emp in employeurs_uniques %}
+                            {% for emp in employeurs_unique %}
                             <option value="{{ emp }}" {% if selected_employeur == emp %}selected{% endif %}>
                                 {{ emp }} 
                             </option>

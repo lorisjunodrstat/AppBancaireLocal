@@ -2949,7 +2949,8 @@ def heures_travail():
         current_mode = request.args.get('mode', 'reel')
         selected_employeur = request.args.get('employeur')
     tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
-    loggin.error(f"DEBUG: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
+    logging.debug(f"DEBUG: Mois={mois}, Semaine={semaine}, Mode={current_mode}, Employeur sélectionné={selected_employeur} avec tous_contrats={len(tous_contrats)}")
+    logging.error(f"DEBUG: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
     employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
     if not selected_employeur and employeurs_unique:
         contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
@@ -2979,7 +2980,7 @@ def heures_travail():
     semaines = {}
     for day_date in generate_days(annee, mois, semaine):
         date_str = day_date.isoformat()
-        jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, employeur=selected_employeur) or {
+        jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, selected_employeur) or {
             'date': date_str,
             'h1d': '',
             'h1f': '',
@@ -3029,7 +3030,6 @@ def heures_travail():
                         now = datetime.now(),
                         tous_contrats=tous_contrats,
                         employeurs_unique=employeurs_unique,
-                        
                         selected_employeur=selected_employeur)
 
 def is_valid_time(time_str):

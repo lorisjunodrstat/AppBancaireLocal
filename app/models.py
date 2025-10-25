@@ -4260,7 +4260,7 @@ class Contrat:
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut DESC;"
-                cursor.execute(query, (user_id))
+                cursor.execute(query, (user_id,))
                 return cursor.fetchall()
         except Exception as e:
             logging.error(f"Erreur lors de la récupération des contrats: {e}")
