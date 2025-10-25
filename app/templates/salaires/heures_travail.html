@@ -18,7 +18,7 @@
 
     <div class="card mb-4"> <!--Card pour l'encodage des heures de travail-->
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h5 class="m-0 font-weight-bold">>Encodage des heures de travail 2212</h5>
+            <h5 class="m-0 font-weight-bold">Encodage des heures de travail 2212 {{ tous_contrats|length }} {{ employeurs_unique|length }}</h5>
         </div>
         <div class="card-body">
 
@@ -26,6 +26,7 @@
             <form method="GET" class="mb-4">
                 
                 <div class="row">
+                    {% if employeurs_unique %}
                     <div class="col-md-4"><!-- Filtre Employeur -->
                         <label for="filter-employeur" class="form-label">Employeur {{ tous_contrats|length }} {{ employeurs_unique|length }}</label>
                         <select class="form-select" id="filter-employeur" name="employeur" aria-describedby="employeurHelp">
@@ -38,8 +39,14 @@
                         </select>
                         <small id="employeurHelp" class="form-text text-muted">Sélectionnez l'employeur</small>
                     </div>
+                    (% else %)
+                    <div class="col-md-4">
+                        <p>Aucun contrat trouvé. Veuillez d'abord créer un contrat.</p>
+                    </div>
+                    {% endif %}
+
                     <div class="col-md-2"> <!-- Filtre Annee -->
-                        <label for="filter-annee" class="form-label">Année</label>
+                        <label for="filter-annee" class="form-label">Année MM</label>
                         <select class="form-select" id="filter-annee" name="annee" aria-describedby="anneeHelp">
                             {% for y in range(now.year-2, now.year+3) %}
                             <option value="{{ y }}" {% if current_annee==y %}selected{% endif %}>{{ y }}</option>

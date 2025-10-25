@@ -3289,7 +3289,7 @@ def salaires():
     logger.info(f"Affichage des salaires pour utilisateur {current_user_id}, année={annee}")
     tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
     logging.info(f"{len(tous_contrats)} Contrats récupérés: {tous_contrats} ")
-    employeurs_uniques = sorted({c['employeur'] for c in tous_contrats})
+    employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
     # Structure : salaires_par_mois[mois] = { 'employeurs': { 'Nom Employeur': données_salaire, ... }, 'totaux_mois': {...} }
     salaires_par_mois = {}
 
@@ -3473,9 +3473,10 @@ def salaires():
         totaux=totaux_annuels,
         annee_courante=annee,
         tous_contrats=tous_contrats,
-        employeurs_uniques=employeurs_uniques,
+        employeurs_unique=employeurs_unique,
         selected_employeur=selected_employeur,
         contrat_actuel=contrat
+        
     )
 
 @bp.route('/api/details_calcul_salaire')
@@ -3738,7 +3739,7 @@ def nouveau_contrat():
     contrat = {}
     if request.method == 'GET':
         action = request.args.get('action')
-        if action == 'save':
+        if action == 'save_new':
             try:
                 data = {
                     'id': request.form.get('contrat_id') or None,
