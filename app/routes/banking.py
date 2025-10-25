@@ -3335,8 +3335,7 @@ def salaires():
 
             # Récupérer les heures réelles pour cet employeur ce mois-ci
             heures_reelles = g.models.heure_model.get_total_heures_mois(
-                current_user_id, annee, m, employeur
-            ) or 0.0
+                current_user_id, annee, m, employeur) or 0.0
             heures_reelles = round(heures_reelles, 2)
 
             # Valeurs par défaut
