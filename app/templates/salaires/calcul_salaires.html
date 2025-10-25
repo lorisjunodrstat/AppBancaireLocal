@@ -444,14 +444,14 @@
                 </div>
                 <div class="modal-body  p-4">
 
-                    {% if data.details and data.details.erreur %}
+                    {% if salaire_data.details and salaire_data.details.erreur %}
                     <div class="alert alert-danger">
                         <h5><i class="fas fa-exclamation-triangle me-2"></i>Erreur dans le calcul</h5>
                         <p>{{ data.details.erreur }}</p>
                     </div>
                     {% else %}
                     <!-- Correction: Vérifier l'existence de data.details.details -->
-                    {% set details_data = data.details.get('details', {}) %}
+                    {% set details_data = salaire_data.details.get('details', {}) if salaire_data and salaire_data.details else {} %}
                         <!-- Section informations de base -->
                     <div class="detail-calcul-section" style="background-color: beige;">
                             <h5 class="text-center"><i class="fas fa-info-circle section-icon me-2"></i>  Informations de base (id : {{ data.id }})</h5>
@@ -774,7 +774,7 @@
                                 </div>
                             </div>
                             <div class="col-md-4 text-end">
-                                <span><strong>{{ "%.2f"|format(data.salaire_net) }} CHF</strong></span>
+                                <span><strong>{{ "%.2f"|format(salaire_data.salaire_net) if salaire_data else '0.00' }} CHF</strong></span>
                             </div>
                         </div>
                         {% endif %}

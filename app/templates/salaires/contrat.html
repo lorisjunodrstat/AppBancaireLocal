@@ -13,6 +13,13 @@
                 <p>Id du contrat {{ contrat_actuel.id }}</p>
 
                 <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label">Employeur</label>
+                        <input type="text" class="form-control" name="employeur"
+                            value="{{ contrat_actuel.employeur if contrat_actuel else '' }}" required>
+                    </div>
+                </div>
+                <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">Heures hebdomadaires</label>
                         <input type="number" step="0.01" class="form-control" name="heures_hebdo"
