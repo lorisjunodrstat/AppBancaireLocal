@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header py-3">
+            <h5 class="m-0 font-weight-bold">Nouveau contrat</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('banking.gestion_contrat') }}">
+                <input type="hidden" name="action" value="save_new">
+                <input type="hidden" name="contrat_id" value="{{ contrat_actuel.id if contrat_actuel else '' }}">
+                <p>Id du contrat {{ contrat_actuel.id }}</p>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label">Employeur</label>
+                        <input type="text" class="form-control" name="employeur"
+                            value="{{ contrat_actuel.employeur if contrat_actuel else '' }}" required>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Heures hebdomadaires</label>
+                        <input type="number" step="0.01" class="form-control" name="heures_hebdo"
+                            value="{{ contrat_actuel.heures_hebdo if contrat_actuel else 38.0 }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Salaire horaire (CHF)</label>
+                        <input type="number" step="0.01" class="form-control" name="salaire_horaire"
+                            value="{{ contrat_actuel.salaire_horaire if contrat_actuel and contrat_actuel.salaire_horaire else 24.05 }}"
+                            required>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Date de début</label>
+                        <input type="date" class="form-control" name="date_debut"
+                            value="{{ contrat_actuel.date_debut if contrat_actuel else '' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Date de fin (optionnel)</label>
+                        <input type="date" class="form-control" name="date_fin"
+                            value="{{ contrat_actuel.date_fin if contrat_actuel else '' }}">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Jour d'estimation du salaire (1-31)</label>
+                        <input type="number" min="1" max="31" class="form-control" name="jour_estimation_salaire"
+                            value="{{ contrat_actuel.jour_estimation_salaire if contrat_actuel and contrat_actuel.jour_estimation_salaire else 15 }}"
+                            required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Versements</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="versement_10" id="versement_10" {% if
+                                contrat_actuel and contrat_actuel.versement_10 %}checked{% else %}checked{% endif %}>
+                            <label class="form-check-label" for="versement_10">
+                                Versement le 10
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="versement_25" id="versement_25" {% if
+                                contrat_actuel and contrat_actuel.versement_25 %}checked{% else %}checked{% endif %}>
+                            <label class="form-check-label" for="versement_25">
+                                Versement le 25
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <h6>Indemnités (en %)</h6>
+                    </div>
+                    <div class="row row-cols-2 row-cols-md-5 g-2">
+                        <div class="col">
+                            <label class="form-label">Vacances</label>
+                            <input type="number" step="0.01" class="form-control" name="indemnite_vacances_tx"
+                                value="{{ contrat_actuel.indemnite_vacances_tx if contrat_actuel and contrat_actuel.indemnite_vacances_tx is not none else '10.0' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Jours fériés</label>
+                            <input type="number" step="0.01" class="form-control" name="indemnite_jours_feries_tx"
+                                value="{{ contrat_actuel.indemnite_jours_feries_tx if contrat_actuel and contrat_actuel.indemnite_jours_feries_tx is not none else '5.0' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Congés</label>
+                            <input type="number" step="0.01" class="form-control" name="indemnite_jour_conges_tx"
+                                value="{{ contrat_actuel.indemnite_jour_conges_tx if contrat_actuel and contrat_actuel.indemnite_jour_conges_tx is not none else '7.0' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Repas</label>
+                            <input type="number" step="0.01" class="form-control" name="indemnite_repas_tx"
+                                value="{{ contrat_actuel.indemnite_repas_tx if contrat_actuel and contrat_actuel.indemnite_repas_tx is not none else '5.0' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Retenues</label>
+                            <input type="number" step="0.01" class="form-control" name="indemnite_retenues_tx"
+                                value="{{ contrat_actuel.indemnite_retenues_tx if contrat_actuel and contrat_actuel.indemnite_retenues_tx is not none else '3.0' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <h6>Cotisations (en %)</h6>
+                    </div>
+                    <div class="row row-cols-2 row-cols-md-5 g-2">
+                        <div class="col">
+                            <label class="form-label">AVS</label>
+                            <input type="number" step="0.01" class="form-control" name="cotisation_avs_tx"
+                                value="{{ contrat_actuel.cotisation_avs_tx if contrat_actuel and contrat_actuel.cotisation_avs_tx is not none else '5.3' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">AC</label>
+                            <input type="number" step="0.01" class="form-control" name="cotisation_ac_tx"
+                                value="{{ contrat_actuel.cotisation_ac_tx if contrat_actuel and contrat_actuel.cotisation_ac_tx is not none else '1.1' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Accident non-prof.</label>
+                            <input type="number" step="0.01" class="form-control" name="cotisation_accident_n_prof_tx"
+                                value="{{ contrat_actuel.cotisation_accident_n_prof_tx if contrat_actuel and contrat_actuel.cotisation_accident_n_prof_tx is not none else '1.0' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Assurance maladie</label>
+                            <input type="number" step="0.01" class="form-control" name="cotisation_assurance_indemnite_maladie_tx"
+                                value="{{ contrat_actuel.cotisation_assurance_indemnite_maladie_tx if contrat_actuel and contrat_actuel.cotisation_assurance_indemnite_maladie_tx is not none else '3.0' }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">CAP</label>
+                            <input type="number" step="0.01" class="form-control" name="cotisation_cap_tx"
+                                value="{{ contrat_actuel.cotisation_cap_tx if contrat_actuel and contrat_actuel.cotisation_cap_tx is not none else '0.5' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-save me-1"></i> Enregistrer
+                    </button>
+                    {% if contrat_actuel %}
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="fas fa-trash me-1"></i> Supprimer
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Historique des contrats -->
+    <div class="card mt-4">
+        <div class="card-header py-3">
+            <h5 class="m-0 font-weight-bold">Historique des contrats</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Id du contrat</th>
+                            <th>Heures/semaine</th>
+                            <th>Salaire horaire</th>
+                            <th>Date début</th>
+                            <th>Date fin</th>
+                            <th>Jour estimation</th>
+                            <th>Versements</th>
+                            <th>Statut</th>
+                            <th>Actions</th> <!-- Nouvelle colonne Actions -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contrat in contrats %}
+                        <tr class="{% if contrat.id == (contrat_actuel.id if contrat_actuel else None) %}table-success{% endif %}"
+                            data-contract-id="{{ contrat.id }}">
+                            <td>{{ contrat.id }}</td>
+                            <td>{{ contrat.heures_hebdo }}</td>
+                            <td>{{ contrat.salaire_horaire | default('24.05') }}</td>
+                            <td>{{ contrat.date_debut }}</td>
+                            <td>{{ contrat.date_fin if contrat.date_fin else '-' }}</td>
+                            <td>{{ contrat.jour_estimation_salaire | default('15') }}</td>
+                            <td>
+                                {% if contrat.versement_10 %}10{% endif %}
+                                {% if contrat.versement_10 and contrat.versement_25 %}, {% endif %}
+                                {% if contrat.versement_25 %}25{% endif %}
+                            </td>
+                            <td>
+                                {% if not contrat.date_fin or contrat.date_fin >= today %}
+                                <span class="badge bg-success">Actif</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Expiré</span>
+                                {% endif %}
+                            </td>
+                            <td class="d-none indemnite_vacances_tx">{{ contrat.indemnite_vacances_tx }}</td>
+                            <td class="d-none indemnite_jours_feries_tx">{{ contrat.indemnite_jours_feries_tx }}</td>
+                            <td class="d-none indemnite_jour_conges_tx">{{ contrat.indemnite_jour_conges_tx }}</td>
+                            <td class="d-none indemnite_repas_tx">{{ contrat.indemnite_repas_tx }}</td>
+                            <td class="d-none indemnite_retenues_tx">{{ contrat.indemnite_retenues_tx }}</td>
+                            <td class="d-none cotisation_avs_tx">{{ contrat.cotisation_avs_tx }}</td>
+                            <td class="d-none cotisation_ac_tx">{{ contrat.cotisation_ac_tx }}</td>
+                            <td class="d-none accident_n_prof_tx">{{ contrat.accident_n_prof_tx }}</td>
+                            <td class="d-none assurance_indemnite_maladie_tx">{{ contrat.assurance_indemnite_maladie_tx
+                                }}</td>
+                            <td class="d-none cap_tx">{{ contrat.cap_tx }}</td>
+                            <td>
+                                <!-- Bouton Modifier -->
+                                <button type="button" class="btn btn-sm btn-primary"
+                                    onclick="loadContractToForm({{ contrat.id }})" data-bs-toggle="tooltip"
+                                    title="Modifier ce contrat">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center">Aucun contrat disponible.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+{% if contrat_actuel %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('banking.gestion_contrat') }}">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="contrat_id" value="{{ contrat_actuel.id }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirmer la suppression</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body">
+                    Êtes-vous sûr de vouloir supprimer le contrat N°{{ contrat_actuel.id }} ?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+    function loadContractToForm(contractId) {
+        const row = document.querySelector(`tr[data-contract-id="${contractId}"]`);
+        if (!row) return;
+
+        document.querySelector('input[name="contrat_id"]').value = contractId;
+
+        document.querySelector('input[name="heures_hebdo"]').value = row.cells[1].textContent.trim();
+        document.querySelector('input[name="salaire_horaire"]').value = row.cells[2].textContent.trim();
+        document.querySelector('input[name="date_debut"]').value = row.cells[3].textContent.trim();
+        document.querySelector('input[name="date_fin"]').value = row.cells[4].textContent.trim() === '-' ? '' : row.cells[4].textContent.trim();
+        document.querySelector('input[name="jour_estimation_salaire"]').value = row.cells[5].textContent.trim();
+
+        const versements = row.cells[6].textContent;
+        document.querySelector('#versement_10').checked = versements.includes('10');
+        document.querySelector('#versement_25').checked = versements.includes('25');
+
+        // Indemnités
+        document.querySelector('input[name="indemnite_vacances_tx"]').value = row.querySelector('.indemnite_vacances_tx').textContent.trim();
+        document.querySelector('input[name="indemnite_jours_feries_tx"]').value = row.querySelector('.indemnite_jours_feries_tx').textContent.trim();
+        document.querySelector('input[name="indemnite_jour_conges_tx"]').value = row.querySelector('.indemnite_jour_conges_tx').textContent.trim();
+        document.querySelector('input[name="indemnite_repas_tx"]').value = row.querySelector('.indemnite_repas_tx').textContent.trim();
+        document.querySelector('input[name="indemnite_retenues_tx"]').value = row.querySelector('.indemnite_retenues_tx').textContent.trim();
+
+        // Cotisations
+        document.querySelector('input[name="cotisation_avs_tx"]').value = row.querySelector('.cotisation_avs_tx').textContent.trim();
+        document.querySelector('input[name="cotisation_ac_tx"]').value = row.querySelector('.cotisation_ac_tx').textContent.trim();
+        document.querySelector('input[name="accident_n_prof_tx"]').value = row.querySelector('.accident_n_prof_tx').textContent.trim();
+        document.querySelector('input[name="assurance_indemnite_maladie_tx"]').value = row.querySelector('.assurance_indemnite_maladie_tx').textContent.trim();
+        document.querySelector('input[name="cap_tx"]').value = row.querySelector('.cap_tx').textContent.trim();
+
+        document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function confirmDelete(contractId) {
+        if (confirm(`Voulez-vous vraiment supprimer le contrat #${contractId} ?`)) {
+            // Souvent on ferait une requête fetch pour supprimer côté serveur,
+            // ou on peut rediriger vers une URL dédiée :
+            window.location.href = `/delete_contract/${contractId}`;
+        }
+    }
+</script>
+{% endblock %}

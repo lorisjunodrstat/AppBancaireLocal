@@ -3280,16 +3280,16 @@ def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur):
 @bp.route('/salaires', methods=['GET'])
 @login_required
 def salaires():
-    from datetime import date  # Assurez-vous que `date` est importé
-
+    current_user_id = current_user.id
     now = datetime.now()
     annee = request.args.get('annee', now.year, type=int)
     mois = request.args.get('mois', now.month, type=int)
-    current_user_id = current_user.id
     selected_employeur = request.args.get('employeur', '')
 
     logger.info(f"Affichage des salaires pour utilisateur {current_user_id}, année={annee}")
-
+    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+    logging.info(f"{len(tous_contrats)} Contrats récupérés: {tous_contrats} ")
+    employeurs_uniques = sorted({c['employeur'] for c in tous_contrats})
     # Structure : salaires_par_mois[mois] = { 'employeurs': { 'Nom Employeur': données_salaire, ... }, 'totaux_mois': {...} }
     salaires_par_mois = {}
 
@@ -3319,20 +3319,19 @@ def salaires():
         date_mois = date.fromisoformat(date_mois_str)
 
         # Trouver les contrats actifs ce mois-ci
-        contrats_actifs_ce_mois = []
-        for c in tous_contrats:
-            date_debut = c['date_debut']
-            date_fin = c['date_fin']
-
-            # Vérifier chevauchement
-            if date_debut <= date_mois and (date_fin is None or date_fin >= date_mois):
-                contrats_actifs_ce_mois.append(c)
-
-        # Pour chaque employeur actif ce mois-ci
-        for contrat in contrats_actifs_ce_mois:
+        contrat = None
+        if selected_employeur:
+            for c in tous_contrats:
+                if c['employeur'] == selected_employeur and c['date_debut'] <= date_mois and (c['date_fin'] is None or c['date_fin'] >= date_mois):
+                    contrat = c
+                    break
+        else:
+            contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
+        if contrat:
             employeur = contrat['employeur']
             salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
-            jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
+            jour_estimation = int(contrat.get('jour_estimation_salaire', 15))       
+            # Vérifier chevauchement
 
             # Récupérer les heures réelles pour cet employeur ce mois-ci
             heures_reelles = g.models.heure_model.get_total_heures_mois(
@@ -3351,17 +3350,10 @@ def salaires():
                 try:
                     # Calcul détaillé du salaire net
                     result = g.models.salaire_model.calculer_salaire_net_avec_details(
-                        heures_reelles=heures_reelles,
-                        contrat=contrat,
-                        user_id=current_user_id,
-                        annee=annee,
-                        mois=m,
-                        jour_estimation=jour_estimation
-                    )
+                        heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
                     details = result
                     salaire_net = result.get('salaire_net', 0.0)
                     salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
-
                     versements = result.get('details', {}).get('versements', {})
                     acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
                     acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
@@ -3481,7 +3473,9 @@ def salaires():
         totaux=totaux_annuels,
         annee_courante=annee,
         tous_contrats=tous_contrats,
-        selected_employeur=selected_employeur
+        employeurs_uniques=employeurs_uniques,
+        selected_employeur=selected_employeur,
+        contrat_actuel=contrat
     )
 
 @bp.route('/api/details_calcul_salaire')
@@ -3737,4 +3731,45 @@ def gestion_contrat():
                         contrats=contrats,
                         today=date.today())
     
-
+@bp.route('/nouveau_contrat', methods=['GET'])
+@login_required
+def nouveau_contrat():
+    current_user_id = current_user.id
+    contrat = {}
+    if request.method == 'GET':
+        action = request.args.get('action')
+        if action == 'save':
+            try:
+                data = {
+                    'id': request.form.get('contrat_id') or None,
+                    'user_id': current_user_id,
+                    'employeur': request.form.get('employeur'),
+                    'heures_hebdo': float(request.form.get('heures_hebdo')),
+                    'salaire_horaire': float(request.form.get('salaire_horaire')),
+                    'date_debut': request.form.get('date_debut'),
+                    'date_fin': request.form.get('date_fin') or None,
+                    'jour_estimation_salaire': int(request.form.get('jour_estimation_salaire')),
+                    'versement_10': 'versement_10' in request.form,
+                    'versement_25': 'versement_25' in request.form,
+                    'indemnite_vacances_tx': float(request.form.get('indemnite_vacances_tx') or 0),
+                    'indemnite_jours_feries_tx': float(request.form.get('indemnite_jours_feries_tx') or 0),
+                    'indemnite_jour_conges_tx': float(request.form.get('indemnite_jour_conges_tx') or 0),
+                    'indemnite_repas_tx': float(request.form.get('indemnite_repas_tx') or 0),
+                    'indemnite_retenues_tx': float(request.form.get('indemnite_retenues_tx') or 0),
+                    'cotisation_avs_tx': float(request.form.get('cotisation_avs_tx') or 0),
+                    'cotisation_ac_tx': float(request.form.get('cotisation_ac_tx') or 0),
+                    'cotisation_accident_n_prof_tx': float(request.form.get('cotisation_accident_n_prof_tx') or 0),
+                    'cotisation_assurance_indemnite_maladie_tx': float(request.form.get('cotisation_assurance_indemnite_maladie_tx') or 0),
+                    'cotisation_cap_tx': float(request.form.get('cotisation_cap_tx') or 0),
+                }
+                logging.debug(f'Voici les données du contrat à sauvegarder: {data}')
+            except ValueError:
+                flash("Certaines valeurs numériques sont invalides.", "danger")
+                return redirect(url_for('banking.nouveau_contrat'))
+            nouveau_contrat = g.models.contrat_model.create_or_update(data)
+            flash('Nouveau contrat enregistré avec succès!', 'success')
+            if not nouveau_contrat:
+                flash("Erreur lors de la création du contrat.", "danger")
+            return redirect(url_for('banking.gestion_contrat'))
+        
+    return render_template('salaires/nouveau_contrat.html', today=date.today(), contrat=contrat)
