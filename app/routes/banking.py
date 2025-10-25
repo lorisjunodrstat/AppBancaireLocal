@@ -2933,7 +2933,7 @@ def api_compte_resultat():
 def heures_travail():
     current_user_id = current_user.id
     contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
-    heures_hebdo_contrat = contrat['heures_hebdo'] if contrat else 38.0
+    employeur = contrat['employeur'] if contrat else 'Non spécifié'
     now = datetime.now()
     # Récupérer mois, semaine, mode selon méthode HTTP
     if request.method == 'POST':
@@ -2941,31 +2941,44 @@ def heures_travail():
         mois = int(request.form.get('mois', now.month))
         semaine = int(request.form.get('semaine', 0))
         current_mode = request.form.get('mode', 'reel')
+        selected_employeur = request.form.get('employeur')
     else:
         annee = int(request.args.get('annee', now.year))
         mois = int(request.args.get('mois', now.month))
         semaine = int(request.args.get('semaine', 0))
         current_mode = request.args.get('mode', 'reel')
-    
+        selected_employeur = request.args.get('employeur')
+    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+    employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
+    if not selected_employeur and employeurs_unique:
+        contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
+        selected_employeur = contrat_actuel['employeur'] if contrat_actuel else employeurs_unique[0]
+    contrat = None
+    if selected_employeur:
+        for c in tous_contrats:
+            if c['employeur'] == selected_employeur and (c['date_fin'] is None or c['date_fin'] >= date.today()):
+                contrat = c
+                break
+    heures_hebdo_contrat = contrat['heures_hebdo'] if contrat else 38.0
     # Actions POST
     if request.method == 'POST':
         annee = int(request.form.get('annee', now.year))
         if 'save_line' in request.form:
-            return handle_save_line(request, current_user_id, annee, mois, semaine, current_mode)
+            return handle_save_line(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur)
         elif 'reset_line' in request.form:
-            return handle_reset_line(request, current_user_id, annee,  mois, semaine, current_mode)
+            return handle_reset_line(request, current_user_id, annee,  mois, semaine, current_mode, selected_employeur)
         elif 'reset_all' in request.form:
-            return handle_reset_all(request, current_user_id, annee, mois, semaine, current_mode)
+            return handle_reset_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur)
         elif request.form.get('action') == 'simuler':
-            return handle_simulation(request, current_user_id, annee, mois, semaine, current_mode)
+            return handle_simulation(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur)
         else:
-            return handle_save_all(request, current_user_id, annee, mois, semaine, current_mode)
+            return handle_save_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur)
 
     # Traitement GET : affichage des heures
     semaines = {}
     for day_date in generate_days(annee, mois, semaine):
         date_str = day_date.isoformat()
-        jour_data = g.models.heure_model.get_by_date(date_str, current_user_id) or {
+        jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, selected_employeur) or {
             'date': date_str,
             'h1d': '',
             'h1f': '',
@@ -3012,7 +3025,9 @@ def heures_travail():
                         current_semaine=semaine,
                         current_annee=annee,
                         current_mode=current_mode,
-                        now = datetime.now())
+                        now = datetime.now(),
+                        employeurs_unique=employeurs_unique,
+                        selected_employeur=selected_employeur)
 
 def is_valid_time(time_str):
     """Validation renforcée du format d'heure"""
@@ -3070,7 +3085,7 @@ def validate_day_data(request, date_str):
     
     return errors
 
-def create_day_payload(request, user_id, date_str):
+def create_day_payload(request, user_id, date_str, employeur):
     """Crée le payload pour une journée en gérant correctement les valeurs vides"""
     # Récupération des valeurs du formulaire avec conversion des chaînes vides en None
     def get_time_field(field_name):
@@ -3103,6 +3118,7 @@ def create_day_payload(request, user_id, date_str):
     return {
         'date': date_str,
         'user_id': user_id,
+        'employeur': employeur,
         'h1d': h1d,
         'h1f': h1f,
         'h2d': h2d,
@@ -3134,14 +3150,14 @@ def save_day_transaction(cursor, payload):
         logger.error(f"Traceback complet:\n{traceback.format_exc()}")
         return False, error_msg
 
-def process_day(request, user_id, date_str, annee, mois, semaine, mode, flash_message=True):
+def process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, flash_message=True):
     errors = validate_day_data(request, date_str)
     if errors:
         for error in errors:
             flash(f"Erreur {format_date(date_str)}: {error}", "error")
-        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
     
-    payload = create_day_payload(request, user_id, date_str)
+    payload = create_day_payload(request, user_id, date_str, employeur)
     
     # Utiliser la méthode sécurisée de HeureTravail
     success = g.models.heure_model.create_or_update(payload)
@@ -3152,7 +3168,7 @@ def process_day(request, user_id, date_str, annee, mois, semaine, mode, flash_me
     else:
         flash(f"Échec de la sauvegarde pour {format_date(date_str)}", "error")
     
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
 
 def format_date(date_str):
     return datetime.fromisoformat(date_str).strftime('%d/%m/%Y')
@@ -3172,27 +3188,27 @@ def generate_days(annee: int, mois: int, semaine: int) -> list[date]:
         now = datetime.now()
         _, num_days = monthrange(now.year, now.month)
         return [date(now.year, now.month, day) for day in range(1, num_days + 1)]
-def handle_save_line(request, user_id, annee, mois, semaine, mode):
+def handle_save_line(request, user_id, annee, mois, semaine, mode, employeur):
     date_str = request.form['save_line']
-    return process_day(request, user_id, date_str, annee, mois, semaine, mode)
+    return process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur)
 
-def handle_reset_line(request, user_id, annee, mois, semaine, mode):
+def handle_reset_line(request, user_id, annee, mois, semaine, mode, employeur):
     date_str = request.form['reset_line']
     heure_model = HeureTravail(g.db_manager)
     try:
-        heure_model.delete_by_date(date_str, user_id)
+        heure_model.delete_by_date(date_str, user_id, employeur)
         flash(f"Les heures du {format_date(date_str)} ont été réinitialisées", "warning")
     except Exception as e:
         logger.error(f"Erreur reset_line pour {date_str}: {str(e)}")
         flash(f"Erreur lors de la réinitialisation du {format_date(date_str)}", "error")
-    return redirect(url_for('banking.heures_travail', annee=annee,mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee,mois=mois, semaine=semaine, mode=mode, employeur=employeur))
 
-def handle_reset_all(request, user_id, annee, mois, semaine, mode):
+def handle_reset_all(request, user_id, annee, mois, semaine, mode, employeur):
     days = generate_days(annee, mois, semaine)
     errors = []
     for day in days:
         try:
-            g.models.heure_model.delete_by_date(day.isoformat(), user_id)
+            g.models.heure_model.delete_by_date(day.isoformat(), user_id, employeur)
         except Exception as e:
             logger.error(f"Erreur reset jour {day}: {str(e)}")
             errors.append(format_date(day.isoformat()))
@@ -3200,9 +3216,9 @@ def handle_reset_all(request, user_id, annee, mois, semaine, mode):
         flash(f"Erreur lors de la réinitialisation des jours: {', '.join(errors)}", "error")
     else:
         flash("Toutes les heures ont été réinitialisées", "warning")
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
 
-def handle_simulation(request, user_id, annee,mois, semaine, mode):
+def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur):
     days = generate_days(annee, mois, semaine)
     errors = []
     success_count = 0
@@ -3221,6 +3237,7 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode):
                     'vacances': False,
                     'total_h': total_h,
                     'user_id': user_id,
+                    'employeur': employeur,
                     'jour_semaine': day.strftime('%A'),
                     'semaine_annee': day.isocalendar()[1],
                     'mois': day.month
@@ -3234,15 +3251,15 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode):
         flash(f"Erreur simulation pour les jours: {', '.join(errors)}", "error")
     if success_count > 0:
         flash(f"Heures simulées appliquées pour {success_count} jour(s)", "info")
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, selected_employeur=selected_employeur))
 
-def handle_save_all(request, user_id, annee, mois, semaine, mode):
+def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur):
     days = generate_days(annee, mois, semaine)
     has_errors = False
     
     for day in days:
         date_str = day.isoformat()
-        payload = create_day_payload(request, user_id, date_str)
+        payload = create_day_payload(request, user_id, date_str, employeur)
         
         if not g.models.heure_model.create_or_update(payload):
             has_errors = True
@@ -3251,116 +3268,186 @@ def handle_save_all(request, user_id, annee, mois, semaine, mode):
     if not has_errors:
         flash("Toutes les heures ont été enregistrées avec succès", "success")
     
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
+
 # --- Routes salaires ---
 
 @bp.route('/salaires', methods=['GET'])
 @login_required
 def salaires():
-    # Récupération des paramètres d'année et de mois
+    from datetime import date  # Assurez-vous que `date` est importé
+
     now = datetime.now()
     annee = request.args.get('annee', now.year, type=int)
     mois = request.args.get('mois', now.month, type=int)
-    logger.info(f"Données reçues: mois={mois}, annee={annee}")
-
-    # Initialisation des modèles
     current_user_id = current_user.id
-    
-    # Structure des données par mois
-    salaires_par_mois = {}
-    
-    # Pour chaque mois de l'année
-    for m in range(1, 13):
-        # Récupération du contrat actif pour ce mois spécifique
-        date_mois = f"{annee}-{m:02d}-01"
-        contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, date_mois)
-        
-        jour_estimation = contrat['jour_estimation_salaire'] if contrat else 15
-        salaire_horaire = 24.05  # Valeur par défaut
-        
-        if contrat:
-            try:
-                # Conversion explicite en float
-                salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
-            except (TypeError, ValueError) as e:
-                logger.error(f"Erreur conversion salaire horaire: {e}")
-                salaire_horaire = 24.05
-        
-        # Récupération des heures réelles travaillées
-        heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, m) or 0.0
-        heures_reelles = round(heures_reelles, 2)
-        
-        
-        # Calcul des acomptes estimés
-        salaire_acompte_25_estime = 0.0
-        salaire_acompte_10_estime = 0.0
-        salaire_calcule = 0.0
-        salaire_net = 0.0
-        details = {'erreur': 'Pas de données ou contrat manquant'}
-        if heures_reelles > 0 and contrat:
-            try:
-                # Calcul acompte du 25 estimé
-                details = g.models.salaire_model.calculer_salaire_net_avec_details(
-                    heures_reelles, contrat, 
-                    user_id=current_user_id, annee=annee, mois=m)
-                
-                # EXTRACTION DES VALEURS APRÈS le calcul
-                versements = details.get('details', {}).get('versements', {})
-                salaire_acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0)
-                salaire_acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0)
-                
-                salaire_net = details.get('salaire_net', 0.0)
-                salaire_calcule = details.get('details', {}).get('salaire_brut', 0.0)
-                
-                # DEBUG
-                print(f"Mois {m}: Acomptes extraits -> 25: {salaire_acompte_25_estime}, 10: {salaire_acompte_10_estime}")
-                
-            except Exception as e:
-                logger.error(f"Erreur calcul détails pour mois {m}: {e}")
-                details = {'erreur': f'Erreur calcul détails: {str(e)}'}
 
-        
-        # Vérifier si un salaire existe en base pour ce mois
-        salaire_existant = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m)
-        
-        if salaire_existant:
-            update_data = {
-                'heures_reelles': heures_reelles,
-                'salaire_calcule': salaire_calcule,
-                'salaire_net': salaire_net,
-                'acompte_25_estime': salaire_acompte_25_estime,
-                'acompte_10_estime': salaire_acompte_10_estime
-            }
-            print(f"DEBUG - Mois {m}:")
-            print(f"  salaire_acompte_25_estime = {salaire_acompte_25_estime}")
-            print(f"  salaire_acompte_10_estime = {salaire_acompte_10_estime}")
-            g.models.salaire_model.update(salaire_existant[0]['id'], update_data)
-            salaires_par_mois[m] = {**salaire_existant[0], **update_data, 'details': details}
-        else:
-            # Créer une nouvelle entrée en BASE DE DONNÉES
-            new_salaire = {
-                'mois': m,
-                'annee': annee,
-                'user_id': current_user_id,
-                'heures_reelles': heures_reelles,
-                'salaire_calcule': salaire_calcule,
-                'salaire_net': salaire_net,
+    logger.info(f"Affichage des salaires pour utilisateur {current_user_id}, année={annee}")
+
+    # Structure : salaires_par_mois[mois] = { 'employeurs': { 'Nom Employeur': données_salaire, ... }, 'totaux_mois': {...} }
+    salaires_par_mois = {}
+
+    # Initialiser tous les mois de l'année
+    for m in range(1, 13):
+        salaires_par_mois[m] = {
+            'employeurs': {},
+            'totaux_mois': {
+                'heures_reelles': 0.0,
+                'salaire_calcule': 0.0,
+                'salaire_net': 0.0,
                 'salaire_verse': 0.0,
                 'acompte_25': 0.0,
                 'acompte_10': 0.0,
-                'acompte_25_estime': salaire_acompte_25_estime,
-                'acompte_10_estime': salaire_acompte_10_estime,
+                'acompte_25_estime': 0.0,
+                'acompte_10_estime': 0.0,
+                'difference': 0.0,
+            }
+        }
+
+    # Récupérer tous les contrats de l'utilisateur
+    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+
+    # Pour chaque mois de l'année
+    for m in range(1, 13):
+        date_mois_str = f"{annee}-{m:02d}-01"
+        date_mois = date.fromisoformat(date_mois_str)
+
+        # Trouver les contrats actifs ce mois-ci
+        contrats_actifs_ce_mois = []
+        for c in tous_contrats:
+            date_debut = c['date_debut']
+            date_fin = c['date_fin']
+
+            # Vérifier chevauchement
+            if date_debut <= date_mois and (date_fin is None or date_fin >= date_mois):
+                contrats_actifs_ce_mois.append(c)
+
+        # Pour chaque employeur actif ce mois-ci
+        for contrat in contrats_actifs_ce_mois:
+            employeur = contrat['employeur']
+            salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
+            jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
+
+            # Récupérer les heures réelles pour cet employeur ce mois-ci
+            heures_reelles = g.models.heure_model.get_total_heures_mois(
+                current_user_id, annee, m, employeur
+            ) or 0.0
+            heures_reelles = round(heures_reelles, 2)
+
+            # Valeurs par défaut
+            salaire_calcule = 0.0
+            salaire_net = 0.0
+            acompte_25_estime = 0.0
+            acompte_10_estime = 0.0
+            details = {'erreur': 'Pas de données'}
+
+            if heures_reelles > 0:
+                try:
+                    # Calcul détaillé du salaire net
+                    result = g.models.salaire_model.calculer_salaire_net_avec_details(
+                        heures_reelles=heures_reelles,
+                        contrat=contrat,
+                        user_id=current_user_id,
+                        annee=annee,
+                        mois=m,
+                        jour_estimation=jour_estimation
+                    )
+                    details = result
+                    salaire_net = result.get('salaire_net', 0.0)
+                    salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
+
+                    versements = result.get('details', {}).get('versements', {})
+                    acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
+                    acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
+
+                except Exception as e:
+                    logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
+                    details = {'erreur': f'Erreur calcul: {str(e)}'}
+
+            # Vérifier si un salaire existe déjà en base POUR CET EMPLOYEUR
+            salaires_existants = g.models.salaire_model.get_by_mois_annee(
+                user_id=current_user_id,
+                annee=annee,
+                mois=m
+            )
+            # Filtrer par employeur
+            salaire_existant = None
+            for s in salaires_existants:
+                if s.get('employeur') == employeur:
+                    salaire_existant = s
+                    break
+
+            # Préparer les données à sauvegarder
+            salaire_data = {
+                'mois': m,
+                'annee': annee,
+                'user_id': current_user_id,
+                'employeur': employeur,
+                'heures_reelles': heures_reelles,
+                'salaire_horaire': salaire_horaire,
+                'salaire_calcule': salaire_calcule,
+                'salaire_net': salaire_net,
+                'salaire_verse': salaire_existant.get('salaire_verse', 0.0) if salaire_existant else 0.0,
+                'acompte_25': salaire_existant.get('acompte_25', 0.0) if salaire_existant else 0.0,
+                'acompte_10': salaire_existant.get('acompte_10', 0.0) if salaire_existant else 0.0,
+                'acompte_25_estime': acompte_25_estime,
+                'acompte_10_estime': acompte_10_estime,
                 'difference': 0.0,
                 'difference_pourcent': 0.0,
-                'salaire_horaire': salaire_horaire,
                 'details': details
             }
-            salaire_id = g.models.salaire_model.create(new_salaire)
-            new_salaire['id'] = salaire_id
-            salaires_par_mois[m] = new_salaire
+
+            # Calculer la différence si salaire versé existe
+            if salaire_data['salaire_verse'] is not None and salaire_data['salaire_calcule']:
+                diff, diff_pct = g.models.salaire_model.calculer_differences(
+                    salaire_data['salaire_calcule'],
+                    salaire_data['salaire_verse']
+                )
+                salaire_data['difference'] = diff
+                salaire_data['difference_pourcent'] = diff_pct
+
+            # Sauvegarder en base
+            if salaire_existant:
+                # Mettre à jour
+                update_fields = {
+                    'heures_reelles': salaire_data['heures_reelles'],
+                    'salaire_horaire': salaire_data['salaire_horaire'],
+                    'salaire_calcule': salaire_data['salaire_calcule'],
+                    'salaire_net': salaire_data['salaire_net'],
+                    'acompte_25_estime': salaire_data['acompte_25_estime'],
+                    'acompte_10_estime': salaire_data['acompte_10_estime'],
+                    'difference': salaire_data['difference'],
+                    'difference_pourcent': salaire_data['difference_pourcent'],
+                }
+                g.models.salaire_model.update(salaire_existant['id'], update_fields)
+                salaire_data['id'] = salaire_existant['id']
+            else:
+                # Créer
+                success = g.models.salaire_model.create(salaire_data)
+                # `create` ne retourne pas l’ID, donc on le récupère après
+                salaires_apres = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m)
+                for s in salaires_apres:
+                    if s.get('employeur') == employeur:
+                        salaire_data['id'] = s['id']
+                        break
+
+            # Stocker dans la structure d'affichage
+            salaires_par_mois[m]['employeurs'][employeur] = salaire_data
+
+            # Ajouter aux totaux du mois
+            totaux = salaires_par_mois[m]['totaux_mois']
+            totaux['heures_reelles'] += heures_reelles
+            totaux['salaire_calcule'] += salaire_calcule
+            totaux['salaire_net'] += salaire_net
+            totaux['salaire_verse'] += salaire_data['salaire_verse']
+            totaux['acompte_25'] += salaire_data['acompte_25']
+            totaux['acompte_10'] += salaire_data['acompte_10']
+            totaux['acompte_25_estime'] += acompte_25_estime
+            totaux['acompte_10_estime'] += acompte_10_estime
+            totaux['difference'] += salaire_data['difference']
 
     # Calcul des totaux annuels
-    totaux = {
+    totaux_annuels = {
         'total_heures_reelles': 0.0,
         'total_salaire_calcule': 0.0,
         'total_salaire_net': 0.0,
@@ -3372,30 +3459,26 @@ def salaires():
         'total_difference': 0.0,
     }
 
-    for m, mois_data in salaires_par_mois.items():
-        totaux['total_heures_reelles'] += mois_data.get('heures_reelles', 0) or 0
-        totaux['total_salaire_calcule'] += mois_data.get('salaire_calcule', 0) or 0
-        totaux['total_salaire_net'] += mois_data.get('salaire_net', 0) or 0
-        totaux['total_salaire_verse'] += mois_data.get('salaire_verse', 0) or 0
-        totaux['total_acompte_25'] += mois_data.get('acompte_25', 0) or 0
-        totaux['total_acompte_10'] += mois_data.get('acompte_10', 0) or 0
-        totaux['total_acompte_25_estime'] += mois_data.get('acompte_25_estime', 0) or 0
-        totaux['total_acompte_10_estime'] += mois_data.get('acompte_10_estime', 0) or 0
-        totaux['total_difference'] += mois_data.get('difference', 0) or 0
+    for m in range(1, 13):
+        mois_totaux = salaires_par_mois[m]['totaux_mois']
+        for key in totaux_annuels:
+            base_key = key.replace('total_', '')
+            totaux_annuels[key] += mois_totaux.get(base_key, 0.0)
 
-    # Formatage des valeurs pour l'affichage
-    for key in totaux:
-        if isinstance(totaux[key], float):
-            totaux[key] = round(totaux[key], 2)
+    # Arrondir les totaux
+    for key in totaux_annuels:
+        totaux_annuels[key] = round(totaux_annuels[key], 2)
 
-    # Récupération du contrat actuel pour l'affichage global
-    contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
+    # Récupérer tous les contrats pour l'affichage (liste déroulante optionnelle)
+    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
 
-    return render_template('salaires/calcul_salaires.html',
-                        salaires_par_mois=salaires_par_mois,
-                        totaux=totaux,
-                        annee_courante=annee,
-                        contrat_actuel=contrat_actuel)
+    return render_template(
+        'salaires/calcul_salaires.html',
+        salaires_par_mois=salaires_par_mois,
+        totaux=totaux_annuels,
+        annee_courante=annee,
+        tous_contrats=tous_contrats
+    )
 
 @bp.route('/api/details_calcul_salaire')
 @login_required
@@ -3404,26 +3487,24 @@ def details_calcul_salaire():
         # Récupération des paramètres
         mois = request.args.get('mois', type=int)
         annee = request.args.get('annee', type=int)
-        contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, f"{annee}-{mois:02d}-01")
+        employeur = request.args.get('employeur')
+        if not mois or not annee or not employeur:
+            return jsonify({'erreur': 'Mois, année et employeur requis'}), 400
+        # Récupération du contrat actuel
+
+        current_user_id = current_user.id
+        date_str = f'{annee}-{mois:02d}-01'
+        contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, employeur, date_str)
     
         if not contrat:
             return jsonify({'erreur': 'Aucun contrat trouvé pour cette période'}), 404
         
-        if not mois or not annee:
-            return jsonify({'erreur': 'Mois et année requis'}), 400
-        
-        # Récupération du contrat actuel
-        current_user_id = current_user.id
-        contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
-        
-        if not contrat:
-            return jsonify({'erreur': 'Aucun contrat trouvé'}), 404
-        
         # Récupération des heures réelles
-        heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, mois) or 0.0
+        heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, mois, employeur) or 0.0
         
         # Calcul avec détails
-        resultats = g.models.salaire_model.calculer_salaire_net_avec_details(heures_reelles, contrat)
+        resultats = g.models.salaire_model.calculer_salaire_net_avec_details(heures_reelles, 
+                                                                             contrat, user_id=current_user_id, annee=annee, mois=mois)
         
         # Ajout du mois et de l'année aux résultats
         resultats['mois'] = mois
@@ -3436,8 +3517,16 @@ def details_calcul_salaire():
 @login_required
 def update_salaire():
     # Récupération des données du formulaire en tant que chaînes (sans conversion automatique)
-    mois_str = request.form.get('mois')
-    annee_str = request.form.get('annee')
+    mois = int(request.form.get('mois'))
+    annee = int(request.form.get('annee'))
+    employeur = request.form.get('employeur')
+    current_user_id = current_user.id
+
+    date_ref = f'{annee}-{int(mois):02d}-01'
+    contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, employeur, date_ref)
+    if not contrat:
+        flash("Aucun contrat trouvé pour cet employeur et cette période", "error")
+        return redirect(url_for('banking.salaires', annee=annee))
     salaire_verse_str = request.form.get('salaire_verse')
     acompte_25_str = request.form.get('acompte_25')
     acompte_10_str = request.form.get('acompte_10')
@@ -3464,6 +3553,7 @@ def update_salaire():
     
     # Récupération du contrat
     contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
+    employeur = contrat['employeur'] if contrat else None
     try:
         salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
     except (TypeError, ValueError):
@@ -3472,10 +3562,11 @@ def update_salaire():
     jour_estimation = int(contrat['jour_estimation_salaire']) if contrat and 'jour_estimation_salaire' in contrat else 15
     
     # Récupération des heures réelles
-    heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, mois) or 0.0
-    
+    heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, mois, employeur) or 0.0
+
     # Récupération de l'entrée existante
-    existing = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, mois)
+    existing = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, mois, employeur)
+    salaire_existant = next((s for s in existing if s.get('employeur') == employeur), None)
     
     # Calcul du salaire théorique
     try:
@@ -3520,10 +3611,11 @@ def update_salaire():
         'difference_pourcent': difference_pourcent
     }
     
-    if existing:
+    if salaire_existant:
         # Mettre à jour l'entrée existante EN BASE
-        salaire_id = existing[0]['id']
-        success = g.models.salaire_model.update(salaire_id, update_data)
+        g.models.salaire_model.update(salaire_existant['id'], update_data)
+        #salaire_id = existing[0]['id']
+        #success = g.models.salaire_model.update(salaire_id, update_data)
     else:
         # Créer une nouvelle entrée EN BASE
         full_data = {
@@ -3534,6 +3626,7 @@ def update_salaire():
             'salaire_horaire': salaire_horaire,
             'acompte_25_estime': acompte_25_estime,
             'acompte_10_estime': acompte_10_estime,
+            'employeur': employeur,
             **update_data
         }
         success = g.models.salaire_model.create(full_data)
@@ -3591,6 +3684,7 @@ def gestion_contrat():
                 data = {
                     'id': request.form.get('contrat_id') or None,
                     'user_id': current_user_id,
+                    'employeur': request.form.get('employeur'),
                     'heures_hebdo': float(request.form.get('heures_hebdo')),
                     'salaire_horaire': float(request.form.get('salaire_horaire')),
                     'date_debut': request.form.get('date_debut'),
@@ -3601,12 +3695,12 @@ def gestion_contrat():
                     'indemnite_vacances_tx': float(request.form.get('indemnite_vacances_tx') or 0),
                     'indemnite_jours_feries_tx': float(request.form.get('indemnite_jours_feries_tx') or 0),
                     'indemnite_jour_conges_tx': float(request.form.get('indemnite_jour_conges_tx') or 0),
-                    '   ': float(request.form.get('indemnite_repas_tx') or 0),
+                    'indemnite_repas_tx': float(request.form.get('indemnite_repas_tx') or 0),
                     'indemnite_retenues_tx': float(request.form.get('indemnite_retenues_tx') or 0),
                     'cotisation_avs_tx': float(request.form.get('cotisation_avs_tx') or 0),
                     'cotisation_ac_tx': float(request.form.get('cotisation_ac_tx') or 0),
                     'cotisation_accident_n_prof_tx': float(request.form.get('cotisation_accident_n_prof_tx') or 0),
-                    'cotisation_assurance_indemnite_maladie_tx': float(request.form.get('asscotisation_assurance_indemnite_maladie_txurance_indemnite_maladie_tx') or 0),
+                    'cotisation_assurance_indemnite_maladie_tx': float(request.form.get('cotisation_assurance_indemnite_maladie_tx') or 0),
                     'cotisation_cap_tx': float(request.form.get('cotisation_cap_tx') or 0),
                 }
                 print(f'Voici les données du contrat à sauvegarder: {data}')

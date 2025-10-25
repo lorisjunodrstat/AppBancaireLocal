@@ -16,16 +16,29 @@
     {% endif %}
     {% endwith %}
 
-    <div class="card mb-4">
+    <div class="card mb-4"> <!--Card pour l'encodage des heures de travail-->
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h5 class="m-0 font-weight-bold">Encodage des heures de travail</h5>
         </div>
         <div class="card-body">
-            <form id="heures-form" method="POST" action="{{ url_for('banking.heures_travail') }}">
-                <input type="hidden" name="action" id="form-action" value="">
 
-                <div class="row mb-4">
-                    <div class="col-md-3">
+            <!-- Formulaire de filtres GET -->
+            <form method="GET" class="mb-4">
+                
+                <div class="row">
+                    <div class="col-md-4"><!-- Filtre Employeur -->
+                        <label for="filter-employeur" class="form-label">Employeur</label>
+                        <select class="form-select" id="filter-employeur" name="employeur" aria-describedby="employeurHelp">
+                            <option value="">-- Sélectionner --</option>
+                            {% for emp in employeurs_uniques %}
+                            <option value="{{ emp }}" {% if selected_employeur == emp %}selected{% endif %}>
+                                {{ emp }} 
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small id="employeurHelp" class="form-text text-muted">Sélectionnez l'employeur</small>
+                    </div>
+                    <div class="col-md-2"> <!-- Filtre Annee -->
                         <label for="filter-annee" class="form-label">Année</label>
                         <select class="form-select" id="filter-annee" name="annee" aria-describedby="anneeHelp">
                             {% for y in range(now.year-2, now.year+3) %}
@@ -34,7 +47,7 @@
                         </select>
                         <small id="anneeHelp" class="form-text text-muted">Sélectionnez l'année</small>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2"> <!-- Filtre Mois -->
                         <label for="filter-mois" class="form-label">Mois</label>
                         <select class="form-select" id="filter-mois" name="mois" aria-describedby="moisHelp">
                             {% for month in range(1, 13) %}
@@ -45,8 +58,8 @@
                         </select>
                         <small id="moisHelp" class="form-text text-muted">Sélectionnez le mois</small>
                     </div>
-                    
-                    <div class="col-md-3">
+                        
+                    <div class="col-md-2"><!-- Filtre Semaine -->
                         <label for="filter-semaine" class="form-label">Semaine</label>
                         <select class="form-select" id="filter-semaine" name="semaine" aria-describedby="semaineHelp">
                             <option value="0" {% if current_semaine==0 %}selected{% endif %}>Toutes</option>
@@ -58,7 +71,7 @@
                         </select>
                         <small id="semaineHelp" class="form-text text-muted">Sélectionnez la semaine</small>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2"> <!-- Filtre Mode -->
                         <label for="mode-saisie" class="form-label">Mode</label>
                         <select class="form-select" id="mode-saisie" name="mode" aria-describedby="modeHelp">
                             <option value="reel" {% if current_mode=='reel' %}selected{% endif %}>Heures réelles
@@ -74,22 +87,22 @@
                         </button>
                     </div>
                 </div>
+            </form>
 
-                <div class="d-flex justify-content-between mb-3">
-                    <div>
-                        <button type="submit" name="save_all" class="btn btn-success me-2"
-                            aria-label="Tout enregistrer">
-                            <i class="fas fa-save me-1" aria-hidden="true"></i> Tout enregistrer
-                        </button>
-                        <button type="submit" name="reset_all" class="btn btn-warning" aria-label="Tout effacer">
-                            <i class="fas fa-undo me-1" aria-hidden="true"></i> Tout effacer
-                        </button>
-                    </div>
-                    <div>
-                        <button type="button" id="simuler_btn" class="btn btn-primary" aria-label="Simuler heures">
-                            <i class="fas fa-calculator me-1" aria-hidden="true"></i> Simuler
-                        </button>
-                    </div>
+            <form method="POST" action="{{ url_for('banking.heures_travail') }}">
+                <input type="hidden" name="action" id="form-action" value="">
+                <input type="hidden" name="employeur" value="{{ selected_employeur or '' }}">
+                <input type="hidden" name="annee" value="{{ current_annee }}">
+                <input type="hidden" name="mois" value="{{ current_mois }}">
+                <input type="hidden" name="semaine" value="{{ current_semaine }}">
+                <input type="hidden" name="mode" value="{{ current_mode }}">
+                <div>
+                    <button type="submit" name="save_all" class="btn btn-success me-2" aria-label="Tout enregistrer">
+                        <i class="fas fa-save me-1" aria-hidden="true"></i> Tout enregistrer
+                    </button>
+                    <button type="submit" name="reset_all" class="btn btn-warning" aria-label="Tout effacer">
+                        <i class="fas fa-undo me-1" aria-hidden="true"></i> Tout effacer
+                    </button>
                 </div>
 
                 <div class="table-responsive">
@@ -186,9 +199,14 @@
                     <button type="submit" name="save" class="btn btn-success me-2" aria-label="Enregistrer tout">
                         <i class="fas fa-save me-1" aria-hidden="true"></i> Enregistrer
                     </button>
-                    <a href="{{ url_for('banking.heures_travail',annee=current_annee, mois=current_mois, semaine=current_semaine, mode=current_mode) }}"
-                        class="btn btn-secondary" aria-label="Annuler">
-                        <i class="fas fa-times me-1" aria-hidden="true"></i> Annuler
+                    <a href="{{ url_for('banking.heures_travail',
+                    annee=current_annee, 
+                    mois=current_mois, 
+                    semaine=current_semaine, 
+                    mode=current_mode,
+                    employeur=employeur_selected) }}"
+                    class="btn btn-secondary" aria-label="Annuler">
+                    <i class="fas fa-times me-1" aria-hidden="true"></i> Annuler
                     </a>
                 </div>
             </form>
@@ -196,7 +214,7 @@
     </div>
 </div>
 
-<script>
+<!-- <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Simulation des heures
         const simulerBtn = document.getElementById('simuler-btn');
@@ -223,5 +241,5 @@
             });
         }
     });
-</script>
+</script>-->
 {% endblock %}
