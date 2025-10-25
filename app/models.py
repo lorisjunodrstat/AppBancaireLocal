@@ -2420,8 +2420,7 @@ class TransactionFinanciere:
                     user_id=user_id,
                     date_transaction=date_transaction,
                     validate_balance=True,  # Vérifie le solde
-                    reference_transfert=reference_transfert,
-                
+                    reference_transfert=reference_transfert
                 )
                 if not success:
                     return False, f"Erreur débit compte principal: {message}"
