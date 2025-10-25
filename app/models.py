@@ -4260,6 +4260,7 @@ class Contrat:
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut DESC;"
+                logging.debug(f"SQL: {query} | Params: {user_id}")
                 cursor.execute(query, (user_id,))  # ← CORRIGÉ : virgule ajoutée
                 return cursor.fetchall()
         except Exception as e:

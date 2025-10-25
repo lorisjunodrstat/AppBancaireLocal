@@ -2933,7 +2933,7 @@ def api_compte_resultat():
 def heures_travail():
     current_user_id = current_user.id
     contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
-    employeur = contrat['employeur'] if contrat else 'Non spécifié'
+    #employeur = contrat['employeur'] if contrat else 'Non spécifié'
     now = datetime.now()
     # Récupérer mois, semaine, mode selon méthode HTTP
     if request.method == 'POST':
@@ -2948,6 +2948,7 @@ def heures_travail():
         semaine = int(request.args.get('semaine', 0))
         current_mode = request.args.get('mode', 'reel')
         selected_employeur = request.args.get('employeur')
+    logging.debug(f"DEBUG: Requête de tous les contrats pour user_id={user_id}")
     tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
     logging.debug(f"DEBUG: Mois={mois}, Semaine={semaine}, Mode={current_mode}, Employeur sélectionné={selected_employeur} avec tous_contrats={len(tous_contrats)}")
     logging.error(f"DEBUG: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
