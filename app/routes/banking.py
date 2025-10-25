@@ -3363,12 +3363,7 @@ def salaires():
                     details = {'erreur': f'Erreur calcul: {str(e)}'}
 
             # Vérifier si un salaire existe déjà en base POUR CET EMPLOYEUR
-            salaires_existants = g.models.salaire_model.get_by_mois_annee(
-                user_id=current_user_id,
-                annee=annee,
-                mois=m,
-                employeur=employeur
-            )
+            salaires_existants = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur)
             # Filtrer par employeur
             salaire_existant = None
             for s in salaires_existants:
