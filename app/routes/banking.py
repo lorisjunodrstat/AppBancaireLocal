@@ -3286,6 +3286,7 @@ def salaires():
     annee = request.args.get('annee', now.year, type=int)
     mois = request.args.get('mois', now.month, type=int)
     current_user_id = current_user.id
+    selected_employeur = request.args.get('employeur', '')
 
     logger.info(f"Affichage des salaires pour utilisateur {current_user_id}, année={annee}")
 
@@ -3479,7 +3480,8 @@ def salaires():
         salaires_par_mois=salaires_par_mois,
         totaux=totaux_annuels,
         annee_courante=annee,
-        tous_contrats=tous_contrats
+        tous_contrats=tous_contrats,
+        selected_employeur=selected_employeur
     )
 
 @bp.route('/api/details_calcul_salaire')
@@ -3490,7 +3492,7 @@ def details_calcul_salaire():
         mois = request.args.get('mois', type=int)
         annee = request.args.get('annee', type=int)
         employeur = request.args.get('employeur')
-        if not mois or not annee or not employeur:
+        if mois is None or annee is None or not employeur:
             return jsonify({'erreur': 'Mois, année et employeur requis'}), 400
         # Récupération du contrat actuel
 
@@ -3519,8 +3521,10 @@ def details_calcul_salaire():
 @login_required
 def update_salaire():
     # Récupération des données du formulaire en tant que chaînes (sans conversion automatique)
-    mois = int(request.form.get('mois'))
-    annee = int(request.form.get('annee'))
+    mois_str = request.form.get('mois')
+    annee_str = request.form.get('annee')
+    mois = int(mois_str) if mois_str and mois_str.strip() else None
+    annee = int(annee_str) if annee_str and annee_str.strip() else None
     employeur = request.form.get('employeur')
     current_user_id = current_user.id
 
@@ -3588,7 +3592,7 @@ def update_salaire():
         jours_dans_mois = (next_month - date_ref).days
     
     # Calcul du ratio pour le premier acompte
-        ratio_premier_acompte = min(jour_estimation / jours_dans_mois, 1.0)
+        ratio_premier_acompte = min(jour_estimation / jours_dans_mois, 1.0) if jours_dans_mois > 0 else 0.0
     
     # Calcul des acomptes estimés
         acompte_25_estime = salaire_calcule * ratio_premier_acompte
