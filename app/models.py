@@ -4742,12 +4742,12 @@ class Salaire:
             cursor.execute(query, (user_id,))
             return cursor.fetchall()
 
-    def get_by_mois_annee(self, user_id: int, annee: int, mois: int) -> List[Dict]:
+    def get_by_mois_annee(self, user_id: int, annee: int, mois: int, employeur: str) -> List[Dict]:
         """Récupère les salaires par mois et année avec gestion de connexion sécurisée."""
         try:
             with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM salaires WHERE user_id = %s AND annee = %s AND mois = %s"
-                cursor.execute(query, (user_id, annee, mois))
+                query = "SELECT * FROM salaires WHERE user_id = %s AND employeur = %s AND annee = %s AND mois = %s"
+                cursor.execute(query, (user_id, employeur, annee, mois))
                 return cursor.fetchall()
         except Exception as e:
             current_app.logger.error(f"Erreur récupération salaire par mois/année: {e}")
@@ -5016,15 +5016,15 @@ class Salaire:
                         query = """
                         INSERT INTO salaires 
                         (mois, annee, heures_reelles, salaire_calcule, salaire_verse,
-                        acompte_25, acompte_10, difference, difference_pourcent, user_id)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        acompte_25, acompte_10, difference, difference_pourcent, user_id, employeur)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """
                         values = (
                             mois_num, annee,
                             heures_reelles, salaire_calcule, salaire_verse,
                             acompte_25, acompte_10,
                             difference, difference_pourcent,
-                            user_id
+                            user_id, employeur   
                         )
                         cursor.execute(query, values)
             return True
