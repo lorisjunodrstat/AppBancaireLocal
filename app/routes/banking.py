@@ -3424,7 +3424,7 @@ def salaires():
                 # Créer
                 success = g.models.salaire_model.create(salaire_data)
                 # `create` ne retourne pas l’ID, donc on le récupère après
-                salaires_apres = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m)
+                salaires_apres = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur)
                 for s in salaires_apres:
                     if s.get('employeur') == employeur:
                         salaire_data['id'] = s['id']
