@@ -4655,7 +4655,7 @@ class HeureTravail:
 
         total = diff_heures(h1d, h1f) + diff_heures(h2d, h2f)
         return round(total, 2)
-    def has_hours_for_employeur_and_contrat(self, user_id: int, employeur: str, id_contrat: int) -> bool:
+    
     def has_hours_for_employeur_and_contrat(self, user_id: int, employeur: str, id_contrat: int) -> bool:
         """Vérifie si l'utilisateur a des heures enregistrées pour un employeur donné"""
         try:
@@ -4667,6 +4667,7 @@ class HeureTravail:
         except Exception as e:
             current_app.logger.error(f"Erreur has_hours_for_employeur: {e}")
             return False
+        
 class Salaire:
     def __init__(self, db, heure_travail_manager=None):
         self.db = db
