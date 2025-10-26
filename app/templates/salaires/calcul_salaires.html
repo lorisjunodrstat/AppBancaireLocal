@@ -601,6 +601,7 @@
                 {% else %}
 
                 {% set details_data = salaire_data.details %}
+                {% set details_calcul = details_data.get('details', details_data) %}
 
                 <!-- Section informations de base -->
                 <div class="detail-calcul-section card mb-4">
@@ -647,7 +648,7 @@
                     </div>
                 </div>
 
-                {% set details_calcul = details_data.get('details', details_data) %}
+                
 
                 <!-- Section indemnités -->
                 <div class="detail-calcul-section card mb-4">
