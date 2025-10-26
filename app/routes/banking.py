@@ -2948,7 +2948,12 @@ def heures_travail():
         current_mode = request.args.get('mode', 'reel')
         selected_employeur = request.args.get('employeur')
     logging.debug(f"DEBUG 2950 : Requête de tous les contrats pour user_id={current_user.id}")
-    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+    try:
+        tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+        logging.error(f"DEBUG 2954: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
+    except Exception as e:
+        logging.exception(f"🚨 ERREUR dans get_all_contrats pour user_id={current_user_id}: {e}")
+        tous_contrats = []
     logging.debug(f"DEBUG2 952: Contrats récupérés: {tous_contrats}")
     logging.debug(f"DEBUG 2953: Mois={mois}, Semaine={semaine}, Mode={current_mode}, Employeur sélectionné={selected_employeur} avec tous_contrats={len(tous_contrats)}")
     logging.error(f"DEBUG 2954: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
