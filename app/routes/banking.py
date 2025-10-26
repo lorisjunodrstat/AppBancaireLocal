@@ -3413,13 +3413,13 @@ def salaires():
                 salaire_existant = salaires_existants[0] if salaires_existants else None
 
                 # Valeurs par défaut
-                salaire_calcule = 0.0
-                salaire_net = 0.0
+                #salaire_calcule = 0.0
+                #salaire_net = 0.0
                 salaire_verse = 0.0
                 acompte_10 = 0.0
                 acompte_25 = 0.0
-                acompte_25_estime = 0.0
-                acompte_10_estime = 0.0
+                #acompte_25_estime = 0.0
+                #acompte_10_estime = 0.0
 
                 if salaire_existant :
                     # Utiliser les valeurs stockées en base
@@ -3427,25 +3427,39 @@ def salaires():
                     acompte_25 = salaire_existant.get('acompte_25', 0.0)
                     acompte_10 = salaire_existant.get('acompte_10', 0.0)
 
+                # Nouveau mois : calculer à la volée
+                if heures_reelles > 0:
+                    try:
+                        result = g.models.salaire_model.calculer_salaire_net_avec_details(
+                            heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
+                        details = result
+                        salaire_net = result.get('salaire_net', 0.0)
+                        salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
+                        versements = result.get('details', {}).get('versements', {})
+                        acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
+                        acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
+                    except Exception as e:
+                        logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
+                        details = {'erreur': f'Erreur calcul: {str(e)}'}
+                        salaire_net = 0.0
+                        salaire_calcule = 0.0
+                        acompte_10_estime = 0.0
+                        acompte_25_estime = 0.0
                 else:
-                    # Nouveau mois : calculer à la volée
-                    if heures_reelles > 0:
-                        try:
-                            result = g.models.salaire_model.calculer_salaire_net_avec_details(
-                                heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
-                            details = result
-                            salaire_net = result.get('salaire_net', 0.0)
-                            salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
-                            versements = result.get('details', {}).get('versements', {})
-                            acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
-                            acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
-                        except Exception as e:
-                            logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
-                            details = {'erreur': f'Erreur calcul: {str(e)}'}
-                            salaire_net = 0.0
-                            salaire_calcule = 0.0
-                            acompte_10_estime = 0.0
-                            acompte_25_estime = 0.0
+                    details = {
+                        'erreur': 'Aucune heure saisie pour ce mois',
+                        'heures_reelles': 0.0,
+                        'taux_horaire': salaire_horaire,
+                        'salaire_brut': 0.0,
+                        'versements': {
+                            'acompte_25': {'montant': 0.0},
+                            'acompte_10': {'montant': 0.0}
+                        }
+                    }
+                    salaire_net = 0.0
+                    salaire_calcule = 0.0
+                    acompte_25_estime = 0.0
+                    acompte_10_estime = 0.0
 
                 # Préparer les données à sauvegarder / afficher
                 salaire_data = {
@@ -3464,8 +3478,8 @@ def salaires():
                     'acompte_25_estime': acompte_25_estime,
                     'acompte_10_estime': acompte_10_estime,
                     'difference': 0.0,
-                    'difference_pourcent': 0.0
-                }
+                    'difference_pourcent': 0.0,
+                    'details' : details}
 
                 # Calculer la différence si salaire versé existe
                 if salaire_data['salaire_verse'] is not None and salaire_data['salaire_calcule']:
