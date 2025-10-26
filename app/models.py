@@ -4782,7 +4782,9 @@ class Salaire:
             with self.db.get_cursor() as cursor:
                 query = "SELECT * FROM salaires WHERE user_id = %s AND employeur = %s AND id_contrat = %s AND annee = %s AND mois = %s"
                 cursor.execute(query, (user_id, employeur, id_contrat, annee, mois))
-                return cursor.fetchall()
+                result = cursor.fetchall()
+                logging.info(f'ligne 4785 salaire selectionné: {result}')
+                return result
         except Exception as e:
             current_app.logger.error(f"Erreur récupération salaire par mois/année: {e}")
             return []
@@ -4829,7 +4831,8 @@ class Salaire:
         except Exception as e:
             current_app.logger.error(f"Erreur calcul salaire net: {e}")
             return 0.0
-    def calculer_salaire_net_avec_details(self, heures_reelles: float, contrat: Dict, user_id: int = None, employeur: str = None, id_contrat: int = None, annee: int = None, 
+    
+    def calculer_salaire_net_avec_details(self, heures_reelles: float, contrat: Dict, user_id: int = None, annee: int = None, 
                                     mois: int = None, jour_estimation: int = 15) -> Dict:
         """
         Calcule le salaire net et retourne tous les détails du calcul pour affichage
@@ -4892,7 +4895,9 @@ class Salaire:
                 if info['actif']:
                     info['montant'] = round(salaire_brut * (info['taux'] / 100), 2)
                     total_indemnites += info['montant']
+            
             salaire_brut_tot = salaire_brut + total_indemnites
+            
             # Dictionnaire des noms pour les cotisations
             noms_cotisations = {
                 'avs': 'AVS/AI/APG',
@@ -4905,7 +4910,7 @@ class Salaire:
             # Récupération des taux de cotisations
             cotisations = {}
             for key, nom in noms_cotisations.items():
-                taux_key = f'cotisation_{key}_tx' # if key != 'accident_non_prof' else 'accident_n_prof_tx'
+                taux_key = f'cotisation_{key}_tx'
                 taux = get_taux(taux_key, 0.0)
                 cotisations[key] = {
                     'nom': nom,
@@ -4913,21 +4918,15 @@ class Salaire:
                     'montant': 0.0
                 }
                 
-            
             # Calcul des montants de cotisations
             total_cotisations = 0.0
             for key, info in cotisations.items():
+                # Si le taux est >= 10, on considère que c'est un montant fixe, sinon un pourcentage
                 if info['taux'] < 10:
                     info['montant'] = round(salaire_brut_tot * (info['taux'] / 100), 2)
                 else:
-                    info['montant'] = info['taux']
+                    info['montant'] = info['taux']  # Montant fixe
                 total_cotisations += info['montant']
-            logging.error(cotisations)
-            # Dictionnaire des noms pour les versements
-            noms_versements = {
-                'versement_10': 'Avance du 10 du mois',
-                'versement_25': 'Avance du 25 du mois'
-            }
             
             # Calcul des versements anticipés
             versements = {}
@@ -4971,7 +4970,7 @@ class Salaire:
                     logging.error(f"Erreur calcul versements: {e}")
             
             # Calcul final du salaire net
-            salaire_net = salaire_brut + total_indemnites - total_cotisations
+            salaire_net = salaire_brut + total_indemnites - total_cotisations - total_versements
             
             return {
                 'salaire_net': round(salaire_net, 2),
@@ -4996,6 +4995,7 @@ class Salaire:
             }
             
         except Exception as e:
+            logging.error(f"Erreur détaillée dans calculer_salaire_net_avec_details: {str(e)}")
             return {
                 'salaire_net': 0.0,
                 'erreur': f"Erreur dans calculer_salaire_net_avec_details: {str(e)}",
