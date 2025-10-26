@@ -4774,12 +4774,12 @@ class Salaire:
             cursor.execute(query, (user_id,))
             return cursor.fetchall()
 
-    def get_by_mois_annee(self, user_id: int, annee: int, mois: int, employeur: str) -> List[Dict]:
+    def get_by_mois_annee(self, user_id: int, annee: int, mois: int, employeur: str, id_contrat: int) -> List[Dict]:
         """Récupère les salaires par mois et année avec gestion de connexion sécurisée."""
         try:
             with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM salaires WHERE user_id = %s AND employeur = %s AND annee = %s AND mois = %s"
-                cursor.execute(query, (user_id, employeur, annee, mois))
+                query = "SELECT * FROM salaires WHERE user_id = %s AND employeur = %s AND id_contrat = %s AND annee = %s AND mois = %s"
+                cursor.execute(query, (user_id, employeur, id_contrat, annee, mois))
                 return cursor.fetchall()
         except Exception as e:
             current_app.logger.error(f"Erreur récupération salaire par mois/année: {e}")
@@ -4827,7 +4827,7 @@ class Salaire:
         except Exception as e:
             current_app.logger.error(f"Erreur calcul salaire net: {e}")
             return 0.0
-    def calculer_salaire_net_avec_details(self, heures_reelles: float, contrat: Dict, user_id: int = None, employeur: str = None, annee: int = None, 
+    def calculer_salaire_net_avec_details(self, heures_reelles: float, contrat: Dict, user_id: int = None, employeur: str = None, id_contrat: int, annee: int = None, 
                                     mois: int = None, jour_estimation: int = 15) -> Dict:
         """
         Calcule le salaire net et retourne tous les détails du calcul pour affichage

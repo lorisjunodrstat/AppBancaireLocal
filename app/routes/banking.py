@@ -2998,6 +2998,7 @@ def heures_travail():
             if candidats:
                 contrat = max(candidats, key=lambda x: x['date_fin'])
        
+    id_contrat = contrat['id'] if contrat else None
     heures_hebdo_contrat = contrat['heures_hebdo'] if contrat else 38.0
     # Actions POST
     if request.method == 'POST':
@@ -3402,12 +3403,13 @@ def salaires():
             contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
         if contrat:
             employeur = contrat['employeur']
+            id_contrat = contrat['id']
             salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
             jour_estimation = int(contrat.get('jour_estimation_salaire', 15))       
             # Vérifier chevauchement
 
             # Récupérer les heures réelles pour cet employeur ce mois-ci
-            heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, contrat['id'], annee, m) or 0.0
+            heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, id_contrat, annee, m) or 0.0
             heures_reelles = round(heures_reelles, 2)
 
             # Valeurs par défaut
@@ -3434,7 +3436,7 @@ def salaires():
                     details = {'erreur': f'Erreur calcul: {str(e)}'}
 
             # Vérifier si un salaire existe déjà en base POUR CET EMPLOYEUR
-            salaires_existants = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur)
+            salaires_existants = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
             # Filtrer par employeur
             salaire_existant = None
             for s in salaires_existants:
