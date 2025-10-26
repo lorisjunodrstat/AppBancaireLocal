@@ -351,6 +351,18 @@
                     stroke="black" />
                 <line x1="{{ margin_x }}" y1="{{ margin_y + plot_height }}" x2="{{ margin_x + plot_width }}"
                     y2="{{ margin_y + plot_height }}" stroke="black" />
+                <!-- Repères sur l'axe Y -->
+                {% for tick in graphique1_svg.ticks %}
+                    {% if tick.is_major %}
+                        <line x1="{{ graphique1_svg.margin_x - 6 }}" y1="{{ tick.y_px }}" x2="{{ graphique1_svg.margin_x }}"
+                            y2="{{ tick.y_px }}" stroke="black" stroke-width="2" />
+                        <text x="{{ graphique1_svg.margin_x - 8 }}" y="{{ tick.y_px + 4 }}" text-anchor="end" font-size="10">{{ tick.value
+                            }}</text>
+                        {% else %}
+                        <line x1="{{ graphique1_svg.margin_x - 3 }}" y1="{{ tick.y_px }}" x2="{{ graphique1_svg.margin_x }}"
+                            y2="{{ tick.y_px }}" stroke="black" stroke-width="1" />
+                    {% endif %}
+                {% endfor %}
 
                 <!-- Colonnes (salaire estimé) -->
                 {% for col in graphique1_svg.colonnes %}
@@ -375,6 +387,24 @@
                 <text x="{{ margin_x + (i + 0.5) * (plot_width / 12) }}" y="{{ margin_y + plot_height + 20 }}"
                     text-anchor="middle" font-size="10">{{ graphique1_svg.mois_labels[i] }}</text>
                 {% endfor %}
+                !-- Légende -->
+                <g font-size="12" transform="translate({{ margin_x + plot_width - 180 }}, {{ margin_y + 10 }})">
+                    <!-- Salarie estimé (barre) -->
+                    <rect x="0" y="0" width="15" height="10" fill="rgba(54, 162, 235, 0.5)" stroke="rgba(54, 162, 235, 0.8)" />
+                    <text x="20" y="10" alignment-baseline="middle">Salaire estimé</text>
+                
+                    <!-- Salarie versé (ligne) -->
+                    <line x1="0" y1="25" x2="15" y2="25" stroke="rgb(255, 99, 132)" stroke-width="2" />
+                    <text x="20" y="25" alignment-baseline="middle">Salaire versé</text>
+                
+                    <!-- Acompte 10 % (point vert) -->
+                    <circle cx="7.5" cy="45" r="4" fill="green" />
+                    <text x="20" y="45" alignment-baseline="middle">Acompte 10 %</text>
+                
+                    <!-- Acompte 25 % (point orange) -->
+                    <circle cx="7.5" cy="65" r="4" fill="orange" />
+                    <text x="20" y="65" alignment-baseline="middle">Acompte 25 %</text>
+                </g>
             </svg>
             {% else %}
             <p>Pas de graphique des acomptes</p>
