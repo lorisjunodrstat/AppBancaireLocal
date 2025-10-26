@@ -4942,6 +4942,7 @@ class Salaire:
                             annee=annee, 
                             mois=mois, 
                             salaire_horaire=salaire_horaire, 
+                            employeur=contrat['employeur'],
                             id_contrat=contrat['id'],
                             jour_estimation=contrat.get('jour_estimation_salaire', 15)
                         )
@@ -4959,7 +4960,8 @@ class Salaire:
                             user_id=user_id, 
                             annee=annee, 
                             mois=mois, 
-                            salaire_horaire=salaire_horaire, 
+                            salaire_horaire=salaire_horaire,
+                            employeur=contrat['employeur'], 
                             id_contrat=contrat['id'],
                             jour_estimation=contrat.get('jour_estimation_salaire', 15)
                         )
