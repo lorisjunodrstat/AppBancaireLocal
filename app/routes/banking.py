@@ -3689,8 +3689,6 @@ def salaires():
         employeurs_unique=employeurs_unique,
         selected_employeur=selected_employeur,
         contrat_actuel=contrat,
-        largeur_svg=largeur_svg,
-        hauteur_svg=hauteur_svg,
         margin_x=margin_x,
         margin_y=margin_y,
         plot_width=plot_width,
