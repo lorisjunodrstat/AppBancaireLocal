@@ -3817,7 +3817,7 @@ def recalculer_salaires():
     annee = request.form.get('annee', type=int)
     employeur = request.form.get('employeur', '').strip()
     current_user_id = current_user.id
-
+    logging.info(f'demande de recalcul des salaires pour {current_user_id} et {employeur}')
     if not annee or not employeur:
         flash("Année et employeur requis pour le recalcul", "error")
         return redirect(url_for('banking.salaires', annee=annee or datetime.now().year))
@@ -3848,6 +3848,7 @@ def recalculer_salaires():
     for sal in salaires:
         if g.models.salaire_model.recalculer_salaire(sal['id'], contrat):
             count += 1
+            logging.info(f'salaire corrigé : {salaires} - {sal}')
 
     flash(f"✅ {count} salaires ont été recalculés avec succès pour {employeur} en {annee}.", "success")
     return redirect(url_for('banking.salaires', annee=annee, employeur=employeur))
