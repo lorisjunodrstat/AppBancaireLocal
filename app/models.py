@@ -4977,7 +4977,7 @@ class Salaire:
                     logging.error(f"Erreur calcul versements: {e}")
             
             # Calcul final du salaire net
-            salaire_net = salaire_brut + total_indemnites - total_cotisations - total_versements
+            salaire_net = salaire_brut + total_indemnites - total_cotisations
             
             return {
                 'salaire_net': round(salaire_net, 2),
