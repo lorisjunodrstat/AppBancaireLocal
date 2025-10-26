@@ -3464,8 +3464,7 @@ def salaires():
                     'acompte_25_estime': acompte_25_estime,
                     'acompte_10_estime': acompte_10_estime,
                     'difference': 0.0,
-                    'difference_pourcent': 0.0,
-                    'details': details
+                    'difference_pourcent': 0.0
                 }
 
                 # Calculer la différence si salaire versé existe
