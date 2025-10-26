@@ -5192,6 +5192,7 @@ class Salaire:
             }
 
             # 5. Mettre à jour en base
+            logging.info(f'update_data : {update_data}')
             return self.update(salaire_id, update_data)
 
         except Exception as e:
