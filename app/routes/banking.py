@@ -2965,11 +2965,23 @@ def heures_travail():
             if contrat_actuel:
                 selected_employeur = contrat_actuel['employeur']
             else:
+                selected_employeur = None
                 for emp in employeurs_unique:
-                    if g.models.heure_model.has_hours_for_employeur(current_user_id, emp):
+                    contrats_pour_emp = [c for c in tous_contrats if c['employeur'] == emp]
+                    if not contrats_pour_emp:
+                        continue
+                    contrat_candidat = None
+                    for c in contrats_pour_emp:
+                        if c['date_fin'] is None or c['date_fin'] >= date.today():
+                            contrat_candidat = c
+                            break
+                    if not contrat_candidat:
+                        contrat_candidat = max(contrats_pour_emp, key=lambda x: x['date_fin'] or date(1900, 1, 1))
+
+                    if g.models.heure_model.has_hours_for_employeur_and_contrat(current_user_id, emp, contrat_candidat['id']):
                         selected_employeur = emp
                         break
-                    else:
+                if not selected_employeur:
                         selected_employeur = employeurs_unique[0]
         else:
             selected_employeur = None
@@ -2991,21 +3003,21 @@ def heures_travail():
     if request.method == 'POST':
         annee = int(request.form.get('annee', now.year))
         if 'save_line' in request.form:
-            return handle_save_line(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur)
+            return handle_save_line(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat)
         elif 'reset_line' in request.form:
-            return handle_reset_line(request, current_user_id, annee,  mois, semaine, current_mode, selected_employeur)
+            return handle_reset_line(request, current_user_id, annee,  mois, semaine, current_mode, selected_employeur, id_contrat)
         elif 'reset_all' in request.form:
-            return handle_reset_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur)
+            return handle_reset_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat)
         elif request.form.get('action') == 'simuler':
-            return handle_simulation(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur)
+            return handle_simulation(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat)
         else:
-            return handle_save_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur)
+            return handle_save_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat)
 
     # Traitement GET : affichage des heures
     semaines = {}
     for day_date in generate_days(annee, mois, semaine):
         date_str = day_date.isoformat()
-        jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, selected_employeur) or {
+        jour_data_default = {
             'date': date_str,
             'h1d': '',
             'h1f': '',
@@ -3014,6 +3026,10 @@ def heures_travail():
             'vacances': False,
             'total_h': 0.0
         }
+        if contrat:
+            jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, selected_employeur, contrat['id']) or jour_data_default 
+        else:
+            jour_data = jour_data_default
         logging.debug(f"banking 3012 DEBUG: Données pour le {date_str}: {jour_data}")
         # CORRECTION : Toujours recalculer total_h pour assurer la cohérence
         if not jour_data['vacances'] and any([jour_data['h1d'], jour_data['h1f'], jour_data['h2d'], jour_data['h2f']]):
@@ -3062,11 +3078,17 @@ def heures_travail():
                         employeurs_unique=employeurs_unique,
                         selected_employeur=selected_employeur)
 
-def has_heures_for_employeur(self, user_id, employeur):
-    """Vérifie si des heures existent pour cet employeur."""
-    query = "SELECT 1 FROM heures_travail WHERE user_id = %s AND employeur = %s LIMIT 1"
-    result = self.db_manager.fetch_one(query, (user_id, employeur))
-    return result is not None
+def has_hours_for_employeur_and_contrat(self, user_id, employeur, id_contrat):
+    """Vérifie si l'utilisateur a des heures enregistrées pour un employeur donné"""
+    try:
+        with self.db.get_cursor() as cursor:
+            query = "SELECT 1 FROM heures_travail WHERE user_id = %s AND employeur = %s AND id_contrat = %s LIMIT 1"
+            cursor.execute(query, (user_id, employeur, id_contrat))
+            result = cursor.fetchone()
+            return result is not None
+    except Exception as e:
+        current_app.logger.error(f"Erreur has_hours_for_employeur_and_contrat: {e}")
+        return False
 
 def is_valid_time(time_str):
     """Validation renforcée du format d'heure"""
@@ -3124,7 +3146,7 @@ def validate_day_data(request, date_str):
     
     return errors
 
-def create_day_payload(request, user_id, date_str, employeur):
+def create_day_payload(request, user_id, date_str, employeur, id_contrat):
     """Crée le payload pour une journée en gérant correctement les valeurs vides"""
     # Récupération des valeurs du formulaire avec conversion des chaînes vides en None
     def get_time_field(field_name):
@@ -3158,6 +3180,7 @@ def create_day_payload(request, user_id, date_str, employeur):
         'date': date_str,
         'user_id': user_id,
         'employeur': employeur,
+        'id_contrat': id_contrat,
         'h1d': h1d,
         'h1f': h1f,
         'h2d': h2d,
@@ -3189,14 +3212,14 @@ def save_day_transaction(cursor, payload):
         logger.error(f"Traceback complet:\n{traceback.format_exc()}")
         return False, error_msg
 
-def process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, flash_message=True):
+def process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, id_contrat, flash_message=True):
     errors = validate_day_data(request, date_str)
     if errors:
         for error in errors:
             flash(f"Erreur {format_date(date_str)}: {error}", "error")
-        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
+        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
     
-    payload = create_day_payload(request, user_id, date_str, employeur)
+    payload = create_day_payload(request, user_id, date_str, employeur, id_contrat)
     
     # Utiliser la méthode sécurisée de HeureTravail
     success = g.models.heure_model.create_or_update(payload)
@@ -3207,7 +3230,7 @@ def process_day(request, user_id, date_str, annee, mois, semaine, mode, employeu
     else:
         flash(f"Échec de la sauvegarde pour {format_date(date_str)}", "error")
     
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
 def format_date(date_str):
     return datetime.fromisoformat(date_str).strftime('%d/%m/%Y')
@@ -3227,27 +3250,27 @@ def generate_days(annee: int, mois: int, semaine: int) -> list[date]:
         now = datetime.now()
         _, num_days = monthrange(now.year, now.month)
         return [date(now.year, now.month, day) for day in range(1, num_days + 1)]
-def handle_save_line(request, user_id, annee, mois, semaine, mode, employeur):
+def handle_save_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     date_str = request.form['save_line']
-    return process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur)
+    return process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, id_contrat)
 
-def handle_reset_line(request, user_id, annee, mois, semaine, mode, employeur):
+def handle_reset_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     date_str = request.form['reset_line']
     heure_model = HeureTravail(g.db_manager)
     try:
-        heure_model.delete_by_date(date_str, user_id, employeur)
+        heure_model.delete_by_date(date_str, user_id, employeur, id_contrat)
         flash(f"Les heures du {format_date(date_str)} ont été réinitialisées", "warning")
     except Exception as e:
         logger.error(f"Erreur reset_line pour {date_str}: {str(e)}")
         flash(f"Erreur lors de la réinitialisation du {format_date(date_str)}", "error")
-    return redirect(url_for('banking.heures_travail', annee=annee,mois=mois, semaine=semaine, mode=mode, employeur=employeur))
+    return redirect(url_for('banking.heures_travail', annee=annee,mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
-def handle_reset_all(request, user_id, annee, mois, semaine, mode, employeur):
+def handle_reset_all(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     days = generate_days(annee, mois, semaine)
     errors = []
     for day in days:
         try:
-            g.models.heure_model.delete_by_date(day.isoformat(), user_id, employeur)
+            g.models.heure_model.delete_by_date(day.isoformat(), user_id, employeur, id_contrat)
         except Exception as e:
             logger.error(f"Erreur reset jour {day}: {str(e)}")
             errors.append(format_date(day.isoformat()))
@@ -3255,9 +3278,9 @@ def handle_reset_all(request, user_id, annee, mois, semaine, mode, employeur):
         flash(f"Erreur lors de la réinitialisation des jours: {', '.join(errors)}", "error")
     else:
         flash("Toutes les heures ont été réinitialisées", "warning")
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
-def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur):
+def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur, id_contrat):
     days = generate_days(annee, mois, semaine)
     errors = []
     success_count = 0
@@ -3277,6 +3300,7 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur):
                     'total_h': total_h,
                     'user_id': user_id,
                     'employeur': employeur,
+                    'id_contrat': id_contrat,
                     'jour_semaine': day.strftime('%A'),
                     'semaine_annee': day.isocalendar()[1],
                     'mois': day.month
@@ -3290,15 +3314,15 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur):
         flash(f"Erreur simulation pour les jours: {', '.join(errors)}", "error")
     if success_count > 0:
         flash(f"Heures simulées appliquées pour {success_count} jour(s)", "info")
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
-def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur):
+def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     days = generate_days(annee, mois, semaine)
     has_errors = False
     
     for day in days:
         date_str = day.isoformat()
-        payload = create_day_payload(request, user_id, date_str, employeur)
+        payload = create_day_payload(request, user_id, date_str, employeur, id_contrat)
         
         if not g.models.heure_model.create_or_update(payload):
             has_errors = True
@@ -3307,7 +3331,7 @@ def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur):
     if not has_errors:
         flash("Toutes les heures ont été enregistrées avec succès", "success")
     
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
 # --- Routes salaires ---
 
@@ -3333,14 +3357,15 @@ def salaires():
                 selected_employeur = contrat_actuel['employeur']
             else:
                 for emp in employeurs_unique:
-                    if g.models.heure_model.has_hours_for_employeur(current_user_id, emp):
-                        selected_employeur = emp
-                        break
-                    else:
+                    contrats_emp = [c for c in tous_contrats if c['employeur'] == emp]
+                    for c in contrats_emp:
+                        if g.models.heure_model.has_hours_for_employeur_and_contrat(current_user_id, emp, c['id']):
+                            selected_employeur = emp
+                            break
+                    if not selected_employeur:
                         selected_employeur = employeurs_unique[0]
         else:
             selected_employeur = None
-
     # Initialiser tous les mois de l'année
     for m in range(1, 13):
         salaires_par_mois[m] = {
@@ -3382,7 +3407,7 @@ def salaires():
             # Vérifier chevauchement
 
             # Récupérer les heures réelles pour cet employeur ce mois-ci
-            heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, m, employeur) or 0.0
+            heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, contrat['id'], annee, m) or 0.0
             heures_reelles = round(heures_reelles, 2)
 
             # Valeurs par défaut
@@ -3541,7 +3566,7 @@ def details_calcul_salaire():
             return jsonify({'erreur': 'Aucun contrat trouvé pour cette période'}), 404
         
         # Récupération des heures réelles
-        heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, mois, employeur) or 0.0
+        heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, contrat['id'], annee, mois) or 0.0
         
         # Calcul avec détails
         resultats = g.models.salaire_model.calculer_salaire_net_avec_details(heures_reelles, 
@@ -3565,11 +3590,6 @@ def update_salaire():
     employeur = request.form.get('employeur')
     current_user_id = current_user.id
 
-    date_ref = f'{annee}-{int(mois):02d}-01'
-    contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, employeur, date_ref)
-    if not contrat:
-        flash("Aucun contrat trouvé pour cet employeur et cette période", "error")
-        return redirect(url_for('banking.salaires', annee=annee))
     salaire_verse_str = request.form.get('salaire_verse')
     acompte_25_str = request.form.get('acompte_25')
     acompte_10_str = request.form.get('acompte_10')
@@ -3608,7 +3628,7 @@ def update_salaire():
     jour_estimation = int(contrat['jour_estimation_salaire']) if contrat and 'jour_estimation_salaire' in contrat else 15
     
     # Récupération des heures réelles
-    heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, annee, mois, employeur) or 0.0
+    heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, contrat['id'], annee, mois) or 0.0
 
     # Récupération de l'entrée existante
     existing = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, mois, employeur)

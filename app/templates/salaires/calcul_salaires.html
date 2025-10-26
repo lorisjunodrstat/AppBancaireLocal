@@ -269,6 +269,74 @@
             </div>
         </div>
     </div>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h1>Graphiques de l'évolution des salaires</h1>
+        </div>
+        <div class="card-body">
+            {% if graphique1_svg %}
+            <!-- Graphique 1 -->
+            <svg width="{{ largeur_svg }}" height="{{ hauteur_svg }}" style="border: 1px solid #ccc; margin: 20px 0;">
+                <!-- Axes -->
+                <line x1="{{ margin_x }}" y1="{{ margin_y }}" x2="{{ margin_x }}" y2="{{ margin_y + plot_height }}"
+                    stroke="black" />
+                <line x1="{{ margin_x }}" y1="{{ margin_y + plot_height }}" x2="{{ margin_x + plot_width }}"
+                    y2="{{ margin_y + plot_height }}" stroke="black" />
+            
+                <!-- Colonnes (salaire estimé) -->
+                {% for col in graphique1_svg.colonnes %}
+                <rect x="{{ col.x }}" y="{{ col.y }}" width="{{ col.width }}" height="{{ col.height }}"
+                    fill="rgba(54, 162, 235, 0.5)" stroke="rgba(54, 162, 235, 0.8)" />
+                {% endfor %}
+            
+                <!-- Ligne (salaire versé) -->
+                <polyline points="{{ graphique1_svg.ligne_verse|join(' ') }}" fill="none" stroke="rgb(255, 99, 132)"
+                    stroke-width="2" />
+            
+                <!-- Points acomptes -->
+                {% for pt in graphique1_svg.points_acompte_10 %}
+                <circle cx="{{ pt.split(',')[0] }}" cy="{{ pt.split(',')[1] }}" r="3" fill="green" />
+                {% endfor %}
+                {% for pt in graphique1_svg.points_acompte_25 %}
+                <circle cx="{{ pt.split(',')[0] }}" cy="{{ pt.split(',')[1] }}" r="3" fill="orange" />
+                {% endfor %}
+            
+                <!-- Labels mois (optionnel) -->
+                {% for i in range(12) %}
+                <text x="{{ margin_x + (i + 0.5) * (plot_width / 12) }}" y="{{ margin_y + plot_height + 20 }}" text-anchor="middle"
+                    font-size="10">{{ graphique1_svg.mois_labels[i] }}</text>
+                {% endfor %}
+            </svg>
+            
+            <!-- Graphique 2 -->
+            <svg width="{{ largeur_svg }}" height="{{ hauteur_svg }}" style="border: 1px solid #ccc; margin: 20px 0;">
+                <line x1="{{ margin_x }}" y1="{{ margin_y }}" x2="{{ margin_x }}" y2="{{ margin_y + plot_height }}"
+                    stroke="black" />
+                <line x1="{{ margin_x }}" y1="{{ margin_y + plot_height }}" x2="{{ margin_x + plot_width }}"
+                    y2="{{ margin_y + plot_height }}" stroke="black" />
+            
+                <!-- Colonnes (total versé) -->
+                {% for col in graphique2_svg.colonnes %}
+                <rect x="{{ col.x }}" y="{{ col.y }}" width="{{ col.width }}" height="{{ col.height }}"
+                    fill="rgba(75, 192, 192, 0.6)" stroke="rgba(75, 192, 192, 0.9)" />
+                {% endfor %}
+            
+                <!-- Ligne (total estimé) -->
+                <polyline points="{{ graphique2_svg.ligne_estime|join(' ') }}" fill="none" stroke="rgb(255, 205, 86)"
+                    stroke-width="2" />
+            
+                <!-- Labels mois -->
+                {% for i in range(12) %}
+                <text x="{{ margin_x + (i + 0.5) * (plot_width / 12) }}" y="{{ margin_y + plot_height + 20 }}" text-anchor="middle"
+                    font-size="10">{{ graphique2_svg.mois_labels[i] }}</text>
+                {% endfor %}
+            </svg>
+            {% else %}
+            <p>Pas de graphiques disponible pour l'instant</p>
+            {% endif %}
+        </div>
+    </div>
+
 
 <!-- Modal pour afficher le contrat -->
     <div class="modal fade" id="contratModal" tabindex="-1" aria-hidden="true">
@@ -405,6 +473,7 @@
                     <input type="hidden" name="mois" value="{{ mois }}">
                     <input type="hidden" name="annee" value="{{ annee_courante }}">
                     <input type="hidden" name="employeur" value="{{ selected_employeur }}">
+                    <input type="hidden" name="id_contrat" value="{{ contrat.id if contrat else '' }}">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label">Salaire versé (CHF)</label>

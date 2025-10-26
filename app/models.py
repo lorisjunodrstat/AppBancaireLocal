@@ -10,6 +10,7 @@ from pymysql import Error
 from decimal import Decimal
 from datetime import datetime, date, timedelta
 import calendar
+import csv
 import time
 from typing import List, Dict, Optional, Tuple
 import decimal
@@ -4339,8 +4340,8 @@ class HeureTravail:
             
             # Vérifier si l'enregistrement existe déjà
             cursor.execute(
-                "SELECT * FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s",
-                (cleaned_data['date'], cleaned_data['user_id'], cleaned_data['employeur'])
+                "SELECT * FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s",
+                (cleaned_data['date'], cleaned_data['user_id'], cleaned_data['employeur'], cleaned_data['id_contrat'])
             )
             existing = cursor.fetchone()
             
@@ -4349,6 +4350,7 @@ class HeureTravail:
                 'date': date_obj,
                 'user_id': cleaned_data['user_id'],
                 'employeur': cleaned_data['employeur'],
+                'id_contrat': cleaned_data.get('id_contrat'),
                 'vacances': cleaned_data.get('vacances', False)
             }
             
@@ -4372,9 +4374,9 @@ class HeureTravail:
             # Requête UPSERT unique
             upsert_query = """
             INSERT INTO heures_travail
-            (date, user_id, employeur, h1d, h1f, h2d, h2f, total_h, vacances,
+            (date, user_id, employeur, id_contrat, h1d, h1f, h2d, h2f, total_h, vacances,
             jour_semaine, semaine_annee, mois)
-            VALUES (%(date)s, %(user_id)s, %(employeur)s, %(h1d)s, %(h1f)s, %(h2d)s, %(h2f)s, 
+            VALUES (%(date)s, %(user_id)s, %(employeur)s, %(id_contrat)s, %(h1d)s, %(h1f)s, %(h2d)s, %(h2f)s, 
                     %(total_h)s, %(vacances)s, %(jour_semaine)s, %(semaine_annee)s, %(mois)s)
             ON DUPLICATE KEY UPDATE
                 h1d = COALESCE(VALUES(h1d), h1d),
@@ -4424,6 +4426,8 @@ class HeureTravail:
             raise ValueError("date manquante dans les données")
         if 'employeur' not in cleaned or not cleaned['employeur']:
             raise ValueError("employeur manquant dans les données")
+        if 'id_contrat' not in cleaned or cleaned['id_contrat'] is None:
+            raise ValueError("id_contrat manquant dans les données")
         
         return cleaned
 
@@ -4440,38 +4444,38 @@ class HeureTravail:
         total = diff_heures(h1d, h1f) + diff_heures(h2d, h2f)
         return round(total, 2)
 
-    def get_by_date(self, date_str: str, user_id: int, employeur: str) -> Optional[Dict]:
+    def get_by_date(self, date_str: str, user_id: int, employeur: str, id_contrat: int) -> Optional[Dict]:
         """Récupère les données pour une date et un utilisateur donnés"""
         try:
             with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s"
-                current_app.logger.debug(f"[get_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur})")
-                
-                cursor.execute(query, (date_str, user_id, employeur))
+                query = "SELECT * FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s"
+                current_app.logger.debug(f"[get_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
+
+                cursor.execute(query, (date_str, user_id, employeur, id_contrat))
                 jour = cursor.fetchone()
                 
                 if jour:
-                    current_app.logger.debug(f"[get_by_date] Données trouvées pour {date_str}, user_id: {user_id}, employeur: {employeur}")
+                    current_app.logger.debug(f"[get_by_date] Données trouvées pour {date_str}, user_id: {user_id}, employeur: {employeur}, id_contrat: {id_contrat}  ")
                     self._convert_timedelta_fields(jour, ['h1d', 'h1f', 'h2d', 'h2f'])
                 else:
-                    current_app.logger.debug(f"[get_by_date] Aucune donnée trouvée pour {date_str}, user_id: {user_id}, employeur: {employeur}  ")
-                
+                    current_app.logger.debug(f"[get_by_date] Aucune donnée trouvée pour {date_str}, user_id: {user_id}, employeur: {employeur}, id_contrat: {id_contrat}  ")
+
                 return jour
                 
         except Exception as e:
             current_app.logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
             return None
 
-    def get_jours_travail(self, mois: int, semaine: int, user_id: int, employeur: str) -> List[Dict]:
+    def get_jours_travail(self, mois: int, semaine: int, user_id: int, employeur: str, id_contrat: int) -> List[Dict]:
         """Récupère les jours de travail pour une période"""
         try:
             with self.db.get_cursor() as cursor:
                 if semaine > 0:
-                    query = "SELECT * FROM heures_travail WHERE semaine_annee = %s AND user_id = %s AND employeur = %s ORDER BY date"
-                    params = (semaine, user_id, employeur)
+                    query = "SELECT * FROM heures_travail WHERE semaine_annee = %s AND user_id = %s AND employeur = %s AND id_contrat = %s ORDER BY date"
+                    params = (semaine, user_id, employeur, id_contrat)
                 else:
-                    query = "SELECT * FROM heures_travail WHERE mois = %s AND user_id = %s AND employeur = %s ORDER BY date"
-                    params = (mois, user_id, employeur)
+                    query = "SELECT * FROM heures_travail WHERE mois = %s AND user_id = %s AND employeur = %s AND id_contrat = %s ORDER BY date"
+                    params = (mois, user_id, employeur, id_contrat)
 
                 current_app.logger.debug(f"[get_jours_travail] Query: {query} avec params: {params}")
                 cursor.execute(query, params)
@@ -4488,14 +4492,14 @@ class HeureTravail:
             current_app.logger.error(f"Erreur get_jours_travail: {str(e)}")
             return []
 
-    def delete_by_date(self, date_str: str, user_id: int, employeur: str) -> bool:
+    def delete_by_date(self, date_str: str, user_id: int, employeur: str, id_contrat: int) -> bool:
         """Supprime les données pour une date et un utilisateur donnés"""
         try:
             with self.db.get_cursor(commit=True) as cursor:
-                query = "DELETE FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s"
-                current_app.logger.debug(f"[delete_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur})")
+                query = "DELETE FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s"
+                current_app.logger.debug(f"[delete_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
 
-                cursor.execute(query, (date_str, user_id, employeur))
+                cursor.execute(query, (date_str, user_id, employeur, id_contrat))
                 rows_affected = cursor.rowcount
                 
                 current_app.logger.debug(f"[delete_by_date] {rows_affected} ligne(s) supprimée(s) pour {date_str}")
@@ -4520,33 +4524,33 @@ class HeureTravail:
             else:
                 record[field] = ''
 
-    def get_total_heures_mois(self, user_id: int, employeur: str, annee: int, mois: int) -> float:
+    def get_total_heures_mois(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int) -> float:
         """Calcule le total des heures pour un mois donné"""
         try:
             with self.db.get_cursor() as cursor:
                 query = """
                 SELECT SUM(total_h) FROM heures_travail
-                WHERE user_id = %s AND employeur = %s AND YEAR(date) = %s AND MONTH(date) = %s
+                WHERE user_id = %s AND employeur = %s AND id_contrat = %s AND YEAR(date) = %s AND MONTH(date) = %s
                 """
-                cursor.execute(query, (user_id, employeur, annee, mois))
+                cursor.execute(query, (user_id, employeur, id_contrat, annee, mois))
                 result = cursor.fetchone()
                 return float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
         except Exception as e:
             current_app.logger.error(f"Erreur get_total_heures_mois: {e}")
             return 0.0
 
-    def get_heures_periode(self, user_id: int, employeur: str, annee: int, mois: int, start_day: int, end_day: int) -> float:
+    def get_heures_periode(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, start_day: int, end_day: int) -> float:
         """Récupère le total des heures travaillées entre deux jours du mois"""
         try:
             with self.db.get_cursor() as cursor:
                 query = """
                 SELECT SUM(total_h) FROM heures_travail
-                WHERE user_id = %s AND employeur = %s
+                WHERE user_id = %s AND employeur = %s AND id_contrat = %s
                 AND YEAR(date) = %s
                 AND MONTH(date) = %s
                 AND DAY(date) BETWEEN %s AND %s
                 """
-                cursor.execute(query, (user_id, employeur, annee, mois, start_day, end_day))
+                cursor.execute(query, (user_id, employeur, id_contrat, annee, mois, start_day, end_day))
                 result = cursor.fetchone()
                 return float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
         except Exception as e:
@@ -4568,6 +4572,15 @@ class HeureTravail:
                     for row in reader:
                         date_str = row.get('date')
                         employeur = row.get('employeur')
+                        id_contrat = row.get('id_contrat')
+                        if id_contrat is None:
+                            current_app.logger.warning(f"[Import CSV] id_contrat manquant pour la ligne avec date : {row}. Ligne ignorée.")
+                            continue
+                        try:
+                            id_contrat = int(id_contrat)
+                        except ValueError:
+                            current_app.logger.warning(f"[Import CSV] id_contrat invalide pour la ligne avec date : {id_contrat}")
+                            continue
                         if not date_str or not employeur:
                             continue
 
@@ -4584,8 +4597,8 @@ class HeureTravail:
                         vacances = True if str(row.get('vacances')).strip().lower() in ('1', 'true', 'oui') else False
 
                         cursor.execute(
-                            "SELECT * FROM heures_travail WHERE date = %s AND user_id = %s and employeur = %s",
-                            (date_obj, user_id, employeur)
+                            "SELECT * FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s",
+                            (date_obj, user_id, employeur, id_contrat)
                         )
                         existing = cursor.fetchone()
 
@@ -4613,11 +4626,11 @@ class HeureTravail:
                             cursor.execute("""
                                 INSERT INTO heures_travail
                                 (date, jour_semaine, semaine_annee, mois,
-                                h1d, h1f, h2d, h2f, total_h, vacances, user_id, employeur)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                h1d, h1f, h2d, h2f, total_h, vacances, user_id, employeur, id_contrat)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """, (
                                 date_obj, date_obj.strftime('%A'), date_obj.isocalendar()[1], date_obj.month,
-                                h1d, h1f, h2d, h2f, total_h, vacances, user_id, employeur
+                                h1d, h1f, h2d, h2f, total_h, vacances, user_id, employeur, id_contrat
                             ))
                         lignes_importees += 1
 
@@ -4642,7 +4655,18 @@ class HeureTravail:
 
         total = diff_heures(h1d, h1f) + diff_heures(h2d, h2f)
         return round(total, 2)
-
+    def has_hours_for_employeur_and_contrat(self, user_id: int, employeur: str, id_contrat: int) -> bool:
+    def has_hours_for_employeur_and_contrat(self, user_id: int, employeur: str, id_contrat: int) -> bool:
+        """Vérifie si l'utilisateur a des heures enregistrées pour un employeur donné"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "SELECT 1 FROM heures_travail WHERE user_id = %s AND employeur = %s AND id_contrat = %s LIMIT 1"
+                cursor.execute(query, (user_id, employeur, id_contrat))
+                result = cursor.fetchone()
+                return result is not None
+        except Exception as e:
+            current_app.logger.error(f"Erreur has_hours_for_employeur: {e}")
+            return False
 class Salaire:
     def __init__(self, db, heure_travail_manager=None):
         self.db = db
@@ -4657,8 +4681,8 @@ class Salaire:
                 INSERT INTO salaires 
                 (mois, annee, heures_reelles, salaire_horaire,
                 salaire_calcule, salaire_net, salaire_verse, acompte_25, acompte_10,
-                acompte_25_estime, acompte_10_estime, difference, difference_pourcent, user_id, employeur   )
-                VALUES (%s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                acompte_25_estime, acompte_10_estime, difference, difference_pourcent, user_id, employeur, id_contrat)
+                VALUES (%s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                 """
                 values = (
                     data['mois'], data['annee'], data['heures_reelles'], 
@@ -4673,7 +4697,8 @@ class Salaire:
                     data.get('difference'),
                     data.get('difference_pourcent'),
                     data['user_id'],
-                    data['employeur']
+                    data['employeur'],
+                    data.get('id_contrat')
                 )
                 cursor.execute(query, values)
             return True
@@ -4995,6 +5020,13 @@ class Salaire:
                         mois_num = mois_nom_to_num.get(row['Mois'])
                         if not mois_num:
                             continue
+                        id_contrat = row.get('id_contrat')
+                        employeur = row.get('employeur', 'Inconnu')
+                        if id_contrat is None:
+                            try:
+                                id_contrat = int(id_contrat)
+                            except ValueError:
+                                id_contrat = None 
 
                         def clean_value(val):
                             if val is None or val.strip() == '':
@@ -5016,15 +5048,15 @@ class Salaire:
                         query = """
                         INSERT INTO salaires 
                         (mois, annee, heures_reelles, salaire_calcule, salaire_verse,
-                        acompte_25, acompte_10, difference, difference_pourcent, user_id, employeur)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        acompte_25, acompte_10, difference, difference_pourcent, user_id, employeur, id_contrat)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """
                         values = (
                             mois_num, annee,
                             heures_reelles, salaire_calcule, salaire_verse,
                             acompte_25, acompte_10,
                             difference, difference_pourcent,
-                            user_id, employeur   
+                            user_id, employeur, id_contrat
                         )
                         cursor.execute(query, values)
             return True
@@ -5032,12 +5064,12 @@ class Salaire:
             current_app.logger.error(f"Erreur import salaires: {e}")
             return False
 
-    def get_by_user_and_month(self, user_id: int, mois: int = None, annee: int = None) -> List[Dict]:
+    def get_by_user_and_month(self, user_id: int, employeur: str, id_contrat: int, mois: int = None, annee: int = None) -> List[Dict]:
         with self.db.get_cursor() as cursor:
             if not cursor:
                 return []
-            query = "SELECT * FROM salaires WHERE user_id = %s"
-            params = [user_id]
+            query = "SELECT * FROM salaires WHERE user_id = %s AND employeur = %s AND id_contrat = %s"
+            params = [user_id, employeur, id_contrat]
             if mois is not None:
                 query += " AND mois = %s"
                 params.append(mois)
@@ -5048,23 +5080,23 @@ class Salaire:
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
     
-    def calculer_acompte_25(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str,jour_estimation: int = 15) -> float:
+    def calculer_acompte_25(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
         if not self.heure_travail_manager:
             raise ValueError("HeureTravail manager non initialisé")
         
         heures = self.heure_travail_manager.get_heures_periode(
-            user_id, employeur, annee, mois, 1, jour_estimation 
+            user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         )
         logging.error(heures)
         return round(heures * salaire_horaire, 2)
 
-    def calculer_acompte_10(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, jour_estimation: int = 15) -> float:
+    def calculer_acompte_10(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
         if not self.heure_travail_manager:
             raise ValueError("HeureTravail manager non initialisé")
-        
-        heures_total = self.heure_travail_manager.get_total_heures_mois(user_id, annee, mois, employeur)
+
+        heures_total = self.heure_travail_manager.get_total_heures_mois(user_id, annee, mois, employeur, id_contrat)
         heures_1_jour = self.heure_travail_manager.get_heures_periode(
-            user_id, employeur, annee, mois, 1, jour_estimation
+            user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         )
         heures_jour_fin = heures_total - heures_1_jour
         return round(heures_jour_fin * salaire_horaire, 2)
