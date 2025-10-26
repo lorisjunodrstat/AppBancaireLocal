@@ -707,7 +707,7 @@ class ComptePrincipal:
                 """
                 cursor.execute(query, (user_id,))
                 comptes = cursor.fetchall() # N'oubliez pas de récupérer les données
-                logging.info(f"models 710 - Comptes récupérés - comptes - pour l'utilisateur {user_id}: {comptes}")
+                logging.info(f"models 710 - Comptes récupérés - comptes - pour l'utilisateur {user_id}: {len(comptes)}")
                 return comptes
         except Error as e:
             logging.error(f"713 Erreur lors de la récupération des comptes: {e}")
