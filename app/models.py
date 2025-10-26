@@ -5120,8 +5120,8 @@ class Salaire:
                 f"(user={user_id}, mois={mois}/{annee}, employeur={employeur})"
             )
             heures_apres = 0.0
-        result = round(heures_jour_fin * salaire_horaire, 2)
-        current_app.logger.info(f"calculer_acompte_10 → heures_jour_fin={heures_jour_fin}, result={result}")
+        result = round(heures_apres * salaire_horaire, 2)
+        current_app.logger.info(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         return result
     
     def recalculer_salaire(self, salaire_id: int, contrat: Dict) -> bool:
