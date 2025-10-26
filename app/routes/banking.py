@@ -3421,10 +3421,9 @@ def salaires():
 
                 if salaire_existant and salaire_existant.get('details'):
                     # Utiliser les valeurs stockées en base
-                    salaire_calcule = salaire_existant.get('salaire_calcule', 0.0)
-                    salaire_net = salaire_existant.get('salaire_net', 0.0)
-                    acompte_25_estime = salaire_existant.get('acompte_25_estime', 0.0)
-                    acompte_10_estime = salaire_existant.get('acompte_10_estime', 0.0)
+                    salaire_verse = salaire_existant.get('salaire_verse', 0.0)
+                    acompte_25 = salaire_existant.get('acompte_25', 0.0)
+                    acompte_10 = salaire_existant.get('acompte_10', 0.0)
                     details = salaire_existant.get('details', {'erreur': 'Détails non disponibles'})
                 else:
                     # Nouveau mois : calculer à la volée
@@ -3441,6 +3440,10 @@ def salaires():
                         except Exception as e:
                             logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
                             details = {'erreur': f'Erreur calcul: {str(e)}'}
+                            salaire_net = 0.0
+                            salaire_calcule = 0.0
+                            acompte_10_estime = 0.0
+                            acompte_25_estime = 0.0
 
                 # Préparer les données à sauvegarder / afficher
                 salaire_data = {
@@ -3453,9 +3456,9 @@ def salaires():
                     'salaire_horaire': salaire_horaire,
                     'salaire_calcule': salaire_calcule,
                     'salaire_net': salaire_net,
-                    'salaire_verse': salaire_existant.get('salaire_verse', 0.0) if salaire_existant else 0.0,
-                    'acompte_25': salaire_existant.get('acompte_25', 0.0) if salaire_existant else 0.0,
-                    'acompte_10': salaire_existant.get('acompte_10', 0.0) if salaire_existant else 0.0,
+                    'salaire_verse': salaire_verse,
+                    'acompte_25': acompte_25,
+                    'acompte_10': acompte_10,
                     'acompte_25_estime': acompte_25_estime,
                     'acompte_10_estime': acompte_10_estime,
                     'difference': 0.0,
