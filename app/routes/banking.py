@@ -3428,10 +3428,26 @@ def salaires():
                     acompte_10 = salaire_existant.get('acompte_10', 0.0)
 
                 # Nouveau mois : calculer à la volée
+                acompte_25_estime = 0.0
+                acompte_10_estime = 0.0
                 if heures_reelles > 0:
+                    try:
+
+                        # Recalcul des acomptes estimés
+                        if contrat.get('versement_25'):
+                            acompte_25_estime = g.models.salaire_model.calculer_acompte_25(
+                                current_user_id, annee, m, salaire_horaire, employeur, id_contrat, jour_estimation)
+                        if contrat.get('versement_10'):
+                            acompte_10_estime = g.models.salaire_model.calculer_acompte_10(
+                                current_user_id, annee, m, salaire_horaire, employeur, id_contrat, jour_estimation)
+                        acompte_25_estime = round(float(acompte_25_estime), 2)
+                        acompte_10_estime = round(float(acompte_10_estime), 2)
+                    except Exception as e:
+                        logger.error(f"Erreur calcul acomptes estimés mois {m}: {e}")
                     try:
                         result = g.models.salaire_model.calculer_salaire_net_avec_details(
                             heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
+                        logger.info(f"Structure de result pour mois {m}: {result}")
                         details = result
                         salaire_net = result.get('salaire_net', 0.0)
                         salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
