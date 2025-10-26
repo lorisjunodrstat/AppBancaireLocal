@@ -858,11 +858,11 @@
                             <div class="col-md-8">
                                 <div class="calcul-ligne">
                                     <i class="fas fa-minus me-2 text-danger"></i>
-                                    <span>4. - Versements:</span>
+                                    <span>4. Versements:</span>
                                 </div>
                             </div>
                             <div class="col-md-4 text-end">
-                                <span class="fw-bold text-danger">- {{
+                                <span class="fw-bold text-danger"> {{
                                     "%.2f"|format(details_calcul.get('total_versements', 0)) }} CHF</span>
                             </div>
                         </div>
@@ -875,7 +875,7 @@
                                 </div>
                             </div>
                             <div class="col-md-4 text-end">
-                                <span class="fw-bold fs-5 text-primary">{{ "%.2f"|format(salaire_data.salaire_net) }}
+                                <span class="fw-bold fs-5 text-primary">{{ "%.2f"|format(salaire_data.salaire_net + details_calcul.get('total_versements')) }}
                                     CHF</span>
                             </div>
                         </div>
