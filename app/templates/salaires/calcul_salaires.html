@@ -6,6 +6,47 @@
 9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'
 } %}
 
+{% block head_css %}
+<style>
+    .detail-calcul-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .calcul-ligne {
+        display: flex;
+        align-items: center;
+        padding: 0.25rem 0;
+    }
+
+    .calcul-ligne.final {
+        font-size: 1.1em;
+        font-weight: bold;
+    }
+
+    .montant-positif {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .montant-negatif {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    .montant-neutre {
+        color: #6c757d;
+        font-weight: bold;
+    }
+
+    .section-icon {
+        color: #6c757d;
+    }
+
+    .border-top {
+        border-top: 2px solid #dee2e6 !important;
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -193,7 +234,7 @@
                                 {{ "%.2f"|format(salaire_data.acompte_10_estime) if salaire_data and salaire_data.acompte_10_estime is not none else
                                 '0.00' }}
                                 <span class="exxtrasmall" style="font-size: 6pt;">CHF</span>
-                            </td
+                            </td>
 
                             <!-- Différence -->
                             <td class="text-center">
@@ -539,383 +580,340 @@
 
 <!-- Modal pour le détail du calcul -->
 <div class="modal fade" id="detailSalaireModal{{ mois }}{{ annee_courante }}" tabindex="-1"
-    aria-labelledby="detailSalaireModalLabel" aria-hidden="false" role="dialog">
-    <div class="modal-dialog modal-lg" style="padding: 60px;">
+    aria-labelledby="detailSalaireModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <!-- ... en-tête inchangé ... -->
-            <div class="modal-header">
-                <div class="text-center mb-4">
-                    <h4>{{ mois_noms[mois] }} {{ annee_courante }} </h4>
-                </div>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    Détails du calcul - {{ mois_noms[mois] }} {{ annee_courante }}
+                    {% if selected_employeur %} - {{ selected_employeur }}{% endif %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
             </div>
-            <div class="modal-body  p-4">
+            <div class="modal-body p-4">
 
-                {% if salaire_data.details and salaire_data.details.erreur %}
-                <div class="alert alert-danger">
-                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Erreur dans le calcul</h5>
-                    <p>{{ salaire_data.details.erreur }}</p>
+                {% if not salaire_data or not salaire_data.details %}
+                <div class="alert alert-warning">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Aucune donnée disponible</h5>
+                    <p>Les détails du calcul ne sont pas disponibles pour ce mois.</p>
                 </div>
                 {% else %}
-                <!-- Correction: Vérifier l'existence de data.details.details -->
-                {% set details_data = salaire_data.details.get('details', {}) if salaire_data and salaire_data.details
-                else {} %}
+
+                {% set details_data = salaire_data.details %}
+
                 <!-- Section informations de base -->
-                <div class="detail-calcul-section" style="background-color: beige;">
-                    <h5 class="text-center"><i class="fas fa-info-circle section-icon me-2"></i> Informations de base
-                        (id : {{ data.id }})</h5>
-                    <div class="row mb-3">
-                        <div class="col-md-1 text-right">
-                            <i class="fas fa-clock me-2"></i>
-                        </div>
-                        <div class="col-md-7">
-                            <div class="calcul-ligne">
-                                <span>Heures réelles travaillées:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <!-- Correction: Accès sécurisé -->
-                            <span><strong>{{ "%.2f"|format(details_data.get('heures_reelles', 0)) }} h</strong></span>
-                        </div>
+                <div class="detail-calcul-section card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i> Informations de base</h5>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-md-1 text-right">
-                            <i class="fas fa-coins me-2"></i>
-                        </div>
-                        <div class="col-md-7">
-                            <div class="calcul-ligne">
-                                <span>Taux horaire:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="calcul-ligne text-end">
-                                <!-- Correction: Accès sécurisé -->
-                                <span><strong>{{ "%.2f"|format(details_data.get('salaire_horaire', 0)) }}
-                                        CHF/h</strong></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-1">
-                            <i class="fas fa-calculator me-2"></i>
-                        </div>
-                        <div class="col-md-7">
-                            <div class="calcul-ligne">
-                                <span>Salaire brut:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="calcul-ligne text-end">
-                                <!-- Correction: Accès sécurisé -->
-                                <span class="montant-positif">
-                                    <strong>{{ "%.2f"|format(details_data.get('salaire_brut', 0)) }} CHF</strong>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section indemnités -->
-                <div class="detail-calcul-sectionr">
-                    <h5 class="text-center"><i class="fas fa-plus-circle section-icon"></i> Indemnités (ajoutées au
-                        salaire)</h5>
-
-                    {% set indemnites = details_data.get('indemnites', {}) %}
-                    {% set has_indemnites = details_data|length >0 %}
-                    {% if has_indemnites %}
-
-                    {% for key, info in indemnites.items() %}
-                    {% if info.actif %}
-                    <div class="row mb-3">
-                        <div class="col-md-1 text-end">
-                            <i class="fas fa-gift me-2"></i>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="calcul-ligne">
-                                <span> {{ info.nom }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="calcul-ligne">
-                                <span class="taux-info">({{ "%.2f"|format(info.get('taux', 0)) }}%)</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="calcul-ligne text-end">
-                                <span class="montant-positif">{{ "%.2f"|format(info.get('montant', 0)) }} CHF</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% endfor %}
-
-                    {% else %}
-                    <p class="text-muted text-cente">
-                        <em><i class="fas fa-info-circle me-2"></i>Aucune indemnité active</em>
-                    </p>
-                    {% endif%}
-                    {% if has_indemnites %}
-
-                    <div class="row mb-3">
-                        <div class="col-md-1">
-                            <div class="calcul-ligne total">
-                                <i class="fas fa-plus-square me-2"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-7">
-                            <div class="calcul-ligne total">
-                                <span> Total indemnités:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span class="montant-positif"><strong>{{ "%.2f"|format(details_data.get('total_indemnites',
-                                    0)) }} CHF</strong></span>
-                        </div>
-                    </div>
-                </div>
-                {% else %}
-                <p class="text-muted text-center">
-                    <em><i class="fas fa-info-circle me-2"></i>Aucune indemnité active</em>
-                </p>
-                {% endif %}
-
-                <!-- Section cotisations -->
-                <div class="detail-calcul-section">
-                    <h5 class="text-center"><i class="fas fa-minus-circle section-icon"></i> Cotisations sociales
-                        (déduites du salaire)</h5>
-
-                    {% set cotisations = details_data.get('cotisations', {}) %}
-                    {% set has_cotisations = cotisations|length >0 %}
-                    {% if has_cotisations %}
-                    {% for key, info in cotisations.items() %}
-                    <div class="row mb-3">
-                        <div class="col-md-1">
-                            <div class="calcul-ligne text-end">
-                                <i class="fas fa-university me-2"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="calcul-ligne">
-                                <span>{{ info.nom }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="calcul-ligne">
-                                <span class="taux-info">({{ "%.2f"|format(info.taux|default(0)) }}{{ ' CHF' if
-                                    info.taux|default(0) >= 10 else '%' }})
-                                </span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="calcul-ligne text-end">
-                                <span class="montant-negatif">{{ "%.2f"|format(info.get('montant', 0)) }} CHF</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                    {% else %}
-                    <p class="text-muted text-center">
-                        <em><i class="fas fa-info-circle me-2"></i> Aucune cotisation active</em>
-                    </p>
-                    {% endif %}
-                    {% if has_cotisations %}
-                    <div class="row mb-3">
-                        <div class="col-md-1">
-                            <div class="calcul-ligne total">
-                                <i class="fas fa-minus-square"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-7">
-                            <div class="calcul-ligne total">
-                                <span> Total cotisations:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="calcul-ligne text-end">
-                                <span class="montant-negatif">
-                                    <strong>{{ "%.2f"|format(details_data.get('total_cotisations', 0)) }} CHF</strong>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Section versements -->
-                <div class="detail-calcul-section">
-                    <h5 class="text-center"><i class="fas fa-calendar-alt section-icon me-2"></i> Versements anticipés
-                    </h5>
-
-                    {% set versements = details_data.get('versements', {}) %}
-                    {% set has_versements = versements|length > 0 %}
-                    {% if has_versements %}
-                    {% for key, info in versements.items() %}
-
-                    <div class="row mb-3">
-                        <div class="col-md-1">
-                            <div class="calcul-ligne text-end">
-                                <i class="fas fa-calendar-check me-2"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="calcul-ligne">
-                                <span> {{ info.nom }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="calcul-ligne">
-                                <span class="taux-info"> versé le {{ "%.0f"|format(info.get('taux', 0)) }} du mois {{ '
-                                    suivant' if info.taux|default(0) <= 20 else '' }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="calcul-ligne text-end">
-                                <span class="montant-negatif">{{ "%.2f"|format(info.get('montant', 0)) }} CHF</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                    {% else %}
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <p class="text-muted text-center">
-                                <em><i class="fas fa-info-circle me-2"></i> Aucun versement configuré</em>
-                            </p>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% if has_versements %}
-                    <div class="row mb-3">
-                        <div class="col-md-1">
-                            <div class="calcul-lign text-end">
-                                <i class="fas fa-calendar-times me-2"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-7">
-                            <div class="calcul-lign">
-                                <span> Total versements:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span class="montant-negatif">
-                                <strong>{{ "%.2f"|format(details_data.get('total_versements', 0)) }} CHF</strong>
-                            </span>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                </div>
-                <div>
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <div class="detail-calcul-section">
-                                <h5 class="text-center"><i class="fas fa-calculator section-icon me-2"></i> Calcul final
-                                    étape par étape DEBUG</h5>
-                                <div class="debug-section"
-                                    style="display: none; background-color: #ffe6e6; padding: 10px;">
-                                    <h6>Debug Info</h6>
-                                    {% set data = salaires_par_mois.get(mois) %}
-                                    <p>Data ID: {{ data.id if data else 'N/A' }}</p>
-                                    <p>Acompte 25 (table): {{ data.acompte_25_estime if data else 'N/A' }}</p>
-                                    <p>Acompte 10 (table): {{ data.acompte_10_estime if data else 'N/A' }}</p>
-
-                                    <p>Versements details: {{ details_data.get('versements', {})|tojson }}</p>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-clock me-2"></i>
+                                    <span>Heures réelles travaillées:</span>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Calcul final étape par étape -->
-                <div>
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <div class="detail-calcul-section">
-                                <h5 class="text-center"><i class="fas fa-calculator section-icon me-2"></i> Calcul final
-                                    étape par étape</h5>
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold">{{ "%.2f"|format(details_data.get('heures_reelles', 0)) }}
+                                    h</span>
                             </div>
                         </div>
-                    </div>
-                    <div class="row mb-3">
-                        {% set calcul_final = details_data.get('calcul_final', {}) %}
-                        <div class="col-md-8">
-                            <div class="calcul-ligne">
-                                <span><i class="fas fa-money-bill-wave me-2"></i> 1. Salaire brut:</span>
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-coins me-2"></i>
+                                    <span>Taux horaire:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold">{{ "%.2f"|format(details_data.get('salaire_horaire', 0)) }}
+                                    CHF/h</span>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="calcul-ligne text-end">
-                                <span class="montant-neutre">{{ "%.2f"|format(calcul_final.get('brut', 0)) }} CHF</span>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-calculator me-2"></i>
+                                    <span>Salaire brut:</span>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <div class="calcul-ligne">
-                                <span><i class="fas fa-plus me-2"></i> 2. + Indemnités:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="calcul-ligne text-end">
-                                <span class="montant-positif">{{ "%.2f"|format(details_data.get('total_indemnites', 0))
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold text-success">{{ "%.2f"|format(details_data.get('salaire_brut', 0))
                                     }} CHF</span>
                             </div>
                         </div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <div class="calcul-ligne">
-                                <span><i class="fas fa-minus me-2"></i> 3. - Cotisations:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span class="montant-negatif">{{ "%.2f"|format(details_data.get('total_cotisations', 0)) }}
-                                CHF</span>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <div class="calcul-ligne">
-                                <span><i class="fas fa-calendar-minus me-2"></i> 4. - Versements:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span class="montant-negatif">{{ "%.2f"|format(details_data.get('total_versements', 0)) }}
-                                CHF</span>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Résultat final -->
-                <div>
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <div class="calcul-ligne final">
-                                <span><i class="fas fa-award me-2"></i> SALAIRE NET FINAL:</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span><strong>{{ "%.2f"|format(salaire_data.salaire_net) if salaire_data else '0.00' }}
-                                    CHF</strong></span>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
+                {% set details_calcul = details_data.get('details', details_data) %}
 
-                <div class="modal-footer">
-                    <div>
+                <!-- Section indemnités -->
+                <div class="detail-calcul-section card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i> Indemnités (ajoutées au salaire)</h5>
+                    </div>
+                    <div class="card-body">
+                        {% set indemnites = details_calcul.get('indemnites', {}) %}
+                        {% set has_active_indemnites = false %}
+
+                        {% for key, info in indemnites.items() %}
+                        {% if info.actif and info.montant > 0 %}
+                        {% set has_active_indemnites = true %}
                         <div class="row mb-3">
-                            <div class="col-md-6">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                    <i class="fas fa-times me-2"></i> Fermer
-                                </button>
+                            <div class="col-md-7">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-gift me-2"></i>
+                                    <span>{{ info.nom }}</span>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <button onclick="window.print()" class="btn btn-info">
-                                    <i class="fas fa-print me-2"></i> Imprimer
-                                </button>
+                            <div class="col-md-2 text-center">
+                                <span class="text-muted small">({{ "%.2f"|format(info.get('taux', 0)) }}%)</span>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="text-success">+ {{ "%.2f"|format(info.get('montant', 0)) }} CHF</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if not has_active_indemnites %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <em>Aucune indemnité active</em>
+                        </div>
+                        {% else %}
+                        <div class="row mt-3 pt-2 border-top">
+                            <div class="col-md-9">
+                                <div class="calcul-ligne fw-bold">
+                                    <i class="fas fa-plus-square me-2"></i>
+                                    <span>Total indemnités:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="fw-bold text-success">+ {{
+                                    "%.2f"|format(details_calcul.get('total_indemnites', 0)) }} CHF</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Section cotisations -->
+                <div class="detail-calcul-section card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-minus-circle me-2"></i> Cotisations sociales (déduites du
+                            salaire)</h5>
+                    </div>
+                    <div class="card-body">
+                        {% set cotisations = details_calcul.get('cotisations', {}) %}
+                        {% set has_active_cotisations = false %}
+
+                        {% for key, info in cotisations.items() %}
+                        {% if info.montant > 0 %}
+                        {% set has_active_cotisations = true %}
+                        <div class="row mb-3">
+                            <div class="col-md-7">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-university me-2"></i>
+                                    <span>{{ info.nom }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <span class="text-muted small">
+                                    ({{ "%.2f"|format(info.taux|default(0)) }}{{ ' CHF' if info.taux|default(0) >= 10
+                                    else '%' }})
+                                </span>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="text-danger">- {{ "%.2f"|format(info.get('montant', 0)) }} CHF</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if not has_active_cotisations %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <em>Aucune cotisation active</em>
+                        </div>
+                        {% else %}
+                        <div class="row mt-3 pt-2 border-top">
+                            <div class="col-md-9">
+                                <div class="calcul-ligne fw-bold">
+                                    <i class="fas fa-minus-square me-2"></i>
+                                    <span>Total cotisations:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="fw-bold text-danger">- {{
+                                    "%.2f"|format(details_calcul.get('total_cotisations', 0)) }} CHF</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Section versements -->
+                <div class="detail-calcul-section card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i> Versements anticipés</h5>
+                    </div>
+                    <div class="card-body">
+                        {% set versements = details_calcul.get('versements', {}) %}
+                        {% set has_active_versements = false %}
+
+                        {% for key, info in versements.items() %}
+                        {% if info.actif and info.montant > 0 %}
+                        {% set has_active_versements = true %}
+                        <div class="row mb-3">
+                            <div class="col-md-7">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-calendar-check me-2"></i>
+                                    <span>{{ info.nom }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <span class="text-muted small">versé le {{ "%.0f"|format(info.get('taux', 0)) }}</span>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="text-danger">- {{ "%.2f"|format(info.get('montant', 0)) }} CHF</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if not has_active_versements %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <em>Aucun versement configuré</em>
+                        </div>
+                        {% else %}
+                        <div class="row mt-3 pt-2 border-top">
+                            <div class="col-md-9">
+                                <div class="calcul-ligne fw-bold">
+                                    <i class="fas fa-calendar-times me-2"></i>
+                                    <span>Total versements:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="fw-bold text-danger">- {{
+                                    "%.2f"|format(details_calcul.get('total_versements', 0)) }} CHF</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Calcul final étape par étape -->
+                <div class="detail-calcul-section card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-calculator me-2"></i> Calcul final étape par étape</h5>
+                    </div>
+                    <div class="card-body">
+                        {% set calcul_final = details_calcul.get('calcul_final', {}) %}
+
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-money-bill-wave me-2"></i>
+                                    <span>1. Salaire brut:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold">{{ "%.2f"|format(calcul_final.get('brut',
+                                    details_calcul.get('salaire_brut', 0))) }} CHF</span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-plus me-2 text-success"></i>
+                                    <span>2. + Indemnités:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold text-success">+ {{
+                                    "%.2f"|format(details_calcul.get('total_indemnites', 0)) }} CHF</span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-minus me-2 text-danger"></i>
+                                    <span>3. - Cotisations:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold text-danger">- {{
+                                    "%.2f"|format(details_calcul.get('total_cotisations', 0)) }} CHF</span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="calcul-ligne">
+                                    <i class="fas fa-minus me-2 text-danger"></i>
+                                    <span>4. - Versements:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold text-danger">- {{
+                                    "%.2f"|format(details_calcul.get('total_versements', 0)) }} CHF</span>
+                            </div>
+                        </div>
+
+                        <div class="row mt-4 pt-3 border-top">
+                            <div class="col-md-8">
+                                <div class="calcul-ligne final fw-bold fs-5">
+                                    <i class="fas fa-award me-2 text-primary"></i>
+                                    <span>SALAIRE NET FINAL:</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold fs-5 text-primary">{{ "%.2f"|format(salaire_data.salaire_net) }}
+                                    CHF</span>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Section debug (optionnelle - à cacher en production) -->
+                {% if config.DEBUG %}
+                <div class="detail-calcul-section card">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0"><i class="fas fa-bug me-2"></i> Informations de débogage</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-12">
+                                <p><strong>ID Contrat:</strong> {{ salaire_data.id_contrat if salaire_data else 'N/A' }}
+                                </p>
+                                <p><strong>Acompte 25 estimé:</strong> {{ "%.2f"|format(salaire_data.acompte_25_estime)
+                                    if salaire_data else '0.00' }} CHF</p>
+                                <p><strong>Acompte 10 estimé:</strong> {{ "%.2f"|format(salaire_data.acompte_10_estime)
+                                    if salaire_data else '0.00' }} CHF</p>
+                                <p><strong>Structure details_data:</strong> {{ details_data.keys()|list }}</p>
+                                <p><strong>Structure details_calcul:</strong> {{ details_calcul.keys()|list if
+                                    details_calcul else 'N/A' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% endif %} <!-- Fin du if salaire_data.details -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i> Fermer
+                </button>
+                <button onclick="window.print()" class="btn btn-info">
+                    <i class="fas fa-print me-2"></i> Imprimer
+                </button>
             </div>
         </div>
     </div>

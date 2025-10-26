@@ -3354,24 +3354,10 @@ def salaires():
     tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
     logging.info(f"banking 3320 {len(tous_contrats)} Contrats récupérés: {tous_contrats} ")
     employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
+    
     # Structure : salaires_par_mois[mois] = { 'employeurs': { 'Nom Employeur': données_salaire, ... }, 'totaux_mois': {...} }
     salaires_par_mois = {}
-    if not selected_employeur:
-        if employeurs_unique:
-            contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
-            if contrat_actuel:
-                selected_employeur = contrat_actuel['employeur']
-            else:
-                for emp in employeurs_unique:
-                    contrats_emp = [c for c in tous_contrats if c['employeur'] == emp]
-                    for c in contrats_emp:
-                        if g.models.heure_model.has_hours_for_employeur_and_contrat(current_user_id, emp, c['id']):
-                            selected_employeur = emp
-                            break
-                    if not selected_employeur:
-                        selected_employeur = employeurs_unique[0]
-        else:
-            selected_employeur = None
+    
     # Initialiser tous les mois de l'année
     for m in range(1, 13):
         salaires_par_mois[m] = {
@@ -3389,126 +3375,127 @@ def salaires():
             }
         }
 
-    # Récupérer tous les contrats de l'utilisateur
-    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+    # Sélection automatique de l'employeur si non spécifié
+    if not selected_employeur and employeurs_unique:
+        contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
+        if contrat_actuel:
+            selected_employeur = contrat_actuel['employeur']
+        else:
+            selected_employeur = employeurs_unique[0]
 
     # Pour chaque mois de l'année
     for m in range(1, 13):
         date_mois_str = f"{annee}-{m:02d}-01"
         date_mois = date.fromisoformat(date_mois_str)
 
-        # Trouver les contrats actifs ce mois-ci
-        contrat = None
-        if selected_employeur:
+        # Traiter chaque employeur sélectionné ou tous les employeurs
+        employeurs_a_traiter = [selected_employeur] if selected_employeur else employeurs_unique
+        
+        for employeur in employeurs_a_traiter:
+            # Trouver le contrat actif pour cet employeur ce mois-ci
+            contrat = None
             for c in tous_contrats:
-                if c['employeur'] == selected_employeur and c['date_debut'] <= date_mois and (c['date_fin'] is None or c['date_fin'] >= date_mois):
+                if c['employeur'] == employeur and c['date_debut'] <= date_mois and (c['date_fin'] is None or c['date_fin'] >= date_mois):
                     contrat = c
                     break
-        else:
-            contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
-        if contrat:
-            employeur = contrat['employeur']
-            id_contrat = contrat['id']
-            salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
-            jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
+            
+            if contrat:
+                id_contrat = contrat['id']
+                salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
+                jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
 
-            # Récupérer les heures réelles pour cet employeur ce mois-ci
-            heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, id_contrat, annee, m) or 0.0
-            heures_reelles = round(heures_reelles, 2)
+                # Récupérer les heures réelles pour cet employeur ce mois-ci
+                heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, id_contrat, annee, m) or 0.0
+                heures_reelles = round(heures_reelles, 2)
 
-            # Vérifier si un salaire existe déjà en base POUR CET EMPLOYEUR
-            salaires_existants = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
-            salaire_existant = None
-            for s in salaires_existants:
-                if s.get('employeur') == employeur:
-                    salaire_existant = s
-                    break
+                # Vérifier si un salaire existe déjà en base POUR CET EMPLOYEUR ET CE CONTRAT
+                salaires_existants = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
+                salaire_existant = salaires_existants[0] if salaires_existants else None
 
-            # Valeurs par défaut
-            salaire_calcule = 0.0
-            salaire_net = 0.0
-            acompte_25_estime = 0.0
-            acompte_10_estime = 0.0
-            details = {'erreur': 'Pas de données'}
+                # Valeurs par défaut
+                salaire_calcule = 0.0
+                salaire_net = 0.0
+                acompte_25_estime = 0.0
+                acompte_10_estime = 0.0
+                details = {'erreur': 'Pas de données'}
 
-            if salaire_existant:
-                # Utiliser les valeurs stockées en base
-                salaire_calcule = salaire_existant.get('salaire_calcule', 0.0)
-                salaire_net = salaire_existant.get('salaire_net', 0.0)
-                acompte_25_estime = salaire_existant.get('acompte_25_estime', 0.0)
-                acompte_10_estime = salaire_existant.get('acompte_10_estime', 0.0)
-                details = {'erreur': 'Détails non disponibles (chargés depuis base)'}
-            else:
-                # Nouveau mois : calculer à la volée
-                if heures_reelles > 0:
-                    try:
-                        result = g.models.salaire_model.calculer_salaire_net_avec_details(
-                            heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
-                        details = result
-                        salaire_net = result.get('salaire_net', 0.0)
-                        salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
-                        versements = result.get('details', {}).get('versements', {})
-                        acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
-                        acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
-                    except Exception as e:
-                        logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
-                        details = {'erreur': f'Erreur calcul: {str(e)}'}
+                if salaire_existant and salaire_existant.get('details'):
+                    # Utiliser les valeurs stockées en base
+                    salaire_calcule = salaire_existant.get('salaire_calcule', 0.0)
+                    salaire_net = salaire_existant.get('salaire_net', 0.0)
+                    acompte_25_estime = salaire_existant.get('acompte_25_estime', 0.0)
+                    acompte_10_estime = salaire_existant.get('acompte_10_estime', 0.0)
+                    details = salaire_existant.get('details', {'erreur': 'Détails non disponibles'})
+                else:
+                    # Nouveau mois : calculer à la volée
+                    if heures_reelles > 0:
+                        try:
+                            result = g.models.salaire_model.calculer_salaire_net_avec_details(
+                                heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
+                            details = result
+                            salaire_net = result.get('salaire_net', 0.0)
+                            salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
+                            versements = result.get('details', {}).get('versements', {})
+                            acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
+                            acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
+                        except Exception as e:
+                            logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
+                            details = {'erreur': f'Erreur calcul: {str(e)}'}
 
-            # Préparer les données à sauvegarder / afficher
-            salaire_data = {
-                'mois': m,
-                'annee': annee,
-                'user_id': current_user_id,
-                'employeur': employeur,
-                'id_contrat': id_contrat,
-                'heures_reelles': heures_reelles,
-                'salaire_horaire': salaire_horaire,
-                'salaire_calcule': salaire_calcule,
-                'salaire_net': salaire_net,
-                'salaire_verse': salaire_existant.get('salaire_verse', 0.0) if salaire_existant else 0.0,
-                'acompte_25': salaire_existant.get('acompte_25', 0.0) if salaire_existant else 0.0,
-                'acompte_10': salaire_existant.get('acompte_10', 0.0) if salaire_existant else 0.0,
-                'acompte_25_estime': acompte_25_estime,
-                'acompte_10_estime': acompte_10_estime,
-                'difference': 0.0,
-                'difference_pourcent': 0.0,
-                'details': details
-            }
+                # Préparer les données à sauvegarder / afficher
+                salaire_data = {
+                    'mois': m,
+                    'annee': annee,
+                    'user_id': current_user_id,
+                    'employeur': employeur,
+                    'id_contrat': id_contrat,
+                    'heures_reelles': heures_reelles,
+                    'salaire_horaire': salaire_horaire,
+                    'salaire_calcule': salaire_calcule,
+                    'salaire_net': salaire_net,
+                    'salaire_verse': salaire_existant.get('salaire_verse', 0.0) if salaire_existant else 0.0,
+                    'acompte_25': salaire_existant.get('acompte_25', 0.0) if salaire_existant else 0.0,
+                    'acompte_10': salaire_existant.get('acompte_10', 0.0) if salaire_existant else 0.0,
+                    'acompte_25_estime': acompte_25_estime,
+                    'acompte_10_estime': acompte_10_estime,
+                    'difference': 0.0,
+                    'difference_pourcent': 0.0,
+                    'details': details
+                }
 
-            # Calculer la différence si salaire versé existe
-            if salaire_data['salaire_verse'] is not None and salaire_data['salaire_calcule']:
-                diff, diff_pct = g.models.salaire_model.calculer_differences(
-                    salaire_data['salaire_calcule'],
-                    salaire_data['salaire_verse']
-                )
-                salaire_data['difference'] = diff
-                salaire_data['difference_pourcent'] = diff_pct
+                # Calculer la différence si salaire versé existe
+                if salaire_data['salaire_verse'] is not None and salaire_data['salaire_calcule']:
+                    diff, diff_pct = g.models.salaire_model.calculer_differences(
+                        salaire_data['salaire_calcule'],
+                        salaire_data['salaire_verse']
+                    )
+                    salaire_data['difference'] = diff
+                    salaire_data['difference_pourcent'] = diff_pct
 
-            # Créer en base si c'est un nouveau mois
-            if not salaire_existant:
-                success = g.models.salaire_model.create(salaire_data)
-                if success:
-                    # Récupérer l'ID après création
-                    salaires_apres = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
-                    for s in salaires_apres:
-                        if s.get('employeur') == employeur:
-                            salaire_data['id'] = s['id']
-                            break
+                # Créer en base si c'est un nouveau mois et qu'il y a des heures
+                if not salaire_existant and heures_reelles > 0:
+                    success = g.models.salaire_model.create(salaire_data)
+                    if success:
+                        # Récupérer l'ID après création
+                        salaires_apres = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
+                        if salaires_apres:
+                            salaire_data['id'] = salaires_apres[0]['id']
 
-            # Stocker dans la structure d'affichage
-            salaires_par_mois[m]['employeurs'][employeur] = salaire_data
+                # Stocker dans la structure d'affichage
+                salaires_par_mois[m]['employeurs'][employeur] = salaire_data
 
-            # Ajouter aux totaux du mois
-            totaux = salaires_par_mois[m]['totaux_mois']
-            totaux['heures_reelles'] += heures_reelles
-            totaux['salaire_calcule'] += salaire_calcule
-            totaux['salaire_net'] += salaire_net
-            totaux['salaire_verse'] += salaire_data['salaire_verse']
-            totaux['acompte_25'] += salaire_data['acompte_25']
-            totaux['acompte_10'] += salaire_data['acompte_10']
-            totaux['acompte_25_estime'] += acompte_25_estime
-            totaux['acompte_10_estime'] += acompte_10_estime
-            totaux['difference'] += salaire_data['difference']
+                # Ajouter aux totaux du mois (seulement pour l'employeur sélectionné ou tous)
+                if not selected_employeur or employeur == selected_employeur:
+                    totaux = salaires_par_mois[m]['totaux_mois']
+                    totaux['heures_reelles'] += heures_reelles
+                    totaux['salaire_calcule'] += salaire_calcule
+                    totaux['salaire_net'] += salaire_net
+                    totaux['salaire_verse'] += salaire_data['salaire_verse']
+                    totaux['acompte_25'] += salaire_data['acompte_25']
+                    totaux['acompte_10'] += salaire_data['acompte_10']
+                    totaux['acompte_25_estime'] += acompte_25_estime
+                    totaux['acompte_10_estime'] += acompte_10_estime
+                    totaux['difference'] += salaire_data['difference']
 
     # Calcul des totaux annuels
     totaux_annuels = {
