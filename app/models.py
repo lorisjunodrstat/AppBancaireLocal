@@ -5122,6 +5122,7 @@ class Salaire:
             heures_apres = 0.0
         result = round(heures_apres * salaire_horaire, 2)
         current_app.logger.info(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
+        logging.error(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         return result
     
     def recalculer_salaire(self, salaire_id: int, contrat: Dict) -> bool:
