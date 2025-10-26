@@ -707,10 +707,10 @@ class ComptePrincipal:
                 """
                 cursor.execute(query, (user_id,))
                 comptes = cursor.fetchall() # N'oubliez pas de récupérer les données
-                logging.info(f"Comptes récupérés - comptes - pour l'utilisateur {user_id}: {comptes}")
+                logging.info(f"models 710 - Comptes récupérés - comptes - pour l'utilisateur {user_id}: {comptes}")
                 return comptes
         except Error as e:
-            logging.error(f"Erreur lors de la récupération des comptes: {e}")
+            logging.error(f"713 Erreur lors de la récupération des comptes: {e}")
             return []
     
     def get_by_id(self, compte_id: int) -> Optional[Dict]:
@@ -743,7 +743,7 @@ class ComptePrincipal:
                 # Ces vérifications sont des requêtes SELECT, elles n'ont pas besoin d'être dans une transaction.
                 cursor.execute("SELECT id FROM utilisateurs WHERE id = %s", (data['utilisateur_id'],))
                 if not cursor.fetchone():
-                    logging.error(f"Erreur: Utilisateur avec ID {data['utilisateur_id']} n'existe pas")
+                    logging.error(f"746 Erreur: Utilisateur avec ID {data['utilisateur_id']} n'existe pas")
                     return False
                 
                 cursor.execute("SELECT id FROM banques WHERE id = %s", (data['banque_id'],))
@@ -766,7 +766,7 @@ class ComptePrincipal:
                 cursor.execute(query, values)
                 return True
         except Error as e:
-            logging.error(f"Erreur lors de la création du compte: {e}")
+            logging.error(f"769 Erreur lors de la création du compte: {e}")
             return False
     
     def update_solde(self, compte_id: int, nouveau_solde: Decimal) -> bool:
@@ -778,7 +778,7 @@ class ComptePrincipal:
                 cursor.execute(query, (nouveau_solde, compte_id))
                 return cursor.rowcount > 0
         except Error as e:
-            logging.error(f"Erreur lors de la mise à jour du solde: {e}")
+            logging.error(f"781 Erreur lors de la mise à jour du solde: {e}")
             return False
     
     def get_solde_total_avec_sous_comptes(self, compte_id: int) -> Decimal:
@@ -805,7 +805,7 @@ class ComptePrincipal:
                     return Decimal('0')
         except MySQLError as e:
             # J'ai remplacé "Error" par "MySQLError" pour gérer spécifiquement les erreurs de base de données.
-            logging.error(f"Erreur lors du calcul du solde total pour le compte {compte_id}: {e}")
+            logging.error(f"808 Erreur lors du calcul du solde total pour le compte {compte_id}: {e}")
             return Decimal('0')
     
     def get_solde_avec_ecritures(self, compte_id: int, date_jusqua: date = None) -> Decimal:
@@ -836,7 +836,7 @@ class ComptePrincipal:
                 # Suppression des fermetures de connexion/curseur inutiles
                 return solde + ajustement
         except Error as e:
-            logging.error(f"Erreur lors du calcul du solde avec écritures: {e}")
+            logging.error(f"839Erreur lors du calcul du solde avec écritures: {e}")
             return Decimal('0')
     
     @classmethod

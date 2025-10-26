@@ -67,10 +67,10 @@ def get_comptes_utilisateur(user_id):
             for compte in comptes:
                 compte['sous_comptes'] = g.models.sous_compte_model.get_by_compte_principal_id(compte['id'])
                 compte['solde_total'] = g.models.compte_model.get_solde_total_avec_sous_comptes(compte['id'])
-            logging.info(f"Comptes sous la liste -comptes- détaillés pour l'utilisateur {user_id}: {comptes} : sous_comptes {compte['sous_comptes']} / solde_total {compte['solde_total']}")
+            logging.info(f"banking 70 Comptes sous la liste -comptes- détaillés pour l'utilisateur {user_id}: {len(comptes)}")
             return comptes
         except Exception as e:
-            logging.error(f"Erreur lors de la récupération des comptes pour l'utilisateur {user_id}: {e}")
+            logging.error(f" banking73Erreur lors de la récupération des comptes pour l'utilisateur {user_id}: {e}")
             return []
 
 
@@ -244,7 +244,7 @@ def banking_dashboard():
     logger.debug(f'Stats récupérées: {stats}')
     repartition = g.models.stats_model.get_repartition_par_banque(user_id)
     comptes = get_comptes_utilisateur(user_id)
-    logger.debug(f'Comptes récupérés: {comptes}')
+    logger.debug(f'Dashboard - 247 - Comptes récupérés: {len(comptes)} pour l\'utilisateur {user_id}')
         
     # Ajout des stats comptables
     now = datetime.now()
@@ -528,7 +528,7 @@ def create_periode_favorite(compte_id):
     date_debut = request.form.get("date_debut")
     date_fin = request.form.get("date_fin")
     statut = request.form.get("statut", "active")
-    logging.debug(f"Création période favorite pour user {user_id}, compte {compte_id} ({compte_type}), nom: {nom}, début: {date_debut}, fin: {date_fin}, statut: {statut}")
+    logging.debug(f"banking 531 Création période favorite pour user {user_id}, compte {compte_id} ({compte_type}), nom: {nom}, début: {date_debut}, fin: {date_fin}, statut: {statut}")
     # Mettre à jour / insérer la période favorite
     nouveau_of = g.models.periode_favorite_model.create(
         user_id=user_id,
@@ -817,7 +817,7 @@ def reparer_soldes_compte(compte_id):
     # Déterminer le type de compte
     compte_type = 'compte_principal' if compte.get('compte_principal_id') is None else 'sous_compte'
     # Appeler la méthode de réparation
-    logging.info(f"Appel reparation avec compte_type='{compte_type}', compte_id={compte_id}")
+    logging.info(f"banking 820 Appel reparation avec compte_type='{compte_type}', compte_id={compte_id}")
     success, message = g.models.transaction_financiere_model.reparer_soldes_compte(
         compte_type=compte_type,
         compte_id=compte_id,
@@ -2932,7 +2932,6 @@ def api_compte_resultat():
 @login_required
 def heures_travail():
     current_user_id = current_user.id
-    contrat = g.models.contrat_model.get_contrat_actuel(current_user_id)
     #employeur = contrat['employeur'] if contrat else 'Non spécifié'
     now = datetime.now()
     # Récupérer mois, semaine, mode selon méthode HTTP
@@ -2948,12 +2947,13 @@ def heures_travail():
         semaine = int(request.args.get('semaine', 0))
         current_mode = request.args.get('mode', 'reel')
         selected_employeur = request.args.get('employeur')
-    logging.debug(f"DEBUG: Requête de tous les contrats pour user_id={current_user.id}")
+    logging.debug(f"DEBUG 2950 : Requête de tous les contrats pour user_id={current_user.id}")
     tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
-    logging.debug(f"DEBUG: Contrats récupérés: {tous_contrats}")
-    logging.debug(f"DEBUG: Mois={mois}, Semaine={semaine}, Mode={current_mode}, Employeur sélectionné={selected_employeur} avec tous_contrats={len(tous_contrats)}")
-    logging.error(f"DEBUG: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
+    logging.debug(f"DEBUG2 952: Contrats récupérés: {tous_contrats}")
+    logging.debug(f"DEBUG 2953: Mois={mois}, Semaine={semaine}, Mode={current_mode}, Employeur sélectionné={selected_employeur} avec tous_contrats={len(tous_contrats)}")
+    logging.error(f"DEBUG 2954: Tous les contrats pour l'utilisateur {current_user_id}: {tous_contrats}")
     employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
+    logging.debug(f"DEBUG 2956 : Employeurs uniques trouvés: {employeurs_unique}")
     if not selected_employeur:
         if employeurs_unique:
             contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
@@ -2970,6 +2970,7 @@ def heures_travail():
             selected_employeur = None
 
     contrat = None
+    logging.debug(f"banking 2973 DEBUG: Recherche du contrat pour l'employeur sélectionné: {selected_employeur}")
     if selected_employeur:
         for c in tous_contrats:
             if c['employeur'] == selected_employeur and (c['date_fin'] is None or c['date_fin'] >= date.today()):
@@ -3008,6 +3009,7 @@ def heures_travail():
             'vacances': False,
             'total_h': 0.0
         }
+        logging.debug(f"banking 3012 DEBUG: Données pour le {date_str}: {jour_data}")
         # CORRECTION : Toujours recalculer total_h pour assurer la cohérence
         if not jour_data['vacances'] and any([jour_data['h1d'], jour_data['h1f'], jour_data['h2d'], jour_data['h2f']]):
             calculated_total = g.models.heure_model.calculer_heures(
@@ -3036,8 +3038,12 @@ def heures_travail():
     # Calcul des soldes
     for semaine_data in semaines.values():
         semaine_data['solde'] = semaine_data['total'] - heures_hebdo_contrat
+    
     total_general = sum(s['total'] for s in semaines.values())
+    logging.debug(f"banking 3043 DEBUG: Total général des heures: {total_general}")
     semaines = dict(sorted(semaines.items()))
+    logging.debug(f"banking 3045 DEBUG: Semaines préparées pour le rendu: {semaines.keys()}")
+
     return render_template('salaires/heures_travail.html',
                         semaines=semaines,
                         total_general=total_general,
@@ -3311,7 +3317,7 @@ def salaires():
 
     logger.info(f"Affichage des salaires pour utilisateur {current_user_id}, année={annee}")
     tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
-    logging.info(f"{len(tous_contrats)} Contrats récupérés: {tous_contrats} ")
+    logging.info(f"banking 3320 {len(tous_contrats)} Contrats récupérés: {tous_contrats} ")
     employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
     # Structure : salaires_par_mois[mois] = { 'employeurs': { 'Nom Employeur': données_salaire, ... }, 'totaux_mois': {...} }
     salaires_par_mois = {}
@@ -3798,7 +3804,7 @@ def nouveau_contrat():
                     'cotisation_assurance_indemnite_maladie_tx': float(request.form.get('cotisation_assurance_indemnite_maladie_tx') or 0),
                     'cotisation_cap_tx': float(request.form.get('cotisation_cap_tx') or 0),
                 }
-                logging.debug(f'Voici les données du contrat à sauvegarder: {data}')
+                logging.debug(f'banking 3807 Voici les données du contrat à sauvegarder: {data}')
             except ValueError:
                 flash("Certaines valeurs numériques sont invalides.", "danger")
                 return redirect(url_for('banking.nouveau_contrat'))
