@@ -195,7 +195,7 @@
 
                             <!-- Salaire net -->
                             <td class="text-center">
-                                {{ "%.2f"|format(salaire_data.salaire_net + ) if salaire_data and salaire_data.salaire_net
+                                {{ "%.2f"|format(salaire_data.salaire_net) if salaire_data and salaire_data.salaire_net
                                 is not none else '0.00' }}
                                 <span class="exxtrasmall" style="font-size: 6pt;">CHF</span>
                             </td>
