@@ -195,7 +195,7 @@
 
                             <!-- Salaire net -->
                             <td class="text-center">
-                                {{ "%.2f"|format(salaire_data.salaire_net) if salaire_data and salaire_data.salaire_net
+                                {{ "%.2f"|format(salaire_data.salaire_net + ) if salaire_data and salaire_data.salaire_net
                                 is not none else '0.00' }}
                                 <span class="exxtrasmall" style="font-size: 6pt;">CHF</span>
                             </td>
@@ -352,6 +352,7 @@
                 <line x1="{{ margin_x }}" y1="{{ margin_y + plot_height }}" x2="{{ margin_x + plot_width }}"
                     y2="{{ margin_y + plot_height }}" stroke="black" />
                 <!-- Repères sur l'axe Y -->
+                <!--DEBUG: nombre de ticks = {{ graphique1_svg.ticks|length }} -->
                 {% for tick in graphique1_svg.ticks %}
                     {% if tick.is_major %}
                         <line x1="{{ graphique1_svg.margin_x - 6 }}" y1="{{ tick.y_px }}" x2="{{ graphique1_svg.margin_x }}"
@@ -905,7 +906,7 @@
                                 </div>
                             </div>
                             <div class="col-md-4 text-end">
-                                <span class="fw-bold fs-5 text-primary">{{ "%.2f"|format(salaire_data.salaire_net + details_calcul.get('total_versements')) }}
+                                <span class="fw-bold fs-5 text-primary">{{ "%.2f"|format(salaire_data.salaire_net) }}
                                     CHF</span>
                             </div>
                         </div>
