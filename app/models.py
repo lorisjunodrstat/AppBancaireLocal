@@ -5103,7 +5103,7 @@ class Salaire:
         if not self.heure_travail_manager:
             raise ValueError("HeureTravail manager non initialisé")
 
-        heures_total = self.heure_travail_manager.get_total_heures_mois(user_id, annee, mois, employeur, id_contrat)
+        heures_total = self.heure_travail_manager.get_total_heures_mois(user_id, employeur, id_contrat, annee, mois)
         heures_avant = self.heure_travail_manager.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         ) or 0.0
