@@ -4525,7 +4525,6 @@ class HeureTravail:
                 record[field] = ''
 
     def get_total_heures_mois(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int) -> float:
-        """Calcule le total des heures pour un mois donné"""
         try:
             with self.db.get_cursor() as cursor:
                 query = """
@@ -4534,13 +4533,14 @@ class HeureTravail:
                 """
                 cursor.execute(query, (user_id, employeur, id_contrat, annee, mois))
                 result = cursor.fetchone()
-                return float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
+                total = float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
+                current_app.logger.info(f"get_total_heures_mois → user={user_id}, mois={mois}/{annee}, employeur={employeur}, contrat={id_contrat} → total={total}")
+                return total
         except Exception as e:
             current_app.logger.error(f"Erreur get_total_heures_mois: {e}")
             return 0.0
 
     def get_heures_periode(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, start_day: int, end_day: int) -> float:
-        """Récupère le total des heures travaillées entre deux jours du mois"""
         try:
             with self.db.get_cursor() as cursor:
                 query = """
@@ -4552,7 +4552,9 @@ class HeureTravail:
                 """
                 cursor.execute(query, (user_id, employeur, id_contrat, annee, mois, start_day, end_day))
                 result = cursor.fetchone()
-                return float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
+                total = float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
+                current_app.logger.info(f"get_heures_periode → user={user_id}, mois={mois}/{annee}, jours={start_day}-{end_day}, employeur={employeur}, contrat={id_contrat} → total={total}")
+                return total
         except Exception as e:
             current_app.logger.error(f"Erreur get_heures_periode: {e}")
             return 0.0
