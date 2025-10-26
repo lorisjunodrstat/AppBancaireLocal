@@ -5104,11 +5104,11 @@ class Salaire:
         heures_total = self.heure_travail_manager.get_total_heures_mois(user_id, annee, mois, employeur, id_contrat)
         heures_avant = self.heure_travail_manager.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
-        )
+        ) or 0.0
         
         # Normaliser les valeurs
-        heures_total = max(0.0, heures_total or 0.0)
-        heures_avant = max(0.0, heures_avant or 0.0)
+        heures_total = float(heures_total)
+        heures_avant = float(heures_avant)
         
         # Heures après le jour d'estimation
         heures_apres = max(0.0, heures_total - heures_avant)
