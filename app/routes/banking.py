@@ -3534,6 +3534,145 @@ def salaires():
     for key in totaux_annuels:
         totaux_annuels[key] = round(totaux_annuels[key], 2)
 
+    # =============== PRÉPARATION DES DONNÉES POUR LES GRAPHIQUES SVG ===============
+
+    # Dimensions SVG
+    largeur_svg = 800
+    hauteur_svg = 400
+    margin_x = largeur_svg * 0.1
+    margin_y = hauteur_svg * 0.1
+    plot_width = largeur_svg * 0.8
+    plot_height = hauteur_svg * 0.8
+
+    # === GRAPHIQUE 1 : Salaire estimé (colonnes) vs Salaire versé (ligne + points acomptes) ===
+    salaire_estime_vals = []
+    salaire_verse_vals = []
+    acompte_10_vals = []
+    acompte_25_vals = []
+    mois_labels = []
+
+    for m in range(1, 13):
+        mois_data = salaires_par_mois[m]['employeurs'].get(selected_employeur, {})
+        if mois_data:
+            salaire_estime_vals.append(float(mois_data.get('salaire_calcule', 0)))
+            salaire_verse_vals.append(float(mois_data.get('salaire_verse', 0)))
+            acompte_10_vals.append(float(mois_data.get('acompte_10', 0)))
+            acompte_25_vals.append(float(mois_data.get('acompte_25', 0)))
+        else:
+            salaire_estime_vals.append(0.0)
+            salaire_verse_vals.append(0.0)
+            acompte_10_vals.append(0.0)
+            acompte_25_vals.append(0.0)
+        mois_labels.append(f"{m:02d}/{annee}")
+
+    # Normalisation pour SVG (Y inversé)
+    all_vals = salaire_estime_vals + salaire_verse_vals + acompte_10_vals + acompte_25_vals
+    min_val = min(all_vals) if all_vals else 0.0
+    max_val = max(all_vals) if all_vals else 100.0
+    if min_val == max_val:
+        max_val = min_val + 100.0 if min_val == 0 else min_val * 1.1
+
+    def y_coord(val):
+        return margin_y + plot_height - ((val - min_val) / (max_val - min_val)) * plot_height
+
+    # Colonnes (salaire estimé)
+    colonnes_svg = []
+    bar_width = plot_width / 12 * 0.6  # 60% de la largeur par mois
+    for i in range(12):
+        x = margin_x + (i + 0.5) * (plot_width / 12) - bar_width / 2
+        y_top = y_coord(salaire_estime_vals[i])
+        height = plot_height - (y_top - margin_y)
+        colonnes_svg.append({
+            'x': x,
+            'y': y_top,
+            'width': bar_width,
+            'height': height
+        })
+
+    # Ligne principale (salaire versé)
+    points_verse = []
+    for i in range(12):
+        x = margin_x + (i + 0.5) * (plot_width / 12)
+        y = y_coord(salaire_verse_vals[i])
+        points_verse.append(f"{x},{y}")
+
+    # Points acomptes (10 et 25)
+    points_acompte_10 = []
+    points_acompte_25 = []
+    for i in range(12):
+        x = margin_x + (i + 0.5) * (plot_width / 12)
+        y10 = y_coord(acompte_10_vals[i])
+        y25 = y_coord(acompte_25_vals[i])
+        points_acompte_10.append(f"{x},{y10}")
+        points_acompte_25.append(f"{x},{y25}")
+
+    graphique1_svg = {
+        'colonnes': colonnes_svg,
+        'ligne_verse': points_verse,
+        'points_acompte_10': points_acompte_10,
+        'points_acompte_25': points_acompte_25,
+        'min_val': min_val,
+        'max_val': max_val,
+        'mois_labels': mois_labels,
+        'largeur_svg': largeur_svg,
+        'hauteur_svg': hauteur_svg,
+        'margin_x': margin_x,
+        'margin_y': margin_y,
+        'plot_width': plot_width,
+        'plot_height': plot_height
+    }
+    logging.debug(f'graphique1_svg : {graphique1_svg}')
+
+    # === GRAPHIQUE 2 : Total mensuel (versé = colonne, estimé = ligne) ===
+    total_verse_vals = []
+    total_estime_vals = []
+    for m in range(1, 13):
+        total_verse_vals.append(float(salaires_par_mois[m]['totaux_mois']['salaire_verse']))
+        total_estime_vals.append(float(salaires_par_mois[m]['totaux_mois']['salaire_calcule']))
+
+    all_vals2 = total_verse_vals + total_estime_vals
+    min_val2 = min(all_vals2) if all_vals2 else 0.0
+    max_val2 = max(all_vals2) if all_vals2 else 100.0
+    if min_val2 == max_val2:
+        max_val2 = min_val2 + 100.0 if min_val2 == 0 else min_val2 * 1.1
+
+    def y_coord2(val):
+        return margin_y + plot_height - ((val - min_val2) / (max_val2 - min_val2)) * plot_height
+
+    # Colonnes (total versé)
+    colonnes2_svg = []
+    for i in range(12):
+        x = margin_x + (i + 0.5) * (plot_width / 12) - bar_width / 2
+        y_top = y_coord2(total_verse_vals[i])
+        height = plot_height - (y_top - margin_y)
+        colonnes2_svg.append({
+            'x': x,
+            'y': y_top,
+            'width': bar_width,
+            'height': height
+        })
+
+    # Ligne (total estimé)
+    points_estime2 = []
+    for i in range(12):
+        x = margin_x + (i + 0.5) * (plot_width / 12)
+        y = y_coord2(total_estime_vals[i])
+        points_estime2.append(f"{x},{y}")
+
+    graphique2_svg = {
+        'colonnes': colonnes2_svg,
+        'ligne_estime': points_estime2,
+        'min_val': min_val2,
+        'max_val': max_val2,
+        'mois_labels': mois_labels,
+        'largeur_svg': largeur_svg,
+        'hauteur_svg': hauteur_svg,
+        'margin_x': margin_x,
+        'margin_y': margin_y,
+        'plot_width': plot_width,
+        'plot_height': plot_height
+    }
+    logging.debug(f'graphique2_svg : {graphique2_svg}')
     return render_template(
         'salaires/calcul_salaires.html',
         salaires_par_mois=salaires_par_mois,
@@ -3542,8 +3681,17 @@ def salaires():
         tous_contrats=tous_contrats,
         employeurs_unique=employeurs_unique,
         selected_employeur=selected_employeur,
-        contrat_actuel=contrat
-        
+        contrat_actuel=contrat,
+        largeur_svg=largeur_svg,
+        hauteur_svg=hauteur_svg,
+        margin_x=margin_x,
+        margin_y=margin_y,
+        plot_width=plot_width,
+        plot_height=plot_height,
+        graphique1_svg=graphique1_svg,
+        graphique2_svg=graphique2_svg,
+        largeur_svg=largeur_svg,
+        hauteur_svg=hauteur_svg
     )
 
 @bp.route('/api/details_calcul_salaire')
@@ -3693,6 +3841,7 @@ def update_salaire():
             'acompte_25_estime': acompte_25_estime,
             'acompte_10_estime': acompte_10_estime,
             'employeur': employeur,
+            'id_contrat':contrat['id'],
             **update_data
         }
         success = g.models.salaire_model.create(full_data)
