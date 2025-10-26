@@ -4827,7 +4827,7 @@ class Salaire:
         except Exception as e:
             current_app.logger.error(f"Erreur calcul salaire net: {e}")
             return 0.0
-    def calculer_salaire_net_avec_details(self, heures_reelles: float, contrat: Dict, user_id: int = None, employeur: str = None, id_contrat: int, annee: int = None, 
+    def calculer_salaire_net_avec_details(self, heures_reelles: float, contrat: Dict, user_id: int = None, employeur: str = None, id_contrat: int = None, annee: int = None, 
                                     mois: int = None, jour_estimation: int = 15) -> Dict:
         """
         Calcule le salaire net et retourne tous les détails du calcul pour affichage
