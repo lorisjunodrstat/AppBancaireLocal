@@ -4660,13 +4660,19 @@ class HeureTravail:
         """Vérifie si l'utilisateur a des heures enregistrées pour un employeur donné"""
         try:
             with self.db.get_cursor() as cursor:
-                query = "SELECT 1 FROM heures_travail WHERE user_id = %s AND employeur = %s AND id_contrat = %s LIMIT 1"
+                query = """
+                    SELECT 1
+                    FROM heures_travail
+                    WHERE user_id = %s AND employeur = %s AND id_contrat = %s
+                    LIMIT 1
+                """
                 cursor.execute(query, (user_id, employeur, id_contrat))
                 result = cursor.fetchone()
                 return result is not None
         except Exception as e:
             current_app.logger.error(f"Erreur has_hours_for_employeur: {e}")
             return False
+
         
 class Salaire:
     def __init__(self, db, heure_travail_manager=None):
