@@ -4938,10 +4938,12 @@ class Salaire:
                     # Calcul acompte du 25
                     if contrat.get('versement_25', False):
                         acompte_25 = self.calculer_acompte_25(
-                            user_id, annee, mois, 
-                            salaire_horaire, 
-                            contrat['employeur'],
-                            contrat.get('jour_estimation_salaire', 15)
+                            user_id=user_id, 
+                            annee=annee, 
+                            mois=mois, 
+                            salaire_horaire=salaire_horaire, 
+                            id_contrat=contrat['id'],
+                            jour_estimation=contrat.get('jour_estimation_salaire', 15)
                         )
                         versements['acompte_25'] = {
                             'nom': 'Acompte du 25',
@@ -4954,9 +4956,12 @@ class Salaire:
                     # Calcul acompte du 10
                     if contrat.get('versement_10', False):
                         acompte_10 = self.calculer_acompte_10(
-                            user_id, annee, mois,
-                            salaire_horaire, contrat['employeur'],
-                            contrat.get('jour_estimation_salaire', 15)
+                            user_id=user_id, 
+                            annee=annee, 
+                            mois=mois, 
+                            salaire_horaire=salaire_horaire, 
+                            id_contrat=contrat['id'],
+                            jour_estimation=contrat.get('jour_estimation_salaire', 15)
                         )
                         versements['acompte_10'] = {
                             'nom': 'Acompte du 10',
@@ -5099,6 +5104,7 @@ class Salaire:
         # Protection contre les valeurs négatives ou None
         heures = max(0.0, heures or 0.0)
         return round(heures * salaire_horaire, 2)
+    
     def calculer_acompte_10(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
         if not self.heure_travail_manager:
             raise ValueError("HeureTravail manager non initialisé")
