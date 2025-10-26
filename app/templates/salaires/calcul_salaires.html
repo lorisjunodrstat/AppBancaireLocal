@@ -766,7 +766,7 @@
                         {% set has_active_versements = false %}
 
                         {% for key, info in versements.items() %}
-                        {% if info.actif and info.montant > 0 %}
+                        {% if info['actif'] and info['montant'] > 0 %}
                         {% set has_active_versements = true %}
                         <div class="row mb-3">
                             <div class="col-md-7">
