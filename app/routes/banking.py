@@ -3765,14 +3765,7 @@ def update_salaire():
         return redirect(url_for('banking.salaires', annee=annee))
 
     id_contrat = contrat['id']
-
-    # Données du contrat
-    try:
-        salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
-    except (TypeError, ValueError):
-        salaire_horaire = 24.05
-        current_app.logger.warning(f"Valeur salaire horaire invalide: {contrat.get('salaire_horaire')}")
-
+    salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
     jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
 
     # Heures réelles
@@ -3780,69 +3773,82 @@ def update_salaire():
         current_user_id, employeur, id_contrat, annee, mois
     ) or 0.0
 
-    # Recherche d'une entrée existante (CORRIGÉ : ajout de id_contrat)
+    # Recherche d'une entrée existante
     existing = g.models.salaire_model.get_by_mois_annee(
         current_user_id, annee, mois, employeur, id_contrat
     )
     salaire_existant = next((s for s in existing if s.get('employeur') == employeur), None)
 
     # Calcul du salaire théorique
-    try:
-        salaire_calcule = g.models.salaire_model.calculer_salaire(heures_reelles, salaire_horaire)
-    except Exception as e:
-        current_app.logger.error(f"Erreur calcul salaire pour {mois}/{annee}: {str(e)}")
-        salaire_calcule = 0.0
+    salaire_calcule = g.models.salaire_model.calculer_salaire(heures_reelles, salaire_horaire)
 
-    # Calcul des acomptes estimés
-    try:
-        date_ref_dt = datetime(annee, mois, 1)
-        if mois == 12:
-            next_month = datetime(annee + 1, 1, 1)
-        else:
-            next_month = datetime(annee, mois + 1, 1)
-        jours_dans_mois = (next_month - date_ref_dt).days
-        ratio = min(jour_estimation / jours_dans_mois, 1.0) if jours_dans_mois > 0 else 0.0
-        acompte_25_estime = salaire_calcule * ratio
-        acompte_10_estime = salaire_calcule * (1 - ratio)
-    except Exception as e:
-        current_app.logger.error(f"Erreur calcul acomptes estimés: {e}")
-        acompte_25_estime, acompte_10_estime = 0.0, 0.0
-
-    # Différence entre salaire calculé et versé
+    # Différence
     difference, difference_pourcent = g.models.salaire_model.calculer_differences(
         salaire_calcule, salaire_verse
     )
 
-    # Données à sauvegarder
-    update_data = {
-        'salaire_verse': salaire_verse,
-        'acompte_25': acompte_25,
-        'acompte_10': acompte_10,
-        'salaire_calcule': salaire_calcule,
-        'difference': difference,
-        'difference_pourcent': difference_pourcent
-    }
-
-    success = False
+    # === Étape 1 : Sauvegarder les valeurs saisies (création ou mise à jour) ===
     if salaire_existant:
-        # Mise à jour
-        g.models.salaire_model.update(salaire_existant['id'], update_data)
+        salaire_id = salaire_existant['id']
+        # ⚠️ Correction : 'salaire_verse' (sans accent)
+        g.models.salaire_model.update(salaire_id, {
+            'salaire_verse': salaire_verse,
+            'acompte_25': acompte_25,
+            'acompte_10': acompte_10,
+            'heures_reelles': heures_reelles,  # au cas où les heures ont changé
+            'salaire_horaire': salaire_horaire,
+            'salaire_calcule': salaire_calcule,
+            'difference': difference,
+            'difference_pourcent': difference_pourcent,
+        })
         success = True
     else:
-        # Création
         full_data = {
             'mois': mois,
             'annee': annee,
             'user_id': current_user_id,
-            'heures_reelles': heures_reelles,
-            'salaire_horaire': salaire_horaire,
-            'acompte_25_estime': acompte_25_estime,
-            'acompte_10_estime': acompte_10_estime,
             'employeur': employeur,
             'id_contrat': id_contrat,
-            **update_data
+            'heures_reelles': heures_reelles,
+            'salaire_horaire': salaire_horaire,
+            'salaire_calcule': salaire_calcule,
+            'salaire_verse': salaire_verse,
+            'acompte_25': acompte_25,
+            'acompte_10': acompte_10,
+            'acompte_25_estime': 0.0,  # temporaire
+            'acompte_10_estime': 0.0,  # temporaire
+            'difference': difference,
+            'difference_pourcent': difference_pourcent,
         }
         success = g.models.salaire_model.create(full_data)
+        # Récupérer l'ID après création
+        existing = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, mois, employeur, id_contrat)
+        salaire_existant = next((s for s in existing if s.get('employeur') == employeur), None)
+        salaire_id = salaire_existant['id'] if salaire_existant else None
+
+    # === Étape 2 : Recalculer les champs ESTIMÉS et NET, puis mettre à jour ===
+    if success and salaire_id:
+        # Recalculer les acomptes estimés avec la logique précise
+        acompte_25_estime = 0.0
+        acompte_10_estime = 0.0
+        if contrat.get('versement_25'):
+            acompte_25_estime = g.models.salaire_model.calculer_acompte_25(
+                current_user_id, annee, mois, salaire_horaire, employeur, id_contrat, jour_estimation
+            )
+        if contrat.get('versement_10'):
+            acompte_10_estime = g.models.salaire_model.calculer_acompte_10(
+                current_user_id, annee, mois, salaire_horaire, employeur, id_contrat, jour_estimation
+            )
+
+        # Recalculer le salaire net proprement
+        salaire_net = g.models.salaire_model.calculer_salaire_net(heures_reelles, contrat)
+
+        # Mettre à jour les champs calculés (sans toucher aux saisies manuelles)
+        g.models.salaire_model.update(salaire_id, {
+            'acompte_25_estime': round(acompte_25_estime, 2),
+            'acompte_10_estime': round(acompte_10_estime, 2),
+            'salaire_net': round(salaire_net, 2),
+        })
 
     if success:
         flash("Les valeurs ont été mises à jour avec succès", "success")
@@ -3850,6 +3856,7 @@ def update_salaire():
         flash("Erreur lors de la mise à jour des données", "error")
 
     return redirect(url_for('banking.salaires', annee=annee))
+
 @bp.route('/synthese-hebdo', methods=['GET'])
 @login_required
 def synthese_hebdomadaire():
