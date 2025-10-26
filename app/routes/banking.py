@@ -3415,16 +3415,18 @@ def salaires():
                 # Valeurs par défaut
                 salaire_calcule = 0.0
                 salaire_net = 0.0
+                salaire_verse = 0.0
+                acompte_10 = 0.0
+                acompte_25 = 0.0
                 acompte_25_estime = 0.0
                 acompte_10_estime = 0.0
-                details = {'erreur': 'Pas de données'}
 
-                if salaire_existant and salaire_existant.get('details'):
+                if salaire_existant :
                     # Utiliser les valeurs stockées en base
                     salaire_verse = salaire_existant.get('salaire_verse', 0.0)
                     acompte_25 = salaire_existant.get('acompte_25', 0.0)
                     acompte_10 = salaire_existant.get('acompte_10', 0.0)
-                    details = salaire_existant.get('details', {'erreur': 'Détails non disponibles'})
+
                 else:
                     # Nouveau mois : calculer à la volée
                     if heures_reelles > 0:
