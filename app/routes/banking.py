@@ -3589,6 +3589,43 @@ def salaires():
     if min_val == max_val:
         max_val = min_val + 100.0 if min_val == 0 else min_val * 1.1
 
+    # === CALCUL DES TICKS POUR L'AXE Y (GRAPHIQUE 1) ===
+    # On arrondit min_val vers le bas au multiple de 200 le plus proche
+    # et max_val vers le haut au multiple de 1000 le plus proche (ou 200 si petit)
+        # === CALCUL DES TICKS POUR L'AXE Y (GRAPHIQUE 1) ===
+    import math
+
+    tick_step_minor = 200
+    tick_step_major = 1000
+
+    # Étendre légèrement les bornes pour inclure des multiples de 200
+    y_axis_min = math.floor(min_val / tick_step_minor) * tick_step_minor
+    y_axis_max = math.ceil(max_val / tick_step_minor) * tick_step_minor
+
+    # S'assurer qu'on a au moins 2 ticks
+    if y_axis_max <= y_axis_min:
+        y_axis_max = y_axis_min + tick_step_major
+
+    # Option : plafonner y_axis_max à un multiple de 1000 si max_val est petit
+    # (évite d'aller à 1000 si max_val = 300)
+    if max_val < tick_step_major:
+        y_axis_max = tick_step_major
+
+    ticks = []
+    y_val = y_axis_min
+    while y_val <= y_axis_max:
+        # Ne garder que les ticks dans une plage "raisonnable"
+        if y_val >= y_axis_min and y_val <= y_axis_max:
+            is_major = (y_val % tick_step_major == 0)
+            # Conversion en coordonnée SVG
+            y_px = margin_y + plot_height - ((y_val - min_val) / (max_val - min_val)) * plot_height
+            ticks.append({
+                'value': int(y_val),
+                'y_px': y_px,
+                'is_major': is_major
+            })
+        y_val += tick_step_minor
+
     def y_coord(val):
         return margin_y + plot_height - ((val - min_val) / (max_val - min_val)) * plot_height
 
@@ -3617,7 +3654,8 @@ def salaires():
         'margin_x': margin_x,
         'margin_y': margin_y,
         'plot_width': plot_width,
-        'plot_height': plot_height
+        'plot_height': plot_height,
+        'ticks': ticks
     }
 
     # === GRAPHIQUE 2 ===
