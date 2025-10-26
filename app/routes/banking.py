@@ -3410,12 +3410,19 @@ def salaires():
             employeur = contrat['employeur']
             id_contrat = contrat['id']
             salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
-            jour_estimation = int(contrat.get('jour_estimation_salaire', 15))       
-            # Vérifier chevauchement
+            jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
 
             # Récupérer les heures réelles pour cet employeur ce mois-ci
             heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, id_contrat, annee, m) or 0.0
             heures_reelles = round(heures_reelles, 2)
+
+            # Vérifier si un salaire existe déjà en base POUR CET EMPLOYEUR
+            salaires_existants = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
+            salaire_existant = None
+            for s in salaires_existants:
+                if s.get('employeur') == employeur:
+                    salaire_existant = s
+                    break
 
             # Valeurs par défaut
             salaire_calcule = 0.0
@@ -3424,32 +3431,30 @@ def salaires():
             acompte_10_estime = 0.0
             details = {'erreur': 'Pas de données'}
 
-            if heures_reelles > 0:
-                try:
-                    # Calcul détaillé du salaire net
-                    result = g.models.salaire_model.calculer_salaire_net_avec_details(
-                        heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
-                    details = result
-                    salaire_net = result.get('salaire_net', 0.0)
-                    salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
-                    versements = result.get('details', {}).get('versements', {})
-                    acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
-                    acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
+            if salaire_existant:
+                # Utiliser les valeurs stockées en base
+                salaire_calcule = salaire_existant.get('salaire_calcule', 0.0)
+                salaire_net = salaire_existant.get('salaire_net', 0.0)
+                acompte_25_estime = salaire_existant.get('acompte_25_estime', 0.0)
+                acompte_10_estime = salaire_existant.get('acompte_10_estime', 0.0)
+                details = {'erreur': 'Détails non disponibles (chargés depuis base)'}
+            else:
+                # Nouveau mois : calculer à la volée
+                if heures_reelles > 0:
+                    try:
+                        result = g.models.salaire_model.calculer_salaire_net_avec_details(
+                            heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
+                        details = result
+                        salaire_net = result.get('salaire_net', 0.0)
+                        salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
+                        versements = result.get('details', {}).get('versements', {})
+                        acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
+                        acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
+                    except Exception as e:
+                        logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
+                        details = {'erreur': f'Erreur calcul: {str(e)}'}
 
-                except Exception as e:
-                    logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
-                    details = {'erreur': f'Erreur calcul: {str(e)}'}
-
-            # Vérifier si un salaire existe déjà en base POUR CET EMPLOYEUR
-            salaires_existants = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
-            # Filtrer par employeur
-            salaire_existant = None
-            for s in salaires_existants:
-                if s.get('employeur') == employeur:
-                    salaire_existant = s
-                    break
-
-            # Préparer les données à sauvegarder
+            # Préparer les données à sauvegarder / afficher
             salaire_data = {
                 'mois': m,
                 'annee': annee,
@@ -3479,30 +3484,16 @@ def salaires():
                 salaire_data['difference'] = diff
                 salaire_data['difference_pourcent'] = diff_pct
 
-            # Sauvegarder en base
-            if salaire_existant:
-                # Mettre à jour
-                update_fields = {
-                    'heures_reelles': salaire_data['heures_reelles'],
-                    'salaire_horaire': salaire_data['salaire_horaire'],
-                    'salaire_calcule': salaire_data['salaire_calcule'],
-                    'salaire_net': salaire_data['salaire_net'],
-                    'acompte_25_estime': salaire_data['acompte_25_estime'],
-                    'acompte_10_estime': salaire_data['acompte_10_estime'],
-                    'difference': salaire_data['difference'],
-                    'difference_pourcent': salaire_data['difference_pourcent'],
-                }
-                g.models.salaire_model.update(salaire_existant['id'], update_fields)
-                salaire_data['id'] = salaire_existant['id']
-            else:
-                # Créer
+            # Créer en base si c'est un nouveau mois
+            if not salaire_existant:
                 success = g.models.salaire_model.create(salaire_data)
-                # `create` ne retourne pas l’ID, donc on le récupère après
-                salaires_apres = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
-                for s in salaires_apres:
-                    if s.get('employeur') == employeur:
-                        salaire_data['id'] = s['id']
-                        break
+                if success:
+                    # Récupérer l'ID après création
+                    salaires_apres = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
+                    for s in salaires_apres:
+                        if s.get('employeur') == employeur:
+                            salaire_data['id'] = s['id']
+                            break
 
             # Stocker dans la structure d'affichage
             salaires_par_mois[m]['employeurs'][employeur] = salaire_data
@@ -3538,13 +3529,11 @@ def salaires():
             base_key = key.replace('total_', '')
             totaux_annuels[key] += mois_totaux.get(base_key, 0.0)
 
-    # Arrondir les totaux
     for key in totaux_annuels:
         totaux_annuels[key] = round(totaux_annuels[key], 2)
 
     # =============== PRÉPARATION DES DONNÉES POUR LES GRAPHIQUES SVG ===============
 
-    # Dimensions SVG
     largeur_svg = 800
     hauteur_svg = 400
     margin_x = largeur_svg * 0.1
@@ -3552,7 +3541,7 @@ def salaires():
     plot_width = largeur_svg * 0.8
     plot_height = hauteur_svg * 0.8
 
-    # === GRAPHIQUE 1 : Salaire estimé (colonnes) vs Salaire versé (ligne + points acomptes) ===
+    # === GRAPHIQUE 1 ===
     salaire_estime_vals = []
     salaire_verse_vals = []
     acompte_10_vals = []
@@ -3573,7 +3562,6 @@ def salaires():
             acompte_25_vals.append(0.0)
         mois_labels.append(f"{m:02d}/{annee}")
 
-    # Normalisation pour SVG (Y inversé)
     all_vals = salaire_estime_vals + salaire_verse_vals + acompte_10_vals + acompte_25_vals
     min_val = min(all_vals) if all_vals else 0.0
     max_val = max(all_vals) if all_vals else 100.0
@@ -3583,36 +3571,17 @@ def salaires():
     def y_coord(val):
         return margin_y + plot_height - ((val - min_val) / (max_val - min_val)) * plot_height
 
-    # Colonnes (salaire estimé)
     colonnes_svg = []
-    bar_width = plot_width / 12 * 0.6  # 60% de la largeur par mois
+    bar_width = plot_width / 12 * 0.6
     for i in range(12):
         x = margin_x + (i + 0.5) * (plot_width / 12) - bar_width / 2
         y_top = y_coord(salaire_estime_vals[i])
         height = plot_height - (y_top - margin_y)
-        colonnes_svg.append({
-            'x': x,
-            'y': y_top,
-            'width': bar_width,
-            'height': height
-        })
+        colonnes_svg.append({'x': x, 'y': y_top, 'width': bar_width, 'height': height})
 
-    # Ligne principale (salaire versé)
-    points_verse = []
-    for i in range(12):
-        x = margin_x + (i + 0.5) * (plot_width / 12)
-        y = y_coord(salaire_verse_vals[i])
-        points_verse.append(f"{x},{y}")
-
-    # Points acomptes (10 et 25)
-    points_acompte_10 = []
-    points_acompte_25 = []
-    for i in range(12):
-        x = margin_x + (i + 0.5) * (plot_width / 12)
-        y10 = y_coord(acompte_10_vals[i])
-        y25 = y_coord(acompte_25_vals[i])
-        points_acompte_10.append(f"{x},{y10}")
-        points_acompte_25.append(f"{x},{y25}")
+    points_verse = [f"{margin_x + (i + 0.5) * (plot_width / 12)},{y_coord(salaire_verse_vals[i])}" for i in range(12)]
+    points_acompte_10 = [f"{margin_x + (i + 0.5) * (plot_width / 12)},{y_coord(acompte_10_vals[i])}" for i in range(12)]
+    points_acompte_25 = [f"{margin_x + (i + 0.5) * (plot_width / 12)},{y_coord(acompte_25_vals[i])}" for i in range(12)]
 
     graphique1_svg = {
         'colonnes': colonnes_svg,
@@ -3629,14 +3598,10 @@ def salaires():
         'plot_width': plot_width,
         'plot_height': plot_height
     }
-    logging.debug(f'graphique1_svg : {graphique1_svg}')
 
-    # === GRAPHIQUE 2 : Total mensuel (versé = colonne, estimé = ligne) ===
-    total_verse_vals = []
-    total_estime_vals = []
-    for m in range(1, 13):
-        total_verse_vals.append(float(salaires_par_mois[m]['totaux_mois']['salaire_verse']))
-        total_estime_vals.append(float(salaires_par_mois[m]['totaux_mois']['salaire_calcule']))
+    # === GRAPHIQUE 2 ===
+    total_verse_vals = [float(salaires_par_mois[m]['totaux_mois']['salaire_verse']) for m in range(1, 13)]
+    total_estime_vals = [float(salaires_par_mois[m]['totaux_mois']['salaire_calcule']) for m in range(1, 13)]
 
     all_vals2 = total_verse_vals + total_estime_vals
     min_val2 = min(all_vals2) if all_vals2 else 0.0
@@ -3647,25 +3612,14 @@ def salaires():
     def y_coord2(val):
         return margin_y + plot_height - ((val - min_val2) / (max_val2 - min_val2)) * plot_height
 
-    # Colonnes (total versé)
     colonnes2_svg = []
     for i in range(12):
         x = margin_x + (i + 0.5) * (plot_width / 12) - bar_width / 2
         y_top = y_coord2(total_verse_vals[i])
         height = plot_height - (y_top - margin_y)
-        colonnes2_svg.append({
-            'x': x,
-            'y': y_top,
-            'width': bar_width,
-            'height': height
-        })
+        colonnes2_svg.append({'x': x, 'y': y_top, 'width': bar_width, 'height': height})
 
-    # Ligne (total estimé)
-    points_estime2 = []
-    for i in range(12):
-        x = margin_x + (i + 0.5) * (plot_width / 12)
-        y = y_coord2(total_estime_vals[i])
-        points_estime2.append(f"{x},{y}")
+    points_estime2 = [f"{margin_x + (i + 0.5) * (plot_width / 12)},{y_coord2(total_estime_vals[i])}" for i in range(12)]
 
     graphique2_svg = {
         'colonnes': colonnes2_svg,
@@ -3680,7 +3634,7 @@ def salaires():
         'plot_width': plot_width,
         'plot_height': plot_height
     }
-    logging.debug(f'graphique2_svg : {graphique2_svg}')
+
     return render_template(
         'salaires/calcul_salaires.html',
         salaires_par_mois=salaires_par_mois,
