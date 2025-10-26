@@ -3857,6 +3857,47 @@ def update_salaire():
 
     return redirect(url_for('banking.salaires', annee=annee))
 
+@bp.route('/recalculer_salaires', methods=['POST'])
+@login_required
+def recalculer_salaires():
+    annee = request.form.get('annee', type=int)
+    employeur = request.form.get('employeur', '').strip()
+    current_user_id = current_user.id
+
+    if not annee or not employeur:
+        flash("Année et employeur requis pour le recalcul", "error")
+        return redirect(url_for('banking.salaires', annee=annee or datetime.now().year))
+
+    # Récupérer un contrat valide pour cet employeur
+    date_ref = f"{annee}-06-01"
+    contrat = g.models.contrat_model.get_contrat_for_date(current_user_id, employeur, date_ref)
+    if not contrat:
+        # Essayer de trouver n'importe quel contrat pour cet employeur
+        tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+        contrat = next((c for c in tous_contrats if c['employeur'] == employeur), None)
+    
+    if not contrat:
+        flash(f"Aucun contrat trouvé pour l'employeur '{employeur}' en {annee}", "error")
+        return redirect(url_for('banking.salaires', annee=annee))
+
+    id_contrat = contrat['id']
+
+    # Récupérer tous les salaires de cette année pour cet employeur/contrat
+    salaires = g.models.salaire_model.get_by_user_and_month(
+        user_id=current_user_id,
+        employeur=employeur,
+        id_contrat=id_contrat,
+        annee=annee
+    )
+
+    count = 0
+    for sal in salaires:
+        if g.models.salaire_model.recalculer_salaire(sal['id'], contrat):
+            count += 1
+
+    flash(f"✅ {count} salaires ont été recalculés avec succès pour {employeur} en {annee}.", "success")
+    return redirect(url_for('banking.salaires', annee=annee, employeur=employeur))
+
 @bp.route('/synthese-hebdo', methods=['GET'])
 @login_required
 def synthese_hebdomadaire():
