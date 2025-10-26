@@ -53,6 +53,20 @@
             {% endif %}
         </div>
     </div>
+    <!-- Bouton de recalcul SANS JavaScript -->
+    <form method="POST" action="{{ url_for('banking.recalculer_salaires') }}" style="display:inline;">
+        <input type="hidden" name="annee" value="{{ annee_courante }}">
+        <input type="hidden" name="employeur" value="{{ selected_employeur or '' }}">
+        {% if selected_employeur %}
+        <button type="submit" class="btn btn-warning btn-sm mb-3">
+            🔁 Recalculer les estimations pour {{ selected_employeur }} ({{ annee_courante }})
+        </button>
+        {% else %}
+        <button type="submit" class="btn btn-secondary btn-sm mb-3" disabled>
+            🔁 Sélectionnez un employeur pour recalculer
+        </button>
+        {% endif %}
+    </form>
 
     <!-- Messages d'erreur/succès spécifiques à cette page -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -71,7 +85,26 @@
     {% endwith %}
     <div class="card mb-4">
         <div class="card-header bg-light">
-            <h5 class="m-0">Résultats pour {{ annee_courante }} chez {{ selected_employeur }}</h5>
+            <div class="row">
+                <div class="me-3">
+                    <h5 class="m-0">Résultats pour {{ annee_courante }} chez {{ selected_employeur }}</h5>
+                </div>
+                <div class="me-3">
+                    <form method="POST" action="{{ url_for('banking.recalculer_salaires') }}" style="display:inline;">
+                        <input type="hidden" name="annee" value="{{ annee_courante }}">
+                        <input type="hidden" name="employeur" value="{{ selected_employeur or '' }}">
+                        {% if selected_employeur %}
+                        <button type="submit" class="btn btn-warning btn-sm mb-3">
+                            🔁 Recalculer les estimations pour {{ selected_employeur }} ({{ annee_courante }})
+                        </button>
+                        {% else %}
+                        <button type="submit" class="btn btn-secondary btn-sm mb-3" disabled>
+                            🔁 Sélectionnez un employeur pour recalculer
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
