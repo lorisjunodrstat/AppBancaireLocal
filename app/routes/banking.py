@@ -2987,6 +2987,7 @@ def heures_travail():
             selected_employeur = None
 
     contrat = None
+    id_contrat = None
     logging.debug(f"banking 2973 DEBUG: Recherche du contrat pour l'employeur sélectionné: {selected_employeur}")
     if selected_employeur:
         for c in tous_contrats:
@@ -3257,14 +3258,18 @@ def handle_save_line(request, user_id, annee, mois, semaine, mode, employeur, id
 
 def handle_reset_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     date_str = request.form['reset_line']
-    heure_model = HeureTravail(g.db_manager)
     try:
-        heure_model.delete_by_date(date_str, user_id, employeur, id_contrat)
-        flash(f"Les heures du {format_date(date_str)} ont été réinitialisées", "warning")
+        # Utiliser l'instance globale déjà configurée
+        success = g.models.heure_model.delete_by_date(date_str, user_id, employeur, id_contrat)
+        if success:
+            flash(f"Les heures du {format_date(date_str)} ont été réinitialisées", "warning")
+        else:
+            flash(f"Impossible de réinitialiser les heures du {format_date(date_str)}", "error")
+            logger.warning(f"Échec silencieux de delete_by_date pour {date_str}")
     except Exception as e:
-        logger.error(f"Erreur reset_line pour {date_str}: {str(e)}")
+        logger.exception(f"Erreur dans handle_reset_line pour {date_str}: {e}")  # ← .exception pour le traceback complet
         flash(f"Erreur lors de la réinitialisation du {format_date(date_str)}", "error")
-    return redirect(url_for('banking.heures_travail', annee=annee,mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
+    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
 def handle_reset_all(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     days = generate_days(annee, mois, semaine)
