@@ -307,7 +307,10 @@
                     font-size="10">{{ graphique1_svg.mois_labels[i] }}</text>
                 {% endfor %}
             </svg>
-            
+            {% else %}
+            <p>Pas de graphique des acomptes</p>
+            {% endif %}
+            {% if graphique2_svg %}
             <!-- Graphique 2 -->
             <svg width="{{ largeur_svg }}" height="{{ hauteur_svg }}" style="border: 1px solid #ccc; margin: 20px 0;">
                 <line x1="{{ margin_x }}" y1="{{ margin_y }}" x2="{{ margin_x }}" y2="{{ margin_y + plot_height }}"
@@ -332,7 +335,7 @@
                 {% endfor %}
             </svg>
             {% else %}
-            <p>Pas de graphiques disponible pour l'instant</p>
+            <p>Pas de graphique des salaires disponible pour l'instant</p>
             {% endif %}
         </div>
     </div>
