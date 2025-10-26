@@ -5094,19 +5094,36 @@ class Salaire:
         heures = self.heure_travail_manager.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         )
-        logging.error(heures)
+        # Protection contre les valeurs négatives ou None
+        heures = max(0.0, heures or 0.0)
         return round(heures * salaire_horaire, 2)
-
     def calculer_acompte_10(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
         if not self.heure_travail_manager:
             raise ValueError("HeureTravail manager non initialisé")
 
         heures_total = self.heure_travail_manager.get_total_heures_mois(user_id, annee, mois, employeur, id_contrat)
-        heures_1_jour = self.heure_travail_manager.get_heures_periode(
+        heures_avant = self.heure_travail_manager.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         )
-        heures_jour_fin = heures_total - heures_1_jour
-        return round(heures_jour_fin * salaire_horaire, 2)
+        
+        # Normaliser les valeurs
+        heures_total = max(0.0, heures_total or 0.0)
+        heures_avant = max(0.0, heures_avant or 0.0)
+        
+        # Heures après le jour d'estimation
+        heures_apres = max(0.0, heures_total - heures_avant)
+        
+        # Log en cas d’incohérence (utile pour le debug)
+        if heures_apres < 0:
+            current_app.logger.warning(
+                f"Incohérence heures acompte 10: total={heures_total}, avant={heures_avant} "
+                f"(user={user_id}, mois={mois}/{annee}, employeur={employeur})"
+            )
+            heures_apres = 0.0
+        result = round(heures_jour_fin * salaire_horaire, 2)
+        current_app.logger.info(f"calculer_acompte_10 → heures_jour_fin={heures_jour_fin}, result={result}")
+        return result
+    
     def recalculer_salaire(self, salaire_id: int, contrat: Dict) -> bool:
         """
         Recalcule les champs dérivés d’un salaire existant à partir du contrat et des heures réelles.
