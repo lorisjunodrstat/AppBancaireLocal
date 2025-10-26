@@ -5107,6 +5107,78 @@ class Salaire:
         )
         heures_jour_fin = heures_total - heures_1_jour
         return round(heures_jour_fin * salaire_horaire, 2)
+    def recalculer_salaire(self, salaire_id: int, contrat: Dict) -> bool:
+        """
+        Recalcule les champs dérivés d’un salaire existant à partir du contrat et des heures réelles.
+        Met à jour l’entrée en base.
+        """
+        try:
+            # 1. Récupérer le salaire existant
+            salaire = self.get_by_id(salaire_id)
+            if not salaire:
+                current_app.logger.warning(f"Salaire ID {salaire_id} introuvable pour recalcul.")
+                return False
+
+            # 2. Extraire les données nécessaires
+            heures_reelles = salaire.get('heures_reelles') or 0.0
+            salaire_horaire = float(contrat.get('salaire_horaire', 27.12))
+            user_id = salaire['user_id']
+            employeur = salaire['employeur']
+            id_contrat = salaire['id_contrat']
+            annee = salaire['annee']
+            mois = salaire['mois']
+            jour_estimation = contrat.get('jour_estimation_salaire', 15)
+
+            # 3. Recalculer les valeurs
+            salaire_calcule = self.calculer_salaire(heures_reelles, salaire_horaire)
+            salaire_net = self.calculer_salaire_net(heures_reelles, contrat)
+
+            # Acomptes estimés
+            acompte_25_estime = 0.0
+            acompte_10_estime = 0.0
+
+            if contrat.get('versement_25', False):
+                acompte_25_estime = self.calculer_acompte_25(
+                    user_id=user_id,
+                    annee=annee,
+                    mois=mois,
+                    salaire_horaire=salaire_horaire,
+                    employeur=employeur,
+                    id_contrat=id_contrat,  # ⬅️ Correctement passé ici
+                    jour_estimation=jour_estimation
+                )
+            if contrat.get('versement_10', False):
+                acompte_10_estime = self.calculer_acompte_10(
+                    user_id=user_id,
+                    annee=annee,
+                    mois=mois,
+                    salaire_horaire=salaire_horaire,
+                    employeur=employeur,
+                    id_contrat=id_contrat,  # ⬅️ Correctement passé ici
+                    jour_estimation=jour_estimation
+                )
+
+            # Différence avec le salaire versé (si présent)
+            salaire_verse = salaire.get('salaire_verse')
+            difference, difference_pourcent = self.calculer_differences(salaire_calcule, salaire_verse)
+
+            # 4. Préparer les données à mettre à jour
+            update_data = {
+                'salaire_horaire': salaire_horaire,
+                'salaire_calcule': salaire_calcule,
+                'salaire_net': salaire_net,
+                'acompte_25_estime': round(acompte_25_estime, 2),
+                'acompte_10_estime': round(acompte_10_estime, 2),
+                'difference': round(difference, 2),
+                'difference_pourcent': round(difference_pourcent, 2),
+            }
+
+            # 5. Mettre à jour en base
+            return self.update(salaire_id, update_data)
+
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors du recalcul du salaire ID {salaire_id}: {e}", exc_info=True)
+            return False
 
 class SyntheseHebdomadaire:
     def __init__(self, db):

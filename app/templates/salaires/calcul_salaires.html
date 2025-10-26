@@ -476,8 +476,7 @@
                     <input type="hidden" name="mois" value="{{ mois }}">
                     <input type="hidden" name="annee" value="{{ annee_courante }}">
                     <input type="hidden" name="employeur" value="{{ selected_employeur }}">
-                    <input type="hidden" name="id_contrat" value="{{ contrat.id if contrat else '' }}">
-                    <div class="modal-body">
+                    <input type="hidden" name="id_contrat" value="{{ salaire_data.id_contrat if salaire_data and salaire_data.id_contrat else '' }}">                    <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label">Salaire versé (CHF)</label>
                             <input type="number" step="0.01" class="form-control" name="salaire_verse"

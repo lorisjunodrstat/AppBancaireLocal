@@ -3455,6 +3455,7 @@ def salaires():
                 'annee': annee,
                 'user_id': current_user_id,
                 'employeur': employeur,
+                'id_contrat': id_contrat,
                 'heures_reelles': heures_reelles,
                 'salaire_horaire': salaire_horaire,
                 'salaire_calcule': salaire_calcule,
