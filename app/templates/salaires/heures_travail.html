@@ -117,39 +117,48 @@
                     <h6>Copier des heures</h6>
                 
                     <!-- Copier un jour -->
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Copier un jour</label>
-                        <div class="input-group">
-                            <span class="input-group-text">De</span>
-                            <input type="text" class="form-control" name="source_date" placeholder="AAAA-MM-JJ" pattern="\d{4}-\d{2}-\d{2}"
-                                title="Ex: 2025-10-28" required>
-                            <span class="input-group-text">à</span>
-                            <input type="text" class="form-control" name="target_date" placeholder="AAAA-MM-JJ" pattern="\d{4}-\d{2}-\d{2}"
-                                title="Ex: 2025-10-28" required>
-                            <button type="submit" name="action" value="copier_jour" class="btn btn-outline-primary">
-                                Copier jour
-                            </button>
-                        </div>
-                    </div>
+                    <!-- === Copier un jour (formulaire indépendant) === -->
+                    <form method="POST" action="{{ url_for('banking.heures_travail') }}" class="row mt-3 mb-3 p-3 border rounded bg-light">
+                        <input type="hidden" name="employeur" value="{{ selected_employeur or '' }}">
+                        <input type="hidden" name="mode" value="{{ current_mode }}">
+                        <input type="hidden" name="id_contrat" value="{{ contrat.id if contrat else '' }}">
                     
-                    <!-- Copier une semaine -->
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Copier une semaine (du lundi)</label>
-                        <div class="input-group">
-                            <span class="input-group-text">De</span>
-                            <input type="text" class="form-control" name="source_week_start" placeholder="AAAA-MM-JJ"
-                                pattern="\d{4}-\d{2}-\d{2}" title="Lundi de la semaine source (ex: 2025-10-27)" required>
-                            <span class="input-group-text">à</span>
-                            <input type="text" class="form-control" name="target_week_start" placeholder="AAAA-MM-JJ"
-                                pattern="\d{4}-\d{2}-\d{2}" title="Lundi de la semaine cible (ex: 2025-11-03)" required>
-                            <button type="submit" name="action" value="copier_semaine" class="btn btn-outline-primary">
-                                Copier semaine
-                            </button>
+                        <h6 class="mb-3">Copier un jour</h6>
+                        <div class="col-md-12">
+                            <div class="input-group">
+                                <span class="input-group-text">De</span>
+                                <input type="date" class="form-control" name="source_date" required>
+                                <span class="input-group-text">à</span>
+                                <input type="date" class="form-control" name="target_date" required>
+                                <button type="submit" name="action" value="copier_jour" class="btn btn-outline-primary">
+                                    Copier jour
+                                </button>
+                            </div>
                         </div>
-                        <small class="form-text text-muted">
-                            Indiquez le lundi de la semaine source et de la semaine cible.
-                        </small>
-                    </div>
+                    </form>
+                    
+                    <!-- === Copier une semaine (formulaire indépendant) === -->
+                    <form method="POST" action="{{ url_for('banking.heures_travail') }}" class="row mb-3 p-3 border rounded bg-light">
+                        <input type="hidden" name="employeur" value="{{ selected_employeur or '' }}">
+                        <input type="hidden" name="mode" value="{{ current_mode }}">
+                        <input type="hidden" name="id_contrat" value="{{ contrat.id if contrat else '' }}">
+                    
+                        <h6 class="mb-3">Copier une semaine (du lundi)</h6>
+                        <div class="col-md-12">
+                            <div class="input-group">
+                                <span class="input-group-text">De</span>
+                                <input type="date" class="form-control" name="source_week_start" required>
+                                <span class="input-group-text">à</span>
+                                <input type="date" class="form-control" name="target_week_start" required>
+                                <button type="submit" name="action" value="copier_semaine" class="btn btn-outline-primary">
+                                    Copier semaine
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">
+                                Indiquez le lundi de la semaine source et de la semaine cible.
+                            </small>
+                        </div>
+                    </form>
                 </div>
                 <!-- Table -->
                 <div class="table-responsive">
