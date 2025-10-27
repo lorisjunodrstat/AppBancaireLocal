@@ -5531,6 +5531,19 @@ class SyntheseHebdomadaire:
         except Exception as e:
             logging.error(f"Erreur filtre synthèse hebdo: {e}")
             return []
+    def get_employeurs_distincts(self, user_id: int) -> List[str]:
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT DISTINCT employeur 
+                    FROM synthese_hebdo 
+                    WHERE user_id = %s AND employeur IS NOT NULL
+                    ORDER BY employeur
+                """, (user_id,))
+                return [row['employeur'] for row in cursor.fetchall()]
+        except Exception as e:
+            logging.error(f"Erreur employeurs: {e}")
+            return []
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
