@@ -5,6 +5,11 @@
     <div class="card">
         <div class="card-header py-3">
             <h5 class="m-0 font-weight-bold">Gestion du contrat</h5>
+            <a href="{{ url_for('nouveau_contrat') }}" class="btn btn-primary btn-sm ml-2" role="button">
+                <i class="fas fa-plus"></i>
+            </a>
+                <i class="fas fa-plus"></i>
+            </button>
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('banking.gestion_contrat') }}">

@@ -103,6 +103,7 @@
                 <input type="hidden" name="mois" value="{{ current_mois }}">
                 <input type="hidden" name="semaine" value="{{ current_semaine }}">
                 <input type="hidden" name="mode" value="{{ current_mode }}">
+                <input type="hidden" name="id_contrat" value="{{ contrat.id if contrat else '' }}">
                 <div>
                     <button type="submit" name="save_all" class="btn btn-success me-2" aria-label="Tout enregistrer">
                         <i class="fas fa-save me-1" aria-hidden="true"></i> Tout enregistrer
@@ -211,7 +212,8 @@
                     mois=current_mois, 
                     semaine=current_semaine, 
                     mode=current_mode,
-                    employeur=selected_employeur) }}"
+                    employeur=selected_employeur,
+                    id_contrat=contrat.id if contrat else None) }}"
                     class="btn btn-secondary" aria-label="Annuler">
                     <i class="fas fa-times me-1" aria-hidden="true"></i> Annuler
                     </a>
