@@ -12,6 +12,8 @@ from datetime import datetime, date, timedelta
 import calendar
 import csv
 import time
+import math
+
 from typing import List, Dict, Optional, Tuple
 import decimal
 import traceback
@@ -5213,7 +5215,61 @@ class Salaire:
 class SyntheseHebdomadaire:
     def __init__(self, db):
         self.db = db
+    # Dans la classe SyntheseHebdomadaire
+    def calculate_for_week(self, user_id: int, annee: int, semaine: int) -> dict:
+        """
+        Calcule la synthèse hebdomadaire à partir des feuilles de temps existantes.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Récupérer les feuilles de temps de la semaine demandée
+                query = """
+                    SELECT 
+                        employeur,
+                        id_contrat,
+                        SUM(total_h) as total_heures
+                    FROM feuilles_temps
+                    WHERE user_id = %s
+                    AND annee = %s
+                    AND semaine_annee = %s
+                    AND total_h IS NOT NULL
+                    GROUP BY employeur, id_contrat
+                """
+                cursor.execute(query, (user_id, annee, semaine))
+                resultats = cursor.fetchall()
 
+                heures_reelles = sum(row['total_heures'] for row in resultats)
+                # Heures simulées = non implémentées ici → on met 0 ou on les calcule plus tard
+                heures_simulees = 0.0
+
+                # On garde le premier employeur/contrat (ou on pourrait agréger par employeur)
+                employeur = resultats[0]['employeur'] if resultats else None
+                id_contrat = resultats[0]['id_contrat'] if resultats else None
+
+                return {
+                    'user_id': user_id,
+                    'annee': annee,
+                    'semaine_numero': semaine,
+                    'heures_reelles': round(heures_reelles, 2),
+                    'heures_simulees': round(heures_simulees, 2),
+                    'difference': round(heures_reelles - heures_simulees, 2),
+                    'moyenne_mobile': 0.0,  # à implémenter plus tard si besoin
+                    'employeur': employeur,
+                    'id_contrat': id_contrat
+                }
+        except Exception as e:
+            logging.error(f"Erreur calcul synthèse hebdo: {e}")
+            return {
+                'user_id': user_id,
+                'annee': annee,
+                'semaine_numero': semaine,
+                'heures_reelles': 0.0,
+                'heures_simulees': 0.0,
+                'difference': 0.0,
+                'moyenne_mobile': 0.0,
+                'employeur': None,
+                'id_contrat': None
+            }
     def create_or_update(self, data: dict) -> bool:
         try:
             with self.db.get_cursor(commit=True) as cursor:
@@ -5251,7 +5307,7 @@ class SyntheseHebdomadaire:
                     ))
             return True
         except Error as e:
-            logging.error(f"Erreur synèse hebdo: {e}")
+            logging.error(f"Erreur synthèse hebdo: {e}")
             return False
     
     def get_by_user(self, user_id: int, limit: int = 12) -> List[Dict]:
@@ -5290,11 +5346,241 @@ class SyntheseHebdomadaire:
         except Error as e:
             logging.error(f"Erreur récupération synthèse par semaine: {e}")
             return []
+    def get_by_user_and_week_and_contrat(self, user_id: int, id_contrat: int, annee: int = None, semaine: int = None) -> List(Dict):
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT * FROM synthese_hebdo
+                WHERE user_id = %s AND id_contrat = %s AND annee = %s AND semaine_numero =%s
+                ORDER BY annee DESC, semaine_numero DESC
+                """
+                cursor.execute(query, (user_id, id_contrat))
+                syntheses = cursor.fetchall()
+                return syntheses
+        except Error as e:
+            logging.error(f'erreur récupération synthpèse: {e}')
+            return []
 
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
+    # Dans la classe SyntheseMensuelle
+    def calculate_for_month(self, user_id: int, annee: int, mois: int) -> dict:
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                    SELECT 
+                        employeur,
+                        id_contrat,
+                        SUM(total_h) as total_heures
+                    FROM feuilles_temps
+                    WHERE user_id = %s
+                    AND annee = %s
+                    AND mois = %s
+                    AND total_h IS NOT NULL
+                    GROUP BY employeur, id_contrat
+                """
+                cursor.execute(query, (user_id, annee, mois))
+                resultats = cursor.fetchall()
 
+                heures_reelles = sum(row['total_heures'] for row in resultats)
+                employeur = resultats[0]['employeur'] if resultats else None
+                id_contrat = resultats[0]['id_contrat'] if resultats else None
+
+                # Salaire = heures × taux horaire (à récupérer depuis le contrat)
+                salaire_reel = 0.0
+                if id_contrat:
+                    cursor.execute("SELECT taux_horaire FROM contrats WHERE id = %s", (id_contrat,))
+                    contrat = cursor.fetchone()
+                    if contrat and contrat['taux_horaire']:
+                        salaire_reel = heures_reelles * contrat['taux_horaire']
+
+                return {
+                    'user_id': user_id,
+                    'annee': annee,
+                    'mois': mois,
+                    'heures_reelles': round(heures_reelles, 2),
+                    'heures_simulees': 0.0,
+                    'salaire_reel': round(salaire_reel, 2),
+                    'salaire_simule': 0.0,
+                    'employeur': employeur,
+                    'id_contrat': id_contrat
+                }
+        except Exception as e:
+            logging.error(f"Erreur calcul synthèse mensuelle: {e}")
+            return {
+                'user_id': user_id,
+                'annee': annee,
+                'mois': mois,
+                'heures_reelles': 0.0,
+                'heures_simulees': 0.0,
+                'salaire_reel': 0.0,
+                'salaire_simule': 0.0,
+                'employeur': None,
+                'id_contrat': None
+            }
+    
+    def prepare_svg_data_mensuel(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
+        """
+        Prépare les données pour un graphique SVG des salaires mensuels.
+        Retourne un dict compatible avec le template.
+        """
+        # Récupérer toutes les synthèses mensuelles de l'année
+        synthese_list = self.get_by_user_and_year(user_id, annee)
+        
+        # Indexer par mois
+        synthese_par_mois = {s['mois']: s for s in synthese_list}
+        
+        # Initialiser les listes pour les 12 mois
+        salaire_reel_vals = []
+        salaire_simule_vals = []
+        mois_labels = []
+        
+        for mois in range(1, 13):
+            s = synthese_par_mois.get(mois)
+            if s:
+                salaire_reel_vals.append(float(s.get('salaire_reel', 0)))
+                salaire_simule_vals.append(float(s.get('salaire_simule', 0)))
+            else:
+                salaire_reel_vals.append(0.0)
+                salaire_simule_vals.append(0.0)
+            mois_labels.append(f"{mois:02d}/{annee}")
+        
+        # Calcul des bornes
+        all_vals = salaire_reel_vals + salaire_simule_vals
+        min_val = min(all_vals) if all_vals else 0.0
+        max_val = max(all_vals) if all_vals else 100.0
+        if min_val == max_val:
+            max_val = min_val + 100.0 if min_val == 0 else min_val * 1.1
+
+        # Marges et dimensions
+        margin_x = largeur_svg * 0.1
+        margin_y = hauteur_svg * 0.1
+        plot_width = largeur_svg * 0.8
+        plot_height = hauteur_svg * 0.8
+
+        # Fonction utilitaire pour coordonnée Y
+        def y_coord(val):
+            if max_val == min_val:
+                return margin_y + plot_height / 2
+            return margin_y + plot_height - ((val - min_val) / (max_val - min_val)) * plot_height
+
+        # === CALCUL DES TICKS POUR L'AXE Y ===
+        tick_step_minor = 200
+        tick_step_major = 1000
+
+        y_axis_min = math.floor(min_val / tick_step_minor) * tick_step_minor
+        y_axis_max = math.ceil(max_val / tick_step_minor) * tick_step_minor
+        if y_axis_max <= y_axis_min:
+            y_axis_max = y_axis_min + tick_step_major
+        if max_val < tick_step_major:
+            y_axis_max = tick_step_major
+
+        ticks = []
+        y_val = y_axis_min
+        while y_val <= y_axis_max:
+            if y_val >= min_val - 500 and y_val <= max_val + 500:  # plage raisonnable
+                is_major = (y_val % tick_step_major == 0)
+                y_px = y_coord(y_val)
+                ticks.append({
+                    'value': int(y_val),
+                    'y_px': y_px,
+                    'is_major': is_major
+                })
+            y_val += tick_step_minor
+
+        # === PRÉPARATION DES ÉLÉMENTS SVG ===
+        # Colonnes (barres) pour salaire réel
+        colonnes_svg = []
+        bar_width = plot_width / 12 * 0.6
+        for i in range(12):
+            x = margin_x + (i + 0.5) * (plot_width / 12) - bar_width / 2
+            y_top = y_coord(salaire_reel_vals[i])
+            height = plot_height - (y_top - margin_y)
+            if height < 0:
+                height = 0
+                y_top = margin_y + plot_height
+            colonnes_svg.append({
+                'x': x,
+                'y': y_top,
+                'width': bar_width,
+                'height': height
+            })
+
+        # Lignes pour salaire simulé (points)
+        points_simule = [
+            f"{margin_x + (i + 0.5) * (plot_width / 12)},{y_coord(salaire_simule_vals[i])}"
+            for i in range(12)
+        ]
+
+        return {
+            'colonnes': colonnes_svg,
+            'ligne_simule': points_simule,
+            'min_val': min_val,
+            'max_val': max_val,
+            'mois_labels': mois_labels,
+            'largeur_svg': largeur_svg,
+            'hauteur_svg': hauteur_svg,
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'plot_width': plot_width,
+            'plot_height': plot_height,
+            'ticks': ticks,
+            'annee': annee
+        }
+
+    def get_by_user_and_year(self, user_id: int, annee: int) -> List[Dict]:
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                    SELECT * FROM synthese_mensuelle 
+                    WHERE user_id = %s AND annee = %s
+                    ORDER BY mois ASC
+                """
+                cursor.execute(query, (user_id, annee))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur récupération synthèse annuelle: {e}")
+            return []
+    # Dans SyntheseMensuelle
+    def get_by_user_and_filters(self, user_id: int, annee: int = None, mois: int = None, 
+                            employeur: str = None, contrat_id: int = None) -> List[Dict]:
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "SELECT * FROM synthese_mensuelle WHERE user_id = %s"
+                params = [user_id]
+                if annee is not None:
+                    query += " AND annee = %s"
+                    params.append(annee)
+                if mois is not None:
+                    query += " AND mois = %s"
+                    params.append(mois)
+                if employeur:
+                    query += " AND employeur = %s"
+                    params.append(employeur)
+                if contrat_id:
+                    query += " AND id_contrat = %s"
+                    params.append(contrat_id)
+                query += " ORDER BY annee DESC, mois DESC"
+                cursor.execute(query, tuple(params))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur filtre synthèse: {e}")
+            return []
+
+    def get_employeurs_distincts(self, user_id: int) -> List[str]:
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT DISTINCT employeur 
+                    FROM synthese_mensuelle 
+                    WHERE user_id = %s AND employeur IS NOT NULL
+                    ORDER BY employeur
+                """, (user_id,))
+                return [row['employeur'] for row in cursor.fetchall()]
+        except Exception as e:
+            logging.error(f"Erreur employeurs: {e}")
+            return []
     def create_or_update(self, data: dict) -> bool:
         """
         Crée ou met à jour une entrée de synthèse mensuelle en utilisant
