@@ -3971,7 +3971,7 @@ def generer_syntheses_mensuelles():
             g.models.synthese_mensuelle_model.create_or_update(data)
     
     flash(f"Synthèses mensuelles générées pour l'année {annee}.", "success")
-    return redirect(url_for('salaires.synthese_mensuelle', annee=annee))
+    return redirect(url_for('banking.synthese_mensuelle', annee=annee))
 
 @bp.route('/synthese-mensuelle', methods=['GET'])
 @login_required
