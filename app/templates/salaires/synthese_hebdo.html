@@ -12,7 +12,7 @@
             class="btn btn-outline-secondary">Semaine suivante &raquo;</a>
         <span class="ms-3">Total heures réelles : <strong>{{ total_heures }} h</strong></span>
     </div>
-
+    {% if graphique_svg %}
     <!-- Graphique SVG : évolution sur l'année -->
     <div class="card mb-4">
         <div class="card-header">
@@ -53,6 +53,7 @@
             </svg>
         </div>
     </div>
+    {% endif %}
 
     <!-- Tableau des contrats pour cette semaine -->
     <div class="table-responsive">

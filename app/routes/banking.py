@@ -3912,21 +3912,35 @@ def recalculer_salaires():
 @bp.route('/synthese-hebdo', methods=['GET'])
 @login_required
 def synthese_hebdomadaire():
-    current_user_id = current_user.id
-
+    user_id = current_user.id
     annee = int(request.args.get('annee', datetime.now().year))
-    semaine = int(request.args.get('semaine', 0))
-
-    synthese = g.models.synthese_hebdo_model.get_by_user_and_week(current_user_id, annee, semaine)
-    if synthese:
-        synthese_data = synthese
+    semaine = request.args.get('semaine')
+    
+    # Déterminer la semaine courante si non fournie
+    if semaine is None or not semaine.isdigit():
+        semaine = datetime.now().isocalendar()[1]
     else:
-        synthese_data = {'heures_total': 0.0, 'montant_total': 0.0}
+        semaine = int(semaine)
+
+    # Données de la semaine sélectionnée
+    synthese_list = g.models.synthese_hebdo_model.get_by_user_and_week(
+        user_id=user_id, annee=annee, semaine=semaine
+    )
+    
+    # Calcul des totaux pour la semaine
+    total_heures = sum(float(s.get('heures_reelles', 0)) for s in synthese_list)
+    total_simule = sum(float(s.get('heures_simulees', 0)) for s in synthese_list)
+
+    # Préparer le graphique SVG pour l'année entière
+    graphique_svg = g.models.synthese_hebdo_model.prepare_svg_data_hebdo(user_id, annee)
 
     return render_template('salaires/synthese_hebdo.html',
-                        synthese=synthese_data,
+                        syntheses=synthese_list,
+                        total_heures=round(total_heures, 2),
+                        total_simule=round(total_simule, 2),
                         current_annee=annee,
-                        current_semaine=semaine, 
+                        current_semaine=semaine,
+                        graphique_svg=graphique_svg,  # <-- ajouté
                         now=datetime.now())
 
 @bp.route('/synthese-hebdo/generer', methods=['POST'])
