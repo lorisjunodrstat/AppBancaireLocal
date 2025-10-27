@@ -54,6 +54,7 @@
     </form>
 
     <!-- Bouton de génération (POST) -->
+    <!-- Bouton de génération (POST) -->
     <form method="post" action="{{ url_for('banking.generer_syntheses_mensuelles') }}" class="mb-4">
         <input type="hidden" name="annee" value="{{ current_annee }}">
         <button type="submit" class="btn btn-success"
@@ -61,6 +62,47 @@
             🔄 Générer les synthèses manquantes
         </button>
     </form>
+
+    <!-- ✅ GRAPHIQUE SVG -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Évolution du salaire mensuel en {{ current_annee }} (CHF)</h5>
+        </div>
+        <div class="card-body">
+            <svg width="{{ graphique_svg.largeur_svg }}" height="{{ graphique_svg.hauteur_svg }}"
+                style="border: 1px solid #eee; background: #fafafa; border-radius: 4px;">
+                <!-- Grille horizontale -->
+                {% for tick in graphique_svg.ticks %}
+                <line x1="{{ graphique_svg.margin_x }}" y1="{{ tick.y_px }}"
+                    x2="{{ graphique_svg.margin_x + graphique_svg.plot_width }}" y2="{{ tick.y_px }}"
+                    stroke="{% if tick.is_major %}#ccc{% else %}#eee{% endif %}" />
+                <text x="{{ graphique_svg.margin_x - 10 }}" y="{{ tick.y_px + 4 }}" font-size="12" text-anchor="end"
+                    fill="#666">{{ tick.value }}</text>
+                {% endfor %}
+    
+                <!-- Barres : salaire réel -->
+                {% for bar in graphique_svg.colonnes %}
+                <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width }}" height="{{ bar.height }}" fill="#2c3e50"
+                    opacity="0.85" />
+                {% endfor %}
+    
+                <!-- Ligne : salaire simulé -->
+                {% if graphique_svg.ligne_simule %}
+                <polyline points="{{ graphique_svg.ligne_simule | join(' ') }}" fill="none" stroke="#e67e22"
+                    stroke-width="2" />
+                {% endif %}
+    
+                <!-- Étiquettes des mois -->
+                {% for i in range(12) %}
+                <text x="{{ graphique_svg.margin_x + (i + 0.5) * (graphique_svg.plot_width / 12) }}"
+                    y="{{ graphique_svg.margin_y + graphique_svg.plot_height + 20 }}" font-size="12" text-anchor="middle"
+                    fill="#555">
+                    {{ graphique_svg.mois_labels[i][:2] }}
+                </text>
+                {% endfor %}
+            </svg>
+        </div>
+    </div>
 
     <!-- Tableau des résultats -->
     <div class="table-responsive">
@@ -98,51 +140,6 @@
                 {% endif %}
             </tbody>
         </table>
-    </div>
-    <!-- Graphique SVG -->
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Graphique hebdomadaire ({{ annee }})</h5>
-            </div>
-            <div class="card-body">
-                {% if graphique_svg %}
-                <svg width="{{ graphique_svg.largeur_svg }}" height="{{ graphique_svg.hauteur_svg }}"
-                    style="border:1px solid #eee;">
-                    <!-- Ticks Y -->
-                    {% for tick in graphique_svg.ticks %}
-                    <line x1="{{ graphique_svg.margin_x }}" y1="{{ tick.y_px }}"
-                        x2="{{ graphique_svg.margin_x + graphique_svg.plot_width }}" y2="{{ tick.y_px }}" stroke="#ccc"
-                        stroke-width="1" />
-                    <text x="{{ graphique_svg.margin_x - 10 }}" y="{{ tick.y_px + 4 }}" text-anchor="end" font-size="10">{{
-                        tick.value }}</text>
-                    {% endfor %}
-    
-                    <!-- Barres réelles -->
-                    {% for col in graphique_svg.colonnes %}
-                    <rect x="{{ col.x }}" y="{{ col.y }}" width="{{ col.width }}" height="{{ col.height }}" fill="#4CAF50"
-                        opacity="0.8" />
-                    {% endfor %}
-    
-                    <!-- Ligne simulée -->
-                    <polyline points="{{ graphique_svg.ligne_simule|join(' ') }}" fill="none" stroke="#FF5722"
-                        stroke-width="2" />
-    
-                    <!-- Labels X (tous les 4 semaines) -->
-                    {% for i in range(0, 53, 4) %}
-                    <text
-                        x="{{ graphique_svg.margin_x + i * (graphique_svg.plot_width / 53) + (graphique_svg.plot_width / 106) }}"
-                        y="{{ graphique_svg.margin_y + graphique_svg.plot_height + 15 }}" text-anchor="middle"
-                        font-size="10">
-                        S{{ i+1 }}
-                    </text>
-                    {% endfor %}
-                </svg>
-                {% else %}
-                <p class="text-muted">Aucune donnée à afficher.</p>
-                {% endif %}
-            </div>
-        </div>
     </div>
 </div>
 {% endblock %}

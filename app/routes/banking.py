@@ -4033,11 +4033,15 @@ def synthese_mensuelle():
         contrat_id=contrat_id
     )
 
+    # ✅ Préparer le graphique SVG (toujours pour l'année entière)
+    graphique_svg = g.models.synthese_mensuelle_model.prepare_svg_data_mensuel(user_id, annee)
+
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
     contrats = g.models.contrat_model.get_all_contrats(user_id)
 
     return render_template('salaires/synthese_mensuelle.html',
                         syntheses=synthese_list,
+                        graphique_svg=graphique_svg,  # ← ajouté
                         current_annee=annee,
                         current_mois=mois,
                         selected_employeur=employeur,
@@ -4045,7 +4049,6 @@ def synthese_mensuelle():
                         employeurs_disponibles=employeurs,
                         contrats_disponibles=contrats,
                         now=datetime.now())
-
 @bp.route('/contrat', methods=['GET', 'POST'])
 @login_required
 def gestion_contrat():
