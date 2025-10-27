@@ -132,21 +132,16 @@
         {% endif %}
       </td>
       <td>
-        <button class="btn btn-sm btn-outline-primary edit-btn" data-id="{{ t.id }}"
-          data-type="{{ t.type_transaction }}" data-montant="{{ t.montant }}"
-          data-description="{{ t.description or '' }}" data-reference="{{ t.reference or '' }}"
-          data-compte-id="{{ t.compte_principal_id }}" data-sous-compte-id="{{ t.sous_compte_id or '' }}"
-          data-sous-compte-dest-id="{{ t.sous_compte_destination_id or '' }}"
-          data-compte-dest-id="{{ t.compte_destination_id or '' }}">
+        <a href="{{ url_for('banking.modifier_transfert', transfert_id=t.id) }}" class="btn btn-sm btn-outline-primary">
           Éditer
-        </button>
+        </a>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-<!-- Modal pour éditer/créer une transaction -->
+<!-- Modal pour éditer/créer une transaction
 <div class="modal fade" id="editTransactionModal" tabindex="-1" aria-labelledby="editTransactionModalLabel"
   aria-hidden="true">
   <div class="modal-dialog modal-lg">
@@ -236,7 +231,7 @@
       </form>
     </div>
   </div>
-</div>
+</div>-->
 
 {% if pages > 1 %}
 <nav aria-label="Pagination" class="mt-3">
@@ -273,7 +268,7 @@
 </nav>
 {% endif %}
 
-<script>
+<!--<script>
   document.addEventListener('DOMContentLoaded', function () {
     // Gestion de l'affichage des champs en fonction du type de transaction
     const typeSelect = document.getElementById('typeTransaction');
@@ -359,6 +354,6 @@
       }
     });
   });
-</script>
+</script>-->
 
 {% endblock %}
