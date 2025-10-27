@@ -5258,6 +5258,7 @@ class SyntheseHebdomadaire:
         except Exception as e:
             logging.error(f"Erreur calcul synthèse hebdo par contrat: {e}")
             return []
+    
     def create_or_update(self, data: dict) -> bool:
         try:
             with self.db.get_cursor(commit=True) as cursor:
@@ -5353,6 +5354,7 @@ class SyntheseHebdomadaire:
         except Exception as e:
             logging.error(f"Erreur batch synthèse hebdo: {e}")
             return False
+    
     def get_by_user(self, user_id: int, limit: int = 12) -> List[Dict]:
         try:
             with self.db.get_cursor() as cursor:
@@ -5367,6 +5369,20 @@ class SyntheseHebdomadaire:
                 return syntheses
         except Error as e:
             logging.error(f"Erreur récupération synthèses: {e}")
+            return []
+    
+    def get_by_user_and_year(self, user_id: int, annee: int) -> List[Dict]:
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                    SELECT * FROM synthese_hebdo 
+                    WHERE user_id = %s AND annee = %s
+                    ORDER BY semaine_numero ASC
+                """
+                cursor.execute(query, (user_id, annee))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur récupération synthèse hebdo année: {e}")
             return []
     
     def get_by_user_and_week(self, user_id: int, annee: int = None, semaine: int = None) -> List[Dict]:
@@ -5389,6 +5405,7 @@ class SyntheseHebdomadaire:
         except Error as e:
             logging.error(f"Erreur récupération synthèse par semaine: {e}")
             return []
+    
     def get_by_user_and_week_and_contrat(self, user_id: int, id_contrat: int, annee: int = None, semaine: int = None) -> List[Dict]:
         try:
             with self.db.get_cursor() as cursor:
@@ -5403,7 +5420,6 @@ class SyntheseHebdomadaire:
         except Error as e:
             logging.error(f'erreur récupération synthpèse: {e}')
             return []
-
 
     def prepare_svg_data_hebdo(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         """Prépare les données pour un graphique SVG des heures hebdomadaires TOTALES (agrégées par semaine)."""
@@ -5490,7 +5506,31 @@ class SyntheseHebdomadaire:
             'ticks': ticks,
             'annee': annee
         }
-
+    # Dans SyntheseHebdomadaire
+    def get_by_user_and_filters(self, user_id: int, annee: int = None, semaine: int = None,
+                            employeur: str = None, contrat_id: int = None) -> List[Dict]:
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "SELECT * FROM synthese_hebdo WHERE user_id = %s"
+                params = [user_id]
+                if annee is not None:
+                    query += " AND annee = %s"
+                    params.append(annee)
+                if semaine is not None:
+                    query += " AND semaine_numero = %s"
+                    params.append(semaine)
+                if employeur:
+                    query += " AND employeur = %s"
+                    params.append(employeur)
+                if contrat_id:
+                    query += " AND id_contrat = %s"
+                    params.append(contrat_id)
+                query += " ORDER BY annee DESC, semaine_numero DESC"
+                cursor.execute(query, tuple(params))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur filtre synthèse hebdo: {e}")
+            return []
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
