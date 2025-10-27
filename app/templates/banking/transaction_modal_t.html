@@ -47,8 +47,7 @@
                                     <h6 class="card-title text-muted">Montant & Solde</h6>
                                     <p><strong>Montant :</strong>
                                         <span class="{{ 'text-success' if t.montant > 0 else 'text-danger' }}">
-                                            {{ '+' if t.montant > 0 else '' }}{{ "%.2f"|format(t.montant) }} {{
-                                            compte.devise }}
+                                            {{ '+' if t.montant > 0 else '' }}{{ "%.2f"|format(t.montant) }} CHF
                                         </span>
                                     </p>
                                     <p><strong>Solde Actuel</strong>
