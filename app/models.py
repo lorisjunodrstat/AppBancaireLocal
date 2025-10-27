@@ -1815,13 +1815,14 @@ class TransactionFinanciere:
                 if q:
                     q_clean = f"%{q.strip()}%"
                     base_query += """ AND (
-                        t.description ILIKE %(q)s OR
-                        t.reference ILIKE %(q)s OR
-                        cp.nom_compte ILIKE %(q)s OR
-                        cp_dest.nom_compte ILIKE %(q)s OR
-                        sc.nom_sous_compte ILIKE %(q)s OR
-                        sc_dest.nom_sous_compte ILIKE %(q)s
-                    )"""
+
+                    COALESCE(t.description, '') ILIKE %(q)s OR
+                    COALESCE(t.reference, '') ILIKE %(q)s OR
+                    COALESCE(cp.nom_compte, '') ILIKE %(q)s OR
+                    COALESCE(cp_dest.nom_compte, '') ILIKE %(q)s OR
+                    COALESCE(sc.nom_sous_compte, '') ILIKE %(q)s OR
+                    COALESCE(sc_dest.nom_sous_compte, '') ILIKE %(q)s
+                )"""
                     params['q'] = q_clean
 
                 # === Compter le total ===
@@ -1851,7 +1852,8 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur dans get_all_user_transactions: {e}", exc_info=True)
             return [], 0
-    # ===== DÉPÔTS ET RETRAITS =====
+   
+   # ===== DÉPÔTS ET RETRAITS =====
     
     def create_depot(self, compte_id: int, user_id: int, montant: Decimal, 
                     description: str = "", compte_type: str = 'compte_principal',
