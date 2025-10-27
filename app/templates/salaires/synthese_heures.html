@@ -72,6 +72,7 @@
                     <th scope="col" class="text-end">Heures réelles</th>
                     <th scope="col" class="text-end">Heures simulées</th>
                     <th scope="col" class="text-end">Différence</th>
+                    <th scope="col" class="text-end">Pourcentage</th>
                 </tr>
             </thead>
             <tbody>
@@ -85,6 +86,7 @@
                     <td class="text-end">{{ '%.2f'|format(s.heures_reelles or 0) }} h</td>
                     <td class="text-end">{{ '%.2f'|format(s.heures_simulees or 0) }} h</td>
                     <td class="text-end">{{ '%.2f'|format(s.difference or 0) }} h</td>
+                    <td class="text-end">{{ '%.2f'|format(s.heures_reelles/42.5 or 0)</td>
                 </tr>
                 {% endfor %}
                 {% else %}
