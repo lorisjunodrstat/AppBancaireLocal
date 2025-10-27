@@ -135,12 +135,21 @@
         <a href="{{ url_for('banking.modifier_transfert', transfert_id=t.id) }}" class="btn btn-sm btn-outline-primary">
           Éditer
         </a>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+          data-bs-target="#modalTransaction{{ t.id }}">
+          <i class="fas fa-edit"></i> Gérer
+        </button>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
-
+<!-- Inclusion des modals de transaction -->
+{% if transactions %}
+{% for mtv in transactions %}
+{% include "banking/transaction_modal.html" %}
+{% endfor %}
+{% endif %}
 
 {% if pages > 1 %}
 <nav aria-label="Pagination" class="mt-3">
