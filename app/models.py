@@ -5433,7 +5433,7 @@ class SyntheseHebdomadaire:
             if semaine not in total_par_semaine:
                 total_par_semaine[semaine] = {'heures_reelles': 0.0, 'heures_simulees': 0.0}
             total_par_semaine[semaine]['heures_reelles'] += float(s.get('heures_reelles', 0))
-            total_par_semaine['heures_simulees'] += float(s.get('heures_simulees', 0))
+            total_par_semaine[semaine]['heures_simulees'] += float(s.get('heures_simulees', 0))
         
         # Prépare les listes pour les 53 semaines
         heures_reelles_vals = []
