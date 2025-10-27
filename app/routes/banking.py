@@ -3360,7 +3360,7 @@ def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
 
     # Récupérer les données source
     src_data = g.models.heure_model.get_by_date(source, user_id, employeur, id_contrat)
-    if not src_
+    if not src_data:
         flash(f"Aucune donnée à copier pour le {format_date(source)}.", "warning")
         return redirect(request.url)
 
@@ -3417,7 +3417,7 @@ def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
         tgt_day = (tgt_monday + timedelta(days=i)).isoformat()
 
         src_data = g.models.heure_model.get_by_date(src_day, user_id, employeur, id_contrat)
-        if not src_
+        if not src_data:
             continue
 
         payload = {
