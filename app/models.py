@@ -5398,7 +5398,8 @@ class SyntheseMensuelle:
                     AND MONTH(date) = %s
                     AND total_h IS NOT NULL
                     AND id_contrat IS NOT NULL
-                    GROUP BY id_contrat;
+                    GROUP BY id_contrat, employeur
+                    LIMIT 25;
                 """
                 cursor.execute(query_contrats, (user_id, annee, mois))
                 heures_par_contrat = cursor.fetchall()
