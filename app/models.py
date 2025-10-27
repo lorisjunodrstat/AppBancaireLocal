@@ -5390,10 +5390,10 @@ class SyntheseMensuelle:
                 # Salaire = heures × taux horaire (à récupérer depuis le contrat)
                 salaire_reel = 0.0
                 if id_contrat:
-                    cursor.execute("SELECT taux_horaire FROM contrats WHERE id = %s", (id_contrat,))
+                    cursor.execute("SELECT salaire_horaire FROM contrats WHERE id = %s", (id_contrat,))
                     contrat = cursor.fetchone()
-                    if contrat and contrat['taux_horaire']:
-                        salaire_reel = heures_reelles * contrat['taux_horaire']
+                    if contrat and contrat['salaire_horaire']:
+                        salaire_reel = heures_reelles * contrat['salaire_horaire']
 
                 return {
                     'user_id': user_id,
