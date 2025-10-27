@@ -5371,6 +5371,8 @@ class SyntheseMensuelle:
                 # Récupère le total d'heures pour TOUTES les entrées du mois
                 query = """
                     SELECT 
+                        epmployeur,
+                        id_contrat,
                         SUM(total_h) as total_heures
                     FROM heures_travail
                     WHERE user_id = %s
@@ -5390,6 +5392,7 @@ class SyntheseMensuelle:
                 query_contrats = """
                     SELECT 
                         id_contrat,
+                        employeur,
                         SUM(total_h) as heures_contrat
                     FROM heures_travail
                     WHERE user_id = %s
@@ -5403,10 +5406,11 @@ class SyntheseMensuelle:
                 heures_par_contrat = cursor.fetchall()
 
                 for row in heures_par_contrat:
-                    contrat_id = row['id_contrat']
+                    id_contrat = row['id_contrat']
+                    employeur = row['employeur']
                     heures_c = float(row['heures_contrat'])
                     # Récupère le taux horaire du contrat
-                    cursor.execute("SELECT salaire_horaire FROM contrats WHERE id = %s", (contrat_id,))
+                    cursor.execute("SELECT salaire_horaire FROM contrats WHERE id = %s", (id_contrat,))
                     contrat = cursor.fetchone()
                     if contrat and contrat['salaire_horaire']:
                         salaire_reel += heures_c * float(contrat['salaire_horaire'])
@@ -5432,8 +5436,8 @@ class SyntheseMensuelle:
                 'heures_simulees': 0.0,
                 'salaire_reel': 0.0,
                 'salaire_simule': 0.0,
-                'employeur': None,
-                'id_contrat': None
+                'employeur': employeur,
+                'id_contrat': id_contrat
             }
     
     def prepare_svg_data_mensuel(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
