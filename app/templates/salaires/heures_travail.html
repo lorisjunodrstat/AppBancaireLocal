@@ -112,7 +112,42 @@
                         <i class="fas fa-undo me-1" aria-hidden="true"></i> Tout effacer
                     </button>
                 </div>
-
+                <!-- === Fonctionnalité de copie (sans JS) === -->
+                <div class="row mt-3 mb-3 p-3 border rounded bg-light">
+                    <h6>Copier des heures</h6>
+                
+                    <!-- Copier un jour -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Copier un jour</label>
+                        <div class="input-group">
+                            <span class="input-group-text">De</span>
+                            <input type="date" class="form-control" name="source_date" required>
+                            <span class="input-group-text">à</span>
+                            <input type="date" class="form-control" name="target_date" required>
+                            <button type="submit" name="action" value="copier_jour" class="btn btn-outline-primary">
+                                Copier jour
+                            </button>
+                        </div>
+                    </div>
+                
+                    <!-- Copier une semaine -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Copier une semaine (du lundi)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">De</span>
+                            <input type="date" class="form-control" name="source_week_start" required>
+                            <span class="input-group-text">à</span>
+                            <input type="date" class="form-control" name="target_week_start" required>
+                            <button type="submit" name="action" value="copier_semaine" class="btn btn-outline-primary">
+                                Copier semaine
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">
+                            Indiquez le lundi de la semaine source et de la semaine cible.
+                        </small>
+                    </div>
+                </div>
+                <!-- Table -->
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
                         <thead class="table-light">
