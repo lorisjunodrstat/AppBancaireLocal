@@ -3927,50 +3927,75 @@ def synthese_hebdomadaire():
                         synthese=synthese_data,
                         current_annee=annee,
                         current_semaine=semaine)
+
+@bp.route('/synthese-hebdo/generer', methods=['POST'])
+@login_required
+def generer_syntheses_hebdomadaires():
+    user_id = current_user.id
+    annee = int(request.form.get('annee', datetime.now().year))
+    
+    # Générer les 53 semaines → uniquement si aucune synthèse n'existe pour cette semaine
+    for semaine in range(1, 54):
+        # Vérifier si des synthèses existent déjà pour cette semaine (au moins une ligne)
+        synthese_list = g.models.synthese_hebdo_model.get_by_user_and_week(
+            user_id=user_id, annee=annee, semaine=semaine
+        )
+        if not synthese_list:
+            # Calculer et enregistrer les synthèses par contrat
+            data_list = g.models.synthese_hebdo_model.calculate_for_week_by_contrat(user_id, annee, semaine)
+            for data in data_list:
+                g.models.synthese_hebdo_model.create_or_update_batch([data])
+    
+    flash(f"Synthèses hebdomadaires générées pour l'année {annee}.", "success")
+    return redirect(url_for('banking.synthese_heures', annee=annee))
 @bp.route('/synthese-heures')
 @login_required
 def synthese_heures():
     user_id = current_user.id
     annee = int(request.args.get('annee', datetime.now().year))
-    employeur = request.args.get('employeur')
-    contrat_id = request.args.get('contrat')
-
-    # Récupérer les semaines avec filtres
-    semaines = g.models.synthese_hebdo_model.get_by_user_and_filters(
-        user_id, annee=annee, employeur=employeur, contrat_id=contrat_id
-    )
-
-    # Préparer le graphique
+    
+    # Récupérer TOUTES les synthèses de l'année (pour le tableau)
+    semaines = g.models.synthese_hebdo_model.get_by_user_and_year(user_id, annee)
+    
+    # Générer le graphique SVG global
     graphique_svg = g.models.synthese_hebdo_model.prepare_svg_data_hebdo(user_id, annee)
-
-    # Listes pour filtres
-    employeurs = g.models.synthese_hebdo_model.get_employeurs_distincts(user_id)
-    contrats = g.models.contrat_model.get_contrats_actifs_ou_passes(user_id)
+    
+    # Liste des employeurs pour les filtres (optionnel)
+    try:
+        with g.models.synthese_hebdo_model.db.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT DISTINCT employeur 
+                FROM synthese_hebdo 
+                WHERE user_id = %s AND employeur IS NOT NULL
+                ORDER BY employeur
+            """, (user_id,))
+            employeurs = [row['employeur'] for row in cursor.fetchall()]
+    except Exception as e:
+        logging.error(f"Erreur employeurs: {e}")
+        employeurs = []
 
     return render_template('salaires/synthese_heures.html',
                         semaines=semaines,
                         graphique_svg=graphique_svg,
                         annee=annee,
-                        selected_employeur=employeur,
-                        selected_contrat=contrat_id,
                         employeurs=employeurs,
-                        contrats=contrats,
                         now=datetime.now())
-
 @bp.route('/synthese-mensuelle/generer', methods=['POST'])
 @login_required
 def generer_syntheses_mensuelles():
     user_id = current_user.id
     annee = int(request.form.get('annee', datetime.now().year))
     
-    # Générer les 12 mois
+    # Supprimer les anciennes synthèses de l'année pour éviter les doublons
+    g.models.synthese_mensuelle_model.delete_by_user_and_year(user_id, annee)
+    
+    # Générer les 12 mois → une synthèse PAR CONTRAT
     for mois in range(1, 13):
-        synthese_list = g.models.synthese_mensuelle_model.get_by_user_and_month(user_id, annee, mois)
-        if not synthese_list:
-            data = g.models.synthese_mensuelle_model.calculate_for_month(user_id, annee, mois)
+        data_list = g.models.synthese_mensuelle_model.calculate_for_month_by_contrat(user_id, annee, mois)
+        for data in data_list:
             g.models.synthese_mensuelle_model.create_or_update(data)
     
-    flash(f"Synthèses mensuelles générées pour l'année {annee}.", "success")
+    flash(f"Synthèses mensuelles générées par contrat pour l'année {annee} (en CHF).", "success")
     return redirect(url_for('banking.synthese_mensuelle', annee=annee))
 
 @bp.route('/synthese-mensuelle', methods=['GET'])
@@ -3981,11 +4006,10 @@ def synthese_mensuelle():
     mois = request.args.get('mois')
     employeur = request.args.get('employeur')
     contrat_id = request.args.get('contrat')
+    
+    mois = int(mois) if mois and mois.isdigit() else None
+    contrat_id = int(contrat_id) if contrat_id and contrat_id.isdigit() else None
 
-    # Récupérer les filtres
-    mois = int(mois) if mois else None
-
-    # Récupérer toutes les synthèses avec filtres
     synthese_list = g.models.synthese_mensuelle_model.get_by_user_and_filters(
         user_id=user_id,
         annee=annee,
@@ -3994,7 +4018,6 @@ def synthese_mensuelle():
         contrat_id=contrat_id
     )
 
-    # Récupérer listes pour les filtres
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
     contrats = g.models.contrat_model.get_all_contrats(user_id)
 
@@ -4007,6 +4030,7 @@ def synthese_mensuelle():
                         employeurs_disponibles=employeurs,
                         contrats_disponibles=contrats,
                         now=datetime.now())
+
 @bp.route('/contrat', methods=['GET', 'POST'])
 @login_required
 def gestion_contrat():
