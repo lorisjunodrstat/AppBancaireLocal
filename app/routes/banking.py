@@ -1506,7 +1506,7 @@ def liste_transferts():
     type_transfert = request.args.get('type_transfert') # Nom unifié
     statut = request.args.get('statut')
     page = int(request.args.get('page', 1))
-    text_search = request.args.get('text_search', '').strip()
+    q = request.args.get('text_search', '').strip()
     ref_filter = request.args.get('ref_filter', '').strip()
     per_page = 20
     #type_transfert = type_transfert if type_transfert in ['interne', 'externe', 'global'] else None
@@ -1531,7 +1531,7 @@ def liste_transferts():
         sous_compte_source_id=sous_compte_source_id,
         sous_compte_dest_id=sous_compte_dest_id,
         reference=ref_filter,
-        text_search=text_search,
+        q=q,
         page=page,
         per_page=per_page)
 
@@ -1548,7 +1548,7 @@ def liste_transferts():
         sous_compte_source_id=sous_compte_source_id,
         sous_compte_dest_id=sous_compte_dest_id,
         reference=ref_filter,
-        text_search=text_search,
+        q=q,
         page=None,
         per_page=None
     )

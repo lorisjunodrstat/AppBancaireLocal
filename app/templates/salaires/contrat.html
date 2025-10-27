@@ -1,15 +1,24 @@
 {% extends "base.html" %}
-
+{% block head_css %}
+<style>
+.header-contrat {
+    /* Équivalent de 'd-flex' */
+    display: flex;
+    /* Équivalent de 'justify-content-between' */
+    justify-content: space-between;
+    /* Équivalent de 'align-items-center' */
+    align-items: center;
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container mt-4">
     <div class="card">
-        <div class="card-header py-3">
+        <div id="header-contrat" class="card-header py-3 d-flex justify-content-between align-items-center">
             <h5 class="m-0 font-weight-bold">Gestion du contrat</h5>
             <a href="{{ url_for('banking.nouveau_contrat') }}" class="btn btn-primary btn-sm ml-2" role="button">
                 <i class="fas fa-plus"></i>
             </a>
-                <i class="fas fa-plus"></i>
-            </button>
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('banking.gestion_contrat') }}">
