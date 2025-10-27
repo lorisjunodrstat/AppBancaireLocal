@@ -3342,7 +3342,6 @@ def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur, id_
     return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
 
-from datetime import date
 
 def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
     source = request.form.get('source_date')
@@ -3355,16 +3354,14 @@ def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
     try:
         target_date = date.fromisoformat(target)
     except ValueError:
-        flash("Format de date cible invalide.", "error")
+        flash("Format de date cible invalide. Utilisez AAAA-MM-JJ (ex: 2025-10-28).", "error")
         return redirect(request.url)
 
-    # Récupérer les données source
     src_data = g.models.heure_model.get_by_date(source, user_id, employeur, id_contrat)
-    if not src_data:
+    if not src_
         flash(f"Aucune donnée à copier pour le {format_date(source)}.", "warning")
         return redirect(request.url)
 
-    # Préparer les données à enregistrer
     payload = {
         'date': target,
         'user_id': user_id,
@@ -3383,41 +3380,41 @@ def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
     else:
         flash(f"Échec de la copie vers le {format_date(target)}.", "error")
 
-    # 🔥 Rediriger vers le MOIS contenant la date cible (meilleure visibilité)
     return redirect(url_for(
         'banking.heures_travail',
         annee=target_date.year,
         mois=target_date.month,
-        semaine=0,        # ← affiche tout le mois
+        semaine=0,
         mode=mode,
         employeur=employeur
     ))
-
+def format_date(date_str):
+    return date.fromisoformat(date_str).strftime('%d/%m/%Y')
 
 def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
-    src_week_start = request.form.get('source_week_start')
-    tgt_week_start = request.form.get('target_week_start')
+    src_start = request.form.get('source_week_start')
+    tgt_start = request.form.get('target_week_start')
     
-    if not src_week_start or not tgt_week_start:
+    if not src_start or not tgt_start:
         flash("Veuillez indiquer les lundis des semaines source et cible.", "error")
         return redirect(request.url)
 
     try:
-        tgt_monday = date.fromisoformat(tgt_week_start)
+        tgt_monday = date.fromisoformat(tgt_start)
         if tgt_monday.weekday() != 0:
             flash("La date cible doit être un lundi.", "error")
             return redirect(request.url)
     except ValueError:
-        flash("Date cible invalide.", "error")
+        flash("Date cible invalide. Utilisez AAAA-MM-JJ.", "error")
         return redirect(request.url)
 
     copied = 0
     for i in range(7):
-        src_day = (date.fromisoformat(src_week_start) + timedelta(days=i)).isoformat()
+        src_day = (date.fromisoformat(src_start) + timedelta(days=i)).isoformat()
         tgt_day = (tgt_monday + timedelta(days=i)).isoformat()
 
         src_data = g.models.heure_model.get_by_date(src_day, user_id, employeur, id_contrat)
-        if not src_data:
+        if not src_
             continue
 
         payload = {
@@ -3438,13 +3435,11 @@ def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
 
     flash(f"{copied} jour(s) copié(s) vers la semaine du {tgt_monday.strftime('%d/%m/%Y')}.", "success")
 
-    # 🔥 Rediriger vers la SEMAINE cible
-    semaine_cible = tgt_monday.isocalendar()[1]
     return redirect(url_for(
         'banking.heures_travail',
         annee=tgt_monday.year,
-        mois=0,           # ← on affiche par semaine, pas par mois
-        semaine=semaine_cible,
+        mois=0,
+        semaine=tgt_monday.isocalendar()[1],
         mode=mode,
         employeur=employeur
     ))
