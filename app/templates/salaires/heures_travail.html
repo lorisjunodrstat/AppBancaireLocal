@@ -97,7 +97,7 @@
             </form>
 
             <form method="POST" action="{{ url_for('banking.heures_travail') }}">
-                <input type="hidden" name="action" id="form-action" value="">
+                <!--<input type="hidden" name="action" id="form-action" value="">-->
                 <input type="hidden" name="employeur" value="{{ selected_employeur or '' }}">
                 <input type="hidden" name="annee" value="{{ current_annee }}">
                 <input type="hidden" name="mois" value="{{ current_mois }}">
