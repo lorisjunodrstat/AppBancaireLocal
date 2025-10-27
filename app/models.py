@@ -1812,17 +1812,16 @@ class TransactionFinanciere:
                     base_query += " AND t.reference = %(reference)s"
                     params['reference'] = reference
 
-                if q:
+                if q and q.strip():
                     q_clean = f"%{q.strip()}%"
                     base_query += """ AND (
-
-                    COALESCE(t.description, '') ILIKE %(q)s OR
-                    COALESCE(t.reference, '') ILIKE %(q)s OR
-                    COALESCE(cp.nom_compte, '') ILIKE %(q)s OR
-                    COALESCE(cp_dest.nom_compte, '') ILIKE %(q)s OR
-                    COALESCE(sc.nom_sous_compte, '') ILIKE %(q)s OR
-                    COALESCE(sc_dest.nom_sous_compte, '') ILIKE %(q)s
-                )"""
+                        COALESCE(t.description, '') LIKE %(q)s OR
+                        COALESCE(t.reference, '') LIKE %(q)s OR
+                        COALESCE(cp.nom_compte, '') LIKE %(q)s OR
+                        COALESCE(cp_dest.nom_compte, '') LIKE %(q)s OR
+                        COALESCE(sc.nom_sous_compte, '') LIKE %(q)s OR
+                        COALESCE(sc_dest.nom_sous_compte, '') LIKE %(q)s
+                    )"""
                     params['q'] = q_clean
 
                 # === Compter le total ===
