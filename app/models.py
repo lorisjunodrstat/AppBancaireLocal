@@ -5542,15 +5542,15 @@ class SyntheseMensuelle:
         except Exception as e:
             logging.error(f"Erreur récupération synthèse annuelle: {e}")
             return []
-    def get_by_user_and_month(self, user_id: int, mois: int) -> List[Dict]:
+    def get_by_user_and_month(self, user_id: int, annee : int, mois: int) -> List[Dict]:
         try:
             with self.db.get_cursor() as cursor:
                 query = """
                     SELECT * FROM synthese_mensuelle 
-                    WHERE user_id = %s AND mois = %s
+                    WHERE user_id = %s AND annee = %s AND mois = %s
                     ORDER BY mois ASC
                 """
-                cursor.execute(query, (user_id, mois))
+                cursor.execute(query, (user_id, annee, mois))
                 return cursor.fetchall()
         except Exception as e:
             logging.error(f"Erreur récupération synthèse annuelle: {e}")
