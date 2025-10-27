@@ -3917,7 +3917,7 @@ def synthese_hebdomadaire():
     annee = int(request.args.get('annee', datetime.now().year))
     semaine = int(request.args.get('semaine', 0))
 
-    synthese = g.models.synthese_model.get_by_user_and_week(current_user_id, annee, semaine)
+    synthese = g.models.synthese_hebdo_model.get_by_user_and_week(current_user_id, annee, semaine)
     if synthese:
         synthese_data = synthese
     else:
@@ -3935,7 +3935,7 @@ def synthese_mensuelle():
     current_user_id = current_user.id
     annee = int(request.args.get('annee', datetime.now().year))
     mois = int(request.args.get('mois', datetime.now().month))
-    synthese = g.models.synthese_model.get_by_user_and_month(current_user_id, annee, mois)
+    synthese = g.models.synthese_hebdo_model.get_by_user_and_month(current_user_id, annee, mois)
     if synthese:
         synthese_data = synthese
     else:
