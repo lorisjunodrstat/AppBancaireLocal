@@ -3927,6 +3927,35 @@ def synthese_hebdomadaire():
                         synthese=synthese_data,
                         current_annee=annee,
                         current_semaine=semaine)
+@bp.route('/synthese-heures')
+@login_required
+def synthese_heures():
+    user_id = current_user.id
+    annee = int(request.args.get('annee', datetime.now().year))
+    employeur = request.args.get('employeur')
+    contrat_id = request.args.get('contrat')
+
+    # Récupérer les semaines avec filtres
+    semaines = g.models.synthese_hebdo_model.get_by_user_and_filters(
+        user_id, annee=annee, employeur=employeur, contrat_id=contrat_id
+    )
+
+    # Préparer le graphique
+    graphique_svg = g.models.synthese_hebdo_model.prepare_svg_data_hebdo(user_id, annee)
+
+    # Listes pour filtres
+    employeurs = g.models.synthese_hebdo_model.get_employeurs_distincts(user_id)
+    contrats = g.models.contrat_model.get_contrats_actifs_ou_passes(user_id)
+
+    return render_template('salaires/synthese_heures.html',
+                        semaines=semaines,
+                        graphique_svg=graphique_svg,
+                        annee=annee,
+                        selected_employeur=employeur,
+                        selected_contrat=contrat_id,
+                        employeurs=employeurs,
+                        contrats=contrats,
+                        now=datetime.now())
 
 @bp.route('/synthese-mensuelle/generer', methods=['POST'])
 @login_required
