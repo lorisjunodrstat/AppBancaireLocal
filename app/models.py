@@ -5423,8 +5423,8 @@ class SyntheseMensuelle:
                     'heures_simulees': 0.0,  # à implémenter plus tard si besoin
                     'salaire_reel': round(salaire_reel, 2),
                     'salaire_simule': 0.0,
-                    'employeur': None,        # pas utilisé dans la vue agrégée
-                    'id_contrat': None        # pas utilisé
+                    'employeur': employeur,        # pas utilisé dans la vue agrégée
+                    'id_contrat': id_contrat        # pas utilisé
                 }
         except Exception as e:
             logging.error(f"Erreur calcul synthèse mensuelle agrégée: {e}")
@@ -5436,8 +5436,8 @@ class SyntheseMensuelle:
                 'heures_simulees': 0.0,
                 'salaire_reel': 0.0,
                 'salaire_simule': 0.0,
-                'employeur': employeur,
-                'id_contrat': id_contrat
+                'employeur': None,
+                'id_contrat': None
             }
     
     def prepare_svg_data_mensuel(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
