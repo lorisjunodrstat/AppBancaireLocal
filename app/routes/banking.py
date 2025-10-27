@@ -3923,10 +3923,11 @@ def synthese_hebdomadaire():
     else:
         synthese_data = {'heures_total': 0.0, 'montant_total': 0.0}
 
-    return render_template('salaires/synthese_mensuelle.html',
+    return render_template('salaires/synthese_hebdo.html',
                         synthese=synthese_data,
                         current_annee=annee,
-                        current_semaine=semaine)
+                        current_semaine=semaine, 
+                        now=datetime.now())
 
 @bp.route('/synthese-hebdo/generer', methods=['POST'])
 @login_required
