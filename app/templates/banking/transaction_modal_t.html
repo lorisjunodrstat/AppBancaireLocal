@@ -1,0 +1,123 @@
+<!-- banking/transaction_modal.html -->
+
+<div class="modal fade" id="modalTransaction{{ t.id }}" tabindex="-1"
+    aria-labelledby="modalTransactionLabel{{ t.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalTransactionLabel{{ t.id }}">
+                    Gérer la transaction #{{ t.id }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+
+            <!-- DEUX FORMULAIRES SÉPARÉS DANS LE MODAL-BODY -->
+            <div class="modal-body">
+                <!-- === Formulaire de MODIFICATION === -->
+                <form method="POST" action="{{ url_for('banking.modifier_transfert', transfert_id=t.id) }}"
+                    class="needs-validation" novalidate>
+                    <input type="hidden" name="action" value="modifier">
+
+                    <!-- Informations en lecture seule -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-muted">Informations de base</h6>
+                                    <p><strong>Type :</strong> {{ t.type_transaction|replace('_', ' ')|title }}</p>
+                                    <p><strong>Compte :</strong>
+                                        {% if t.compte_source_nom %}{{ t.compte_source_nom }}
+                                        {% elif t.sous_compte_source_nom %}{{ t.sous_compte_source_nom }}
+                                        {% elif t.compte_source %}{{ t.compte_source }}
+                                        {% else %}Inconnu{% endif %}
+                                    </p>
+                                    <p><strong>Référence :</strong>
+                                        <span class="text-muted">{{ t.reference or '-' }}</span>
+                                    </p>
+                                    <p><strong>Référence de transfert :</strong>
+                                        <span class="text-muted">{{ t.reference_transfert or '-' }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-muted">Montant & Solde</h6>
+                                    <p><strong>Montant :</strong>
+                                        <span class="{{ 'text-success' if t.montant > 0 else 'text-danger' }}">
+                                            {{ '+' if t.montant > 0 else '' }}{{ "%.2f"|format(t.montant) }} {{
+                                            compte.devise }}
+                                        </span>
+                                    </p>
+                                    <p><strong>Solde Actuel</strong>
+                                    <span class="{{ 'text-success' if t.solde_apres > 0 else 'text-danger' }}">
+                                        {{ '%.2f'|format(t.solde_apres) }} {% if compte.devise %}{{ compte.devise }}{% else %} CHF{% endif %}
+                                    </span>
+                                    </p>
+                                    <p><strong>Date :</strong> {{ t.date_transaction.strftime('%d/%m/%Y %H:%M') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Champs modifiables -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nouveau_montant{{ t.id }}" class="form-label">Montant *</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="nouveau_montant{{ t.id }}"
+                                    name="nouveau_montant" value="{{ '%.2f'|format(t.montant) }}" required>
+                                <span class="input-group-text">{{ compte.devise }}</span>
+                            </div>
+                            <div class="invalid-feedback">Veuillez entrer un montant valide.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="nouvelle_date{{ t.id }}" class="form-label">Date *</label>
+                            <input type="datetime-local" class="form-control" id="nouvelle_date{{ t.id }}"
+                                name="nouvelle_date" value="{{ t.date_transaction.strftime('%Y-%m-%dT%H:%M') }}"
+                                required>
+                            <div class="invalid-feedback">Veuillez entrer une date valide.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nouvelle_description{{ t.id }}" class="form-label">Description</label>
+                        <textarea class="form-control" id="nouvelle_description{{ t.id }}" name="nouvelle_description"
+                            rows="2" maxlength="255">{{ t.description or '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nouvelle_reference{{ t.id }}" class="form-label">Référence (optionnel)</label>
+                        <input type="text" class="form-control" id="nouvelle_reference{{ t.id }}"
+                            name="nouvelle_reference" maxlength="50" value="{{ t.reference or '' }}">
+                    </div>
+
+                    <!-- Bouton Enregistrer DANS le formulaire de modification -->
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Enregistrer les modifications
+                        </button>
+                    </div>
+                </form>
+
+                <!-- === Formulaire de SUPPRESSION (séparé, pas imbriqué) === -->
+                <form method="POST" action="{{ url_for('banking.supprimer_transfert', transfert_id=t.id) }}"
+                    class="mt-4 pt-3 border-top"
+                    onsubmit="return confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette transaction ?\nCette action est irréversible.')">
+                    <div class="d-flex justify-content-start">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-1"></i> Supprimer cette transaction
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Pied de page simplifié : juste le bouton Annuler -->
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>

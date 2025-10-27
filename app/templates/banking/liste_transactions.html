@@ -146,8 +146,8 @@
 </table>
 <!-- Inclusion des modals de transaction -->
 {% if transactions %}
-{% for mtv in transactions %}
-{% include "banking/transaction_modal.html" %}
+{% for t in transactions %}
+{% include "banking/transaction_modal_t.html" %}
 {% endfor %}
 {% endif %}
 
