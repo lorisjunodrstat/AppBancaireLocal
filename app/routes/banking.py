@@ -3011,9 +3011,9 @@ def heures_travail():
             return handle_simulation(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat)
         # Dans heures_travail() → section POST
         elif request.form.get('action') == 'copier_jour':
-            return handle_copier_jour(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat)
+            return handle_copier_jour(request, current_user_id, current_mode, selected_employeur, id_contrat)
         elif request.form.get('action') == 'copier_semaine':
-            return handle_copier_semaine(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat)
+            return handle_copier_semaine(request, current_user_id, current_mode, selected_employeur, id_contrat)        
         else:
             return handle_save_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat)
 
@@ -3342,27 +3342,29 @@ def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur, id_
     return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
 
+from datetime import date
 
-def handle_copier_jour(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
+def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
     source = request.form.get('source_date')
     target = request.form.get('target_date')
+    
     if not source or not target:
         flash("Veuillez indiquer une date source et une date cible.", "error")
         return redirect(request.url)
 
     try:
-        tgt_date = date.fromisoformat(target)
+        target_date = date.fromisoformat(target)
     except ValueError:
         flash("Format de date cible invalide.", "error")
         return redirect(request.url)
 
     # Récupérer les données source
     src_data = g.models.heure_model.get_by_date(source, user_id, employeur, id_contrat)
-    if not src_data:
+    if not src_
         flash(f"Aucune donnée à copier pour le {format_date(source)}.", "warning")
         return redirect(request.url)
 
-    # Préparer payload cible
+    # Préparer les données à enregistrer
     payload = {
         'date': target,
         'user_id': user_id,
@@ -3381,18 +3383,21 @@ def handle_copier_jour(request, user_id, annee, mois, semaine, mode, employeur, 
     else:
         flash(f"Échec de la copie vers le {format_date(target)}.", "error")
 
-    # 🔥 Rediriger vers la VUE qui affiche la date cible
+    # 🔥 Rediriger vers le MOIS contenant la date cible (meilleure visibilité)
     return redirect(url_for(
         'banking.heures_travail',
-        annee=tgt_date.year,
-        mois=tgt_date.month,
-        semaine=0,  # ou tgt_date.isocalendar()[1] si tu veux la semaine
+        annee=target_date.year,
+        mois=target_date.month,
+        semaine=0,        # ← affiche tout le mois
         mode=mode,
         employeur=employeur
     ))
-def handle_copier_semaine(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
+
+
+def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
     src_week_start = request.form.get('source_week_start')
     tgt_week_start = request.form.get('target_week_start')
+    
     if not src_week_start or not tgt_week_start:
         flash("Veuillez indiquer les lundis des semaines source et cible.", "error")
         return redirect(request.url)
@@ -3406,21 +3411,43 @@ def handle_copier_semaine(request, user_id, annee, mois, semaine, mode, employeu
         flash("Date cible invalide.", "error")
         return redirect(request.url)
 
-    # ... (copie des 7 jours comme avant) ...
+    copied = 0
+    for i in range(7):
+        src_day = (date.fromisoformat(src_week_start) + timedelta(days=i)).isoformat()
+        tgt_day = (tgt_monday + timedelta(days=i)).isoformat()
 
-    flash(f"Heures copiées vers la semaine du {tgt_monday.strftime('%d/%m/%Y')}.", "success")
+        src_data = g.models.heure_model.get_by_date(src_day, user_id, employeur, id_contrat)
+        if not src_
+            continue
+
+        payload = {
+            'date': tgt_day,
+            'user_id': user_id,
+            'employeur': employeur,
+            'id_contrat': id_contrat,
+            'h1d': src_data.get('h1d'),
+            'h1f': src_data.get('h1f'),
+            'h2d': src_data.get('h2d'),
+            'h2f': src_data.get('h2f'),
+            'vacances': src_data.get('vacances', False),
+            'total_h': src_data.get('total_h', 0.0)
+        }
+
+        if g.models.heure_model.create_or_update(payload):
+            copied += 1
+
+    flash(f"{copied} jour(s) copié(s) vers la semaine du {tgt_monday.strftime('%d/%m/%Y')}.", "success")
 
     # 🔥 Rediriger vers la SEMAINE cible
     semaine_cible = tgt_monday.isocalendar()[1]
     return redirect(url_for(
         'banking.heures_travail',
         annee=tgt_monday.year,
-        mois=0,  # ou tgt_monday.month si tu veux le mois
+        mois=0,           # ← on affiche par semaine, pas par mois
         semaine=semaine_cible,
         mode=mode,
         employeur=employeur
     ))
-
 # --- Routes salaires ---
 
 @bp.route('/salaires', methods=['GET'])
