@@ -3347,14 +3347,18 @@ def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
     source = request.form.get('source_date')
     target = request.form.get('target_date')
     
-    if not source or not target:
-        flash("Veuillez indiquer une date source et une date cible.", "error")
+    if not source:
+        flash("Veuillez indiquer une date source.", "error")
+        return redirect(request.url)
+    if not target:
+        flash("Veuillez indiquer une date cible.", "error")
         return redirect(request.url)
 
     try:
         target_date = date.fromisoformat(target)
+        source_date = date.fromisoformat(source)  # optionnel, mais bon pour cohérence
     except ValueError:
-        flash("Format de date cible invalide. Utilisez AAAA-MM-JJ (ex: 2025-10-28).", "error")
+        flash("Format de date invalide. Utilisez le sélecteur de date.", "error")
         return redirect(request.url)
 
     src_data = g.models.heure_model.get_by_date(source, user_id, employeur, id_contrat)
