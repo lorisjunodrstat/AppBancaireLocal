@@ -52,7 +52,7 @@
                                     </p>
                                     <p><strong>Solde Actuel</strong>
                                     <span class="{{ 'text-success' if t.solde_apres > 0 else 'text-danger' }}">
-                                        {{ '%.2f'|format(t.solde_apres) }} {% if compte.devise %}{{ compte.devise }}{% else %} CHF{% endif %}
+                                        {{ '%.2f'|format(t.solde_apres) }}  CHF
                                     </span>
                                     </p>
                                     <p><strong>Date :</strong> {{ t.date_transaction.strftime('%d/%m/%Y %H:%M') }}</p>
