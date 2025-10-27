@@ -1626,7 +1626,7 @@ def liste_transferts():
         type_filter=type_transfert,
         statut_filter=statut,
         ref_filter=ref_filter,
-        text_search=text_search,
+        q=q,
         total=total,
         mouv=mouv
     )
