@@ -87,7 +87,7 @@
                     <td class="text-end">{{ '%.2f'|format(s.heures_simulees or 0) }} h</td>
                     <td class="text-end">{{ '%.2f'|format(s.difference or 0) }} h</td>
                     {% set taux = (s.heures_reelles / 42.5 * 100) if s.heures_reelles else 0 %}
-                    <td class="text-end" style="color: {% if taux <= 60 %}green{% else %}red{% endif %};">
+                    <td class="text-end" style="{% if taux <= 60 %}color: green{% elif taux <= 80 %}color: red{% else %}color:red;font-weight: bold{% endif %};">
                         {{ '%.1f%%'|format(taux) }}
                     </td>
                 </tr>
