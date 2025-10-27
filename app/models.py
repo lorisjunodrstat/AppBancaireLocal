@@ -5371,8 +5371,6 @@ class SyntheseMensuelle:
                 # Récupère le total d'heures pour TOUTES les entrées du mois
                 query = """
                     SELECT 
-                        employeur,
-                        id_contrat,
                         SUM(total_h) as total_heures
                     FROM heures_travail
                     WHERE user_id = %s
