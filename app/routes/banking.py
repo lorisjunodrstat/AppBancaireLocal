@@ -1594,7 +1594,7 @@ def liste_transferts():
             cw.writerow([
                 t['date_transaction'].strftime("%Y-%m-%d %H:%M"),  # ✅ bon champ
                 t['type_transaction'],
-                t.get('description', ''),
+                t.get('description'),
                 source,
                 destination,
                 f"{t['montant']:.2f}"
