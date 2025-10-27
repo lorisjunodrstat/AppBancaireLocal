@@ -3967,7 +3967,7 @@ def synthese_mensuelle():
 
     # Récupérer listes pour les filtres
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
-    contrats = g.models.contrat_model.get_contrats_actifs_ou_passes(user_id)
+    contrats = g.models.contrat_model.get_all_contrats(user_id)
 
     return render_template('salaires/synthese_mensuelle.html',
                         syntheses=synthese_list,
