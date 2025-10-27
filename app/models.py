@@ -5346,7 +5346,7 @@ class SyntheseHebdomadaire:
         except Error as e:
             logging.error(f"Erreur récupération synthèse par semaine: {e}")
             return []
-    def get_by_user_and_week_and_contrat(self, user_id: int, id_contrat: int, annee: int = None, semaine: int = None) -> List(Dict):
+    def get_by_user_and_week_and_contrat(self, user_id: int, id_contrat: int, annee: int = None, semaine: int = None) -> List[Dict]:
         try:
             with self.db.get_cursor() as cursor:
                 query = """

@@ -3928,23 +3928,56 @@ def synthese_hebdomadaire():
                         current_annee=annee,
                         current_semaine=semaine)
 
+@bp.route('/synthese-mensuelle/generer', methods=['POST'])
+@login_required
+def generer_syntheses_mensuelles():
+    user_id = current_user.id
+    annee = int(request.form.get('annee', datetime.now().year))
+    
+    # Générer les 12 mois
+    for mois in range(1, 13):
+        synthese_list = g.models.synthese_mensuelle_model.get_by_user_and_month(user_id, annee, mois)
+        if not synthese_list:
+            data = g.models.synthese_mensuelle_model.calculate_for_month(user_id, annee, mois)
+            g.models.synthese_mensuelle_model.create_or_update(data)
+    
+    flash(f"Synthèses mensuelles générées pour l'année {annee}.", "success")
+    return redirect(url_for('salaires.synthese_mensuelle', annee=annee))
 
 @bp.route('/synthese-mensuelle', methods=['GET'])
 @login_required
 def synthese_mensuelle():
-    current_user_id = current_user.id
+    user_id = current_user.id
     annee = int(request.args.get('annee', datetime.now().year))
-    mois = int(request.args.get('mois', datetime.now().month))
-    synthese = g.models.synthese_hebdo_model.get_by_user_and_month(current_user_id, annee, mois)
-    if synthese:
-        synthese_data = synthese
-    else:
-        synthese_data = {'heures_total': 0.0, 'montant_total': 0.0}
-    return render_template('salaires/synthese_mensuelle.html',
-                        synthese=synthese_data,
-                        current_annee=annee,
-                        current_mois=mois)
+    mois = request.args.get('mois')
+    employeur = request.args.get('employeur')
+    contrat_id = request.args.get('contrat')
 
+    # Récupérer les filtres
+    mois = int(mois) if mois else None
+
+    # Récupérer toutes les synthèses avec filtres
+    synthese_list = g.models.synthese_mensuelle_model.get_by_user_and_filters(
+        user_id=user_id,
+        annee=annee,
+        mois=mois,
+        employeur=employeur,
+        contrat_id=contrat_id
+    )
+
+    # Récupérer listes pour les filtres
+    employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
+    contrats = g.models.contrat_model.get_contrats_actifs_ou_passes(user_id)
+
+    return render_template('salaires/synthese_mensuelle.html',
+                        syntheses=synthese_list,
+                        current_annee=annee,
+                        current_mois=mois,
+                        selected_employeur=employeur,
+                        selected_contrat=contrat_id,
+                        employeurs_disponibles=employeurs,
+                        contrats_disponibles=contrats,
+                        now=datetime.now())
 @bp.route('/contrat', methods=['GET', 'POST'])
 @login_required
 def gestion_contrat():
