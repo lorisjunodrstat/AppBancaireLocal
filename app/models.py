@@ -5216,60 +5216,48 @@ class SyntheseHebdomadaire:
     def __init__(self, db):
         self.db = db
     # Dans la classe SyntheseHebdomadaire
-    def calculate_for_week(self, user_id: int, annee: int, semaine: int) -> dict:
-        """
-        Calcule la synthèse hebdomadaire à partir des feuilles de temps existantes.
-        """
+    def calculate_for_week_by_contrat(self, user_id: int, annee: int, semaine: int) -> list[dict]:
         try:
             with self.db.get_cursor() as cursor:
-                # Récupérer les feuilles de temps de la semaine demandée
                 query = """
                     SELECT 
-                        employeur,
-                        id_contrat,
-                        SUM(total_h) as total_heures
-                    FROM feuilles_temps
-                    WHERE user_id = %s
-                    AND annee = %s
-                    AND semaine_annee = %s
-                    AND total_h IS NOT NULL
-                    GROUP BY employeur, id_contrat
+                        ht.id_contrat,
+                        c.employeur,
+                        SUM(ht.total_h) AS total_heures
+                    FROM heures_travail ht
+                    JOIN contrats c ON ht.id_contrat = c.id
+                    WHERE ht.user_id = %s
+                    AND YEAR(ht.date) = %s
+                    AND ht.semaine_annee = %s
+                    AND ht.total_h IS NOT NULL
+                    AND ht.id_contrat IS NOT NULL
+                    GROUP BY ht.id_contrat, c.employeur
                 """
                 cursor.execute(query, (user_id, annee, semaine))
-                resultats = cursor.fetchall()
+                rows = cursor.fetchall()
 
-                heures_reelles = sum(row['total_heures'] for row in resultats)
-                # Heures simulées = non implémentées ici → on met 0 ou on les calcule plus tard
-                heures_simulees = 0.0
+                resultats = []
+                for row in rows:
+                    id_contrat = row['id_contrat']
+                    employeur = row['employeur']
+                    heures = float(row['total_heures'])
+                    heures_simulees = 0.0  # à implémenter plus tard si besoin
 
-                # On garde le premier employeur/contrat (ou on pourrait agréger par employeur)
-                employeur = resultats[0]['employeur'] if resultats else None
-                id_contrat = resultats[0]['id_contrat'] if resultats else None
-
-                return {
-                    'user_id': user_id,
-                    'annee': annee,
-                    'semaine_numero': semaine,
-                    'heures_reelles': round(heures_reelles, 2),
-                    'heures_simulees': round(heures_simulees, 2),
-                    'difference': round(heures_reelles - heures_simulees, 2),
-                    'moyenne_mobile': 0.0,  # à implémenter plus tard si besoin
-                    'employeur': employeur,
-                    'id_contrat': id_contrat
-                }
+                    resultats.append({
+                        'user_id': user_id,
+                        'annee': annee,
+                        'semaine_numero': semaine,
+                        'id_contrat': id_contrat,
+                        'employeur': employeur,
+                        'heures_reelles': round(heures, 2),
+                        'heures_simulees': round(heures_simulees, 2),
+                        'difference': round(heures - heures_simulees, 2),
+                        'moyenne_mobile': 0.0,
+                    })
+                return resultats
         except Exception as e:
-            logging.error(f"Erreur calcul synthèse hebdo: {e}")
-            return {
-                'user_id': user_id,
-                'annee': annee,
-                'semaine_numero': semaine,
-                'heures_reelles': 0.0,
-                'heures_simulees': 0.0,
-                'difference': 0.0,
-                'moyenne_mobile': 0.0,
-                'employeur': None,
-                'id_contrat': None
-            }
+            logging.error(f"Erreur calcul synthèse hebdo par contrat: {e}")
+            return []
     def create_or_update(self, data: dict) -> bool:
         try:
             with self.db.get_cursor(commit=True) as cursor:
@@ -5310,6 +5298,61 @@ class SyntheseHebdomadaire:
             logging.error(f"Erreur synthèse hebdo: {e}")
             return False
     
+    def create_or_update_batch(self, data_list: list[dict]) -> bool:
+        try:
+            with self.db.get_cursor(commit=True) as cursor:
+                for data in data_list:
+                    cursor.execute("""
+                        SELECT id FROM synthese_hebdo 
+                        WHERE user_id = %s AND annee = %s AND semaine_numero = %s AND id_contrat = %s
+                    """, (
+                        data['user_id'],
+                        data['annee'],
+                        data['semaine_numero'],
+                        data['id_contrat']
+                    ))
+                    existing = cursor.fetchone()
+
+                    if existing:
+                        query = """
+                            UPDATE synthese_hebdo SET
+                                employeur = %s,
+                                heures_reelles = %s,
+                                heures_simulees = %s,
+                                difference = %s,
+                                moyenne_mobile = %s
+                            WHERE id = %s
+                        """
+                        cursor.execute(query, (
+                            data['employeur'],
+                            data['heures_reelles'],
+                            data['heures_simulees'],
+                            data['difference'],
+                            data['moyenne_mobile'],
+                            existing['id']
+                        ))
+                    else:
+                        query = """
+                            INSERT INTO synthese_hebdo 
+                            (user_id, annee, semaine_numero, id_contrat, employeur,
+                            heures_reelles, heures_simulees, difference, moyenne_mobile)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """
+                        cursor.execute(query, (
+                            data['user_id'],
+                            data['annee'],
+                            data['semaine_numero'],
+                            data['id_contrat'],
+                            data['employeur'],
+                            data['heures_reelles'],
+                            data['heures_simulees'],
+                            data['difference'],
+                            data['moyenne_mobile']
+                        ))
+            return True
+        except Exception as e:
+            logging.error(f"Erreur batch synthèse hebdo: {e}")
+            return False
     def get_by_user(self, user_id: int, limit: int = 12) -> List[Dict]:
         try:
             with self.db.get_cursor() as cursor:
@@ -5354,91 +5397,150 @@ class SyntheseHebdomadaire:
                 WHERE user_id = %s AND id_contrat = %s AND annee = %s AND semaine_numero =%s
                 ORDER BY annee DESC, semaine_numero DESC
                 """
-                cursor.execute(query, (user_id, id_contrat))
+                cursor.execute(query, (user_id, id_contrat, annee, semaine))
                 syntheses = cursor.fetchall()
                 return syntheses
         except Error as e:
             logging.error(f'erreur récupération synthpèse: {e}')
             return []
 
+
+    def prepare_svg_data_hebdo(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
+        """Prépare les données pour un graphique SVG des heures hebdomadaires TOTALES (agrégées par semaine)."""
+        # Récupère TOUTES les synthèses de l'année (y compris plusieurs contrats/semaine)
+        synthese_list = self.get_by_user_and_year(user_id, annee)
+        
+        # Agrège par semaine
+        total_par_semaine = {}
+        for s in synthese_list:
+            semaine = s['semaine_numero']
+            if semaine not in total_par_semaine:
+                total_par_semaine[semaine] = {'heures_reelles': 0.0, 'heures_simulees': 0.0}
+            total_par_semaine[semaine]['heures_reelles'] += float(s.get('heures_reelles', 0))
+            total_par_semaine['heures_simulees'] += float(s.get('heures_simulees', 0))
+        
+        # Prépare les listes pour les 53 semaines
+        heures_reelles_vals = []
+        heures_simulees_vals = []
+        semaine_labels = []
+        
+        for semaine in range(1, 54):
+            data = total_par_semaine.get(semaine, {'heures_reelles': 0.0, 'heures_simulees': 0.0})
+            heures_reelles_vals.append(data['heures_reelles'])
+            heures_simulees_vals.append(data['heures_simulees'])
+            semaine_labels.append(f"S{semaine}")
+
+        # Calcul des bornes Y
+        all_vals = heures_reelles_vals + heures_simulees_vals
+        min_val = min(all_vals) if all_vals else 0.0
+        max_val = max(all_vals) if all_vals else 100.0
+        if min_val == max_val:
+            max_val = min_val + 40.0 if min_val == 0 else min_val * 1.1
+
+        margin_x = largeur_svg * 0.1
+        margin_y = hauteur_svg * 0.1
+        plot_width = largeur_svg * 0.8
+        plot_height = hauteur_svg * 0.8
+
+        def y_coord(val):
+            if max_val == min_val:
+                return margin_y + plot_height / 2
+            return margin_y + plot_height - ((val - min_val) / (max_val - min_val)) * plot_height
+
+        # Ticks (tous les 10h)
+        ticks = []
+        step = 10
+        y_val = math.floor(min_val / step) * step
+        while y_val <= max_val + step:
+            if y_val >= 0:
+                y_px = y_coord(y_val)
+                ticks.append({'value': int(y_val), 'y_px': y_px})
+            y_val += step
+
+        # Barres (heures réelles)
+        bar_width = plot_width / 53 * 0.6
+        colonnes_svg = []
+        for i in range(53):
+            x = margin_x + (i + 0.5) * (plot_width / 53) - bar_width / 2
+            y_top = y_coord(heures_reelles_vals[i])
+            height = plot_height - (y_top - margin_y)
+            if height < 0:
+                height = 0
+                y_top = margin_y + plot_height
+            colonnes_svg.append({'x': x, 'y': y_top, 'width': bar_width, 'height': height})
+
+        # Ligne simulée (heures simulées)
+        points_simule = [
+            f"{margin_x + (i + 0.5) * (plot_width / 53)},{y_coord(heures_simulees_vals[i])}"
+            for i in range(53)
+        ]
+
+        return {
+            'colonnes': colonnes_svg,
+            'ligne_simule': points_simule,
+            'min_val': min_val,
+            'max_val': max_val,
+            'semaine_labels': semaine_labels,
+            'largeur_svg': largeur_svg,
+            'hauteur_svg': hauteur_svg,
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'plot_width': plot_width,
+            'plot_height': plot_height,
+            'ticks': ticks,
+            'annee': annee
+        }
+
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
     # Dans la classe SyntheseMensuelle
-    def calculate_for_month(self, user_id: int, annee: int, mois: int) -> dict:
+    def calculate_for_month_by_contrat(self, user_id: int, annee: int, mois: int) -> list[dict]:
         try:
             with self.db.get_cursor() as cursor:
-                # Récupère le total d'heures pour TOUTES les entrées du mois
-                query = """
-                    SELECT 
-                        SUM(total_h) as total_heures
-                    FROM heures_travail
-                    WHERE user_id = %s
-                    AND YEAR(date) = %s
-                    AND MONTH(date) = %s
-                    AND total_h IS NOT NULL
-                """
-                cursor.execute(query, (user_id, annee, mois))
-                result = cursor.fetchone()
-                heures_reelles = float(result['total_heures']) if result and result['total_heures'] else 0.0
-
-                # Récupère TOUS les contrats actifs ou passés pour calculer un salaire moyen pondéré
-                # OU utilise une logique simple : somme(heures_par_contrat * taux_horaire)
-                salaire_reel = 0.0
-
-                # On récupère les heures par contrat pour ce mois
                 query_contrats = """
                     SELECT 
-                        id_contrat,
-                        employeur,
-                        SUM(total_h) as heures_contrat
-                    FROM heures_travail
-                    WHERE user_id = %s
-                    AND YEAR(date) = %s
-                    AND MONTH(date) = %s
-                    AND total_h IS NOT NULL
-                    AND id_contrat IS NOT NULL
-                    GROUP BY id_contrat, employeur
-                    LIMIT 25;
+                        h.id_contrat,
+                        c.employeur,
+                        SUM(h.total_h) AS heures_contrat
+                    FROM heures_travail h
+                    JOIN contrats c ON h.id_contrat = c.id
+                    WHERE h.user_id = %s
+                    AND YEAR(h.date) = %s
+                    AND MONTH(h.date) = %s
+                    AND h.total_h IS NOT NULL
+                    AND h.id_contrat IS NOT NULL
+                    GROUP BY h.id_contrat, c.employeur
                 """
                 cursor.execute(query_contrats, (user_id, annee, mois))
-                heures_par_contrat = cursor.fetchall()
+                rows = cursor.fetchall()
 
-                for row in heures_par_contrat:
+                resultats = []
+                for row in rows:
                     id_contrat = row['id_contrat']
                     employeur = row['employeur']
                     heures_c = float(row['heures_contrat'])
-                    # Récupère le taux horaire du contrat
+
                     cursor.execute("SELECT salaire_horaire FROM contrats WHERE id = %s", (id_contrat,))
                     contrat = cursor.fetchone()
-                    if contrat and contrat['salaire_horaire']:
-                        salaire_reel += heures_c * float(contrat['salaire_horaire'])
+                    taux = float(contrat['salaire_horaire']) if contrat and contrat['salaire_horaire'] else 0.0
+                    salaire = heures_c * taux
 
-                return {
-                    'user_id': user_id,
-                    'annee': annee,
-                    'mois': mois,
-                    'heures_reelles': round(heures_reelles, 2),
-                    'heures_simulees': 0.0,  # à implémenter plus tard si besoin
-                    'salaire_reel': round(salaire_reel, 2),
-                    'salaire_simule': 0.0,
-                    'employeur': employeur,        # pas utilisé dans la vue agrégée
-                    'id_contrat': id_contrat        # pas utilisé
-                }
+                    resultats.append({
+                        'user_id': user_id,
+                        'annee': annee,
+                        'mois': mois,
+                        'id_contrat': id_contrat,
+                        'employeur': employeur,
+                        'heures_reelles': round(heures_c, 2),
+                        'heures_simulees': 0.0,
+                        'salaire_reel': round(salaire, 2),
+                        'salaire_simule': 0.0,
+                    })
+                return resultats
         except Exception as e:
-            logging.error(f"Erreur calcul synthèse mensuelle agrégée: {e}")
-            return {
-                'user_id': user_id,
-                'annee': annee,
-                'mois': mois,
-                'heures_reelles': 0.0,
-                'heures_simulees': 0.0,
-                'salaire_reel': 0.0,
-                'salaire_simule': 0.0,
-                'employeur': None,
-                'id_contrat': None
-            }
-    
+            logging.error(f"Erreur calcul synthèse mensuelle par contrat: {e}")
+            return []
     def prepare_svg_data_mensuel(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         """
         Prépare les données pour un graphique SVG des salaires mensuels.
@@ -5613,49 +5715,69 @@ class SyntheseMensuelle:
         except Exception as e:
             logging.error(f"Erreur employeurs: {e}")
             return []
+    
     def create_or_update(self, data: dict) -> bool:
-        """
-        Crée ou met à jour une entrée de synthèse mensuelle en utilisant
-        le gestionnaire de contexte pour une gestion de connexion sécurisée.
-        """
         try:
             with self.db.get_cursor(commit=True) as cursor:
-                # Vérifier si une entrée existe déjà
                 cursor.execute("""
                     SELECT id FROM synthese_mensuelle 
-                    WHERE mois = %s AND annee = %s AND user_id = %s
-                """, (data['mois'], data['annee'], data['user_id']))
+                    WHERE user_id = %s AND annee = %s AND mois = %s AND id_contrat = %s
+                """, (data['user_id'], data['annee'], data['mois'], data['id_contrat']))
                 existing = cursor.fetchone()
-                
+
                 if existing:
                     query = """
-                    UPDATE synthese_mensuelle 
-                    SET heures_reelles = %s, heures_simulees = %s, 
-                        salaire_reel = %s, salaire_simule = %s
-                    WHERE id = %s
+                        UPDATE synthese_mensuelle SET
+                            employeur = %s,
+                            heures_reelles = %s,
+                            heures_simulees = %s,
+                            salaire_reel = %s,
+                            salaire_simule = %s
+                        WHERE id = %s
                     """
                     cursor.execute(query, (
-                        data['heures_reelles'], data['heures_simulees'],
-                        data['salaire_reel'], data['salaire_simule'],
-                        existing[0]
+                        data['employeur'],
+                        data['heures_reelles'],
+                        data['heures_simulees'],
+                        data['salaire_reel'],
+                        data['salaire_simule'],
+                        existing['id']
                     ))
                 else:
                     query = """
-                    INSERT INTO synthese_mensuelle 
-                    (mois, annee, heures_reelles, heures_simulees, 
-                    salaire_reel, salaire_simule, user_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO synthese_mensuelle 
+                        (user_id, annee, mois, id_contrat, employeur,
+                        heures_reelles, heures_simulees, salaire_reel, salaire_simule)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """
                     cursor.execute(query, (
-                        data['mois'], data['annee'],
-                        data['heures_reelles'], data['heures_simulees'],
-                        data['salaire_reel'], data['salaire_simule'],
-                        data['user_id']
+                        data['user_id'],
+                        data['annee'],
+                        data['mois'],
+                        data['id_contrat'],
+                        data['employeur'],
+                        data['heures_reelles'],
+                        data['heures_simulees'],
+                        data['salaire_reel'],
+                        data['salaire_simule']
                     ))
             return True
-        except Error as e:
-            logging.error(f"Erreur synèse mensuelle: {e}")
+        except Exception as e:
+            logging.error(f"Erreur synthèse mensuelle: {e}")
             return False
+    
+    def delete_by_user_and_year(self, user_id: int, annee: int):
+        with self.db.get_cursor(commit=True) as cursor:
+            cursor.execute("DELETE FROM synthese_mensuelle WHERE user_id = %s AND annee = %s", (user_id, annee))
+
+    def get_monthly_total(self, user_id: int, annee: int, mois: int) -> dict:
+        rows = self.get_by_user_and_filters(user_id, annee=annee, mois=mois)
+        total_heures = sum(float(r.get('heures_reelles', 0)) for r in rows)
+        total_salaire = sum(float(r.get('salaire_reel', 0)) for r in rows)
+        return {
+            'heures_reelles': round(total_heures, 2),
+            'salaire_reel': round(total_salaire, 2)
+        }
 
     def get_by_user(self, user_id: int, limit: int = 6) -> List[Dict]:
         """

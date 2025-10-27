@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>Synthèse des heures</h2>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Par semaine</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Semaine</th>
+                                    <th>Heures réelles</th>
+                                    <th>Heures simulées</th>
+                                    <th>Différence</th>
+                                    <th>Moyenne mobile</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for semaine in semaines %}
+                                <tr>
+                                    <td>{{ semaine.semaine_numero }} ({{ semaine.annee }})</td>
+                                    <td>{{ "%.2f"|format(semaine.heures_reelles) }}</td>
+                                    <td>{{ "%.2f"|format(semaine.heures_simulees) }}</td>
+                                    <td class="{{ 'text-danger' if semaine.difference < 0 else 'text-success' }}">
+                                        {{ "%+.2f"|format(semaine.difference) }}
+                                    </td>
+                                    <td>{{ "%.2f"|format(semaine.moyenne_mobile) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">Aucune donnée disponible</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Par mois</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="heuresChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('heuresChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ mois_labels| tojson }},
+        datasets: [
+        {
+            label: 'Heures réelles',
+            data: {{ heures_reelles| tojson }},
+        backgroundColor: 'rgba(54, 162, 235, 0.7)'
+                },
+        {
+            label: 'Heures simulées',
+            data: {{ heures_simulees| tojson }},
+        backgroundColor: 'rgba(255, 99, 132, 0.7)'
+                }
+    ]
+        },
+        options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Heures'
+                }
+            }
+        }
+    }
+    });
+});
+</script>
+{% endblock %}
