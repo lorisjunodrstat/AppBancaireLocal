@@ -5368,46 +5368,62 @@ class SyntheseMensuelle:
     def calculate_for_month(self, user_id: int, annee: int, mois: int) -> dict:
         try:
             with self.db.get_cursor() as cursor:
+                # Récupère le total d'heures pour TOUTES les entrées du mois
                 query = """
                     SELECT 
-                        employeur,
-                        id_contrat,
                         SUM(total_h) as total_heures
                     FROM heures_travail
                     WHERE user_id = %s
                     AND YEAR(date) = %s
-                    AND mois = %s
+                    AND MONTH(date) = %s
                     AND total_h IS NOT NULL
-                    GROUP BY employeur, id_contrat
                 """
                 cursor.execute(query, (user_id, annee, mois))
-                resultats = cursor.fetchall()
+                result = cursor.fetchone()
+                heures_reelles = float(result['total_heures']) if result and result['total_heures'] else 0.0
 
-                heures_reelles = sum(row['total_heures'] for row in resultats)
-                employeur = resultats[0]['employeur'] if resultats else None
-                id_contrat = resultats[0]['id_contrat'] if resultats else None
-
-                # Salaire = heures × taux horaire (à récupérer depuis le contrat)
+                # Récupère TOUS les contrats actifs ou passés pour calculer un salaire moyen pondéré
+                # OU utilise une logique simple : somme(heures_par_contrat * taux_horaire)
                 salaire_reel = 0.0
-                if id_contrat:
-                    cursor.execute("SELECT salaire_horaire FROM contrats WHERE id = %s", (id_contrat,))
+
+                # On récupère les heures par contrat pour ce mois
+                query_contrats = """
+                    SELECT 
+                        id_contrat,
+                        SUM(total_h) as heures_contrat
+                    FROM heures_travail
+                    WHERE user_id = %s
+                    AND YEAR(date) = %s
+                    AND MONTH(date) = %s
+                    AND total_h IS NOT NULL
+                    AND id_contrat IS NOT NULL
+                    GROUP BY id_contrat;
+                """
+                cursor.execute(query_contrats, (user_id, annee, mois))
+                heures_par_contrat = cursor.fetchall()
+
+                for row in heures_par_contrat:
+                    contrat_id = row['id_contrat']
+                    heures_c = float(row['heures_contrat'])
+                    # Récupère le taux horaire du contrat
+                    cursor.execute("SELECT salaire_horaire FROM contrats WHERE id = %s", (contrat_id,))
                     contrat = cursor.fetchone()
                     if contrat and contrat['salaire_horaire']:
-                        salaire_reel = heures_reelles * contrat['salaire_horaire']
+                        salaire_reel += heures_c * float(contrat['salaire_horaire'])
 
                 return {
                     'user_id': user_id,
                     'annee': annee,
                     'mois': mois,
                     'heures_reelles': round(heures_reelles, 2),
-                    'heures_simulees': 0.0,
+                    'heures_simulees': 0.0,  # à implémenter plus tard si besoin
                     'salaire_reel': round(salaire_reel, 2),
                     'salaire_simule': 0.0,
-                    'employeur': employeur,
-                    'id_contrat': id_contrat
+                    'employeur': None,        # pas utilisé dans la vue agrégée
+                    'id_contrat': None        # pas utilisé
                 }
         except Exception as e:
-            logging.error(f"Erreur calcul synthèse mensuelle: {e}")
+            logging.error(f"Erreur calcul synthèse mensuelle agrégée: {e}")
             return {
                 'user_id': user_id,
                 'annee': annee,
