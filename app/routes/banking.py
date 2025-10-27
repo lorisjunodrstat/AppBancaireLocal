@@ -1537,76 +1537,74 @@ def liste_transferts():
 
     pages = (total + per_page - 1) // per_page
 
-    # Export CSV
+        # Export CSV
     if request.args.get('export') == 'csv':
         mouv, _ = g.models.transaction_financiere_model.get_all_user_transactions(
-        user_id=user_id,
-        date_from=date_from,
-        date_to=date_to,
-        compte_source_id=compte_source_id,
-        compte_dest_id=compte_dest_id,
-        sous_compte_source_id=sous_compte_source_id,
-        sous_compte_dest_id=sous_compte_dest_id,
-        reference=ref_filter,
-        q=q,
-        page=None,
-        per_page=None
-    )
+            user_id=user_id,
+            date_from=date_from,
+            date_to=date_to,
+            compte_source_id=compte_source_id,
+            compte_dest_id=compte_dest_id,
+            sous_compte_source_id=sous_compte_source_id,
+            sous_compte_dest_id=sous_compte_dest_id,
+            reference=ref_filter,
+            q=q,
+            page=None,
+            per_page=None
+        )
         si = StringIO()
         cw = csv.writer(si, delimiter=';')
-        # Entêtes de colonne unifiées
         cw.writerow(['Date', 'Type', 'Description', 'Source', 'Destination', 'Montant'])
-        for t in mouvements:
-            # Logique pour déterminer la source et la destination
+        
+        for t in mouv:  # ✅ utilise 'mouv', pas 'mouvements'
+            # Source
             source = ""
-            if t['compte_source_id']:
+            if t['compte_principal_id']:  # ✅ bon nom de champ
                 source = t.get('nom_compte_source', 'N/A')
-                if t.get('sous_compte_source_id'):
+                if t.get('sous_compte_id'):  # ✅ bon nom
                     source += f" ({t.get('nom_sous_compte_source', 'N/A')})"
             else:
                 source = t.get('nom_source_externe', 'Externe')
 
+            # Destination
             destination = ""
-            if t['compte_dest_id']:
+            if t['compte_destination_id']:  # ✅ bon nom
                 destination = t.get('nom_compte_dest', 'N/A')
-                if t.get('sous_compte_dest_id'):
+                if t.get('sous_compte_destination_id'):  # ✅ bon nom
                     destination += f" ({t.get('nom_sous_compte_dest', 'N/A')})"
             else:
                 destination = t.get('nom_dest_externe', 'Externe')
-            type=""
-            if t['compte_source_id'] and t['compte_dest_id']:
-                type = "interne"
-            elif t['sous_compte_source_id'] and t['compte_dest_id']:
-                type = "interne"
-            elif t['compte_source_id'] and t['sous_compte_dest_id']:
-                type = "interne"
-            elif t['sous_compte_source_id'] and t['sous_compte_dest_id']:
-                type = "interne"
-            elif t['compte_source_id'] and not t['compte_dest_id']:
-                type = "externe"
-            elif not t['compte_source_id'] and t['compte_dest_id']:
-                type = "externe"
-            elif not t['compte_source_id'] and not t['compte_dest_id']:
-                type = "global"
-            else:
-                type = "N/A"
-            # Gestion du statut pour tous les types de mouvements
-            #statut_display = 'Complété' if t.get('statut') == 'completed' else 'En attente' if t.get('statut') == 'pending' else 'N/A'
+
+            # Type de transfert
+            type_transfert = "N/A"
+            cp_src = t['compte_principal_id']
+            cp_dst = t['compte_destination_id']
+            sc_src = t['sous_compte_id']
+            sc_dst = t['sous_compte_destination_id']
+
+            if (cp_src or sc_src) and (cp_dst or sc_dst):
+                type_transfert = "interne"
+            elif (cp_src or sc_src) and not (cp_dst or sc_dst):
+                type_transfert = "externe"
+            elif not (cp_src or sc_src) and (cp_dst or sc_dst):
+                type_transfert = "externe"
+            elif not (cp_src or sc_src) and not (cp_dst or sc_dst):
+                type_transfert = "global"
 
             cw.writerow([
-                t['date_mouvement'].strftime("%Y-%m-%d %H:%M"), # Utiliser un champ de date générique
+                t['date_transaction'].strftime("%Y-%m-%d %H:%M"),  # ✅ bon champ
                 t['type_transaction'],
                 t.get('description', ''),
                 source,
                 destination,
                 f"{t['montant']:.2f}"
-                #statut_display
             ])
         
         output = make_response(si.getvalue())
         output.headers["Content-Disposition"] = "attachment; filename=mouvements.csv"
         output.headers["Content-Type"] = "text/csv; charset=utf-8"
         return output
+
 
     # Rendu de la page unifiée
     return render_template(
@@ -1627,7 +1625,8 @@ def liste_transferts():
         statut_filter=statut,
         ref_filter=ref_filter,
         q=q,
-        total=total
+        total=total,
+        output=output
     )
 
 
