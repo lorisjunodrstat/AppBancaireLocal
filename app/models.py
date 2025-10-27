@@ -5373,10 +5373,11 @@ class SyntheseMensuelle:
                         employeur,
                         id_contrat,
                         SUM(total_h) as total_heures
-                    FROM feuilles_temps
-                    WHERE user_id = %s
-                    AND annee = %s
-                    AND mois = %s
+                    FROM heures_travail
+                    WHERE user_id = 6
+                    AND id_contrat = 7
+                    AND YEAR(date) = 2025
+                    AND mois = 8
                     AND total_h IS NOT NULL
                     GROUP BY employeur, id_contrat
                 """
