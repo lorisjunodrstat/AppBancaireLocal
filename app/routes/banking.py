@@ -1968,6 +1968,9 @@ def import_csv_distinct_confirm():
     session['column_mapping'] = mapping
 
     csv_rows = session.get('csv_rows', [])
+    print("=== CONTENU DE csv_rows ===")
+    for i, row in enumerate(csv_rows):
+        print(f"Ligne {i}: {row}")
     if not csv_rows:
         flash("Aucune donnée à traiter.", "danger")
         return redirect(url_for('banking.import_csv_upload'))
