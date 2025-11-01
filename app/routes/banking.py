@@ -1718,7 +1718,7 @@ def import_csv_upload():
 
     # Récupérer les comptes de l'utilisateur
     user_id = current_user.id
-    comptes = g.models.compte_model.get_by_user_id(user_id)
+    comptes = g.models.compte_model.get_all_accounts(g.db_manager)
     sous_comptes = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
     comptes_possibles = []
