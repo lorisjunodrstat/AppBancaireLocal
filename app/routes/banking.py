@@ -1718,8 +1718,8 @@ def import_csv_upload():
         delimiter = ';'  # Fallback pour les exports bancaires suisses
 
     reader_raw = csv_mod.reader(raw_lines, delimiter=delimiter)
-        headrs_raw = next(reader_raw)
-    headers = [h.strip().strip('"') for h in headrs_raw]
+    headers_raw = next(reader_raw)
+    headers = [h.strip().strip('"') for h in headers_raw]
     rows = []
     logging.error('changement')
     for row_raw in reader_raw:
