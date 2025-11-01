@@ -1965,6 +1965,9 @@ def import_csv_distinct_confirm():
         'source': request.form['col_source'],
         'dest': request.form.get('col_dest') or None,
     }
+    print("=== MAPPING ===")
+    print("source =", mapping['source'])
+    print("dest =", mapping.get('dest'))
     session['column_mapping'] = mapping
 
     csv_rows = session.get('csv_rows', [])
