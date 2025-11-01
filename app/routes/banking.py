@@ -1694,6 +1694,7 @@ def manage_transaction(transaction_id):
 @bp.route('/import/csv', methods=['GET', 'POST'])
 @login_required
 def import_csv_upload():
+    
     if request.method == 'GET':
         return render_template('banking/import_csv_upload.html')
     
@@ -1709,10 +1710,18 @@ def import_csv_upload():
         flash("Fichier vide", "danger")
         return redirect(url_for('banking.import_csv_upload'))
     import csv as csv_mod
-    reader_raw = csv_mod.reader(raw_lines)
-    headrs_raw = next(reader_raw)
+    # Détecter le délimiteur
+    sample = '\n'.join(raw_lines[:5])  # Prendre un échantillon
+    try:
+        delimiter = csv_mod.Sniffer().sniff(sample, delimiters=";,|\t").delimiter
+    except:
+        delimiter = ';'  # Fallback pour les exports bancaires suisses
+
+    reader_raw = csv_mod.reader(raw_lines, delimiter=delimiter)
+        headrs_raw = next(reader_raw)
     headers = [h.strip().strip('"') for h in headrs_raw]
     rows = []
+    logging.error('changement')
     for row_raw in reader_raw:
         row_dict = {}
         for i, h in enumerate(headers):
