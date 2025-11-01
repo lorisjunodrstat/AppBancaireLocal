@@ -1826,55 +1826,7 @@ def import_csv_confirm():
     comptes_possibles = sorted(comptes_possibles, key=lambda x: x.get('nom', ''))
     return render_template('banking/import_csv_confirm.html', rows=rows_for_template, comptes_possibles=comptes_possibles)
 
-@bp.route('/import/csv/distinct_confirm', methods=['POST'])
-@login_required
-def import_csv_distinct_confirm():
-    mapping = {
-        'date': request.form['col_date'],
-        'montant': request.form['col_montant'],
-        'type': request.form['col_type'],
-        'description': request.form.get('col_description') or None,
-        'source': request.form['col_source'],
-        'dest': request.form.get('col_dest') or None,
-    }
-    session['column_mapping'] = mapping
 
-    csv_rows = session.get('csv_rows', [])
-    if not csv_rows:
-        flash("Aucune donnée à traiter.", "danger")
-        return redirect(url_for('banking.import_csv_upload'))
-
-    # 🔥 Extraire TOUTES les valeurs uniques de source ET destination
-    compte_names = set()
-
-    source_col = mapping['source']
-    for row in csv_rows:
-        val = row.get(source_col, '').strip()
-        if val:
-            compte_names.add(val)
-
-    dest_col = mapping.get('dest')
-    if dest_col:
-        for row in csv_rows:
-            val = row.get(dest_col, '').strip()
-            if val:
-                compte_names.add(val)
-
-    compte_names = sorted(compte_names)
-
-    session['distinct_compte_names'] = compte_names
-    session['csv_rows_raw'] = csv_rows
-
-    comptes_possibles = sorted(
-        session.get('comptes_possibles', []),
-        key=lambda x: x.get('nom', '')
-    )
-
-    return render_template(
-        'banking/import_csv_distinct_confirm.html',
-        compte_names=compte_names,
-        comptes_possibles=comptes_possibles
-    )
 @bp.route('/import/csv/final', methods=['POST'])
 @login_required
 def import_csv_final():
@@ -1999,6 +1951,57 @@ def import_csv_final():
 
     return redirect(url_for('banking.banking_dashboard'))
 
+@bp.route('/import/csv/distinct_confirm', methods=['POST'])
+@login_required
+def import_csv_distinct_confirm():
+    mapping = {
+        'date': request.form['col_date'],
+        'montant': request.form['col_montant'],
+        'type': request.form['col_type'],
+        'description': request.form.get('col_description') or None,
+        'source': request.form['col_source'],
+        'dest': request.form.get('col_dest') or None,
+    }
+    session['column_mapping'] = mapping
+
+    csv_rows = session.get('csv_rows', [])
+    if not csv_rows:
+        flash("Aucune donnée à traiter.", "danger")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    # 🔥 Extraire TOUTES les valeurs uniques de source ET destination
+    compte_names = set()
+
+    source_col = mapping['source']
+    for row in csv_rows:
+        val = row.get(source_col, '').strip()
+        if val:
+            compte_names.add(val)
+
+    dest_col = mapping.get('dest')
+    if dest_col:
+        for row in csv_rows:
+            val = row.get(dest_col, '').strip()
+            if val:
+                compte_names.add(val)
+
+    compte_names = sorted(compte_names)
+
+    session['distinct_compte_names'] = compte_names
+    session['csv_rows_raw'] = csv_rows
+
+    comptes_possibles = sorted(
+        session.get('comptes_possibles', []),
+        key=lambda x: x.get('nom', '')
+    )
+
+    return render_template(
+        'banking/import_csv_distinct_confirm.html',
+        compte_names=compte_names,
+        comptes_possibles=comptes_possibles
+    )
+
+
 @bp.route('/import/csv/final_distinct', methods=['POST'])
 @login_required
 def import_csv_final_distinct():
@@ -2029,7 +2032,7 @@ def import_csv_final_distinct():
             date_str = row[mapping['date']].strip()
             montant_str = row[mapping['montant']].strip().replace(',', '.')
             tx_type = row[mapping['type']].lower().strip()
-            desc = row.get(mapping['description'], '').strip() if mapping['description'] else ''
+            desc = row.get(mapping['description'], '').strip() if mapping.get('description') else ''
 
             try:
                 montant = Decimal(montant_str)
@@ -2049,8 +2052,9 @@ def import_csv_final_distinct():
                     continue
 
             # 🔥 Récupérer les comptes via le mapping global UNIQUE
-            source_val = row[mapping['source']].strip()
+            source_val = row.get(mapping['source'], '').strip()
             source_key = global_mapping.get(source_val)
+
             if tx_type in ('depot', 'retrait'):
                 if not source_key:
                     errors.append(f"Ligne {idx+1}: compte non associé pour '{source_val}'")
@@ -2062,34 +2066,27 @@ def import_csv_final_distinct():
                     errors.append(f"Ligne {idx+1}: compte(s) non associé(s) (source: '{source_val}', dest: '{dest_val}')")
                     continue
                 if source_key == dest_key:
-                    # On compare les clés, donc même compte → interdit pour transfert
                     errors.append(f"Ligne {idx+1}: source et destination identiques")
                     continue
             else:
                 errors.append(f"Ligne {idx+1}: type inconnu '{tx_type}'")
                 continue
 
-            # --- Logique métier identique ---
+            # --- Logique métier ---
             source_info = comptes_possibles[source_key]
             source_id = source_info['id']
             source_type = source_info['type']
 
-            if tx_type in ['depot', 'retrait']:
-                if tx_type == 'depot':
-                    ok, msg = g.models.transaction_financiere_model.create_depot(
-                        compte_id=source_id, user_id=user_id, montant=montant,
-                        description=desc, compte_type=source_type, date_transaction=date_tx
-                    )
-                else:
-                    ok, msg = g.models.transaction_financiere_model.create_retrait(
-                        compte_id=source_id, user_id=user_id, montant=montant,
-                        description=desc, compte_type=source_type, date_transaction=date_tx
-                    )
-                if ok:
-                    success_count += 1
-                else:
-                    errors.append(f"Ligne {idx+1}: {msg}")
-
+            if tx_type == 'depot':
+                ok, msg = g.models.transaction_financiere_model.create_depot(
+                    compte_id=source_id, user_id=user_id, montant=montant,
+                    description=desc, compte_type=source_type, date_transaction=date_tx
+                )
+            elif tx_type == 'retrait':
+                ok, msg = g.models.transaction_financiere_model.create_retrait(
+                    compte_id=source_id, user_id=user_id, montant=montant,
+                    description=desc, compte_type=source_type, date_transaction=date_tx
+                )
             elif tx_type == 'transfert':
                 dest_info = comptes_possibles[dest_key]
                 dest_id = dest_info['id']
@@ -2099,10 +2096,11 @@ def import_csv_final_distinct():
                     dest_type=dest_type, dest_id=dest_id,
                     user_id=user_id, montant=montant, description=desc, date_transaction=date_tx
                 )
-                if ok:
-                    success_count += 1
-                else:
-                    errors.append(f"Ligne {idx+1}: {msg}")
+
+            if ok:
+                success_count += 1
+            else:
+                errors.append(f"Ligne {idx+1}: {msg}")
 
         except Exception as e:
             errors.append(f"Ligne {idx+1}: erreur inattendue ({str(e)})")
@@ -2117,7 +2115,6 @@ def import_csv_final_distinct():
         flash(f"❌ {err}", "danger")
 
     return redirect(url_for('banking.banking_dashboard'))
-
 @bp.route('/api/banking/sous-comptes/<int:compte_id>')
 @login_required
 def api_sous_comptes(compte_id):
