@@ -1785,6 +1785,9 @@ def import_csv_confirm():
 
     # === 🔁 TRIER LES LIGNES DÈS MAINTENANT ===
     csv_rows = session.get('csv_rows', [])
+    print("=== CONTENU DE csv_rows ===")
+    for i, row in enumerate(csv_rows):
+        print(f"Ligne {i}: {row}")
     type_col = mapping['type']
     date_col = mapping['date']
 
