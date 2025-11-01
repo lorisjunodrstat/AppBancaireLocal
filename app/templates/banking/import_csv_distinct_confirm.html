@@ -2,42 +2,23 @@
 {% block content %}
 <h2>Étape 2 : Associer les comptes par nom unique</h2>
 <p class="text-muted">
-    Associez chaque nom de compte apparaissant dans votre fichier à un compte réel.
+    Chaque nom de compte (qu'il soit source ou destination) doit être associé à un compte réel.
 </p>
 
 <form method="post" action="{{ url_for('banking.import_csv_final_distinct') }}">
-
-    <h4>Comptes source</h4>
-    {% for val in source_vals %}
+    {% for name in compte_names %}
     <div class="mb-2">
-        <label>{{ val }} →
-            <select name="source_{{ loop.index0 }}" class="form-select" required>
+        <label>{{ name }} →
+            <select name="account_{{ loop.index0 }}" class="form-select" required>
                 <option value="">-- Choisir --</option>
                 {% for c in comptes_possibles %}
                 <option value="{{ c.id }}|{{ c.type }}">{{ c.nom }} ({{ c.type }})</option>
                 {% endfor %}
             </select>
-            <input type="hidden" name="source_val_{{ loop.index0 }}" value="{{ val|e }}">
+            <input type="hidden" name="compte_name_{{ loop.index0 }}" value="{{ name|e }}">
         </label>
     </div>
     {% endfor %}
-
-    {% if dest_vals %}
-    <h4 class="mt-4">Comptes destination</h4>
-    {% for val in dest_vals %}
-    <div class="mb-2">
-        <label>{{ val }} →
-            <select name="dest_{{ loop.index0 }}" class="form-select" required>
-                <option value="">-- Choisir --</option>
-                {% for c in comptes_possibles %}
-                <option value="{{ c.id }}|{{ c.type }}">{{ c.nom }} ({{ c.type }})</option>
-                {% endfor %}
-            </select>
-            <input type="hidden" name="dest_val_{{ loop.index0 }}" value="{{ val|e }}">
-        </label>
-    </div>
-    {% endfor %}
-    {% endif %}
 
     <button type="submit" class="btn btn-primary mt-3">Importer les transactions</button>
 </form>

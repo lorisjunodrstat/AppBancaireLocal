@@ -1829,7 +1829,6 @@ def import_csv_confirm():
 @bp.route('/import/csv/distinct_confirm', methods=['POST'])
 @login_required
 def import_csv_distinct_confirm():
-    # Récupérer le mapping des colonnes
     mapping = {
         'date': request.form['col_date'],
         'montant': request.form['col_montant'],
@@ -1845,27 +1844,37 @@ def import_csv_distinct_confirm():
         flash("Aucune donnée à traiter.", "danger")
         return redirect(url_for('banking.import_csv_upload'))
 
-    # Extraire les VALEURS UNIQUES de source et dest
+    # 🔥 Extraire TOUTES les valeurs uniques de source ET destination
+    compte_names = set()
+
     source_col = mapping['source']
+    for row in csv_rows:
+        val = row.get(source_col, '').strip()
+        if val:
+            compte_names.add(val)
+
     dest_col = mapping.get('dest')
+    if dest_col:
+        for row in csv_rows:
+            val = row.get(dest_col, '').strip()
+            if val:
+                compte_names.add(val)
 
-    source_vals = sorted({row[source_col].strip() for row in csv_rows if row.get(source_col, '').strip()})
-    dest_vals = sorted({row[dest_col].strip() for row in csv_rows if dest_col and row.get(dest_col, '').strip()})
+    compte_names = sorted(compte_names)
 
-    session['distinct_source_vals'] = source_vals
-    session['distinct_dest_vals'] = dest_vals
-    session['csv_rows_raw'] = csv_rows  # on garde les lignes brutes pour la suite
+    session['distinct_compte_names'] = compte_names
+    session['csv_rows_raw'] = csv_rows
 
-    comptes_possibles = session.get('comptes_possibles', [])
-    comptes_possibles = sorted(comptes_possibles, key=lambda x: x.get('nom', ''))
+    comptes_possibles = sorted(
+        session.get('comptes_possibles', []),
+        key=lambda x: x.get('nom', '')
+    )
 
     return render_template(
         'banking/import_csv_distinct_confirm.html',
-        source_vals=source_vals,
-        dest_vals=dest_vals,
+        compte_names=compte_names,
         comptes_possibles=comptes_possibles
     )
-
 @bp.route('/import/csv/final', methods=['POST'])
 @login_required
 def import_csv_final():
@@ -1999,27 +2008,17 @@ def import_csv_final_distinct():
     comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in session.get('comptes_possibles', [])}
 
     if not mapping or not csv_rows:
-        flash("Données d'import manquantes. Veuillez recommencer.", "danger")
+        flash("Données d'import manquantes.", "danger")
         return redirect(url_for('banking.import_csv_upload'))
 
-    # Récupérer le mapping global source
-    source_mapping = {}
+    # 🔥 Construire un mapping GLOBAL : nom → compte
+    global_mapping = {}
     i = 0
-    while f'source_val_{i}' in request.form:
-        val = request.form[f'source_val_{i}']
-        key = request.form[f'source_{i}']
+    while f'compte_name_{i}' in request.form:
+        name = request.form[f'compte_name_{i}']
+        key = request.form[f'account_{i}']
         if key and key in comptes_possibles:
-            source_mapping[val] = key
-        i += 1
-
-    # Récupérer le mapping global destination
-    dest_mapping = {}
-    i = 0
-    while f'dest_val_{i}' in request.form:
-        val = request.form[f'dest_val_{i}']
-        key = request.form[f'dest_{i}']
-        if key and key in comptes_possibles:
-            dest_mapping[val] = key
+            global_mapping[name] = key
         i += 1
 
     success_count = 0
@@ -2049,15 +2048,28 @@ def import_csv_final_distinct():
                     errors.append(f"Ligne {idx+1}: date invalide ({date_str})")
                     continue
 
+            # 🔥 Récupérer les comptes via le mapping global UNIQUE
             source_val = row[mapping['source']].strip()
-            source_key = source_mapping.get(source_val)
-            if not source_key:
-                errors.append(f"Ligne {idx+1}: compte source non associé pour '{source_val}'")
+            source_key = global_mapping.get(source_val)
+            if tx_type in ('depot', 'retrait'):
+                if not source_key:
+                    errors.append(f"Ligne {idx+1}: compte non associé pour '{source_val}'")
+                    continue
+            elif tx_type == 'transfert':
+                dest_val = row.get(mapping['dest'], '').strip() if mapping.get('dest') else ''
+                dest_key = global_mapping.get(dest_val) if dest_val else None
+                if not source_key or not dest_key:
+                    errors.append(f"Ligne {idx+1}: compte(s) non associé(s) (source: '{source_val}', dest: '{dest_val}')")
+                    continue
+                if source_key == dest_key:
+                    # On compare les clés, donc même compte → interdit pour transfert
+                    errors.append(f"Ligne {idx+1}: source et destination identiques")
+                    continue
+            else:
+                errors.append(f"Ligne {idx+1}: type inconnu '{tx_type}'")
                 continue
 
-            dest_val = row.get(mapping['dest'], '').strip() if mapping.get('dest') else ''
-            dest_key = dest_mapping.get(dest_val) if dest_val else None
-
+            # --- Logique métier identique ---
             source_info = comptes_possibles[source_key]
             source_id = source_info['id']
             source_type = source_info['type']
@@ -2065,21 +2077,13 @@ def import_csv_final_distinct():
             if tx_type in ['depot', 'retrait']:
                 if tx_type == 'depot':
                     ok, msg = g.models.transaction_financiere_model.create_depot(
-                        compte_id=source_id,
-                        user_id=user_id,
-                        montant=montant,
-                        description=desc,
-                        compte_type=source_type,
-                        date_transaction=date_tx
+                        compte_id=source_id, user_id=user_id, montant=montant,
+                        description=desc, compte_type=source_type, date_transaction=date_tx
                     )
                 else:
                     ok, msg = g.models.transaction_financiere_model.create_retrait(
-                        compte_id=source_id,
-                        user_id=user_id,
-                        montant=montant,
-                        description=desc,
-                        compte_type=source_type,
-                        date_transaction=date_tx
+                        compte_id=source_id, user_id=user_id, montant=montant,
+                        description=desc, compte_type=source_type, date_transaction=date_tx
                     )
                 if ok:
                     success_count += 1
@@ -2087,45 +2091,25 @@ def import_csv_final_distinct():
                     errors.append(f"Ligne {idx+1}: {msg}")
 
             elif tx_type == 'transfert':
-                if not dest_key:
-                    errors.append(f"Ligne {idx+1}: compte destination non associé pour '{dest_val}'")
-                    continue
-                if dest_key not in comptes_possibles:
-                    errors.append(f"Ligne {idx+1}: compte destination invalide")
-                    continue
-
                 dest_info = comptes_possibles[dest_key]
                 dest_id = dest_info['id']
                 dest_type = dest_info['type']
-
-                if source_id == dest_id and source_type == dest_type:
-                    errors.append(f"Ligne {idx+1}: source et destination identiques")
-                    continue
-
                 ok, msg = g.models.transaction_financiere_model.create_transfert_interne(
-                    source_type=source_type,
-                    source_id=source_id,
-                    dest_type=dest_type,
-                    dest_id=dest_id,
-                    user_id=user_id,
-                    montant=montant,
-                    description=desc,
-                    date_transaction=date_tx
+                    source_type=source_type, source_id=source_id,
+                    dest_type=dest_type, dest_id=dest_id,
+                    user_id=user_id, montant=montant, description=desc, date_transaction=date_tx
                 )
                 if ok:
                     success_count += 1
                 else:
                     errors.append(f"Ligne {idx+1}: {msg}")
 
-            else:
-                errors.append(f"Ligne {idx+1}: type inconnu '{tx_type}' (attendu: depot, retrait, transfert)")
-
         except Exception as e:
             errors.append(f"Ligne {idx+1}: erreur inattendue ({str(e)})")
 
     # Nettoyer la session
     for key in ['csv_headers', 'csv_rows', 'comptes_possibles', 'column_mapping',
-                'distinct_source_vals', 'distinct_dest_vals', 'csv_rows_raw']:
+                'distinct_compte_names', 'csv_rows_raw']:
         session.pop(key, None)
 
     flash(f"✅ Import terminé : {success_count} transaction(s) créée(s).", "success")
