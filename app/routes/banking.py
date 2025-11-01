@@ -1911,6 +1911,7 @@ def import_csv_final():
                     success_count += 1
                 else:
                     errors.append(f"Ligne {i+1}: {msg}")
+
             else:
                 errors.append(f"Ligne {i+1}: type inconnu '{tx_type}' (attendu: depot, retrait, transfert)")
 
