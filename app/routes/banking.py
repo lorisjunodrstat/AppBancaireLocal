@@ -1806,6 +1806,81 @@ def import_csv_confirm():
     comptes_possibles = sorted(comptes_possibles, key=lambda x: x.get('nom', ''))
     return render_template('banking/import_csv_confirm.html', rows=rows_for_template, comptes_possibles=comptes_possibles)
 
+@bp.route('/import/csv/distinct_confirm', methods=['GET', 'POST'])
+@login_required
+def import_csv_distinct_confirm():
+    # Si appelé en POST (depuis le formulaire), sauvegarder le mapping
+    if request.method == 'POST':
+        mapping = {
+            'date': request.form['col_date'],
+            'montant': request.form['col_montant'],
+            'type': request.form['col_type'],
+            'description': request.form.get('col_description') or None,
+            'source': request.form['col_source'],
+            'dest': request.form.get('col_dest') or None,
+        }
+        session['column_mapping'] = mapping
+
+        # Recharger les lignes et préparer comme dans import_csv_confirm
+        csv_rows = session.get('csv_rows', [])
+        # ... (même logique que dans import_csv_confirm pour enrichir + trier)
+        # Pour l'instant, on redirige vers la même logique
+        # À terme, on fera le mapping global ici
+
+        # Temporairement : on fait comme l'autre route
+        type_col = mapping['type']
+        date_col = mapping['date']
+        enriched_rows = []
+        for row in csv_rows:
+            tx_type = row.get(type_col, '').strip().lower()
+            if tx_type not in ('depot', 'retrait', 'transfert'):
+                tx_type = 'inconnu'
+            enriched_rows.append({**row, '_tx_type': tx_type})
+
+        def parse_date_for_sort(row):
+            d = row.get(date_col, '').strip()
+            if not d:
+                return datetime.max
+            for fmt in ('%Y-%m-%d', '%Y-%m-%dT%H:%M'):
+                try:
+                    return datetime.strptime(d, fmt)
+                except ValueError:
+                    continue
+            return datetime.max
+
+        enriched_rows_sorted = sorted(enriched_rows, key=parse_date_for_sort)
+        session['csv_rows_with_type'] = enriched_rows_sorted
+
+    # Si appelé en GET ou après POST
+    if 'csv_rows_with_type' not in session or 'comptes_possibles' not in session:
+        flash("Données manquantes. Veuillez recommencer.", "warning")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    # ... (reste identique à la version GET)
+    csv_rows = session.get('csv_rows_with_type', [])
+    mapping = session.get('column_mapping', {})
+    rows_for_template = []
+    for i, row in enumerate(csv_rows):
+        source_val = row.get(mapping.get('source', ''), '').strip()
+        dest_val = row.get(mapping.get('dest', ''), '').strip() if mapping.get('dest') else ''
+        rows_for_template.append({
+            'index': i,
+            'tx_type': row.get('_tx_type', 'inconnu'),
+            'source_val': source_val,
+            'dest_val': dest_val,
+        })
+
+    comptes_possibles = sorted(
+        session.get('comptes_possibles', []),
+        key=lambda x: x.get('nom', '')
+    )
+
+    return render_template(
+        'banking/import_csv_distinct_confirm.html',
+        rows=rows_for_template,
+        comptes_possibles=comptes_possibles
+    )
+
 @bp.route('/import/csv/final', methods=['POST'])
 @login_required
 def import_csv_final():
