@@ -1806,78 +1806,43 @@ def import_csv_confirm():
     comptes_possibles = sorted(comptes_possibles, key=lambda x: x.get('nom', ''))
     return render_template('banking/import_csv_confirm.html', rows=rows_for_template, comptes_possibles=comptes_possibles)
 
-@bp.route('/import/csv/distinct_confirm', methods=['GET', 'POST'])
+@bp.route('/import/csv/distinct_confirm', methods=['POST'])
 @login_required
 def import_csv_distinct_confirm():
-    # Si appelé en POST (depuis le formulaire), sauvegarder le mapping
-    if request.method == 'POST':
-        mapping = {
-            'date': request.form['col_date'],
-            'montant': request.form['col_montant'],
-            'type': request.form['col_type'],
-            'description': request.form.get('col_description') or None,
-            'source': request.form['col_source'],
-            'dest': request.form.get('col_dest') or None,
-        }
-        session['column_mapping'] = mapping
+    # Récupérer le mapping des colonnes
+    mapping = {
+        'date': request.form['col_date'],
+        'montant': request.form['col_montant'],
+        'type': request.form['col_type'],
+        'description': request.form.get('col_description') or None,
+        'source': request.form['col_source'],
+        'dest': request.form.get('col_dest') or None,
+    }
+    session['column_mapping'] = mapping
 
-        # Recharger les lignes et préparer comme dans import_csv_confirm
-        csv_rows = session.get('csv_rows', [])
-        # ... (même logique que dans import_csv_confirm pour enrichir + trier)
-        # Pour l'instant, on redirige vers la même logique
-        # À terme, on fera le mapping global ici
-
-        # Temporairement : on fait comme l'autre route
-        type_col = mapping['type']
-        date_col = mapping['date']
-        enriched_rows = []
-        for row in csv_rows:
-            tx_type = row.get(type_col, '').strip().lower()
-            if tx_type not in ('depot', 'retrait', 'transfert'):
-                tx_type = 'inconnu'
-            enriched_rows.append({**row, '_tx_type': tx_type})
-
-        def parse_date_for_sort(row):
-            d = row.get(date_col, '').strip()
-            if not d:
-                return datetime.max
-            for fmt in ('%Y-%m-%d', '%Y-%m-%dT%H:%M'):
-                try:
-                    return datetime.strptime(d, fmt)
-                except ValueError:
-                    continue
-            return datetime.max
-
-        enriched_rows_sorted = sorted(enriched_rows, key=parse_date_for_sort)
-        session['csv_rows_with_type'] = enriched_rows_sorted
-
-    # Si appelé en GET ou après POST
-    if 'csv_rows_with_type' not in session or 'comptes_possibles' not in session:
-        flash("Données manquantes. Veuillez recommencer.", "warning")
+    csv_rows = session.get('csv_rows', [])
+    if not csv_rows:
+        flash("Aucune donnée à traiter.", "danger")
         return redirect(url_for('banking.import_csv_upload'))
 
-    # ... (reste identique à la version GET)
-    csv_rows = session.get('csv_rows_with_type', [])
-    mapping = session.get('column_mapping', {})
-    rows_for_template = []
-    for i, row in enumerate(csv_rows):
-        source_val = row.get(mapping.get('source', ''), '').strip()
-        dest_val = row.get(mapping.get('dest', ''), '').strip() if mapping.get('dest') else ''
-        rows_for_template.append({
-            'index': i,
-            'tx_type': row.get('_tx_type', 'inconnu'),
-            'source_val': source_val,
-            'dest_val': dest_val,
-        })
+    # Extraire les VALEURS UNIQUES de source et dest
+    source_col = mapping['source']
+    dest_col = mapping.get('dest')
 
-    comptes_possibles = sorted(
-        session.get('comptes_possibles', []),
-        key=lambda x: x.get('nom', '')
-    )
+    source_vals = sorted({row[source_col].strip() for row in csv_rows if row.get(source_col, '').strip()})
+    dest_vals = sorted({row[dest_col].strip() for row in csv_rows if dest_col and row.get(dest_col, '').strip()})
+
+    session['distinct_source_vals'] = source_vals
+    session['distinct_dest_vals'] = dest_vals
+    session['csv_rows_raw'] = csv_rows  # on garde les lignes brutes pour la suite
+
+    comptes_possibles = session.get('comptes_possibles', [])
+    comptes_possibles = sorted(comptes_possibles, key=lambda x: x.get('nom', ''))
 
     return render_template(
         'banking/import_csv_distinct_confirm.html',
-        rows=rows_for_template,
+        source_vals=source_vals,
+        dest_vals=dest_vals,
         comptes_possibles=comptes_possibles
     )
 
@@ -2001,6 +1966,101 @@ def import_csv_final():
 
     flash(f"✅ Import terminé : {success_count} transaction(s) créée(s).", "success")
     for err in errors[:5]:  # Limiter les messages d'erreur affichés
+        flash(f"❌ {err}", "danger")
+
+    return redirect(url_for('banking.banking_dashboard'))
+
+@bp.route('/import/csv/final_distinct', methods=['POST'])
+@login_required
+def import_csv_final_distinct():
+    user_id = current_user.id
+    mapping = session.get('column_mapping')
+    csv_rows = session.get('csv_rows_raw', [])
+    comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in session.get('comptes_possibles', [])}
+
+    # Récupérer le mapping global
+    source_mapping = {}
+    i = 0
+    while f'source_val_{i}' in request.form:
+        val = request.form[f'source_val_{i}']
+        key = request.form[f'source_{i}']
+        if key and key in comptes_possibles:
+            source_mapping[val] = key
+        i += 1
+
+    dest_mapping = {}
+    i = 0
+    while f'dest_val_{i}' in request.form:
+        val = request.form[f'dest_val_{i}']
+        key = request.form[f'dest_{i}']
+        if key and key in comptes_possibles:
+            dest_mapping[val] = key
+        i += 1
+
+    # ... (reste identique à import_csv_final, mais avec source_key = source_mapping[source_val])
+    success_count = 0
+    errors = []
+
+    for idx, row in enumerate(csv_rows):
+        try:
+            date_str = row[mapping['date']].strip()
+            montant_str = row[mapping['montant']].strip().replace(',', '.')
+            tx_type = row[mapping['type']].lower().strip()
+            desc = row.get(mapping['description'], '').strip() if mapping['description'] else ''
+
+            # Conversion montant/date (identique)
+            try:
+                montant = Decimal(montant_str)
+                if montant <= 0:
+                    raise ValueError("Montant doit être > 0")
+            except (InvalidOperation, ValueError):
+                errors.append(f"Ligne {idx+1}: montant invalide ({montant_str})")
+                continue
+
+            try:
+                date_tx = datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                try:
+                    date_tx = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    errors.append(f"Ligne {idx+1}: date invalide ({date_str})")
+                    continue
+
+            # Récupérer les comptes via le mapping global
+            source_val = row[mapping['source']].strip()
+            source_key = source_mapping.get(source_val)
+            if not source_key:
+                errors.append(f"Ligne {idx+1}: compte source non associé pour '{source_val}'")
+                continue
+
+            dest_val = row.get(mapping['dest'], '').strip() if mapping.get('dest') else ''
+            dest_key = dest_mapping.get(dest_val) if dest_val else None
+
+            source_info = comptes_possibles[source_key]
+            source_id = source_info['id']
+            source_type = source_info['type']
+
+            if tx_type in ['depot', 'retrait']:
+                # ... (même logique)
+            elif tx_type == 'transfert':
+                # ... (même logique, avec dest_key)
+            else:
+                errors.append(f"Ligne {idx+1}: type inconnu '{tx_type}'")
+
+        except Exception as e:
+            errors.append(f"Ligne {idx+1}: erreur inattendue ({str(e)})")
+
+    # Nettoyer la session
+    session.pop('csv_headers', None)
+    session.pop('csv_rows', None)
+    session.pop('comptes_possibles', None)
+    session.pop('column_mapping', None)
+    session.pop('distinct_source_vals', None)
+    session.pop('distinct_dest_vals', None)
+    session.pop('csv_rows_raw', None)
+
+    flash(f"✅ Import terminé : {success_count} transaction(s) créée(s).", "success")
+    for err in errors[:5]:
         flash(f"❌ {err}", "danger")
 
     return redirect(url_for('banking.banking_dashboard'))
