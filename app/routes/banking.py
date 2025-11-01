@@ -1978,7 +1978,11 @@ def import_csv_final_distinct():
     csv_rows = session.get('csv_rows_raw', [])
     comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in session.get('comptes_possibles', [])}
 
-    # Récupérer le mapping global
+    if not mapping or not csv_rows:
+        flash("Données d'import manquantes. Veuillez recommencer.", "danger")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    # Récupérer le mapping global source
     source_mapping = {}
     i = 0
     while f'source_val_{i}' in request.form:
@@ -1988,6 +1992,7 @@ def import_csv_final_distinct():
             source_mapping[val] = key
         i += 1
 
+    # Récupérer le mapping global destination
     dest_mapping = {}
     i = 0
     while f'dest_val_{i}' in request.form:
@@ -1997,7 +2002,6 @@ def import_csv_final_distinct():
             dest_mapping[val] = key
         i += 1
 
-    # ... (reste identique à import_csv_final, mais avec source_key = source_mapping[source_val])
     success_count = 0
     errors = []
 
@@ -2008,7 +2012,6 @@ def import_csv_final_distinct():
             tx_type = row[mapping['type']].lower().strip()
             desc = row.get(mapping['description'], '').strip() if mapping['description'] else ''
 
-            # Conversion montant/date (identique)
             try:
                 montant = Decimal(montant_str)
                 if montant <= 0:
@@ -2026,7 +2029,6 @@ def import_csv_final_distinct():
                     errors.append(f"Ligne {idx+1}: date invalide ({date_str})")
                     continue
 
-            # Récupérer les comptes via le mapping global
             source_val = row[mapping['source']].strip()
             source_key = source_mapping.get(source_val)
             if not source_key:
@@ -2041,30 +2043,76 @@ def import_csv_final_distinct():
             source_type = source_info['type']
 
             if tx_type in ['depot', 'retrait']:
-                # ... (même logique)
+                if tx_type == 'depot':
+                    ok, msg = g.models.transaction_financiere_model.create_depot(
+                        compte_id=source_id,
+                        user_id=user_id,
+                        montant=montant,
+                        description=desc,
+                        compte_type=source_type,
+                        date_transaction=date_tx
+                    )
+                else:
+                    ok, msg = g.models.transaction_financiere_model.create_retrait(
+                        compte_id=source_id,
+                        user_id=user_id,
+                        montant=montant,
+                        description=desc,
+                        compte_type=source_type,
+                        date_transaction=date_tx
+                    )
+                if ok:
+                    success_count += 1
+                else:
+                    errors.append(f"Ligne {idx+1}: {msg}")
+
             elif tx_type == 'transfert':
-                # ... (même logique, avec dest_key)
+                if not dest_key:
+                    errors.append(f"Ligne {idx+1}: compte destination non associé pour '{dest_val}'")
+                    continue
+                if dest_key not in comptes_possibles:
+                    errors.append(f"Ligne {idx+1}: compte destination invalide")
+                    continue
+
+                dest_info = comptes_possibles[dest_key]
+                dest_id = dest_info['id']
+                dest_type = dest_info['type']
+
+                if source_id == dest_id and source_type == dest_type:
+                    errors.append(f"Ligne {idx+1}: source et destination identiques")
+                    continue
+
+                ok, msg = g.models.transaction_financiere_model.create_transfert_interne(
+                    source_type=source_type,
+                    source_id=source_id,
+                    dest_type=dest_type,
+                    dest_id=dest_id,
+                    user_id=user_id,
+                    montant=montant,
+                    description=desc,
+                    date_transaction=date_tx
+                )
+                if ok:
+                    success_count += 1
+                else:
+                    errors.append(f"Ligne {idx+1}: {msg}")
+
             else:
-                errors.append(f"Ligne {idx+1}: type inconnu '{tx_type}'")
+                errors.append(f"Ligne {idx+1}: type inconnu '{tx_type}' (attendu: depot, retrait, transfert)")
 
         except Exception as e:
             errors.append(f"Ligne {idx+1}: erreur inattendue ({str(e)})")
 
     # Nettoyer la session
-    session.pop('csv_headers', None)
-    session.pop('csv_rows', None)
-    session.pop('comptes_possibles', None)
-    session.pop('column_mapping', None)
-    session.pop('distinct_source_vals', None)
-    session.pop('distinct_dest_vals', None)
-    session.pop('csv_rows_raw', None)
+    for key in ['csv_headers', 'csv_rows', 'comptes_possibles', 'column_mapping',
+                'distinct_source_vals', 'distinct_dest_vals', 'csv_rows_raw']:
+        session.pop(key, None)
 
     flash(f"✅ Import terminé : {success_count} transaction(s) créée(s).", "success")
     for err in errors[:5]:
         flash(f"❌ {err}", "danger")
 
     return redirect(url_for('banking.banking_dashboard'))
-
 @bp.route('/api/banking/sous-comptes/<int:compte_id>')
 @login_required
 def api_sous_comptes(compte_id):
