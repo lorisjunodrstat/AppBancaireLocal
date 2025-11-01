@@ -1736,6 +1736,7 @@ def import_csv_upload():
         })
 
     session['comptes_possibles'] = comptes_possibles
+    comptes_possibles.sort(key=lambda x: x['nom'])
 
     return redirect(url_for('banking.import_csv_map'))
 
@@ -1764,7 +1765,16 @@ def import_csv_confirm():
 
     # === 🔁 TRIER LES LIGNES DÈS MAINTENANT ===
     csv_rows = session.get('csv_rows', [])
+    type_col = mapping['type']
     date_col = mapping['date']
+
+    # Ajouter le type à chaque ligne + trier
+    enriched_rows = []
+    for row in csv_rows:
+        tx_type = row.get(type_col, '').strip().lower()
+        if tx_type not in ('depot', 'retrait', 'transfert'):
+            tx_type = 'inconnu'
+        enriched_rows.append({**row, '_tx_type': tx_type})
 
     def parse_date_for_sort(row):
         d = row.get(date_col, '').strip()
@@ -1778,20 +1788,22 @@ def import_csv_confirm():
             except ValueError:
                 return datetime.max
 
-    csv_rows_sorted = sorted(csv_rows, key=parse_date_for_sort)
-    session['csv_rows'] = csv_rows_sorted  # <-- on remplace par la version triée
+    enriched_rows_sorted = sorted(enriched_rows, key=parse_date_for_sort)
+    session['csv_rows_with_type'] = enriched_rows_sorted  # <-- on remplace par la version triée
 
     # Préparer les lignes avec options de sélection (dans le nouvel ordre)
-    rows_with_options = []
-    for i, row in enumerate(csv_rows_sorted):
+    rows_for_template = []
+    for i, row in enumerate(enriched_rows_sorted):
         source_val = row.get(mapping['source'], '').strip()
         dest_val = row.get(mapping['dest'], '').strip() if mapping['dest'] else ''
-        rows_with_options.append({
+        rows_for_template.append({
             'index': i,
+            'tx_type': row['_tx_type'],
             'source_val': source_val,
             'dest_val': dest_val,
         })
-
+    comptes_possibles = session.get('comptes_possibles', [])
+    comptes_possibles.sort(key=lambda x: x['nom'])
     return render_template('banking/import_csv_confirm.html', rows=rows_with_options)
 
 @bp.route('/import/csv/final', methods=['POST'])
@@ -1801,7 +1813,7 @@ def import_csv_final():
     mapping = session.get('column_mapping')
     csv_rows = session.get('csv_rows', [])
     comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in session.get('comptes_possibles', [])}
-
+    comptes_possibles.sort(key=lambda x: x['nom'])
     if not mapping or not csv_rows:
         flash("Données d'import manquantes. Veuillez recommencer.", "danger")
         return redirect(url_for('banking.import_csv_upload'))
