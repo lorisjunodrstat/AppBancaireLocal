@@ -1803,7 +1803,7 @@ def import_csv_confirm():
             'dest_val': dest_val,
         })
     comptes_possibles = session.get('comptes_possibles', [])
-    comptes_possibles.sort(key=lambda x: x['nom'])
+    comptes_possibles = sorted(comptes_possibles, key=lambda x: x.get('nom', ''))
     return render_template('banking/import_csv_confirm.html', rows=rows_for_template, comptes_possibles=comptes_possibles)
 
 @bp.route('/import/csv/final', methods=['POST'])
@@ -1813,7 +1813,7 @@ def import_csv_final():
     mapping = session.get('column_mapping')
     csv_rows = session.get('csv_rows_with_type', [])
     comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in session.get('comptes_possibles', [])}
-    comptes_possibles.sort(key=lambda x: x['nom'])
+
     if not mapping or not csv_rows:
         flash("Données d'import manquantes. Veuillez recommencer.", "danger")
         return redirect(url_for('banking.import_csv_upload'))
