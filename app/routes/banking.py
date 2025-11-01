@@ -1811,7 +1811,7 @@ def import_csv_confirm():
 def import_csv_final():
     user_id = current_user.id
     mapping = session.get('column_mapping')
-    csv_rows = session.get('csv_rows', [])
+    csv_rows = session.get('csv_rows_with_type', [])
     comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in session.get('comptes_possibles', [])}
     comptes_possibles.sort(key=lambda x: x['nom'])
     if not mapping or not csv_rows:
