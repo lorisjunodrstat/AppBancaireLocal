@@ -1,51 +1,118 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Étape 1 : Associer les colonnes du CSV</h2>
-<form method="post" action="{{ url_for('banking.import_csv_confirm') }}">
-  <div class="mb-3">
-    <label>Date <select name="col_date" class="form-select" required>
-      {% for h in session.csv_headers %}
-        <option value="{{ h }}">{{ h }}</option>
-      {% endfor %}
-    </select></label>
-  </div>
-  <div class="mb-3">
-    <label>Montant <select name="col_montant" class="form-select" required>
-      {% for h in session.csv_headers %}
-        <option value="{{ h }}">{{ h }}</option>
-      {% endfor %}
-    </select></label>
-  </div>
-  <div class="mb-3">
-    <label>Type (depot/retrait/transfert) <select name="col_type" class="form-select" required>
-      {% for h in session.csv_headers %}
-        <option value="{{ h }}">{{ h }}</option>
-      {% endfor %}
-    </select></label>
-  </div>
-  <div class="mb-3">
-    <label>Description <select name="col_description" class="form-select">
+<div class="bg-light p-4 rounded mb-4 border">
+  <h2>Étape 1 : Associer les colonnes du CSV</h2>
+
+  <!-- Champs communs (extraits une seule fois) -->
+  {% set headers = session.csv_headers or [] %}
+  <div id="mapping-fields" class="d-none">
+    <select name="col_date" required>
+      {% for h in headers %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+    </select>
+    <select name="col_montant" required>
+      {% for h in headers %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+    </select>
+    <select name="col_type" required>
+      {% for h in headers %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+    </select>
+    <select name="col_description">
       <option value="">-- Aucune --</option>
-      {% for h in session.csv_headers %}
-        <option value="{{ h }}">{{ h }}</option>
-      {% endfor %}
-    </select></label>
-  </div>
-  <div class="mb-3">
-    <label>Compte source <select name="col_source" class="form-select" required>
-      {% for h in session.csv_headers %}
-        <option value="{{ h }}">{{ h }}</option>
-      {% endfor %}
-    </select></label>
-  </div>
-  <div class="mb-3">
-    <label>Compte destination (optionnel) <select name="col_dest" class="form-select">
+      {% for h in headers %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+    </select>
+    <select name="col_source" required>
+      {% for h in headers %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+    </select>
+    <select name="col_dest">
       <option value="">-- Aucune --</option>
-      {% for h in session.csv_headers %}
-        <option value="{{ h }}">{{ h }}</option>
-      {% endfor %}
-    </select></label>
+      {% for h in headers %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+    </select>
   </div>
-  <button type="submit" class="btn btn-success">Continuer vers la validation</button>
-</form>
+
+  <!-- Formulaire 1 : Ligne par ligne -->
+  <form method="post" action="{{ url_for('banking.import_csv_confirm') }}" class="mb-4">
+    <div class="mb-3">
+      <label>Date
+        <select name="col_date" class="form-select" required>
+          {% for h in headers %}
+          <option value="{{ h }}">{{ h }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="mb-3">
+      <label>Montant
+        <select name="col_montant" class="form-select" required>
+          {% for h in headers %}
+          <option value="{{ h }}">{{ h }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="mb-3">
+      <label>Type (depot/retrait/transfert)
+        <select name="col_type" class="form-select" required>
+          {% for h in headers %}
+          <option value="{{ h }}">{{ h }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="mb-3">
+      <label>Description
+        <select name="col_description" class="form-select">
+          <option value="">-- Aucune --</option>
+          {% for h in headers %}
+          <option value="{{ h }}">{{ h }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="mb-3">
+      <label>Compte source
+        <select name="col_source" class="form-select" required>
+          {% for h in headers %}
+          <option value="{{ h }}">{{ h }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="mb-3">
+      <label>Compte destination (optionnel)
+        <select name="col_dest" class="form-select">
+          <option value="">-- Aucune --</option>
+          {% for h in headers %}
+          <option value="{{ h }}">{{ h }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary">Continuer : valider ligne par ligne</button>
+  </form>
+
+  <!-- Formulaire 2 : Par valeurs uniques -->
+  <form method="post" action="{{ url_for('banking.import_csv_distinct_confirm') }}">
+    <!-- Mêmes champs, mais en hidden -->
+    <input type="hidden" name="col_date" value="{{ headers[0] if headers else '' }}">
+    <input type="hidden" name="col_montant"
+      value="{{ headers[1] if len(headers) > 1 else (headers[0] if headers else '') }}">
+    <input type="hidden" name="col_type"
+      value="{{ headers[2] if len(headers) > 2 else (headers[0] if headers else '') }}">
+    <input type="hidden" name="col_description" value="">
+    <input type="hidden" name="col_source"
+      value="{{ headers[3] if len(headers) > 3 else (headers[0] if headers else '') }}">
+    <input type="hidden" name="col_dest" value="">
+
+    <button type="submit" class="btn btn-success">
+      Continuer : associer par nom de compte (recommandé)
+    </button>
+    <p class="text-muted mt-2">
+      <small>
+        Cette méthode associe chaque nom de compte (ex: "PayPal") une seule fois,
+        puis applique ce choix à toutes les lignes correspondantes.
+      </small>
+    </p>
+  </form>
+</div>
+
+<a href="{{ url_for('banking.import_csv_upload') }}" class="btn btn-secondary">← Retour</a>
 {% endblock %}
