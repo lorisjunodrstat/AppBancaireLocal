@@ -1804,7 +1804,7 @@ def import_csv_confirm():
         })
     comptes_possibles = session.get('comptes_possibles', [])
     comptes_possibles.sort(key=lambda x: x['nom'])
-    return render_template('banking/import_csv_confirm.html', rows=rows_for_template)
+    return render_template('banking/import_csv_confirm.html', rows=rows_for_template, comptes_possibles=comptes_possibles)
 
 @bp.route('/import/csv/final', methods=['POST'])
 @login_required
