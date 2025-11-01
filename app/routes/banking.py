@@ -1704,13 +1704,24 @@ def import_csv_upload():
 
     # Lire le CSV
     stream = io.TextIOWrapper(file.stream, encoding='utf-8')
-    reader = csv.DictReader(stream)
-    headers = reader.fieldnames or []
-    rows = [row for row in reader][:20]  # Prévisualisation limitée
-
-    if not headers:
-        flash("Le fichier CSV est vide ou mal formaté.", "danger")
+    raw_lines = stream.read().splitlines()
+    if not raw_lines:
+        flash("Fichier vide", "danger")
         return redirect(url_for('banking.import_csv_upload'))
+    import csv as csv_mod
+    reader_raw = csv_mod.reader(raw_lines)
+    headrs_raw = next(reader_raw)
+    headers = [h.strip().strip('"') for h in headrs_raw]
+    rows = []
+    for row_raw in reader_raw:
+        row_dict = {}
+        for i, h in enumerate(headers):
+            value = row_raw[i].strip().strip('"') if i < len(row_raw) else ''
+            row_dict[h] = value
+        rows.append(row_dict)
+    rows = rows[:20]
+
+
 
     # Sauvegarder dans la session
     session['csv_headers'] = headers
@@ -2113,6 +2124,7 @@ def import_csv_final_distinct():
         flash(f"❌ {err}", "danger")
 
     return redirect(url_for('banking.banking_dashboard'))
+
 @bp.route('/api/banking/sous-comptes/<int:compte_id>')
 @login_required
 def api_sous_comptes(compte_id):
