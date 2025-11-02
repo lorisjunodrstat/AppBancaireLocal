@@ -2238,13 +2238,13 @@ def import_csv_confirm_temp():
         d = row.get(date_col, '').strip()
         if not d:
             return datetime.max
-        try:
-            return datetime.strptime(d, '%Y-%m-%d')
-        except ValueError:
+        # Liste des formats supportés, du plus complet au plus basique
+        for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M', '%Y-%m-%d'):
             try:
-                return datetime.strptime(d, '%Y-%m-%dT%H:%M')
+                return datetime.strptime(d, fmt)
             except ValueError:
-                return datetime.max
+                continue
+        return datetime.max 
 
     enriched_rows_sorted = sorted(enriched_rows, key=parse_date_for_sort)
 
@@ -2306,8 +2306,12 @@ def import_csv_final_temp():
                 try:
                     date_tx = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
                 except ValueError:
-                    errors.append(f"Ligne {i+1}: date invalide ({date_str})")
-                    continue
+                    # ➕ Ajoutez la nouvelle ligne ici
+                    try:
+                        date_tx = datetime.strptime(date_str, '%Y-%m-%d %H:%M')
+                    except ValueError:
+                        errors.append(f"Ligne {i+1}: date invalide ({date_str})")
+                        continue
 
             source_key = request.form.get(f'row_{i}_source')
             dest_key = request.form.get(f'row_{i}_dest')
@@ -2493,8 +2497,12 @@ def import_csv_final_distinct_temp():
                 try:
                     date_tx = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
                 except ValueError:
-                    errors.append(f"Ligne {idx+1}: date invalide ({date_str})")
-                    continue
+                    # ➕ Ajoutez la nouvelle ligne ici
+                    try:
+                        date_tx = datetime.strptime(date_str, '%Y-%m-%d %H:%M')
+                    except ValueError:
+                        errors.append(f"Ligne {i+1}: date invalide ({date_str})")
+                        continue
 
             source_val = row.get(mapping['source'], '').strip()
             source_key = global_mapping.get(source_val)
