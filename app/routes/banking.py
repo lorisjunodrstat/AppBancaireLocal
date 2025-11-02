@@ -1728,7 +1728,7 @@ def import_csv_upload():
             value = row_raw[i].strip().strip('"') if i < len(row_raw) else ''
             row_dict[h] = value
         rows.append(row_dict)
-    rows = rows[:20]
+    rows = rows
 
 
 
