@@ -2501,7 +2501,7 @@ def import_csv_final_distinct_temp():
                     try:
                         date_tx = datetime.strptime(date_str, '%Y-%m-%d %H:%M')
                     except ValueError:
-                        errors.append(f"Ligne {i+1}: date invalide ({date_str})")
+                        errors.append(f"Ligne {idx+1}: date invalide ({date_str})")
                         continue
 
             source_val = row.get(mapping['source'], '').strip()
