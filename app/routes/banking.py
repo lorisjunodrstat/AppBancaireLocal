@@ -6,11 +6,12 @@ from datetime import datetime, timedelta, date, time
 from calendar import monthrange
 from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts
 from io import StringIO
-import csv
+import csv as csv_mod
 import io
 import traceback
 import random
 from collections import defaultdict
+from . import temp_csv_store
 
 # --- DÉBUT DES AJOUTS (8 lignes) ---
 from flask import _app_ctx_stack
@@ -2124,6 +2125,443 @@ def import_csv_final_distinct():
         flash(f"❌ {err}", "danger")
 
     return redirect(url_for('banking.banking_dashboard'))
+
+### Méthodes avec fichiers temp 
+
+@bp.route('/import/temp/csv', methods=['GET', 'POST'])
+@login_required
+def import_csv_upload_temp():
+    if request.method == 'GET':
+        return render_template('banking/import_csv_upload.html')
+    
+    file = request.files.get('csv_file')
+    if not file or not file.filename.endswith('.csv'):
+        flash("Veuillez uploader un fichier CSV.", "danger")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    stream = io.TextIOWrapper(file.stream, encoding='utf-8')
+    raw_lines = stream.read().splitlines()
+    if not raw_lines:
+        flash("Fichier vide", "danger")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    sample = '\n'.join(raw_lines[:5])
+    try:
+        delimiter = csv_mod.Sniffer().sniff(sample, delimiters=";,|\t").delimiter
+    except:
+        delimiter = ';'
+
+    reader_raw = csv_mod.reader(raw_lines, delimiter=delimiter)
+    headers_raw = next(reader_raw)
+    headers = [h.strip().strip('"') for h in headers_raw]
+    rows = []
+    for row_raw in reader_raw:
+        row_dict = {}
+        for i, h in enumerate(headers):
+            value = row_raw[i].strip().strip('"') if i < len(row_raw) else ''
+            row_dict[h] = value
+        rows.append(row_dict)
+
+    # Récupérer les comptes de l'utilisateur
+    user_id = current_user.id
+    comptes = g.models.compte_model.get_all_accounts(g.db_manager)
+    sous_comptes = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
+
+    comptes_possibles = []
+    for c in comptes:
+        comptes_possibles.append({
+            'id': c['id'],
+            'nom': c['nom_compte'],
+            'type': 'compte_principal'
+        })
+    for sc in sous_comptes:
+        comptes_possibles.append({
+            'id': sc['id'],
+            'nom': sc['nom_sous_compte'],
+            'type': 'sous_compte'
+        })
+
+    # ➕ STOCKAGE TEMPORAIRE AU LIEU DE SESSION
+    csv_data = {
+        'csv_headers': headers,
+        'csv_rows': rows,
+        'comptes_possibles': sorted(comptes_possibles, key=lambda x: x['nom'])
+    }
+    temp_key = temp_csv_store.save(user_id, csv_data)
+    session['csv_temp_key'] = temp_key  # seul petit ID dans la session
+
+    return redirect(url_for('banking.import_csv_map'))
+
+
+@bp.route('/import/temp/csv/map', methods=['GET'])
+@login_required
+def import_csv_map_temp():
+    temp_key = session.get('csv_temp_key')
+    if not temp_key or not temp_csv_store.load(temp_key, current_user.id):
+        flash("Données expirées ou manquantes.", "warning")
+        return redirect(url_for('banking.import_csv_upload'))
+    return render_template('banking/import_csv_map.html')
+
+
+@bp.route('/import/temp/csv/confirm', methods=['POST'])
+@login_required
+def import_csv_confirm_temp():
+    user_id = current_user.id
+    temp_key = session.get('csv_temp_key')
+    csv_data = temp_csv_store.load(temp_key, user_id)
+    if not csv_data:
+        flash("Données expirées.", "danger")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    mapping = {
+        'date': request.form['col_date'],
+        'montant': request.form['col_montant'],
+        'type': request.form['col_type'],
+        'description': request.form.get('col_description') or None,
+        'source': request.form['col_source'],
+        'dest': request.form.get('col_dest') or None,
+    }
+    session['column_mapping'] = mapping  # OK : petit dict
+
+    csv_rows = csv_data['csv_rows']
+    type_col = mapping['type']
+    date_col = mapping['date']
+
+    enriched_rows = []
+    for row in csv_rows:
+        tx_type = row.get(type_col, '').strip().lower()
+        if tx_type not in ('depot', 'retrait', 'transfert'):
+            tx_type = 'inconnu'
+        enriched_rows.append({**row, '_tx_type': tx_type})
+
+    def parse_date_for_sort(row):
+        d = row.get(date_col, '').strip()
+        if not d:
+            return datetime.max
+        try:
+            return datetime.strptime(d, '%Y-%m-%d')
+        except ValueError:
+            try:
+                return datetime.strptime(d, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                return datetime.max
+
+    enriched_rows_sorted = sorted(enriched_rows, key=parse_date_for_sort)
+
+    # ➕ Sauvegarder les données enrichies dans le store (remplace session['csv_rows_with_type'])
+    csv_data['csv_rows_with_type'] = enriched_rows_sorted
+    temp_csv_store.save(temp_key, csv_data)  # on réutilise la même clé
+
+    rows_for_template = []
+    for i, row in enumerate(enriched_rows_sorted):
+        source_val = row.get(mapping['source'], '').strip()
+        dest_val = row.get(mapping['dest'], '').strip() if mapping['dest'] else ''
+        rows_for_template.append({
+            'index': i,
+            'tx_type': row['_tx_type'],
+            'source_val': source_val,
+            'dest_val': dest_val,
+        })
+
+    comptes_possibles = csv_data['comptes_possibles']
+    return render_template('banking/import_csv_confirm.html', rows=rows_for_template, comptes_possibles=comptes_possibles)
+
+
+@bp.route('/import/temp/csv/final', methods=['POST'])
+@login_required
+def import_csv_final_temp():
+    user_id = current_user.id
+    temp_key = session.get('csv_temp_key')
+    csv_data = temp_csv_store.load(temp_key, user_id) if temp_key else None
+    mapping = session.get('column_mapping')
+
+    if not mapping or not csv_data or 'csv_rows_with_type' not in csv_data:
+        flash("Données d'import manquantes. Veuillez recommencer.", "danger")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    csv_rows = csv_data['csv_rows_with_type']
+    comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in csv_data['comptes_possibles']}
+
+    success_count = 0
+    errors = []
+
+    for i, row in enumerate(csv_rows):
+        try:
+            date_str = row[mapping['date']].strip()
+            montant_str = row[mapping['montant']].strip().replace(',', '.')
+            tx_type = row[mapping['type']].lower().strip()
+            desc = row.get(mapping['description'], '').strip() if mapping['description'] else ''
+
+            try:
+                montant = Decimal(montant_str)
+                if montant <= 0:
+                    raise ValueError("Montant doit être > 0")
+            except (InvalidOperation, ValueError) as e:
+                errors.append(f"Ligne {i+1}: montant invalide ({montant_str})")
+                continue
+
+            try:
+                date_tx = datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                try:
+                    date_tx = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    errors.append(f"Ligne {i+1}: date invalide ({date_str})")
+                    continue
+
+            source_key = request.form.get(f'row_{i}_source')
+            dest_key = request.form.get(f'row_{i}_dest')
+
+            if not source_key or source_key not in comptes_possibles:
+                errors.append(f"Ligne {i+1}: compte source invalide")
+                continue
+
+            source_info = comptes_possibles[source_key]
+            source_id = source_info['id']
+            source_type = source_info['type']
+
+            if tx_type in ['depot', 'retrait']:
+                if tx_type == 'depot':
+                    ok, msg = g.models.transaction_financiere_model.create_depot(
+                        compte_id=source_id,
+                        user_id=user_id,
+                        montant=montant,
+                        description=desc,
+                        compte_type=source_type,
+                        date_transaction=date_tx
+                    )
+                else:
+                    ok, msg = g.models.transaction_financiere_model.create_retrait(
+                        compte_id=source_id,
+                        user_id=user_id,
+                        montant=montant,
+                        description=desc,
+                        compte_type=source_type,
+                        date_transaction=date_tx
+                    )
+                if ok:
+                    success_count += 1
+                else:
+                    errors.append(f"Ligne {i+1}: {msg}")
+
+            elif tx_type == 'transfert':
+                if not dest_key or dest_key not in comptes_possibles:
+                    errors.append(f"Ligne {i+1}: compte destination requis pour transfert")
+                    continue
+                dest_info = comptes_possibles[dest_key]
+                dest_id = dest_info['id']
+                dest_type = dest_info['type']
+
+                if source_id == dest_id and source_type == dest_type:
+                    errors.append(f"Ligne {i+1}: source et destination identiques")
+                    continue
+
+                ok, msg = g.models.transaction_financiere_model.create_transfert_interne(
+                    source_type=source_type,
+                    source_id=source_id,
+                    dest_type=dest_type,
+                    dest_id=dest_id,
+                    user_id=user_id,
+                    montant=montant,
+                    description=desc,
+                    date_transaction=date_tx
+                )
+                if ok:
+                    success_count += 1
+                else:
+                    errors.append(f"Ligne {i+1}: {msg}")
+
+            else:
+                errors.append(f"Ligne {i+1}: type inconnu '{tx_type}'")
+
+        except Exception as e:
+            errors.append(f"Ligne {i+1}: erreur inattendue ({str(e)})")
+
+    # ➕ Nettoyer le stockage temporaire
+    if temp_key:
+        temp_csv_store.delete(temp_key)
+    session.pop('csv_temp_key', None)
+    session.pop('column_mapping', None)
+
+    flash(f"✅ Import terminé : {success_count} transaction(s) créée(s).", "success")
+    for err in errors[:5]:
+        flash(f"❌ {err}", "danger")
+
+    return redirect(url_for('banking.banking_dashboard'))
+
+
+@bp.route('/import/temp/csv/distinct_confirm', methods=['POST'])
+@login_required
+def import_csv_distinct_confirm_temp():
+    user_id = current_user.id
+    temp_key = session.get('csv_temp_key')
+    csv_data = temp_csv_store.load(temp_key, user_id)
+    if not csv_data:
+        flash("Données expirées.", "danger")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    mapping = {
+        'date': request.form['col_date'],
+        'montant': request.form['col_montant'],
+        'type': request.form['col_type'],
+        'description': request.form.get('col_description') or None,
+        'source': request.form['col_source'],
+        'dest': request.form.get('col_dest') or None,
+    }
+    session['column_mapping'] = mapping
+
+    csv_rows = csv_data['csv_rows']
+
+    compte_names = set()
+    source_col = mapping['source']
+    for row in csv_rows:
+        val = row.get(source_col, '').strip()
+        if val:
+            compte_names.add(val)
+
+    dest_col = mapping.get('dest')
+    if dest_col:
+        for row in csv_rows:
+            val = row.get(dest_col, '').strip()
+            if val:
+                compte_names.add(val)
+
+    compte_names = sorted(compte_names)
+
+    # ➕ Mettre à jour le store avec les nouvelles infos
+    csv_data.update({
+        'distinct_compte_names': compte_names,
+        'csv_rows_raw': csv_rows
+    })
+    temp_csv_store.save(temp_key, csv_data)
+
+    comptes_possibles = sorted(csv_data['comptes_possibles'], key=lambda x: x.get('nom', ''))
+
+    return render_template(
+        'banking/import_csv_distinct_confirm.html',
+        compte_names=compte_names,
+        comptes_possibles=comptes_possibles
+    )
+
+
+@bp.route('/import/temp/csv/final_distinct', methods=['POST'])
+@login_required
+def import_csv_final_distinct_temp():
+    user_id = current_user.id
+    temp_key = session.get('csv_temp_key')
+    csv_data = temp_csv_store.load(temp_key, user_id) if temp_key else None
+    mapping = session.get('column_mapping')
+
+    if not mapping or not csv_data or 'csv_rows_raw' not in csv_data:
+        flash("Données d'import manquantes.", "danger")
+        return redirect(url_for('banking.import_csv_upload'))
+
+    csv_rows = csv_data['csv_rows_raw']
+    comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in csv_data['comptes_possibles']}
+
+    # Construire mapping global nom → clé
+    global_mapping = {}
+    i = 0
+    while f'compte_name_{i}' in request.form:
+        name = request.form[f'compte_name_{i}']
+        key = request.form[f'account_{i}']
+        if key and key in comptes_possibles:
+            global_mapping[name] = key
+        i += 1
+
+    success_count = 0
+    errors = []
+
+    for idx, row in enumerate(csv_rows):
+        try:
+            date_str = row[mapping['date']].strip()
+            montant_str = row[mapping['montant']].strip().replace(',', '.')
+            tx_type = row[mapping['type']].lower().strip()
+            desc = row.get(mapping['description'], '').strip() if mapping.get('description') else ''
+
+            try:
+                montant = Decimal(montant_str)
+                if montant <= 0:
+                    raise ValueError("Montant doit être > 0")
+            except (InvalidOperation, ValueError):
+                errors.append(f"Ligne {idx+1}: montant invalide ({montant_str})")
+                continue
+
+            try:
+                date_tx = datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                try:
+                    date_tx = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    errors.append(f"Ligne {idx+1}: date invalide ({date_str})")
+                    continue
+
+            source_val = row.get(mapping['source'], '').strip()
+            source_key = global_mapping.get(source_val)
+
+            if tx_type in ('depot', 'retrait'):
+                if not source_key:
+                    errors.append(f"Ligne {idx+1}: compte non associé pour '{source_val}'")
+                    continue
+            elif tx_type == 'transfert':
+                dest_val = row.get(mapping['dest'], '').strip() if mapping.get('dest') else ''
+                dest_key = global_mapping.get(dest_val) if dest_val else None
+                if not source_key or not dest_key:
+                    errors.append(f"Ligne {idx+1}: compte(s) non associé(s) (source: '{source_val}', dest: '{dest_val}')")
+                    continue
+                if source_key == dest_key:
+                    errors.append(f"Ligne {idx+1}: source et destination identiques")
+                    continue
+            else:
+                errors.append(f"Ligne {idx+1}: type inconnu '{tx_type}'")
+                continue
+
+            source_info = comptes_possibles[source_key]
+            source_id = source_info['id']
+            source_type = source_info['type']
+
+            if tx_type == 'depot':
+                ok, msg = g.models.transaction_financiere_model.create_depot(
+                    compte_id=source_id, user_id=user_id, montant=montant,
+                    description=desc, compte_type=source_type, date_transaction=date_tx
+                )
+            elif tx_type == 'retrait':
+                ok, msg = g.models.transaction_financiere_model.create_retrait(
+                    compte_id=source_id, user_id=user_id, montant=montant,
+                    description=desc, compte_type=source_type, date_transaction=date_tx
+                )
+            elif tx_type == 'transfert':
+                dest_info = comptes_possibles[dest_key]
+                dest_id = dest_info['id']
+                dest_type = dest_info['type']
+                ok, msg = g.models.transaction_financiere_model.create_transfert_interne(
+                    source_type=source_type, source_id=source_id,
+                    dest_type=dest_type, dest_id=dest_id,
+                    user_id=user_id, montant=montant, description=desc, date_transaction=date_tx
+                )
+
+            if ok:
+                success_count += 1
+            else:
+                errors.append(f"Ligne {idx+1}: {msg}")
+
+        except Exception as e:
+            errors.append(f"Ligne {idx+1}: erreur inattendue ({str(e)})")
+
+    # ➕ Nettoyer
+    if temp_key:
+        temp_csv_store.delete(temp_key)
+    session.pop('csv_temp_key', None)
+    session.pop('column_mapping', None)
+
+    flash(f"✅ Import terminé : {success_count} transaction(s) créée(s).", "success")
+    for err in errors[:5]:
+        flash(f"❌ {err}", "danger")
+
+    return redirect(url_for('banking.banking_dashboard'))
+
+##### API comptes
+
 @bp.route('/api/banking/sous-comptes/<int:compte_id>')
 @login_required
 def api_sous_comptes(compte_id):
