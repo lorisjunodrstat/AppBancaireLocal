@@ -2214,6 +2214,9 @@ def import_csv_upload_temp():
         'comptes_possibles': sorted(comptes_possibles, key=lambda x: x['nom'])
     }
     temp_key = db_csv_store.save(user_id, csv_data)
+    print("✅ DEBUG: saved temp_key =", temp_key)
+    print("✅ DEBUG: headers =", headers)
+    session['csv_temp_key'] = temp_key
     session['csv_temp_key'] = temp_key  # seul petit ID dans la session
 
     return redirect(url_for('banking.import_csv_map_temp'))
@@ -2240,7 +2243,7 @@ def import_csv_map_temp():
         flash("Aucune colonne trouvée dans le fichier.", "danger")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
-    return render_template('banking/import_csv_map.html', csv_headers=headers)
+    return render_template('banking/import_csv_map_temp.html', csv_headers=headers)
 @bp.route('/import/temp/csv/confirm', methods=['POST'])
 @login_required
 def import_csv_confirm_temp():
