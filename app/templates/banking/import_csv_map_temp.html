@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Étape 1 : Associer les colonnes du CSV</h2>
+
+<form method="post" id="mapping-form">
+  <div class="mb-3">
+    <label>Date
+      <select name="col_date" class="form-select" required>
+        {% for h in csv_headers %}
+        <option value="{{ h }}">{{ h }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="mb-3">
+    <label>Montant
+      <select name="col_montant" class="form-select" required>
+        {% for h in csv_headers %}
+        <option value="{{ h }}">{{ h }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="mb-3">
+    <label>Type (depot/retrait/transfert)
+      <select name="col_type" class="form-select" required>
+        {% for h in csv_headers %}
+        <option value="{{ h }}">{{ h }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="mb-3">
+    <label>Description
+      <select name="col_description" class="form-select">
+        <option value="">-- Aucune --</option>
+        {% for h in csv_headers %}
+        <option value="{{ h }}">{{ h }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="mb-3">
+    <label>Compte source
+      <select name="col_source" class="form-select" required>
+        {% for h in csv_headers %}
+        <option value="{{ h }}">{{ h }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="mb-3">
+    <label>Compte destination (optionnel)
+      <select name="col_dest" class="form-select">
+        <option value="">-- Aucune --</option>
+        {% for h in csv_headers %}
+        <option value="{{ h }}">{{ h }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+</form>
+
+<button form="mapping-form" formaction="{{ url_for('banking.import_csv_confirm_temp') }}" class="btn btn-primary">
+  Continuer : valider ligne par ligne
+</button>
+
+<button form="mapping-form" formaction="{{ url_for('banking.import_csv_distinct_confirm_temp') }}"
+  class="btn btn-success mt-2">
+  Continuer : associer par nom de compte (recommandé)
+</button>
+
+<a href="{{ url_for('banking.import_csv_upload_temp') }}" class="btn btn-secondary mt-3">← Retour</a>
+{% endblock %}

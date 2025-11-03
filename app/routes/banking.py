@@ -2223,11 +2223,21 @@ def import_csv_upload_temp():
 @login_required
 def import_csv_map_temp():
     temp_key = session.get('csv_temp_key')
-    if not temp_key or not db_csv_store.load(temp_key, current_user.id):
-        flash("Données expirées ou manquantes.", "warning")
+    if not temp_key:
+        flash("Données manquantes.", "warning")
         return redirect(url_for('banking.import_csv_upload_temp'))
-    return render_template('banking/import_csv_map.html')
 
+    csv_data = db_csv_store.load(temp_key, current_user.id)
+    if not csv_
+        flash("Données expirées.", "warning")
+        return redirect(url_for('banking.import_csv_upload_temp'))
+
+    headers = csv_data.get('csv_headers', [])
+    if not headers:
+        flash("Aucune colonne trouvée dans le fichier.", "danger")
+        return redirect(url_for('banking.import_csv_upload_temp'))
+
+    return render_template('banking/import_csv_map.html', csv_headers=headers)
 
 @bp.route('/import/temp/csv/confirm', methods=['POST'])
 @login_required
@@ -2463,7 +2473,7 @@ def import_csv_distinct_confirm_temp():
         'distinct_compte_names': compte_names,
         'csv_rows_raw': csv_rows
     })
-    temp_cdb_csv_storesv_store.save(temp_key, csv_data)
+    db_csv_store.save(temp_key, csv_data)
 
     comptes_possibles = sorted(csv_data['comptes_possibles'], key=lambda x: x.get('nom', ''))
 
