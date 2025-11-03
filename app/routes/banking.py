@@ -2228,7 +2228,7 @@ def import_csv_map_temp():
         return redirect(url_for('banking.import_csv_upload_temp'))
 
     csv_data = db_csv_store.load(temp_key, current_user.id)
-    if not csv_
+    if not csv:
         flash("Données expirées.", "warning")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
