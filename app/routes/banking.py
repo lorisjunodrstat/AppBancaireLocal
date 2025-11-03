@@ -2159,7 +2159,7 @@ def import_csv_final_distinct():
 @login_required
 def import_csv_upload_temp():
     if request.method == 'GET':
-        return render_template('banking/import_csv_upload.html')
+        return render_template('banking/import_csv_upload_temp.html')
     
     file = request.files.get('csv_file')
     if not file or not file.filename.endswith('.csv'):
