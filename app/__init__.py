@@ -70,7 +70,7 @@ def load_user(user_id):
 
 
 # Import des routes (APRES la création de l'app)
-from app.routes import auth, admin, banking
+from app.routes import auth, admin, banking, db_csv_store
 
 # Route racine redirigeant vers la page appropriée
 @app.route('/')
