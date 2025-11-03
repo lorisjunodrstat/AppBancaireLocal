@@ -2225,7 +2225,7 @@ def import_csv_map_temp():
     temp_key = session.get('csv_temp_key')
     if not temp_key or not temp_csv_store.load(temp_key, current_user.id):
         flash("Données expirées ou manquantes.", "warning")
-        return redirect(url_for('banking.import_csv_upload'))
+        return redirect(url_for('banking.import_csv_upload_temp'))
     return render_template('banking/import_csv_map.html')
 
 
@@ -2237,7 +2237,7 @@ def import_csv_confirm_temp():
     csv_data = temp_csv_store.load(temp_key, user_id)
     if not csv_data:
         flash("Données expirées.", "danger")
-        return redirect(url_for('banking.import_csv_upload'))
+        return redirect(url_for('banking.import_csv_upload_temp'))
 
     mapping = {
         'date': request.form['col_date'],
@@ -2303,7 +2303,7 @@ def import_csv_final_temp():
 
     if not mapping or not csv_data or 'csv_rows_with_type' not in csv_data:
         flash("Données d'import manquantes. Veuillez recommencer.", "danger")
-        return redirect(url_for('banking.import_csv_upload'))
+        return redirect(url_for('banking.import_csv_upload_temp'))
 
     csv_rows = csv_data['csv_rows_with_type']
     comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in csv_data['comptes_possibles']}
@@ -2428,7 +2428,7 @@ def import_csv_distinct_confirm_temp():
     csv_data = temp_csv_store.load(temp_key, user_id)
     if not csv_data:
         flash("Données expirées.", "danger")
-        return redirect(url_for('banking.import_csv_upload'))
+        return redirect(url_for('banking.import_csv_upload_temp'))
 
     mapping = {
         'date': request.form['col_date'],
@@ -2484,7 +2484,7 @@ def import_csv_final_distinct_temp():
 
     if not mapping or not csv_data or 'csv_rows_raw' not in csv_data:
         flash("Données d'import manquantes.", "danger")
-        return redirect(url_for('banking.import_csv_upload'))
+        return redirect(url_for('banking.import_csv_upload_temp'))
 
     csv_rows = csv_data['csv_rows_raw']
     comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in csv_data['comptes_possibles']}
