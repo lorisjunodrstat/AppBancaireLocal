@@ -5,7 +5,7 @@
     Chaque nom de compte (qu'il soit source ou destination) doit être associé à un compte réel.
 </p>
 
-<form method="post" action="{{ url_for('banking.import_csv_final_distinct_temps') }}">
+<form method="post" action="{{ url_for('banking.import_csv_final_distinct_temp') }}">
     {% if not compte_names %}
     <div class="alert alert-warning">
         Aucun nom de compte à associer. Vérifiez le mapping des colonnes.
