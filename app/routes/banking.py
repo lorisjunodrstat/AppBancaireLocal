@@ -2458,7 +2458,7 @@ def import_csv_distinct_confirm_temp():
 
     # ❌ PLUS DE db_csv_store.save() ICI
     return render_template(
-        'banking/import_csv_distinct_confirm.html',
+        'banking/import_csv_distinct_confirm_temp.html',
         compte_names=compte_names,
         comptes_possibles=comptes_possibles
     )
