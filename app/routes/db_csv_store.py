@@ -33,6 +33,14 @@ def load(key, user_id):
         if row:
             return pickle.loads(row['data'])  # ✅ row['data'] car dictionary=True
     return None
+def update(key, user_id, data):
+    """Met à jour les données existantes"""
+    pickled = pickle.dumps(data)
+    with g.db_manager.get_cursor(dictionary=True, commit=True) as cursor:
+        cursor.execute(
+            "UPDATE csv_import_temp SET data = %s WHERE id = %s AND user_id = %s",
+            (pickled, key, user_id)
+        )
 
 def delete(key):
     with g.db_manager.get_cursor(dictionary=True, commit=True) as cursor:

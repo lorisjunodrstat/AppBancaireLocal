@@ -2154,6 +2154,7 @@ def import_csv_final_distinct():
 
 ### Méthodes avec fichiers temp 
 
+
 @bp.route('/import/temp/csv', methods=['GET', 'POST'])
 @login_required
 def import_csv_upload_temp():
@@ -2188,36 +2189,23 @@ def import_csv_upload_temp():
             row_dict[h] = value
         rows.append(row_dict)
 
-    # Récupérer les comptes de l'utilisateur
     user_id = current_user.id
     comptes = g.models.compte_model.get_all_accounts(g.db_manager)
     sous_comptes = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
     comptes_possibles = []
     for c in comptes:
-        comptes_possibles.append({
-            'id': c['id'],
-            'nom': c['nom_compte'],
-            'type': 'compte_principal'
-        })
+        comptes_possibles.append({'id': c['id'], 'nom': c['nom_compte'], 'type': 'compte_principal'})
     for sc in sous_comptes:
-        comptes_possibles.append({
-            'id': sc['id'],
-            'nom': sc['nom_sous_compte'],
-            'type': 'sous_compte'
-        })
+        comptes_possibles.append({'id': sc['id'], 'nom': sc['nom_sous_compte'], 'type': 'sous_compte'})
 
-    # ➕ STOCKAGE TEMPORAIRE AU LIEU DE SESSION
     csv_data = {
         'csv_headers': headers,
         'csv_rows': rows,
         'comptes_possibles': sorted(comptes_possibles, key=lambda x: x['nom'])
     }
-    temp_key = db_csv_store.save(user_id, csv_data)
-    print("✅ DEBUG: saved temp_key =", temp_key)
-    print("✅ DEBUG: headers =", headers)
+    temp_key = db_csv_store.save(user_id, csv_data)  # ✅ user_id = entier
     session['csv_temp_key'] = temp_key
-    session['csv_temp_key'] = temp_key  # seul petit ID dans la session
 
     return redirect(url_for('banking.import_csv_map_temp'))
 
@@ -2226,24 +2214,23 @@ def import_csv_upload_temp():
 @login_required
 def import_csv_map_temp():
     temp_key = session.get('csv_temp_key')
-    print("🔍 DEBUG: temp_key in session =", temp_key)
     if not temp_key:
         flash("Données manquantes.", "warning")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
     csv_data = db_csv_store.load(temp_key, current_user.id)
-    print("🔍 DEBUG: csv_data loaded =", csv_data is not None)
     if not csv_data:
         flash("Données expirées.", "warning")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
     headers = csv_data.get('csv_headers', [])
-    print("🔍 DEBUG: headers =", headers)
     if not headers:
-        flash("Aucune colonne trouvée dans le fichier.", "danger")
+        flash("Aucune colonne trouvée.", "danger")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
-    return render_template('banking/import_csv_map_temp.html', csv_headers=headers)
+    return render_template('banking/import_csv_map.html', csv_headers=headers)
+
+
 @bp.route('/import/temp/csv/confirm', methods=['POST'])
 @login_required
 def import_csv_confirm_temp():
@@ -2262,7 +2249,7 @@ def import_csv_confirm_temp():
         'source': request.form['col_source'],
         'dest': request.form.get('col_dest') or None,
     }
-    session['column_mapping'] = mapping  # OK : petit dict
+    session['column_mapping'] = mapping
 
     csv_rows = csv_data['csv_rows']
     type_col = mapping['type']
@@ -2279,19 +2266,14 @@ def import_csv_confirm_temp():
         d = row.get(date_col, '').strip()
         if not d:
             return datetime.max
-        # Liste des formats supportés, du plus complet au plus basique
-        for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M', '%Y-%m-%d'):
+        for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M', '%Y-%m-%d', '%d.%m.%y %H:%M'):  # ✅ format suisse ajouté
             try:
                 return datetime.strptime(d, fmt)
             except ValueError:
                 continue
-        return datetime.max 
+        return datetime.max
 
     enriched_rows_sorted = sorted(enriched_rows, key=parse_date_for_sort)
-
-    # ➕ Sauvegarder les données enrichies dans le store (remplace session['csv_rows_with_type'])
-    csv_data['csv_rows_with_type'] = enriched_rows_sorted
-    db_csv_store.save(temp_key, csv_data)  # on réutilise la même clé
 
     rows_for_template = []
     for i, row in enumerate(enriched_rows_sorted):
@@ -2305,6 +2287,7 @@ def import_csv_confirm_temp():
         })
 
     comptes_possibles = csv_data['comptes_possibles']
+    # ❌ PLUS DE db_csv_store.save() ICI
     return render_template('banking/import_csv_confirm.html', rows=rows_for_template, comptes_possibles=comptes_possibles)
 
 
@@ -2316,13 +2299,37 @@ def import_csv_final_temp():
     csv_data = db_csv_store.load(temp_key, user_id) if temp_key else None
     mapping = session.get('column_mapping')
 
-    if not mapping or not csv_data or 'csv_rows_with_type' not in csv_data:
-        flash("Données d'import manquantes. Veuillez recommencer.", "danger")
+    if not mapping or not csv_data:
+        flash("Données manquantes.", "danger")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
-    csv_rows = csv_data['csv_rows_with_type']
-    comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in csv_data['comptes_possibles']}
+    # ✅ RECONSTRUIRE enriched_rows_sorted ICI (pas stocké)
+    csv_rows = csv_data['csv_rows']
+    type_col = mapping['type']
+    date_col = mapping['date']
 
+    enriched_rows = []
+    for row in csv_rows:
+        tx_type = row.get(type_col, '').strip().lower()
+        if tx_type not in ('depot', 'retrait', 'transfert'):
+            tx_type = 'inconnu'
+        enriched_rows.append({**row, '_tx_type': tx_type})
+
+    def parse_date_for_sort(row):
+        d = row.get(date_col, '').strip()
+        if not d:
+            return datetime.max
+        for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M', '%Y-%m-%d', '%d.%m.%y %H:%M'):
+            try:
+                return datetime.strptime(d, fmt)
+            except ValueError:
+                continue
+        return datetime.max
+
+    enriched_rows_sorted = sorted(enriched_rows, key=parse_date_for_sort)
+    csv_rows = enriched_rows_sorted  # utiliser cette liste
+
+    comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in csv_data['comptes_possibles']}
     success_count = 0
     errors = []
 
@@ -2337,22 +2344,20 @@ def import_csv_final_temp():
                 montant = Decimal(montant_str)
                 if montant <= 0:
                     raise ValueError("Montant doit être > 0")
-            except (InvalidOperation, ValueError) as e:
+            except (InvalidOperation, ValueError):
                 errors.append(f"Ligne {i+1}: montant invalide ({montant_str})")
                 continue
 
-            try:
-                date_tx = datetime.strptime(date_str, '%Y-%m-%d')
-            except ValueError:
+            date_tx = None
+            for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M', '%Y-%m-%d', '%d.%m.%y %H:%M'):
                 try:
-                    date_tx = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+                    date_tx = datetime.strptime(date_str, fmt)
+                    break
                 except ValueError:
-                    # ➕ Ajoutez la nouvelle ligne ici
-                    try:
-                        date_tx = datetime.strptime(date_str, '%Y-%m-%d %H:%M')
-                    except ValueError:
-                        errors.append(f"Ligne {i+1}: date invalide ({date_str})")
-                        continue
+                    continue
+            if date_tx is None:
+                errors.append(f"Ligne {i+1}: date invalide ({date_str})")
+                continue
 
             source_key = request.form.get(f'row_{i}_source')
             dest_key = request.form.get(f'row_{i}_dest')
@@ -2365,64 +2370,43 @@ def import_csv_final_temp():
             source_id = source_info['id']
             source_type = source_info['type']
 
-            if tx_type in ['depot', 'retrait']:
-                if tx_type == 'depot':
-                    ok, msg = g.models.transaction_financiere_model.create_depot(
-                        compte_id=source_id,
-                        user_id=user_id,
-                        montant=montant,
-                        description=desc,
-                        compte_type=source_type,
-                        date_transaction=date_tx
-                    )
-                else:
-                    ok, msg = g.models.transaction_financiere_model.create_retrait(
-                        compte_id=source_id,
-                        user_id=user_id,
-                        montant=montant,
-                        description=desc,
-                        compte_type=source_type,
-                        date_transaction=date_tx
-                    )
-                if ok:
-                    success_count += 1
-                else:
-                    errors.append(f"Ligne {i+1}: {msg}")
-
+            if tx_type == 'depot':
+                ok, msg = g.models.transaction_financiere_model.create_depot(
+                    compte_id=source_id, user_id=user_id, montant=montant,
+                    description=desc, compte_type=source_type, date_transaction=date_tx
+                )
+            elif tx_type == 'retrait':
+                ok, msg = g.models.transaction_financiere_model.create_retrait(
+                    compte_id=source_id, user_id=user_id, montant=montant,
+                    description=desc, compte_type=source_type, date_transaction=date_tx
+                )
             elif tx_type == 'transfert':
                 if not dest_key or dest_key not in comptes_possibles:
-                    errors.append(f"Ligne {i+1}: compte destination requis pour transfert")
+                    errors.append(f"Ligne {i+1}: compte destination requis")
                     continue
                 dest_info = comptes_possibles[dest_key]
                 dest_id = dest_info['id']
                 dest_type = dest_info['type']
-
                 if source_id == dest_id and source_type == dest_type:
                     errors.append(f"Ligne {i+1}: source et destination identiques")
                     continue
-
                 ok, msg = g.models.transaction_financiere_model.create_transfert_interne(
-                    source_type=source_type,
-                    source_id=source_id,
-                    dest_type=dest_type,
-                    dest_id=dest_id,
-                    user_id=user_id,
-                    montant=montant,
-                    description=desc,
-                    date_transaction=date_tx
+                    source_type=source_type, source_id=source_id,
+                    dest_type=dest_type, dest_id=dest_id,
+                    user_id=user_id, montant=montant, description=desc, date_transaction=date_tx
                 )
-                if ok:
-                    success_count += 1
-                else:
-                    errors.append(f"Ligne {i+1}: {msg}")
-
             else:
                 errors.append(f"Ligne {i+1}: type inconnu '{tx_type}'")
+                continue
+
+            if ok:
+                success_count += 1
+            else:
+                errors.append(f"Ligne {i+1}: {msg}")
 
         except Exception as e:
             errors.append(f"Ligne {i+1}: erreur inattendue ({str(e)})")
 
-    # ➕ Nettoyer le stockage temporaire
     if temp_key:
         db_csv_store.delete(temp_key)
     session.pop('csv_temp_key', None)
@@ -2456,14 +2440,12 @@ def import_csv_distinct_confirm_temp():
     session['column_mapping'] = mapping
 
     csv_rows = csv_data['csv_rows']
-
     compte_names = set()
     source_col = mapping['source']
     for row in csv_rows:
         val = row.get(source_col, '').strip()
         if val:
             compte_names.add(val)
-
     dest_col = mapping.get('dest')
     if dest_col:
         for row in csv_rows:
@@ -2472,16 +2454,9 @@ def import_csv_distinct_confirm_temp():
                 compte_names.add(val)
 
     compte_names = sorted(compte_names)
-
-    # ➕ Mettre à jour le store avec les nouvelles infos
-    csv_data.update({
-        'distinct_compte_names': compte_names,
-        'csv_rows_raw': csv_rows
-    })
-    db_csv_store.save(temp_key, csv_data)
-
     comptes_possibles = sorted(csv_data['comptes_possibles'], key=lambda x: x.get('nom', ''))
 
+    # ❌ PLUS DE db_csv_store.save() ICI
     return render_template(
         'banking/import_csv_distinct_confirm.html',
         compte_names=compte_names,
@@ -2497,14 +2472,13 @@ def import_csv_final_distinct_temp():
     csv_data = db_csv_store.load(temp_key, user_id) if temp_key else None
     mapping = session.get('column_mapping')
 
-    if not mapping or not csv_data or 'csv_rows_raw' not in csv_data:
-        flash("Données d'import manquantes.", "danger")
+    if not mapping or not csv_data:
+        flash("Données manquantes.", "danger")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
-    csv_rows = csv_data['csv_rows_raw']
+    csv_rows = csv_data['csv_rows']  # ✅ données brutes
     comptes_possibles = {str(c['id']) + '|' + c['type']: c for c in csv_data['comptes_possibles']}
 
-    # Construire mapping global nom → clé
     global_mapping = {}
     i = 0
     while f'compte_name_{i}' in request.form:
@@ -2532,18 +2506,16 @@ def import_csv_final_distinct_temp():
                 errors.append(f"Ligne {idx+1}: montant invalide ({montant_str})")
                 continue
 
-            try:
-                date_tx = datetime.strptime(date_str, '%Y-%m-%d')
-            except ValueError:
+            date_tx = None
+            for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M', '%Y-%m-%d', '%d.%m.%y %H:%M'):
                 try:
-                    date_tx = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+                    date_tx = datetime.strptime(date_str, fmt)
+                    break
                 except ValueError:
-                    # ➕ Ajoutez la nouvelle ligne ici
-                    try:
-                        date_tx = datetime.strptime(date_str, '%Y-%m-%d %H:%M')
-                    except ValueError:
-                        errors.append(f"Ligne {idx+1}: date invalide ({date_str})")
-                        continue
+                    continue
+            if date_tx is None:
+                errors.append(f"Ligne {idx+1}: date invalide ({date_str})")
+                continue
 
             source_val = row.get(mapping['source'], '').strip()
             source_key = global_mapping.get(source_val)
@@ -2597,7 +2569,6 @@ def import_csv_final_distinct_temp():
         except Exception as e:
             errors.append(f"Ligne {idx+1}: erreur inattendue ({str(e)})")
 
-    # ➕ Nettoyer
     if temp_key:
         db_csv_store.delete(temp_key)
     session.pop('csv_temp_key', None)
@@ -2608,7 +2579,6 @@ def import_csv_final_distinct_temp():
         flash(f"❌ {err}", "danger")
 
     return redirect(url_for('banking.banking_dashboard'))
-
 ##### API comptes
 
 @bp.route('/api/banking/sous-comptes/<int:compte_id>')
