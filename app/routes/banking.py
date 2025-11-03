@@ -2223,22 +2223,24 @@ def import_csv_upload_temp():
 @login_required
 def import_csv_map_temp():
     temp_key = session.get('csv_temp_key')
+    print("🔍 DEBUG: temp_key in session =", temp_key)
     if not temp_key:
         flash("Données manquantes.", "warning")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
     csv_data = db_csv_store.load(temp_key, current_user.id)
+    print("🔍 DEBUG: csv_data loaded =", csv_data is not None)
     if not csv_data:
         flash("Données expirées.", "warning")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
     headers = csv_data.get('csv_headers', [])
+    print("🔍 DEBUG: headers =", headers)
     if not headers:
         flash("Aucune colonne trouvée dans le fichier.", "danger")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
     return render_template('banking/import_csv_map.html', csv_headers=headers)
-
 @bp.route('/import/temp/csv/confirm', methods=['POST'])
 @login_required
 def import_csv_confirm_temp():

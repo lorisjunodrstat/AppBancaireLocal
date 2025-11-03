@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Étape 1 : Associer les colonnes du CSV</h2>
-
+<!-- 🔥 DEBUG : afficher les headers -->
+<p style="background:yellow; padding:10px;">
+  DEBUG headers: {{ csv_headers }}
+</p>
 <form method="post" id="mapping-form">
   <div class="mb-3">
     <label>Date
