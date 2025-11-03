@@ -2158,18 +2158,18 @@ def import_csv_final_distinct():
 @login_required
 def import_csv_upload_temp():
     if request.method == 'GET':
-        return render_template('banking/import_csv_upload.html')
+        return render_template('banking/import_csv_upload_temp.html')
     
     file = request.files.get('csv_file')
     if not file or not file.filename.endswith('.csv'):
         flash("Veuillez uploader un fichier CSV.", "danger")
-        return redirect(url_for('banking.import_csv_upload'))
+        return redirect(url_for('banking.import_csv_upload_temp'))
 
     stream = io.TextIOWrapper(file.stream, encoding='utf-8')
     raw_lines = stream.read().splitlines()
     if not raw_lines:
         flash("Fichier vide", "danger")
-        return redirect(url_for('banking.import_csv_upload'))
+        return redirect(url_for('banking.import_csv_upload_temp'))
 
     sample = '\n'.join(raw_lines[:5])
     try:
@@ -2216,7 +2216,7 @@ def import_csv_upload_temp():
     temp_key = temp_csv_store.save(user_id, csv_data)
     session['csv_temp_key'] = temp_key  # seul petit ID dans la session
 
-    return redirect(url_for('banking.import_csv_map'))
+    return redirect(url_for('banking.import_csv_map_temp'))
 
 
 @bp.route('/import/temp/csv/map', methods=['GET'])
