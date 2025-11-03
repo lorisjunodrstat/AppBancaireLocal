@@ -1,42 +1,35 @@
-# temp_csv_store.py
-import uuid
+# db_csv_store.py
+import pickle
+import secrets
 from datetime import datetime, timedelta
-from threading import Lock
-
-# Stockage simple en mémoire (thread-safe basique)
-_store = {}
-_lock = Lock()
-MAX_AGE = 3600  # 1 heure
+from flask import g
 
 def _cleanup():
-    now = datetime.utcnow()
-    with _lock:
-        to_delete = [
-            key for key, val in _store.items()
-            if (now - val['created_at']).total_seconds() > MAX_AGE
-        ]
-        for key in to_delete:
-            del _store[key]
+    # Supprime les entrées > 1 heure
+    g.db_manager.execute(
+        "DELETE FROM csv_import_temp WHERE created_at < %s",
+        (datetime.utcnow() - timedelta(hours=1),)
+    )
 
 def save(user_id, data):
     _cleanup()
-    key = str(uuid.uuid4())
-    with _lock:
-        _store[key] = {
-            'user_id': user_id,
-            'data': data,
-            'created_at': datetime.utcnow()
-        }
+    key = secrets.token_urlsafe(32)
+    pickled = pickle.dumps(data)
+    g.db_manager.execute(
+        "INSERT INTO csv_import_temp (id, user_id, data) VALUES (%s, %s, %s)",
+        (key, user_id, pickled)
+    )
     return key
 
 def load(key, user_id):
     _cleanup()
-    with _lock:
-        entry = _store.get(key)
-    if not entry or entry['user_id'] != user_id:
-        return None
-    return entry['data']
+    row = g.db_manager.fetch_one(
+        "SELECT data FROM csv_import_temp WHERE id = %s AND user_id = %s",
+        (key, user_id)
+    )
+    if row:
+        return pickle.loads(row['data'])
+    return None
 
 def delete(key):
-    with _lock:
-        _store.pop(key, None)
+    g.db_manager.execute("DELETE FROM csv_import_temp WHERE id = %s", (key,))

@@ -2213,7 +2213,7 @@ def import_csv_upload_temp():
         'csv_rows': rows,
         'comptes_possibles': sorted(comptes_possibles, key=lambda x: x['nom'])
     }
-    temp_key = temp_csv_store.save(user_id, csv_data)
+    temp_key = db_csv_store.save(user_id, csv_data)
     session['csv_temp_key'] = temp_key  # seul petit ID dans la session
 
     return redirect(url_for('banking.import_csv_map_temp'))
@@ -2223,7 +2223,7 @@ def import_csv_upload_temp():
 @login_required
 def import_csv_map_temp():
     temp_key = session.get('csv_temp_key')
-    if not temp_key or not temp_csv_store.load(temp_key, current_user.id):
+    if not temp_key or not db_csv_store.load(temp_key, current_user.id):
         flash("Données expirées ou manquantes.", "warning")
         return redirect(url_for('banking.import_csv_upload_temp'))
     return render_template('banking/import_csv_map.html')
@@ -2234,7 +2234,7 @@ def import_csv_map_temp():
 def import_csv_confirm_temp():
     user_id = current_user.id
     temp_key = session.get('csv_temp_key')
-    csv_data = temp_csv_store.load(temp_key, user_id)
+    csv_data = db_csv_store.load(temp_key, user_id)
     if not csv_data:
         flash("Données expirées.", "danger")
         return redirect(url_for('banking.import_csv_upload_temp'))
@@ -2276,7 +2276,7 @@ def import_csv_confirm_temp():
 
     # ➕ Sauvegarder les données enrichies dans le store (remplace session['csv_rows_with_type'])
     csv_data['csv_rows_with_type'] = enriched_rows_sorted
-    temp_csv_store.save(temp_key, csv_data)  # on réutilise la même clé
+    db_csv_store.save(temp_key, csv_data)  # on réutilise la même clé
 
     rows_for_template = []
     for i, row in enumerate(enriched_rows_sorted):
@@ -2298,7 +2298,7 @@ def import_csv_confirm_temp():
 def import_csv_final_temp():
     user_id = current_user.id
     temp_key = session.get('csv_temp_key')
-    csv_data = temp_csv_store.load(temp_key, user_id) if temp_key else None
+    csv_data = db_csv_store.load(temp_key, user_id) if temp_key else None
     mapping = session.get('column_mapping')
 
     if not mapping or not csv_data or 'csv_rows_with_type' not in csv_data:
@@ -2409,7 +2409,7 @@ def import_csv_final_temp():
 
     # ➕ Nettoyer le stockage temporaire
     if temp_key:
-        temp_csv_store.delete(temp_key)
+        db_csv_store.delete(temp_key)
     session.pop('csv_temp_key', None)
     session.pop('column_mapping', None)
 
@@ -2425,7 +2425,7 @@ def import_csv_final_temp():
 def import_csv_distinct_confirm_temp():
     user_id = current_user.id
     temp_key = session.get('csv_temp_key')
-    csv_data = temp_csv_store.load(temp_key, user_id)
+    csv_data = db_csv_store.load(temp_key, user_id)
     if not csv_data:
         flash("Données expirées.", "danger")
         return redirect(url_for('banking.import_csv_upload_temp'))
@@ -2463,7 +2463,7 @@ def import_csv_distinct_confirm_temp():
         'distinct_compte_names': compte_names,
         'csv_rows_raw': csv_rows
     })
-    temp_csv_store.save(temp_key, csv_data)
+    temp_cdb_csv_storesv_store.save(temp_key, csv_data)
 
     comptes_possibles = sorted(csv_data['comptes_possibles'], key=lambda x: x.get('nom', ''))
 
@@ -2479,7 +2479,7 @@ def import_csv_distinct_confirm_temp():
 def import_csv_final_distinct_temp():
     user_id = current_user.id
     temp_key = session.get('csv_temp_key')
-    csv_data = temp_csv_store.load(temp_key, user_id) if temp_key else None
+    csv_data = db_csv_store.load(temp_key, user_id) if temp_key else None
     mapping = session.get('column_mapping')
 
     if not mapping or not csv_data or 'csv_rows_raw' not in csv_data:
@@ -2584,7 +2584,7 @@ def import_csv_final_distinct_temp():
 
     # ➕ Nettoyer
     if temp_key:
-        temp_csv_store.delete(temp_key)
+        db_csv_store.delete(temp_key)
     session.pop('csv_temp_key', None)
     session.pop('column_mapping', None)
 
