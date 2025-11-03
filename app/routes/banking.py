@@ -2228,7 +2228,7 @@ def import_csv_map_temp():
         flash("Aucune colonne trouvée.", "danger")
         return redirect(url_for('banking.import_csv_upload_temp'))
 
-    return render_template('banking/import_csv_map.html', csv_headers=headers)
+    return render_template('banking/import_csv_map_temp.html', csv_headers=headers)
 
 
 @bp.route('/import/temp/csv/confirm', methods=['POST'])
