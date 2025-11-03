@@ -3226,8 +3226,9 @@ class StatistiquesBancaires:
         except Error as e:
             logging.error(f"Erreur lors du calcul de l'évolution quotidienne: {e}")
             return {'comptes_principaux': [], 'sous_comptes': [], 'total': []}
-    def preparer_svg_tresorie(self, user_id: int, compte_id: int, date_debut: date, date_fin : date)
-        
+    
+    def preparer_svg_tresorie(self, user_id: int, compte_id: int, date_debut: date, date_fin : date):
+        pass
 class PlanComptable:
     """Modèle pour gérer le plan comptable"""
     
