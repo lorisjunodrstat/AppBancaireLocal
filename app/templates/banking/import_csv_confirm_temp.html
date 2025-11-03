@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Étape 2 : Valider les comptes pour chaque ligne</h2>
+
+<form method="post" action="{{ url_for('banking.import_csv_final') }}">
+  {% for row in rows %}
+  <fieldset class="border p-3 mb-4">
+    <legend>Ligne {{ row.index + 1 }}
+      {% if row.tx_type == 'depot' %}(Dépôt)
+      {% elif row.tx_type == 'retrait' %}(Retrait)
+      {% elif row.tx_type == 'transfert' %}(Transfert)
+      {% else %}({{ row.tx_type|upper }})
+      {% endif %}
+    </legend>
+
+    <!-- Affichage des valeurs brutes -->
+    <p><strong>Source :</strong> "{{ row.source_val }}"</p>
+    {% if row.dest_val %}
+    <p><strong>Destination :</strong> "{{ row.dest_val }}"</p>
+    {% endif %}
+
+    <!-- Logique de sélection selon le type -->
+    {% if row.tx_type == 'transfert' %}
+    <div class="mb-2">
+      <label>Compte source :
+        <select name="row_{{ row.index }}_source" class="form-select" required>
+          <option value="">-- Choisir --</option>
+          {% for c in comptes_possibles %}
+          <option value="{{ c.id }}|{{ c.type }}">{{ c.nom }} ({{ c.type }})</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="mb-2">
+      <label>Compte destination :
+        <select name="row_{{ row.index }}_dest" class="form-select" required>
+          <option value="">-- Choisir --</option>
+          {% for c in comptes_possibles %}
+          <option value="{{ c.id }}|{{ c.type }}">{{ c.nom }} ({{ c.type }})</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    {% elif row.tx_type in ('depot', 'retrait') %}
+    <div class="mb-2">
+      <label>
+        {% if row.tx_type == 'depot' %}
+        Compte à créditer (dépôt) :
+        {% else %}
+        Compte à débiter (retrait) :
+        {% endif %}
+        <select name="row_{{ row.index }}_source" class="form-select" required>
+          <option value="">-- Choisir --</option>
+          {% for c in comptes_possibles %}
+          <option value="{{ c.id }}|{{ c.type }}">{{ c.nom }} ({{ c.type }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <!-- Champ caché pour dest, pour éviter KeyError -->
+      <input type="hidden" name="row_{{ row.index }}_dest" value="">
+    </div>
+    {% else %}
+    <div class="text-danger">
+      Type de transaction inconnu : "{{ row.tx_type }}". Cette ligne sera ignorée.
+      <input type="hidden" name="row_{{ row.index }}_source" value="">
+      <input type="hidden" name="row_{{ row.index }}_dest" value="">
+    </div>
+    {% endif %}
+  </fieldset>
+  {% endfor %}
+
+  <button type="submit" class="btn btn-primary">Importer les transactions</button>
+</form>
+
+<a href="{{ url_for('banking.import_csv_upload') }}" class="btn btn-secondary">Annuler</a>
+{% endblock %}
