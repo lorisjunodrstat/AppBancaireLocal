@@ -1828,13 +1828,13 @@ def import_csv_confirm():
         d = row.get(date_col, '').strip()
         if not d:
             return datetime.max
-        try:
-            return datetime.strptime(d, '%Y-%m-%d')
-        except ValueError:
+        # Formats supportés : ISO + format suisse (jj.mm.yy HH:MM)
+        for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M', '%Y-%m-%d', '%d.%m.%y %H:%M'):
             try:
-                return datetime.strptime(d, '%Y-%m-%dT%H:%M')
+                return datetime.strptime(d, fmt)
             except ValueError:
-                return datetime.max
+                continue
+        return datetime.max
 
     enriched_rows_sorted = sorted(enriched_rows, key=parse_date_for_sort)
     session['csv_rows_with_type'] = enriched_rows_sorted  # <-- on remplace par la version triée
@@ -1887,15 +1887,17 @@ def import_csv_final():
                 errors.append(f"Ligne {i+1}: montant invalide ({montant_str})")
                 continue
 
-            try:
-                date_tx = datetime.strptime(date_str, '%Y-%m-%d')
-            except ValueError:
-                # Essayer avec heure si présent (comme dans tes formulaires)
+            date_tx = None
+            for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M', '%Y-%m-%d', '%d.%m.%y %H:%M'):
                 try:
-                    date_tx = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+                    date_tx = datetime.strptime(date_str, fmt)
+                    break
                 except ValueError:
-                    errors.append(f"Ligne {i+1}: date invalide ({date_str})")
                     continue
+
+            if date_tx is None:
+                errors.append(f"Ligne {i+1}: date invalide ({date_str})")
+                continue
 
             # Récupérer les choix utilisateur
             source_key = request.form.get(f'row_{i}_source')
