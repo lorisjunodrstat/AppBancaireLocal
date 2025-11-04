@@ -15,7 +15,6 @@ import time
 import math
 
 from typing import List, Dict, Optional, Tuple
-import decimal
 import traceback
 from contextlib import contextmanager
 from flask_login import UserMixin
@@ -4048,6 +4047,18 @@ class EcritureComptable:
             """, (transaction_id, user_id))
             return cursor.fetchall()
     
+        
+    def get_total_ecritures_for_transaction(self, transaction_id: int, user_id: int) -> Decimal:
+        with self.db.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT SUM(montant) as total
+                FROM ecritures_comptables
+                WHERE transaction_id = %s AND utilisateur_id = %s
+            """, (transaction_id, user_id))
+            row = cursor.fetchone()
+            return Decimal(str(row['total'])) if row and row['total'] else Decimal('0')
+
+
     def unlink_from_transaction(self, ecriture_id: int, user_id: int) -> bool:
         """
         Supprime le lien entre une écriture comptable et sa transaction associée.
