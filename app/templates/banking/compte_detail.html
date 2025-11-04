@@ -31,6 +31,51 @@
         border-radius: 5px;
         background: #f9f9f9;
     }
+
+    /* 1. Cacher la checkbox qui gère l'état */
+    .popover-toggle {
+        display: none;
+    }
+
+    /* 2. Stylisation de la bulle (le contenu du popover) */
+    .popover-content {
+        display: none;
+        /* Cache la bulle par défaut */
+        position: absolute;
+        top: 100%;
+        /* Positionne la bulle en dessous du bouton */
+        left: 50%;
+        transform: translateX(-50%);
+        width: 250px;
+        padding: 10px;
+        margin-top: 5px;
+        background-color: #333;
+        color: white;
+        border-radius: .3rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+    }
+
+    /* 3. L'astuce CSS : si la checkbox est cochée, afficher le contenu */
+    /* On utilise le sélecteur ~ (frère suivant) pour cibler le contenu */
+    .popover-toggle:checked~.popover-container .popover-content {
+        display: block;
+    }
+
+    /* 4. Conteneur pour positionner correctement le popover */
+    .popover-container {
+        position: relative;
+        display: inline-block;
+        /* Permet au conteneur de s'ajuster à la taille du bouton */
+    }
+
+    /* 5. Pour simuler le placement "top" de Bootstrap */
+    /* On peut ajuster la position du contenu (facultatif) */
+    .popover-toggle:checked~.popover-container .popover-content.top {
+        bottom: 100%;
+        top: auto;
+        margin-bottom: 5px;
+    }
 </style>
 {% endblock %}
 
@@ -94,8 +139,20 @@
                         </div>
                         <div class="alert alert-warning" role="alert">
                             <h5><i class="bi bi-tools"></i> Outils de maintenance</h5>
-                            <button type="button" class="btn btn-lg btn-info" data-container="body" data-toggle="popover" data-placement="top" title="Popover title"
-                                data-content="Si les soldes de votre compte semblent incohérents, vous pouvez forcer un recalcul complet."><i class="fas fa-info-circle me-2"></i></button>
+                        
+                            <input type="checkbox" id="info-popover" class="popover-toggle">
+                        
+                            <label for="info-popover" class="btn btn-lg btn-info popover-trigger">
+                                <i class="fas fa-info-circle me-2"></i>
+                            </label>
+                        
+                            <div class="popover-container">
+                                <div class="popover-content top">
+                                    <h6>Popover title</h6>
+                                    Si les soldes de votre compte semblent incohérents, vous pouvez forcer un recalcul complet.
+                                </div>
+                            </div>
+                        
                             <p></p>
                             <form method="POST" action="{{ url_for('banking.reparer_soldes_compte', compte_id=compte.id) }}"
                                 onsubmit='return confirm("Êtes-vous sûr de vouloir recalculer tous les soldes de ce compte ? Cette opération est sans risque mais peut prendre quelques secondes.");'>

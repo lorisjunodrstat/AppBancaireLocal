@@ -3960,6 +3960,108 @@ class EcritureComptable:
         except Exception as e:
             logging.error(f"Erreur lien écriture-transaction : {e}")
             return False
+
+    def get_ecritures_by_transaction(self, transaction_id: int, user_id: int) -> List[Dict]:
+        with self.db.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT e.*
+                FROM ecritures_comptables e
+                WHERE e.transaction_id = %s AND e.utilisateur_id = %s
+                ORDER BY e.date_ecriture
+            """, (transaction_id, user_id))
+            return cursor.fetchall()
+    
+    def unlink_from_transaction(self, ecriture_id: int, user_id: int) -> bool:
+        """
+        Supprime le lien entre une écriture comptable et sa transaction associée.
+        Ne supprime ni l'écriture, ni la transaction.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que l'écriture appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    (ecriture_id, user_id)
+                )
+                if not cursor.fetchone():
+                    return False
+
+                cursor.execute(
+                    "UPDATE ecritures_comptables SET transaction_id = NULL WHERE id = %s",
+                    (ecriture_id,)
+                )
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Erreur lors du délien de l'écriture {ecriture_id}: {e}")
+            return False
+        
+    def link_ecriture_to_transaction(self, ecriture_id: int, transaction_id: int, user_id: int) -> bool:
+        """
+        Lie (ou relie à nouveau) une écriture à une transaction.
+        Remplace tout lien existant.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # 1. Vérifier que l'écriture existe et appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    (ecriture_id, user_id)
+                )
+                if not cursor.fetchone():
+                    return False
+
+                # 2. Vérifier que la transaction existe et appartient à l'utilisateur
+                cursor.execute("""
+                    SELECT t.id
+                    FROM transactions t
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    WHERE t.id = %s AND (
+                        cp.utilisateur_id = %s 
+                        OR t.utilisateur_id = %s
+                    )
+                """, (transaction_id, user_id, user_id))
+                if not cursor.fetchone():
+                    return False
+
+                # 3. Mettre à jour le lien
+                cursor.execute(
+                    "UPDATE ecritures_comptables SET transaction_id = %s WHERE id = %s",
+                    (transaction_id, ecriture_id)
+                )
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Erreur lors du lien écriture {ecriture_id} → transaction {transaction_id}: {e}")
+            return False
+
+    def unlink_all_ecritures_from_transaction(self, transaction_id: int, user_id: int) -> int:
+        """
+        Supprime tous les liens entre une transaction et les écritures de l'utilisateur.
+        Retourne le nombre d'écritures mises à jour.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # S'assurer que la transaction appartient à l'utilisateur
+                cursor.execute("""
+                    SELECT t.id
+                    FROM transactions t
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    WHERE t.id = %s AND (
+                        cp.utilisateur_id = %s 
+                        OR t.utilisateur_id = %s
+                    )
+                """, (transaction_id, user_id, user_id))
+                if not cursor.fetchone():
+                    return 0
+
+                cursor.execute(
+                    "UPDATE ecritures_comptables SET transaction_id = NULL WHERE transaction_id = %s AND utilisateur_id = %s",
+                    (transaction_id, user_id)
+                )
+                return cursor.rowcount
+        except Exception as e:
+            logging.error(f"Erreur lors du délien de toutes les écritures de la transaction {transaction_id}: {e}")
+            return 0
+
 class Contacts:
     def __init__(self, db):
         self.db = db
