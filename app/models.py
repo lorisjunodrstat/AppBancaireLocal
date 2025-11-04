@@ -3929,6 +3929,37 @@ class EcritureComptable:
             logging.error(f"Erreur lors de la récupération des écritures par contact: {e}")
             return []
 
+    def link_to_transaction(self, ecriture_id: int, transaction_id: int, user_id: int) -> bool:
+        """Lie une écriture comptable à une transaction bancaire"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que l'écriture appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    (ecriture_id, user_id)
+                )
+                if not cursor.fetchone():
+                    return False
+
+                # Vérifier que la transaction existe et appartient à l'utilisateur
+                cursor.execute("""
+                    SELECT t.id
+                    FROM transactions t
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    WHERE t.id = %s AND (cp.utilisateur_id = %s OR t.utilisateur_id = %s)
+                """, (transaction_id, user_id, user_id))
+                if not cursor.fetchone():
+                    return False
+
+                # Lier l'écriture à la transaction
+                cursor.execute(
+                    "UPDATE ecritures_comptables SET transaction_id = %s WHERE id = %s",
+                    (transaction_id, ecriture_id)
+                )
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Erreur lien écriture-transaction : {e}")
+            return False
 class Contacts:
     def __init__(self, db):
         self.db = db
