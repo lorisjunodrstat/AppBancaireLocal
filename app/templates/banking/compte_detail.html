@@ -1,33 +1,35 @@
 {% extends "base.html" %}
-
 {% block extra_css %}
 <style>
     .graphique-container {
         max-width: 600px;
         margin: 1rem auto;
     }
+
     .graphique-svg {
         width: 100%;
         height: auto;
         display: block;
-        /* ASSUREZ-VOUS QUE TOUT EST SUR UNE SEULE LIGNE LOGIQUE */
-        aspect-ratio: {{ largeur_svg }} / {{ hauteur_svg }}; 
+        /* Le linter de VS Code doit ignorer cette ligne, mais le moteur de template DOIT la traiter. */
+        /* Assurez-vous qu'elle est bien rendue comme : aspect-ratio: X / Y; */
+        aspect-ratio: {{ largeur_svg | default('16') }} / {{ hauteur_svg | default('9') }}; 
         max-width: 100%;
         max-height: 70vh;
         border: 1px solid #ddd;
         border-radius: 5px;
         background: #f9f9f9;
     }
+
     .alert.alert-warning {
-    /* Limite la hauteur du div à 200 pixels */
-    max-height: 100px;
-    max-width: 200px;
-    background-color: #ddd;
-    
-    /* Ajoute une barre de défilement si le contenu déborde de la hauteur maximale */
-    overflow-y: auto; 
-}
-    /* 1. Cacher la checkbox qui gère l'état (inchangé) */
+        position: fixed;
+        right: 20px;
+        z-index: 100;
+        max-height: 150px;
+        max-width: 200px;
+        background-color: #ddd;
+        overflow-y: auto; 
+    }
+
     .popover-toggle {
         display: none;
     }
@@ -908,75 +910,65 @@
             <div class="card-body">
                 {% if graphique_svg %}
                 <div class="text-center graphique-container">
-                    <svg viewBox="0 0 {{ largeur_svg }} {{ hauteur_svg }}" preserveAspectRatio="xMidYMid meet"
-                        class="graphique-svg" style="border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
-
-                        <!-- Cadre du graphique -->
-                        <rect x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.1 }}" width="{{ largeur_svg * 0.8 }}"
-                            height="{{ hauteur_svg * 0.8 }}" fill="none" stroke="#ccc" stroke-dasharray="2,2" />
-
-                        <!-- Lignes de grille horizontales (optionnelles, très subtiles) -->
-                        {% set mid_y = hauteur_svg * 0.1 + graphique_svg.plot_height / 2 %}
-                        <line x1="{{ largeur_svg * 0.1 }}" y1="{{ mid_y }}" x2="{{ largeur_svg * 0.9 }}"
-                            y2="{{ mid_y }}" stroke="#eee" stroke-width="1" stroke-dasharray="2,4" />
-
-                        <!-- Ligne du graphique -->
-                        <polyline points="{{ graphique_svg.points|join(' ') }}" fill="none"
-                            stroke="{{ compte.couleur_banque }}" stroke-width="2" />
-
-                        <!-- Points sur la ligne -->
+                
+                    <svg viewBox="0 0 {{ largeur_svg }} {{ hauteur_svg }}" preserveAspectRatio="xMidYMid meet" class="graphique-svg"
+                        style="border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+                
+                        {% set margin_x = graphique_svg.margin_x %}
+                        {% set margin_y = graphique_svg.margin_y %}
+                        {% set plot_width = graphique_svg.plot_width %}
+                        {% set plot_height = graphique_svg.plot_height %}
+                
+                        {% set mid_y = margin_y + plot_height / 2 %}
+                
+                        <rect x="{{ margin_x }}" y="{{ margin_y }}" width="{{ plot_width }}" height="{{ plot_height }}" fill="none"
+                            stroke="#ccc" stroke-dasharray="2,2" />
+                
+                        <line x1="{{ margin_x }}" y1="{{ mid_y }}" x2="{{ margin_x + plot_width }}" y2="{{ mid_y }}" stroke="#eee"
+                            stroke-width="1" stroke-dasharray="2,4" />
+                
+                        <polyline points="{{ graphique_svg.points|join(' ') }}" fill="none" stroke="{{ compte.couleur_banque }}"
+                            stroke-width="2" />
+                
                         {% for point in graphique_svg.points %}
                         <circle cx="{{ point.split(',')[0] }}" cy="{{ point.split(',')[1] }}" r="3" fill="#007bff" />
                         {% endfor %}
-
-                        <!-- Étiquettes sur l'axe Y (gauche) -->
-                        <!-- Max -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.1 + 12 }}" font-size="11"
-                            text-anchor="end" fill="#555">
+                
+                        <text x="{{ margin_x * 0.8 }}" y="{{ margin_y + 4 }}" font-size="11" text-anchor="end" fill="#555">
                             {{ graphique_svg.max_solde|round(2) }} CHF
                         </text>
-                        <!-- Milieu -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ mid_y + 4 }}" font-size="11" text-anchor="end"
-                            fill="#777">
+                        <text x="{{ margin_x * 0.8 }}" y="{{ mid_y + 4 }}" font-size="11" text-anchor="end" fill="#777">
                             {{ ((graphique_svg.max_solde + graphique_svg.min_solde) / 2)|round(2) }}
                         </text>
-                        <!-- Min -->
-                        <text x="{{ largeur_svg * 0.08 }}" y="{{ hauteur_svg * 0.9 + 4 }}" font-size="10"
-                            text-anchor="end" fill="#555">
+                        <text x="{{ margin_x * 0.8 }}" y="{{ margin_y + plot_height + 4 }}" font-size="10" text-anchor="end"
+                            fill="#555">
                             {{ graphique_svg.min_solde|round(2) }}
                         </text>
-
-                        <!-- Étiquettes sur l'axe X (bas) -->
+                
                         {% if graphique_svg.dates|length > 0 %}
-                        <!-- Début -->
-                        <text x="{{ largeur_svg * 0.1 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="11"
-                            text-anchor="start" fill="#555">
+                        <text x="{{ margin_x }}" y="{{ margin_y + plot_height + 20 }}" font-size="11" text-anchor="start" fill="#555">
                             {{ graphique_svg.dates[0] }}
                         </text>
-                        <!-- Fin -->
-                        <text x="{{ largeur_svg * 0.9 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="11"
-                            text-anchor="end" fill="#555">
+                        <text x="{{ margin_x + plot_width }}" y="{{ margin_y + plot_height + 20 }}" font-size="11" text-anchor="end"
+                            fill="#555">
                             {{ graphique_svg.dates[-1] }}
                         </text>
-                        <!-- Milieu (seulement si assez de points pour éviter chevauchement) -->
                         {% if graphique_svg.nb_points > 5 %}
-                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.9 + 20 }}" font-size="11"
-                            text-anchor="middle" fill="#777">
+                        <text x="{{ largeur_svg / 2 }}" y="{{ margin_y + plot_height + 20 }}" font-size="11" text-anchor="middle"
+                            fill="#777">
                             {{ graphique_svg.dates[(graphique_svg.nb_points // 2)] }}
                         </text>
                         {% endif %}
                         {% endif %}
-
-                        <!-- Légende axe X -->
-                        <text x="{{ largeur_svg / 2 }}" y="{{ hauteur_svg * 0.9 + 35 }}" font-size="11"
-                            text-anchor="middle" fill="#333" font-weight="bold">
+                
+                        <text x="{{ largeur_svg / 2 }}" y="{{ margin_y + plot_height + 35 }}" font-size="11" text-anchor="middle"
+                            fill="#333" font-weight="bold">
                             Date
                         </text>
-
+                
                     </svg>
                 </div>
-
-                <!-- Tableau des valeurs -->
+                
                 <div class="mt-3">
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered">

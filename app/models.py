@@ -2822,52 +2822,34 @@ class TransactionFinanciere:
             logging.error(f"Erreur annulation transfert externe: {e}")
             return False, f"Erreur lors de l'annulation: {str(e)}"
     
-    def get_evolution_soldes_quotidiens_compte(self, compte_id: int, user_id: int, date_debut: str = None, date_fin: str = None) -> List[Dict]:
 
-        """Récupère l'évolution quotidienne des soldes d'un compte principal"""
+
+    def get_evolution_soldes_quotidiens_compte(self, compte_id: int, user_id: int, date_debut: str = None, date_fin: str = None) -> List[Dict]:
+        """
+        Récupère l'évolution quotidienne des soldes d'un compte,
+        en remplissant les jours sans transaction par le solde du jour précédent.
+        """
         try:
             with self.db.get_cursor() as cursor:
-                # Vérifier l'appartenance
+                
+                # 1. Vérification d'appartenance (simplifiée)
                 cursor.execute("SELECT id, solde_initial FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", (compte_id, user_id))
                 row = cursor.fetchone()
-                row_id = row['id']
-                logging.info(f"Vérification appartenance compte {compte_id} à user {user_id}: {'trouvé' if row else 'non trouvé'}: row_id {row['id'] if row else 'N/A'} / solde_initial {row['solde_initial'] if row else 'N/A'}    ")
-                if row and row_id == user_id:
-                    solde_initial = Decimal(str(row['solde_initial'] or '0.00'))
-                    logging.info(f"Vérification appartenance compte {compte_id} à user {user_id}: {'trouvé' if row else 'non trouvé'}: {row}")
                 if not row:
+                    logging.warning(f"Tentative d'accès non autorisé ou compte inexistant: compte={compte_id}, user={user_id}")
                     return []
-                logging.info(f'Vérification des formats de dates : date_debut={date_debut} (type={type(date_debut)}) / date_fin={date_fin} (type={type(date_fin)})  ')
-                debut_dt = datetime.strptime(date_debut, '%Y-%m-%d')
-                logging.info(f"Date début: {debut_dt}")
-                fin_dt = datetime.strptime(date_fin, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-                logging.info(f"Date fin: {fin_dt}")
-                current = debut_dt
-                dates = []
-                while current <= fin_dt:
-                    dates.append(current)
-                    current += timedelta(days=1)
-                #query = """
-                #SELECT 
-                #    DATE(date_transaction) as date,
-                #    solde_apres
-                #FROM transactions
-                #WHERE compte_principal_id = %s
-                #AND date_transaction BETWEEN %s AND %s
-                #AND id IN (
-                #    SELECT MAX(id)
-                #    FROM transactions
-                #    WHERE compte_principal_id = %s
-                #    AND date_transaction BETWEEN %s AND %s
-                #    GROUP BY DATE(date_transaction)
-                #)
-                #ORDER BY date
-                #"""
+                solde_initial = Decimal(str(row['solde_initial'] or '0.00'))
+                
+                # 2. Préparation des dates
+                debut_dt = datetime.strptime(date_debut, '%Y-%m-%d').date()
+                fin_dt = datetime.strptime(date_fin, '%Y-%m-%d').date() # On travaille avec des objets date simples
+                
+                # 3. Requête SQL (pour récupérer le DERNIER solde APRES transaction pour chaque jour où il y a eu une activité)
                 query = """
-                SELECT date, solde_apres
+                    SELECT date_transaction, solde_apres
                     FROM (
                         SELECT 
-                            DATE(date_transaction) as date,
+                            date_transaction,
                             solde_apres,
                             ROW_NUMBER() OVER (
                                 PARTITION BY DATE(date_transaction) 
@@ -2875,40 +2857,135 @@ class TransactionFinanciere:
                             ) as rn
                         FROM transactions
                         WHERE compte_principal_id = %s
-                           AND date_transaction >= %s
-                           AND date_transaction <= %s
+                        AND date_transaction >= %s
+                        AND date_transaction <= %s
                     ) ranked
                     WHERE rn = 1
-                    ORDER BY date;
+                    ORDER BY date_transaction;
                 """
                 cursor.execute(query, (compte_id, date_debut, date_fin))
-                return cursor.fetchall()
+                transactions_par_jour = cursor.fetchall()
+                
+                # Si aucune transaction n'est trouvée dans la période, on renvoie une liste vide (ou l'initialisation)
+                if not transactions_par_jour:
+                    return []
+                
+                # --- 4. Logique de Remplissage des Jours Manquants (Report de Solde) ---
+                
+                # Map des soldes de fin de journée pour un accès rapide
+                soldes_fin_journee = {t['date_transaction'].date(): Decimal(str(t['solde_apres'])) for t in transactions_par_jour}
+                
+                # Déterminer le solde APRES la dernière transaction AVANT date_debut
+                # C'est nécessaire pour initialiser le report sur date_debut si aucune transaction n'a eu lieu ce jour-là
+                cursor.execute("""
+                    SELECT solde_apres FROM transactions 
+                    WHERE compte_principal_id = %s AND date_transaction < %s
+                    ORDER BY date_transaction DESC, id DESC LIMIT 1
+                """, (compte_id, date_debut))
+                solde_initial_report = Decimal(str(cursor.fetchone()['solde_apres'])) if cursor.rowcount else solde_initial
+                
+                jours_complets = []
+                current_solde = solde_initial_report
+                current_date = debut_dt
+                
+                while current_date <= fin_dt:
+                    # 1. Si une transaction a eu lieu ce jour, utiliser le solde de fin de journée
+                    if current_date in soldes_fin_journee:
+                        current_solde = soldes_fin_journee[current_date]
+                    # 2. Sinon (jour sans transaction), le solde est simplement reporté (current_solde est inchangé)
+                    
+                    jours_complets.append({
+                        'date': current_date,
+                        'solde_apres': float(current_solde) # Convertir en float pour l'utilisation dans la vue
+                    })
+                    
+                    current_date += timedelta(days=1)
+                    
+                return jours_complets
+                
         except Exception as e:
             logging.error(f"Erreur récupération évolution soldes compte: {e}")
             return []
+        
 
     def get_evolution_soldes_quotidiens_sous_compte(self, sous_compte_id: int, user_id: int, nb_jours: int = 30) -> List[Dict]:
-        """Récupère l'évolution quotidienne des soldes d'un sous-compte"""
+        """
+        Récupère l'évolution quotidienne des soldes d'un sous-compte,
+        en remplissant les jours sans transaction par le solde du jour précédent.
+        """
         try:
             with self.db.get_cursor() as cursor:
+                
+                # --- 1. Définition de la période ---
+                date_fin_dt = date.today()
+                date_debut_dt = date_fin_dt - timedelta(days=nb_jours - 1)
+                
+                # Conversion au format string pour la requête SQL
+                date_debut_str = date_debut_dt.strftime('%Y-%m-%d')
+                date_fin_str = date_fin_dt.strftime('%Y-%m-%d')
+                
+                # NOTE: Il faudrait idéalement une vérification d'appartenance du sous-compte au user_id ici.
+
+                # --- 2. Requête SQL (Récupération des soldes de fin de journée pour les jours AVEC transaction) ---
+                
+                # Nous utilisons la méthode ROW_NUMBER() plus moderne comme dans la version compte principal
                 query = """
-                SELECT 
-                    DATE(date_transaction) as date,
-                    solde_apres
-                FROM transactions
-                WHERE sous_compte_id = %s
-                AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-                AND id IN (
-                    SELECT MAX(id)
-                    FROM transactions
-                    WHERE sous_compte_id = %s
-                    AND date_transaction >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-                    GROUP BY DATE(date_transaction)
-                )
-                ORDER BY date
+                    SELECT date_transaction, solde_apres
+                    FROM (
+                        SELECT 
+                            date_transaction,
+                            solde_apres,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY DATE(date_transaction) 
+                                ORDER BY id DESC
+                            ) as rn
+                        FROM transactions
+                        WHERE sous_compte_id = %s
+                        AND date_transaction >= %s
+                        AND date_transaction <= %s
+                    ) ranked
+                    WHERE rn = 1
+                    ORDER BY date_transaction;
                 """
-                cursor.execute(query, (sous_compte_id, nb_jours, sous_compte_id, nb_jours))
-                return cursor.fetchall()
+                cursor.execute(query, (sous_compte_id, date_debut_str, date_fin_str))
+                transactions_par_jour = cursor.fetchall()
+                
+                if not transactions_par_jour:
+                    return []
+                
+                # --- 3. Logique de Remplissage des Jours Manquants (Report de Solde) ---
+                
+                soldes_fin_journee = {t['date_transaction'].date(): Decimal(str(t['solde_apres'])) for t in transactions_par_jour}
+                
+                # Déterminer le solde APRES la dernière transaction AVANT date_debut
+                cursor.execute("""
+                    SELECT solde_apres FROM transactions 
+                    WHERE sous_compte_id = %s AND date_transaction < %s
+                    ORDER BY date_transaction DESC, id DESC LIMIT 1
+                """, (sous_compte_id, date_debut_str))
+                
+                # Dans un sous-compte, on part souvent de 0.0 si aucune transaction passée n'est trouvée.
+                solde_initial_report = Decimal(str(cursor.fetchone()['solde_apres'])) if cursor.rowcount else Decimal('0.00') 
+                
+                jours_complets = []
+                current_solde = solde_initial_report
+                current_date = date_debut_dt
+                
+                while current_date <= date_fin_dt:
+                    if current_date in soldes_fin_journee:
+                        # Mise à jour avec le solde réel de fin de journée
+                        current_solde = soldes_fin_journee[current_date]
+                    # Sinon, le solde est reporté (current_solde reste inchangé)
+                    
+                    jours_complets.append({
+                        'date': current_date,
+                        'solde_apres': float(current_solde)
+                    })
+                    
+                    current_date += timedelta(days=1)
+                    
+                return jours_complets
+                
         except Exception as e:
             logging.error(f"Erreur récupération évolution soldes sous-compte: {e}")
             return []

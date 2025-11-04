@@ -437,6 +437,7 @@ def banking_compte_detail(compte_id):
     nb_jours_periode = (fin - debut).days
     transferts_externes_pending = g.models.transaction_financiere_model.get_transferts_externes_pending(user_id)
     
+    # Appel de la fonction (inchangé, car elle gère maintenant le report de solde)
     soldes_quotidiens = g.models.transaction_financiere_model.get_evolution_soldes_quotidiens_compte(
         compte_id=compte_id, 
         user_id=user_id, 
@@ -448,18 +449,27 @@ def banking_compte_detail(compte_id):
     largeur_svg = 800
     hauteur_svg = 400
     graphique_svg = None
-    
+
     if soldes_quotidiens:
-        soldes_values = [float(s['solde_apres']) for s in soldes_quotidiens]
+        soldes_values = [s['solde_apres'] for s in soldes_quotidiens] # Les valeurs sont déjà des floats
         min_solde = min(soldes_values) if soldes_values else 0.0
         max_solde = max(soldes_values) if soldes_values else 0.0
 
+        # --- Optimisation de la Marge Y (Sauf si déjà fait dans le modèle) ---
         if min_solde == max_solde:
             if min_solde == 0:
-                max_solde = 100.0
+                min_solde = -50.0  # Marge par défaut autour de zéro
+                max_solde = 50.0
             else:
-                min_solde *= 0.9
-                max_solde *= 1.1
+                y_padding = abs(min_solde) * 0.1
+                min_solde -= y_padding
+                max_solde += y_padding
+        else:
+            # Ajout d'une marge visuelle de 5% de l'amplitude pour les cas normaux
+            y_padding = (max_solde - min_solde) * 0.05
+            min_solde -= y_padding
+            max_solde += y_padding
+        # -------------------------------------------------------------------
 
         n = len(soldes_quotidiens)
         points = []
@@ -467,17 +477,30 @@ def banking_compte_detail(compte_id):
         margin_y = hauteur_svg * 0.1
         plot_width = largeur_svg * 0.8
         plot_height = hauteur_svg * 0.8
+        
+        # Précalcul des intervalles X et de l'amplitude Y pour la performance
+        x_interval = plot_width / (n - 1) if n > 1 else 0
+        solde_range = max_solde - min_solde
 
         for i, solde in enumerate(soldes_quotidiens):
-            solde_float = float(solde['solde_apres'])
-            x = margin_x + (i / (n - 1)) * plot_width if n > 1 else margin_x + plot_width / 2
-            y = margin_y + plot_height - ((solde_float - min_solde) / (max_solde - min_solde)) * plot_height if max_solde != min_solde else margin_y + plot_height / 2
+            solde_float = solde['solde_apres']
+            
+            # Position X (Simplifiée)
+            x = margin_x + i * x_interval if n > 1 else margin_x + plot_width / 2
+            
+            # Position Y
+            if solde_range != 0:
+                y = margin_y + plot_height - ((solde_float - min_solde) / solde_range) * plot_height
+            else:
+                y = margin_y + plot_height / 2
+                
             points.append(f"{x},{y}")
 
         graphique_svg = {
             'points': points,
             'min_solde': min_solde,
             'max_solde': max_solde,
+            # 'date' est un objet date, pas besoin de float()
             'dates': [s['date'].strftime('%d/%m/%Y') for s in soldes_quotidiens],
             'soldes': soldes_values,
             'nb_points': n,
@@ -3284,21 +3307,67 @@ def delete_ecriture(ecriture_id):
     return redirect(url_for('banking.liste_ecritures'))
 
 # Ajouter une route pour lier une transaction à une écriture
-@bp.route('/banking/link_transaction', methods=['POST'])
+@bp.route('/banking/link_transaction_to_ecritures', methods=['POST'])
 @login_required
-def link_transaction_to_ecriture():
-    transaction_id = request.form.get('transaction_id')
-    ecriture_id = request.form.get('ecriture_id')
-    transaction = g.models.transaction_financiere_model.get_by_id(transaction_id)
-    if not transaction or transaction['utilisateur_id'] != current_user.id:
-        flash('Transaction non trouvée ou non autorisée', 'danger')
-        return redirect(url_for('banking.banking_dashboard'))
-    if g.models.transaction_financiere_model.link_to_ecriture(transaction_id, ecriture_id):
-        flash('Transaction liée avec succès', 'success')
-    else:
-        flash('Erreur lors du lien', 'danger')
-    return redirect(url_for('banking.banking_compte_detail', compte_id=transaction['compte_principal_id']))
+def link_transaction_to_ecritures():
+    transaction_id = request.form.get('transaction_id', type=int)
+    ecriture_ids = request.form.getlist('ecriture_ids')  # Liste d'IDs
 
+    # Vérifier la transaction
+    transaction = g.models.transaction_financiere_model.get_transaction_by_id(transaction_id)
+    if not transaction or transaction['owner_user_id'] != current_user.id:
+        flash("Transaction non trouvée ou non autorisée", "danger")
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Lier chaque écriture
+    success_count = 0
+    for eid in ecriture_ids:
+        if g.models.ecriture_comptable_model.link_to_transaction(int(eid), transaction_id, current_user.id):
+            success_count += 1
+
+    flash(f"{success_count} écriture(s) liée(s) à la transaction.", "success")
+    return redirect(url_for('banking.banking_compte_detail', compte_id=transaction['compte_principal_id'] or transaction['sous_compte_id']))
+
+def get_total_ecritures_for_transaction(self, transaction_id: int, user_id: int) -> Decimal:
+    with self.db.get_cursor() as cursor:
+        cursor.execute("""
+            SELECT SUM(montant) as total
+            FROM ecritures_comptables
+            WHERE transaction_id = %s AND utilisateur_id = %s
+        """, (transaction_id, user_id))
+        row = cursor.fetchone()
+        return Decimal(str(row['total'])) if row and row['total'] else Decimal('0')
+
+def get_ecritures_by_transaction(self, transaction_id: int, user_id: int) -> List[Dict]:
+    with self.db.get_cursor() as cursor:
+        cursor.execute("""
+            SELECT e.*
+            FROM ecritures_comptables e
+            WHERE e.transaction_id = %s AND e.utilisateur_id = %s
+            ORDER BY e.date_ecriture
+        """, (transaction_id, user_id))
+        return cursor.fetchall()
+    
+@bp.route('/banking/unlink_ecriture', methods=['POST'])
+@login_required
+def unlink_ecriture():
+    ecriture_id = request.form.get('ecriture_id', type=int)
+    if g.models.ecriture_comptable_model.unlink_from_transaction(ecriture_id, current_user.id):
+        flash("Lien supprimé avec succès.", "success")
+    else:
+        flash("Impossible de supprimer le lien.", "danger")
+    return redirect(request.referrer or url_for('dashboard'))
+
+@bp.route('/banking/relink_ecriture', methods=['POST'])
+@login_required
+def relink_ecriture():
+    ecriture_id = request.form.get('ecriture_id', type=int)
+    new_transaction_id = request.form.get('new_transaction_id', type=int)
+    if g.models.ecriture_comptable_model.link_ecriture_to_transaction(ecriture_id, new_transaction_id, current_user.id):
+        flash("Écriture reliée à la nouvelle transaction.", "success")
+    else:
+        flash("Erreur lors du changement de lien.", "danger")
+    return redirect(request.referrer or url_for('banking.banking_dashboard'))
 
 @bp.route('/test-compte-resultat')
 @login_required
