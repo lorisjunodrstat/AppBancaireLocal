@@ -979,6 +979,11 @@
 
 {% block scripts %}
 <script>
+    $(function () {
+            $('[data-toggle="popover"]').popover()
+        })
+</script>
+<script>
     // Scripts pour initialiser les graphiques Chart.js
     document.addEventListener('DOMContentLoaded', function () {
         // Graphique de répartition des soldes
