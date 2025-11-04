@@ -20,44 +20,37 @@
     }
     /* 1. Cacher la checkbox qui gère l'état (inchangé) */
     .popover-toggle {
-    display: none;
+        display: none;
     }
 
-    /* 2. Stylisation de la bulle (le contenu du popover) (inchangé) */
+    /* 2. Nouveau Conteneur : Gère la position relative pour le popover */
+    .popover-wrapper {
+        position: relative;
+        display: inline-block; /* Pour qu'il s'aligne dans le d-flex */
+    }
+
+    /* 3. Stylisation de la bulle (le contenu du popover) */
     .popover-content {
         display: none; /* Cache la bulle par défaut */
         position: absolute;
-        top: 100%; 
+        /* Configuration du placement "top" */
+        bottom: 100%; 
         left: 50%;
         transform: translateX(-50%);
         width: 250px;
         padding: 10px;
-        margin-top: 5px;
+        margin-bottom: 5px; /* Marge vers le haut */
         background-color: #333;
         color: white;
         border-radius: .3rem;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-        z-index: 10;
+        z-index: 1000; /* Assure qu'il est au-dessus du reste */
     }
 
-    /* 3. L'astuce CSS pour afficher le popover (inchangé) */
-    .popover-toggle:checked ~ .popover-container .popover-content {
+    /* 4. L'astuce CSS : si la checkbox est cochée, afficher le contenu */
+    /* Le sélecteur cible le .popover-content qui suit le .popover-toggle */
+    .popover-toggle:checked ~ .popover-content { 
         display: block;
-    }
-
-    /* 4. Conteneur pour positionner le popover (inchangé) */
-    .popover-container {
-        position: relative;
-        display: inline-block;
-        /* Important: Pour que le conteneur soit au même niveau que l'autre bouton */
-        margin-right: 10px; /* Ajout d'une petite marge pour séparer les boutons */
-    }
-
-    /* 5. Simuler le placement "top" (inchangé) */
-    .popover-toggle:checked ~ .popover-container .popover-content.top {
-        bottom: 100%;
-        top: auto;
-        margin-bottom: 5px;
     }
 </style>
 {% endblock %}
@@ -125,22 +118,23 @@
                         
                             <div class="d-flex align-items-center">
                         
-                                <div class="popover-container">
+                                <div class="popover-wrapper">
+                        
                                     <input type="checkbox" id="info-popover" class="popover-toggle">
                         
-                                    <label for="info-popover" class="btn **btn-sm** btn-info popover-trigger">
-                                        <i class="fas fa-info-circle me-2 **fs-6**"></i>
+                                    <label for="info-popover" class="btn btn-sm btn-info popover-trigger">
+                                        <i class="fas fa-info-circle me-2 fs-6"></i>
                                     </label>
                         
                                     <div class="popover-content top">
                                         <h6>Popover title</h6>
                                         Si les soldes de votre compte semblent incohérents, vous pouvez forcer un recalcul complet.
                                     </div>
-                                </div>
                         
+                                </div>
                                 <form method="POST" action="{{ url_for('banking.reparer_soldes_compte', compte_id=compte.id) }}"
                                     onsubmit='return confirm("Êtes-vous sûr de vouloir recalculer tous les soldes de ce compte ? Cette opération est sans risque mais peut prendre quelques secondes.");'
-                                    class="d-inline-block m-0"> <button type="submit" class="btn btn-danger">
+                                    class="d-inline-block m-0 ms-2"> <button type="submit" class="btn btn-danger">
                                         <i class="bi bi-arrow-clockwise"></i> Réparer les soldes
                                     </button>
                                 </form>
