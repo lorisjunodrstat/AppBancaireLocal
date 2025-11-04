@@ -94,7 +94,9 @@
                         </div>
                         <div class="alert alert-warning" role="alert">
                             <h5><i class="bi bi-tools"></i> Outils de maintenance</h5>
-                            <p>Si les soldes de votre compte semblent incohérents, vous pouvez forcer un recalcul complet.</p>
+                            <button type="button" class="btn btn-lg btn-danger" data-toggle="popover" title="Popover title"
+                                data-content="Si les soldes de votre compte semblent incohérents, vous pouvez forcer un recalcul complet."><i class="fas fa-info-circle me-2"></i></button>
+                            <p></p>
                             <form method="POST" action="{{ url_for('banking.reparer_soldes_compte', compte_id=compte.id) }}"
                                 onsubmit='return confirm("Êtes-vous sûr de vouloir recalculer tous les soldes de ce compte ? Cette opération est sans risque mais peut prendre quelques secondes.");'>
                                 <button type="submit" class="btn btn-danger">
