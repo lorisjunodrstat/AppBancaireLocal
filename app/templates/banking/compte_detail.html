@@ -143,18 +143,19 @@
                                 <label for="info-popover" class="btn btn-lg btn-info popover-trigger">
                                     <i class="fas fa-info-circle me-2"></i>
                                 </label>
-                                <form method="POST" action="{{ url_for('banking.reparer_soldes_compte', compte_id=compte.id) }}"
-                                    onsubmit='return confirm("Êtes-vous sûr de vouloir recalculer tous les soldes de ce compte ? Cette opération est sans risque mais peut prendre quelques secondes.");'>
-                                    <button type="submit" class="btn btn-danger">
-                                        <i class="bi bi-arrow-clockwise"></i> Réparer les soldes
-                                    </button>
-                                </form>
                                 <div class="popover-container">
                                     <div class="popover-content top">
                                         <h6>Popover title</h6>
                                         Si les soldes de votre compte semblent incohérents, vous pouvez forcer un recalcul complet.
                                     </div>
                                 </div>
+                                <form method="POST" action="{{ url_for('banking.reparer_soldes_compte', compte_id=compte.id) }}"
+                                    onsubmit='return confirm("Êtes-vous sûr de vouloir recalculer tous les soldes de ce compte ? Cette opération est sans risque mais peut prendre quelques secondes.");'>
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="bi bi-arrow-clockwise"></i> Réparer les soldes
+                                    </button>
+                                </form>
+                                
                             </div>
                         </div>
                     </div>
