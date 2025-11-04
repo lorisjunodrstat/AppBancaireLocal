@@ -7,6 +7,9 @@
         <a href="{{ url_for('banking.liste_contacts_comptables') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Retour aux contacts
         </a>
+        <a href="{{ url_for('banking.transactions_by_contact_and_compte', compte_id=compte.id, contact_id=contact.id) }}">
+            Voir les transactions sur {{ compte.nom_compte }}
+        </a>
     </div>
 
     <div class="table-responsive">
