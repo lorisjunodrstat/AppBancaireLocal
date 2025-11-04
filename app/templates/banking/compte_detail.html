@@ -1020,67 +1020,9 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    $(function () {
-            $('[data-toggle="popover"]').popover()
-        })
-</script>
-<script>
-    // Scripts pour initialiser les graphiques Chart.js
-    document.addEventListener('DOMContentLoaded', function () {
-        // Graphique de répartition des soldes
-        var ctxRepartition = document.getElementById('chartRepartition').getContext('2d');
-        var chartRepartition = new Chart(ctxRepartition, {
-            type: 'pie',
-            data: {
-                labels: ['Solde principal', 'Épargnes'],
-                datasets: [{
-                    data: [{{ compte.solde }}, {{ solde_total - compte.solde }}],
-                    backgroundColor: [
-                        '{{ compte.couleur_banque }}',
-                        '#28a745'
-                    ]
-                }]
-            },
-        options: {
-        responsive: true,
-        maintainAspectRatio: false
-    }
-        });
 
-    // Graphique de trésorerie
-    var ctxTresorerie = document.getElementById('chartTresorerie').getContext('2d');
-    var chartTresorerie = new Chart(ctxTresorerie, {
-        type: 'bar',
-        data: {
-            labels: ['Recettes', 'Dépenses'],
-            datasets: [{
-                label: 'Montant',
-                data: [{{ total_recettes }}, {{ total_depenses }}],
-        backgroundColor: [
-            'rgba(40, 167, 69, 0.7)',
-            'rgba(220, 53, 69, 0.7)'
-        ],
-        borderColor: [
-            'rgba(40, 167, 69, 1)',
-            'rgba(220, 53, 69, 1)'
-        ],
-        borderWidth: 1
-    }]
-        },
-    options: {
-        responsive: true,
-            maintainAspectRatio: false,
-                scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
-    }
-    });
-    });
-
-    // Fonctions pour les transferts rapides
+<script>
+        // Fonctions pour les transferts rapides
     function transfertRapide(compteId, sousCompteId) {
         // Implémentation de la fonction de transfert rapide
         console.log("Transfert rapide depuis le compte " + compteId + " vers le sous-compte " + sousCompteId);
