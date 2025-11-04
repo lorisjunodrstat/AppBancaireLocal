@@ -3328,25 +3328,6 @@ def link_transaction_to_ecritures():
     flash(f"{success_count} écriture(s) liée(s) à la transaction.", "success")
     return redirect(url_for('banking.banking_compte_detail', compte_id=transaction['compte_principal_id'] or transaction['sous_compte_id']))
 
-def get_total_ecritures_for_transaction(self, transaction_id: int, user_id: int) -> Decimal:
-    with self.db.get_cursor() as cursor:
-        cursor.execute("""
-            SELECT SUM(montant) as total
-            FROM ecritures_comptables
-            WHERE transaction_id = %s AND utilisateur_id = %s
-        """, (transaction_id, user_id))
-        row = cursor.fetchone()
-        return Decimal(str(row['total'])) if row and row['total'] else Decimal('0')
-
-def get_ecritures_by_transaction(self, transaction_id: int, user_id: int) -> List[Dict]:
-    with self.db.get_cursor() as cursor:
-        cursor.execute("""
-            SELECT e.*
-            FROM ecritures_comptables e
-            WHERE e.transaction_id = %s AND e.utilisateur_id = %s
-            ORDER BY e.date_ecriture
-        """, (transaction_id, user_id))
-        return cursor.fetchall()
     
 @bp.route('/banking/unlink_ecriture', methods=['POST'])
 @login_required
