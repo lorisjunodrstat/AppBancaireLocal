@@ -120,7 +120,7 @@ class DatabaseManager:
         logging.info("Vérification et création des tables de la base de données...")
         try:
             # Utilisation du gestionnaire de contexte pour la création des tables.
-            with self.db.get_cursor() as cursor:
+            with self.get_cursor() as cursor:
                 
                 # Table utilisateurs
                 create_users_table_query = """
