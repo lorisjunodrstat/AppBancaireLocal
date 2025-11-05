@@ -4978,7 +4978,7 @@ class Contacts:
             return []
 
 class ContactCompte:
-    def __init__(self):
+    def __init__(self, db):
         self.db = db
 
     def link_to_compte(self, contact_id: int, compte_id: int, utilisateur_id: int) -> bool:
