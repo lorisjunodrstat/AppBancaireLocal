@@ -3315,7 +3315,8 @@ def edit_ecriture(ecriture_id):
     if show_modal and ecriture.get('id_contact'):
         contact = g.models.contact_model.get_by_id(ecriture['id_contact'], current_user.id)
         if contact:
-            comptes_lies = g.models.contact_compte_model.get_comptes_for_contact(ecriture['id_contact'], current_user.id)    if request.method == 'POST':
+            comptes_lies = g.models.contact_compte_model.get_comptes_for_contact(ecriture['id_contact'], current_user.id)    
+    if request.method == 'POST':
         try:
             id_contact_str = request.form.get('id_contact', '')
             id_contact = int(id_contact_str) if id_contact_str.strip() else None
