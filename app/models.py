@@ -6938,7 +6938,7 @@ class ModelManager:
     def __init__(self, db):
         self.db = db
         self.banque_model = Banque(self.db)
-        self.user_model = Utilisateur(self.db)
+       #self.user_model = Utilisateur(self.db)
         self.periode_favorite_model = PeriodeFavorite(self.db)
         self.compte_model = ComptePrincipal(self.db)
         self.compte__principal_rapport_model = ComptePrincipalRapport(self.db)
