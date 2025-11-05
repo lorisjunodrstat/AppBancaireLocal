@@ -936,7 +936,7 @@ class ComptePrincipal:
             return []
 
 class ComptePrincipalRapport:
-    def __imit__(self, db):
+    def __init__(self, db):
         self.db = db
     def create_rapport_mensuel(self, compte_principal_id:int) ->List[Dict]:
         """Crée un rapport mensuel d'un compte principal"""
