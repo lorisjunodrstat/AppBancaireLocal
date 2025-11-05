@@ -134,6 +134,7 @@ class DatabaseManager:
                 );
                 """
                 cursor.execute(create_users_table_query)
+                
                 # Table PeriodeFavorite
                 create_periode_favorite_table_query = """
                 CREATE TABLE IF NOT EXISTS periode_favorite (
@@ -6950,6 +6951,7 @@ class ModelManager:
         self.categorie_comptable_model = CategorieComptable(self.db)
         self.contact_model = Contacts(self.db)
         self.contact_compte_model = ContactCompte(self.db)
+        self.contact_plan_model = ContactPlan(self.db)
         self.heure_model = HeureTravail(self.db)
         self.salaire_model = Salaire(self.db, self.heure_model)
         self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
