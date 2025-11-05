@@ -1,0 +1,43 @@
+<!-- Modal de liaison écriture ↔ transaction -->
+<div class="modal fade" id="modalLinkTransaction" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Lier l'écriture à une transaction</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Écriture :</strong> <span id="modal-ecriture-desc"></span></p>
+        <input type="hidden" id="modal-ecriture-id" name="ecriture_id">
+        <form id="form-link-transaction" method="POST" action="{{ url_for('banking.relink_ecriture') }}">
+          <input type="hidden" name="ecriture_id" id="form-ecriture-id">
+          <div class="mb-3">
+            <label class="form-label">Sélectionner une transaction</label>
+            <select class="form-select" name="new_transaction_id" required>
+              <option value="">-- Choisir une transaction --</option>
+              {% for tx in transactions_eligibles or [] %}
+              <option value="{{ tx.id }}">
+                {{ tx.date_transaction.strftime('%d.%m.%Y') }} – 
+                {{ tx.description or tx.reference or '–' }} – 
+                {{ "%.2f"|format(tx.montant) }} CHF
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Lier à cette transaction</button>
+        </form>
+        {% if current_ecriture_transaction_id %}
+        <div class="mt-3">
+          <form method="POST" action="{{ url_for('banking.unlink_ecriture') }}" style="display:inline;">
+            <input type="hidden" name="ecriture_id" value="{{ current_ecriture_id }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger"
+                    onclick="return confirm('Confirmer la suppression du lien ?')">
+              <i class="fas fa-unlink"></i> Délier de la transaction #{{ current_ecriture_transaction_id }}
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

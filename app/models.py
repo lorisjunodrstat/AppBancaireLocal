@@ -272,8 +272,40 @@ class DatabaseManager:
                 );
                 """
                 cursor.execute(create_categories_table_query)
+                
+                # Table contacts
+                create_contacts_table_query = """
+                CREATE TABLE IF NOT EXISTS contacts (
+                    id_contact INT AUTO_INCREMENT PRIMARY KEY,
+                    nom VARCHAR(255) NOT NULL,
+                    email VARCHAR(255),
+                    telephone VARCHAR(20),
+                    adresse TEXT,
+                    code_postal VARCHAR(10),
+                    ville VARCHAR(100),
+                    pays VARCHAR(100),
+                    utilisateur_id INT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
+                );
+                """
+                cursor.execute(create_contacts_table_query)
+                
 
-                # Table ecritures_comptables
+                # Table contact plan
+                create_contact_plans_table_query = """
+                CREATE TABLE IF NOT EXISTS contact_plans(
+                contact_id INT NOT NULL,
+                plan_id INT NOT NULL,
+                PRIMARY KEY (contact_id, plan_id),
+                FOREIGN KEY (contact_id) REFERENCES contacts(id_contact) ON DELETE CASCADE,
+                FOREIGN KEY (plan_id) REFERENCES plans_comptables(id) ON DELETE CASCADE
+                )
+                """
+                cursor.execute(create_contact_plans_table_query)
+                
+
+                #Table ecritures_comptables
                 create_ecritures_table_query = """
                 CREATE TABLE IF NOT EXISTS ecritures_comptables (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -302,25 +334,58 @@ class DatabaseManager:
                 );
                 """
                 cursor.execute(create_ecritures_table_query)
-
-                # Table contacts
-                create_contacts_table_query = """
-                CREATE TABLE IF NOT EXISTS contacts (
-                    id_contact INT AUTO_INCREMENT PRIMARY KEY,
-                    nom VARCHAR(255) NOT NULL,
-                    email VARCHAR(255),
-                    telephone VARCHAR(20),
-                    adresse TEXT,
-                    code_postal VARCHAR(10),
-                    ville VARCHAR(100),
-                    pays VARCHAR(100),
+                
+                # Table Plan comptable
+                create_plan_comptable_table_query = """
+                CREATE TABLE IF NOT EXISTS plans_comptables (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nom VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    devise VARCHAR(3) DEFAULT 'CHF',
                     utilisateur_id INT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
+                    actif TINYINT(1) DEFAULT 1,
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE
                 );
                 """
-                cursor.execute(create_contacts_table_query)
+                cursor.execute(create_plan_comptable_table_query)
+                
+                # Table plan_category
+                create_plan_categorie_table_query = """
+                CREATE TABLE IF NOT EXISTS plan_categorie (
+                    plan_id INT NOT NULL,
+                    categorie_id INT NOT NULL,
+                    PRIMARY KEY (plan_id, categorie_id),
+                    FOREIGN KEY (plan_id) REFERENCES plans_comptables(id) ON DELETE CASCADE,
+                    FOREIGN KEY (categorie_id) REFERENCES categories_comptables(id) ON DELETE CASCADE
+                );
+                """
+                cursor.execute(create_plan_categorie_table_query)
 
+                
+                # Table contactCompte
+                create_contact_compte_table_query = """
+                CREATE TABLE IF NOT EXISTS contact_comptes (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    contact_id INT NOT NULL,
+                    compte_id INT NOT NULL,
+                    utilisateur_id INT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    
+                    -- Clés étrangères
+                    FOREIGN KEY (contact_id) REFERENCES contacts(id_contact) ON DELETE CASCADE,
+                    FOREIGN KEY (compte_id) REFERENCES comptes_principaux(id) ON DELETE CASCADE,
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
+                    
+                    -- Contrainte d'unicité : un utilisateur ne peut lier un contact à un compte qu'une seule fois
+                    UNIQUE KEY unique_contact_compte_user (contact_id, compte_id, utilisateur_id),
+                    
+                    -- Index pour les recherches fréquentes
+                    INDEX idx_contact_user (contact_id, utilisateur_id),
+                    INDEX idx_compte_user (compte_id, utilisateur_id)
+                );
+                """
+                cursor.execute(create_contact_compte_table_query)
+                
                 # Table parametres_utilisateur
                 create_parametres_table_query = """
                 CREATE TABLE IF NOT EXISTS parametres_utilisateur (
@@ -868,6 +933,19 @@ class ComptePrincipal:
         except Error as e:
             logging.error(f"Erreur SQL: {e}")
             return []
+
+class ComptePrincipalRapport:
+    def __imit__(self, db):
+        self.db = db
+    def create_rapport_mensuel(self, compte_principal_id:int) ->List[Dict]:
+        """Crée un rapport mensuel d'un compte principal"""
+        #try:
+        #    with self.db.get_cursor() as cursor:
+        #        query = """
+        #        SELECT
+        #            id, nom_compte
+        #        """
+        pass
 
 class SousCompte:
     """Modèle pour les sous-comptes d'épargne"""
@@ -1871,9 +1949,18 @@ class TransactionFinanciere:
         
         try:
             with self.db.get_cursor(dictionary=True, commit=True) as cursor:
+                compte_destination_id = None
+                sous_compte_destinatin_id = None
+
+                if compte_type == 'compte_principal':
+                    compte_destination_id = compte_id
+                elif compte_type == 'sous_compte':
+                    sous_compte_destination_id = compte_id
                 success, message, _ = self._inserer_transaction_with_cursor(
                     cursor, compte_type, compte_id, 'depot', montant, 
-                    description, user_id, date_transaction, False
+                    description, user_id, date_transaction, False, 
+                    compte_destination_id=compte_destination_id, 
+                    sous_compte_destination_id=sous_compte_destinatin_id
                 )
                 return success, message
         except Exception as e:
@@ -2074,8 +2161,9 @@ class TransactionFinanciere:
         return sous_compte is not None and sous_compte['compte_principal_id'] == compte_principal_id
         
     def _inserer_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, type_transaction: str, 
-                        montant: Decimal, description: str, user_id: int, 
-                        date_transaction: datetime, validate_balance: bool = True, reference_transfert: str = None) -> Tuple[bool, str, Optional[int]]:
+                    montant: Decimal, description: str, user_id: int, 
+                    date_transaction: datetime, validate_balance: bool = True, reference_transfert: str = None,
+                    compte_destination_id: int = None, sous_compte_destination_id: int = None) -> Tuple[bool, str, Optional[int]]:
         """
         Insère une transaction dans la base de données et met à jour les soldes.
         """
@@ -2115,29 +2203,50 @@ class TransactionFinanciere:
                     solde_apres = solde_avant + montant   # Crédit sur le compte principal
             else:
                 return False, f"Type de transaction non reconnu: {type_transaction}", None
+            
             if reference_transfert is None:
                 reference_transfert = f"TRF_{int(time.time())}_{user_id}_{secrets.token_hex(6)}"
-            # Insérer la transaction
+            
+            # Déterminer les IDs source et destination
+            compte_principal_id = None
+            sous_compte_id = None
+            compte_source_id = None
+            sous_compte_source_id = None
+            
+            # Pour les colonnes source
             if compte_type == 'compte_principal':
-                query = """
-                INSERT INTO transactions 
-                (compte_principal_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres, reference_transfert)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """
-                cursor.execute(query, (compte_id, type_transaction, montant, 
-                                    description, user_id, date_transaction, solde_apres, reference_transfert))
-                #cursor.execute(query, (compte_id, type_transaction, float(montant), description, user_id, date_transaction, float(solde_apres), reference_transfert))
-
-            else:
-                query = """
-                INSERT INTO transactions 
-                (sous_compte_id, type_transaction, montant, description, utilisateur_id, date_transaction, solde_apres, reference_transfert)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """
-                cursor.execute(query, (compte_id, type_transaction, montant, 
-                                    description, user_id, date_transaction, solde_apres, reference_transfert))
-    #cursor.execute(query, (compte_id, type_transaction, float(montant), description, user_id, date_transaction, float(solde_apres), reference_transfert))
-
+                compte_principal_id = compte_id
+                compte_source_id = compte_id
+            else:  # sous_compte
+                sous_compte_id = compte_id
+                sous_compte_source_id = compte_id
+            
+            # Pour les colonnes destination - si non fournies, utiliser les mêmes que la source pour les dépôts
+            if compte_destination_id is None and sous_compte_destination_id is None:
+                if type_transaction == 'depot':
+                    # Pour un dépôt, la destination est le même compte
+                    if compte_type == 'compte_principal':
+                        compte_destination_id = compte_id
+                    else:
+                        sous_compte_destination_id = compte_id
+            
+            # Insérer la transaction avec toutes les colonnes
+            query = """
+            INSERT INTO transactions_financieres 
+            (compte_principal_id, sous_compte_id, type_transaction, montant, description, 
+            utilisateur_id, date_transaction, solde_apres, reference_transfert,
+            compte_destination_id, sous_compte_destination_id,
+            compte_source_id, sous_compte_source_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            
+            cursor.execute(query, (
+                compte_principal_id, sous_compte_id, type_transaction, float(montant), 
+                description, user_id, date_transaction, float(solde_apres), reference_transfert,
+                compte_destination_id, sous_compte_destination_id,
+                compte_source_id, sous_compte_source_id
+            ))
+            
             transaction_id = cursor.lastrowid
             
             # Mettre à jour les transactions suivantes
@@ -2154,8 +2263,8 @@ class TransactionFinanciere:
             
         except Exception as e:
             logging.error(f"Erreur lors de l'insertion de la transaction: {e}", exc_info=True)
-            return False, f"Erreur lors de l'insertion: {str(e)}", None
-        
+            return False, f"Erreur lors de l'insertion: {str(e)}", None 
+    
     def _get_previous_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, date_transaction: datetime) -> Optional[tuple]:
         """
         Trouve la transaction précédente la plus proche pour un compte donné.
@@ -2821,8 +2930,6 @@ class TransactionFinanciere:
             logging.error(f"Erreur annulation transfert externe: {e}")
             return False, f"Erreur lors de l'annulation: {str(e)}"
     
-
-
     def get_evolution_soldes_quotidiens_compte(self, compte_id: int, user_id: int, date_debut: str = None, date_fin: str = None) -> List[Dict]:
         """
         Récupère l'évolution quotidienne des soldes d'un compte,
@@ -3063,6 +3170,201 @@ class TransactionFinanciere:
             logging.error(f"Erreur calcul solde total: {e}")
             return Decimal('0')
         
+    def get_categories_par_type(self, compte_type: str, compte_id: int, user_id: int, date_debut: str, date_fin: str) -> Dict[str, Decimal]:
+        """
+        Récupère la répartition des transactions par catégorie pour un compte donné sur une période.
+        
+        Args:
+            compte_type (str): 'compte_principal' ou 'sous_compte'
+            compte_id (int): ID du compte
+            user_id (int): ID de l'utilisateur
+            date_debut (str): Date de début au format 'YYYY-MM-DD'
+            date_fin (str): Date de fin au format 'YYYY-MM-DD'
+        
+        Returns:
+            Dict[str, Decimal]: Dictionnaire {catégorie: montant_total}
+        """
+        mapping_categories = {
+            'depot': 'Dépôts',
+            'retrait': 'Retraits',
+            'transfert_entrant': 'Transferts entrants',
+            'transfert_sortant': 'Transferts sortants',
+            'transfert_compte_vers_sous': 'Transferts vers sous-comptes',
+            'transfert_sous_vers_compte': 'Transferts depuis sous-comptes',
+            'transfert_externe': 'Transferts externes',
+            'recredit_annulation': 'Annulations / Recrédits'
+        }
+
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier l'appartenance du compte
+                if not self._verifier_appartenance_compte_with_cursor(cursor, compte_type, compte_id, user_id):
+                    logging.warning(f"Tentative d'accès non autorisé aux catégories: user={user_id}, compte={compte_id} ({compte_type})")
+                    return {}
+
+                # Construire la condition selon le type de compte
+                if compte_type == 'compte_principal':
+                    condition_compte = "compte_principal_id = %s"
+                else:
+                    condition_compte = "sous_compte_id = %s"
+
+                query = f"""
+                SELECT 
+                    type_transaction,
+                    SUM(montant) as total
+                FROM transactions
+                WHERE {condition_compte}
+                AND date_transaction BETWEEN %s AND %s
+                GROUP BY type_transaction
+                ORDER BY total DESC
+                """
+                cursor.execute(query, (compte_id, date_debut, date_fin))
+                rows = cursor.fetchall()
+
+                result = {}
+                for row in rows:
+                    type_tx = row['type_transaction']
+                    montant = Decimal(str(row['total'] or '0'))
+
+                    # Inclure dans la catégorie correspondante
+                    cat = mapping_categories.get(type_tx, 'Autres')
+                    result[cat] = result.get(cat, Decimal('0')) + montant
+
+                return result
+
+        except Exception as e:
+            logging.error(f"Erreur dans get_categories_par_type: {e}", exc_info=True)
+            return {}
+
+    def get_categories_par_type_complet(self, user_id: int, date_debut: str, date_fin: str) -> Dict[str, Decimal]:
+        """
+        Récupère la répartition des transactions par catégorie pour **tous les comptes** de l'utilisateur.
+        """
+        mapping_categories = {
+            'depot': 'Dépôts',
+            'retrait': 'Retraits',
+            'transfert_entrant': 'Transferts entrants',
+            'transfert_sortant': 'Transferts sortants',
+            'transfert_compte_vers_sous': 'Transferts vers sous-comptes',
+            'transfert_sous_vers_compte': 'Transferts depuis sous-comptes',
+            'transfert_externe': 'Transferts externes',
+            'recredit_annulation': 'Annulations / Recrédits'
+        }
+
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT 
+                    t.type_transaction,
+                    SUM(t.montant) as total
+                FROM transactions t
+                JOIN comptes_principaux cp ON (
+                    t.compte_principal_id = cp.id 
+                    OR t.compte_principal_id IN (
+                        SELECT sc2.compte_principal_id 
+                        FROM sous_comptes sc2 
+                        WHERE sc2.id = t.sous_compte_id
+                    )
+                )
+                WHERE cp.utilisateur_id = %s
+                AND t.date_transaction BETWEEN %s AND %s
+                GROUP BY t.type_transaction
+                """
+                cursor.execute(query, (user_id, date_debut, date_fin))
+                rows = cursor.fetchall()
+
+                result = {}
+                for row in rows:
+                    type_tx = row['type_transaction']
+                    montant = Decimal(str(row['total'] or '0'))
+                    cat = mapping_categories.get(type_tx, 'Autres')
+                    result[cat] = result.get(cat, Decimal('0')) + montant
+
+                return result
+
+        except Exception as e:
+            logging.error(f"Erreur dans get_categories_par_type_complet: {e}", exc_info=True)
+            return {}
+    
+    def get_categories_par_type_sous_compte(self, sous_compte_id: int, user_id: int, date_debut: str, date_fin: str) -> Dict[str, Decimal]:
+        """
+        Récupère la répartition des transactions par catégorie pour un **sous-compte** donné.
+        """
+        mapping_categories = {
+            'transfert_compte_vers_sous': 'Crédits (compte → sous-compte)',
+            'transfert_sous_vers_compte': 'Débits (sous-compte → compte)',
+            'depot': 'Dépôts directs',
+            'retrait': 'Retraits directs',
+            # Tu peux adapter selon ce qui est pertinent pour les sous-comptes
+        }
+
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que le sous-compte appartient à l'utilisateur
+                cursor.execute("""
+                    SELECT sc.id
+                    FROM sous_comptes sc
+                    JOIN comptes_principaux cp ON sc.compte_principal_id = cp.id
+                    WHERE sc.id = %s AND cp.utilisateur_id = %s
+                """, (sous_compte_id, user_id))
+                if not cursor.fetchone():
+                    logging.warning(f"Accès refusé au sous-compte {sous_compte_id} pour user {user_id}")
+                    return {}
+
+                query = """
+                SELECT 
+                    type_transaction,
+                    SUM(montant) as total
+                FROM transactions
+                WHERE sous_compte_id = %s
+                AND date_transaction BETWEEN %s AND %s
+                GROUP BY type_transaction
+                """
+                cursor.execute(query, (sous_compte_id, date_debut, date_fin))
+                rows = cursor.fetchall()
+
+                result = {}
+                for row in rows:
+                    type_tx = row['type_transaction']
+                    montant = Decimal(str(row['total'] or '0'))
+                    cat = mapping_categories.get(type_tx, 'Autres')
+                    result[cat] = result.get(cat, Decimal('0')) + montant
+
+                return result
+
+        except Exception as e:
+            logging.error(f"Erreur dans get_categories_par_type_sous_compte: {e}", exc_info=True)
+            return {}
+
+    def get_transaction_with_ecritures_total(self, transaction_id: int, user_id: int) -> Optional[Dict]:
+        """Récupère une transaction + le total des écritures liées"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT 
+                        t.*, 
+                        COALESCE(SUM(e.montant), 0) as total_ecritures
+                    FROM transactions t
+                    LEFT JOIN ecritures_comptables e ON t.id = e.transaction_id
+                    WHERE t.id = %s
+                    GROUP BY t.id
+                """, (transaction_id,))
+                tx = cursor.fetchone()
+                if not tx:
+                    return None
+                # Vérifier propriété (sécurité)
+                if tx.get('utilisateur_id') != user_id:
+                    compte_ok = False
+                    if tx.get('compte_principal_id'):
+                        cursor.execute("SELECT utilisateur_id FROM comptes_principaux WHERE id = %s", (tx['compte_principal_id'],))
+                        row = cursor.fetchone()
+                        compte_ok = row and row['utilisateur_id'] == user_id
+                    if not compte_ok:
+                        return None
+                return tx
+        except Exception as e:
+            logging.error(f"Erreur get_transaction_with_ecritures_total: {e}")
+            return None  
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
 
@@ -3305,39 +3607,308 @@ class StatistiquesBancaires:
     
     def preparer_svg_tresorie(self, user_id: int, compte_id: int, date_debut: date, date_fin : date):
         pass
+    def preparer_graphique_solde_quotidien(self, user_id: int, compte_id: int, date_debut: date, date_fin: date) -> Optional[Dict]:
+        """Prépare les données pour un graphique SVG de l'évolution quotidienne du solde."""
+        try:
+            tx_model = TransactionFinanciere(self.db)
+            soldes = tx_model.get_evolution_soldes_quotidiens_compte(
+                compte_id=compte_id,
+                user_id=user_id,
+                date_debut=date_debut.strftime('%Y-%m-%d'),
+                date_fin=date_fin.strftime('%Y-%m-%d')
+            )
+            if not soldes:
+                return None
+
+            dates = [s['date'].strftime('%d/%m') for s in soldes]
+            valeurs = [float(s['solde_apres']) for s in soldes]
+            min_val = min(valeurs)
+            max_val = max(valeurs)
+
+            # Éviter division par zéro
+            if min_val == max_val:
+                if min_val == 0:
+                    max_val = 100.0
+                else:
+                    min_val *= 0.9
+                    max_val *= 1.1
+
+            return {
+                'type': 'line',
+                'titre': 'Évolution du solde',
+                'labels': dates,
+                'valeurs': valeurs,
+                'min': min_val,
+                'max': max_val,
+                'unite': 'CHF'
+            }
+        except Exception as e:
+            logging.error(f"Erreur préparation graphique solde quotidien: {e}")
+            return None
+    
+    def preparer_graphique_tresorerie(self, user_id: int, compte_id: int, date_debut: date, date_fin: date) -> Optional[Dict]:
+        """Prépare les données pour un graphique en barres ou camembert des recettes/dépenses."""
+        try:
+            tx_model = TransactionFinanciere(self.db)
+            stats = tx_model.get_statistiques_compte(
+                compte_type='compte_principal',
+                compte_id=compte_id,
+                user_id=user_id,
+                date_debut=date_debut.strftime('%Y-%m-%d'),
+                date_fin=date_fin.strftime('%Y-%m-%d')
+            )
+            if not stats:
+                return None
+
+            recettes = stats.get('total_entrees', 0.0)
+            depenses = stats.get('total_sorties', 0.0)
+
+            return {
+                'type': 'bar',
+                'titre': 'Trésorerie',
+                'labels': ['Recettes', 'Dépenses'],
+                'valeurs': [recettes, depenses],
+                'couleurs': ['#28a745', '#dc3545'],
+                'unite': 'CHF'
+            }
+        except Exception as e:
+            logging.error(f"Erreur préparation graphique trésorerie: {e}")
+            return None
+    
+    def preparer_graphique_tresorerie_cumulee(self, user_id: int, compte_id: int, date_debut: date, date_fin: date) -> Optional[Dict]:
+        """Prépare les données pour un graphique du solde cumulé (flux de trésorerie)."""
+        try:
+            tx_model = TransactionFinanciere(self.db)
+            # Récupérer TOUTES les transactions dans la période, triées
+            transactions = tx_model.get_historique_compte(
+                compte_type='compte_principal',
+                compte_id=compte_id,
+                user_id=user_id,
+                date_from=date_debut.strftime('%Y-%m-%d'),
+                date_to=date_fin.strftime('%Y-%m-%d'),
+                limit=1000  # assez grand
+            )
+            if not transactions:
+                return None
+
+            # Trier par date (au cas où)
+            transactions.sort(key=lambda x: x['date_transaction'])
+
+            # Récupérer le solde initial AVANT la période
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT COALESCE(solde_initial, 0) as solde_initial
+                    FROM comptes_principaux WHERE id = %s
+                """, (compte_id,))
+                row = cursor.fetchone()
+                solde_initial = float(row['solde_initial']) if row else 0.0
+
+            # Calculer le solde cumulé JOUR PAR JOUR
+            from collections import defaultdict
+            daily_net = defaultdict(float)
+            for tx in transactions:
+                date_key = tx['date_transaction'].date()
+                montant = float(tx['montant'])
+                if tx['type_transaction'] in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
+                    daily_net[date_key] += montant
+                else:
+                    daily_net[date_key] -= montant
+
+            # Générer série complète de dates
+            current = date_debut
+            dates = []
+            soldes_cumules = []
+            solde_courant = solde_initial
+
+            while current <= date_fin:
+                dates.append(current.strftime('%d/%m'))
+                if current in daily_net:
+                    solde_courant += daily_net[current]
+                soldes_cumules.append(solde_courant)
+                current += timedelta(days=1)
+
+            return {
+                'type': 'line',
+                'titre': 'Trésorerie cumulée',
+                'labels': dates,
+                'valeurs': soldes_cumules,
+                'min': min(soldes_cumules),
+                'max': max(soldes_cumules),
+                'unite': 'CHF'
+            }
+        except Exception as e:
+            logging.error(f"Erreur préparation trésorerie cumulée: {e}")
+            return None
+    
+    def preparer_graphique_categories(self, user_id: int, compte_id: int, date_debut: date, date_fin: date) -> Optional[Dict]:
+        tx_model = TransactionFinanciere(self.db)
+        categories = tx_model.get_categories_par_type(
+            'compte_principal', compte_id, user_id,
+            date_debut.strftime('%Y-%m-%d'),
+            date_fin.strftime('%Y-%m-%d')
+        )
+        if not categories:
+            return None
+        return {
+            'type': 'bar',
+            'titre': 'Répartition des opérations',
+            'labels': list(categories.keys()),
+            'valeurs': [float(v) for v in categories.values()],
+            'unite': 'CHF'
+        }
+
+    def preparer_graphique_tresorerie_compare(self, user_id: int, compte_id: int, date_debut: date, date_fin: date) -> Optional[Dict]:
+        """
+        Prépare les données pour un graphique en barres côte à côte :
+        - Recettes (positive, en vert)
+        - Dépenses (positive, en rouge)
+        Les deux sont affichées au-dessus de 0 pour faciliter la comparaison visuelle.
+        """
+        try:
+            tx_model = TransactionFinanciere(self.db)
+            stats = tx_model.get_statistiques_compte(
+                compte_type='compte_principal',
+                compte_id=compte_id,
+                user_id=user_id,
+                date_debut=date_debut.strftime('%Y-%m-%d'),
+                date_fin=date_fin.strftime('%Y-%m-%d')
+            )
+            if not stats:
+                return None
+
+            recettes = float(stats.get('total_entrees', 0.0))
+            depenses = float(stats.get('total_sorties', 0.0))
+
+            return {
+                'type': 'bar_compare',
+                'titre': 'Recettes vs Dépenses',
+                'labels': ['Recettes', 'Dépenses'],
+                'valeurs': [recettes, depenses],
+                'couleurs': ['#28a745', '#dc3545'],  # vert, rouge
+                'unite': 'CHF'
+            }
+        except Exception as e:
+            logging.error(f"Erreur préparation graphique comparaison trésorerie: {e}")
+            return None
+
 class PlanComptable:
     """Modèle pour gérer le plan comptable"""
     
     def __init__(self, db):
         self.db = db
     
-    def get_all_categories(self) -> List[Dict]:
-        """Récupère toutes les catégories comptables"""
+    def create_plan(self, data: Dict) -> Optional[int]:
+        """Crée un nouveau plan comptable"""
         try:
             with self.db.get_cursor() as cursor:
                 query = """
-                SELECT id, numero, nom, parent_id, type_compte, compte_systeme, compte_associe, type_tva, actif, created_at, updated_at 
-                FROM categories_comptables 
-                ORDER BY numero
+                INSERT INTO plans_comptables (nom, description, devise, utilisateur_id)
+                VALUES (%s, %s, %s, %s)
                 """
-                cursor.execute(query)
-                categories = cursor.fetchall()
-            return categories
-        except Error as e:
-            logging.error(f"Erreur lors de la récupération des catégories comptables: {e}")
-            return []
-    
-    def get_by_id(self, categorie_id: int) -> Optional[Dict]:
-        """Récupère une catégorie par son ID"""
+                values = (
+                    data['nom'],
+                    data.get('description', ''),
+                    data.get('devise', 'CHF'),
+                    data['utilisateur_id']
+                )
+                cursor.execute(query, values)
+                return cursor.lastrowid
+        except Exception as e:
+            logging.error(f"Erreur création plan comptable: {e}")
+            return None
+        
+
+    def get_all_plans(self, utilisateur_id: int) -> List[Dict]:
+        """Liste tous les plans de l'utilisateur"""
         try:
             with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM categories_comptables WHERE id = %s"
-                cursor.execute(query, (categorie_id,))
-                categorie = cursor.fetchone()
-            return categorie
-        except Error as e:
-            logging.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
+                cursor.execute("""
+                    SELECT id, nom, description, devise, created_at
+                    FROM plans_comptables
+                    WHERE utilisateur_id = %s AND actif = 1
+                    ORDER BY nom
+                """, (utilisateur_id,))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur liste plans: {e}")
+            return []
+    
+    def get_plan_with_categories(self, plan_id: int, utilisateur_id: int) -> Optional[Dict]:
+        """Récupère un plan + ses catégories"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Récupérer le plan
+                cursor.execute("""
+                    SELECT * FROM plans_comptables
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (plan_id, utilisateur_id))
+                plan = cursor.fetchone()
+                if not plan:
+                    return None
+
+                # Récupérer les catégories liées
+                cursor.execute("""
+                    SELECT c.*
+                    FROM plan_categorie pc
+                    JOIN categories_comptables c ON pc.categorie_id = c.id
+                    WHERE pc.plan_id = %s AND c.utilisateur_id = %s
+                    ORDER BY c.numero
+                """, (plan_id, utilisateur_id))
+                plan['categories'] = cursor.fetchall()
+                return plan
+        except Exception as e:
+            logging.error(f"Erreur plan + catégories: {e}")
             return None
+    
+    def add_categorie_to_plan(self, plan_id: int, categorie_id: int, utilisateur_id: int) -> bool:
+        """Ajoute une catégorie à un plan"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que les deux existent et appartiennent à l'utilisateur
+                cursor.execute("SELECT id FROM plans_comptables WHERE id = %s AND utilisateur_id = %s", (plan_id, utilisateur_id))
+                if not cursor.fetchone():
+                    return False
+                cursor.execute("SELECT id FROM categories_comptables WHERE id = %s AND utilisateur_id = %s", (categorie_id, utilisateur_id))
+                if not cursor.fetchone():
+                    return False
+
+                cursor.execute("""
+                    INSERT IGNORE INTO plan_categorie (plan_id, categorie_id)
+                    VALUES (%s, %s)
+                """, (plan_id, categorie_id))
+                return True
+        except Exception as e:
+            logging.error(f"Erreur ajout catégorie au plan: {e}")
+            return False
+
+    def remove_categorie_from_plan(self, plan_id: int, categorie_id: int) -> bool:
+        """Retire une catégorie d’un plan"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    DELETE FROM plan_categorie
+                    WHERE plan_id = %s AND categorie_id = %s
+                """, (plan_id, categorie_id))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Erreur retrait catégorie du plan: {e}")
+            return False
+    def get_categories_for_plan(self, plan_id: int, utilisateur_id: int) -> List[Dict]:
+        """Récupère uniquement les catégories d’un plan"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT c.*
+                    FROM plan_categorie pc
+                    JOIN categories_comptables c ON pc.categorie_id = c.id
+                    WHERE pc.plan_id = %s AND c.utilisateur_id = %s
+                    ORDER BY c.numero
+                """, (plan_id, utilisateur_id))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur catégories du plan: {e}")
+            return []
+        
     
     def get_by_numero(self, numero: str) -> Optional[Dict]:
         """Récupère une catégorie par son numéro"""
@@ -3363,6 +3934,10 @@ class PlanComptable:
             logging.error(f"Erreur lors de la récupération des catégories comptables: {e}")
             return []
     
+    
+class CategorieComptable:
+    def __init__(self, db):
+        self.db = db
     def create(self, data: Dict) -> bool:
         """Crée une nouvelle catégorie comptable"""
         try:
@@ -3429,6 +4004,50 @@ class PlanComptable:
             logging.error(f"Erreur lors de la suppression de la catégorie comptable: {e}")
             return False
 
+    def get_by_id(self, categorie_id: int) -> Optional[Dict]:
+        """Récupère une catégorie par son ID"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "SELECT * FROM categories_comptables WHERE id = %s"
+                cursor.execute(query, (categorie_id,))
+                categorie = cursor.fetchone()
+            return categorie
+        except Error as e:
+            logging.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
+            return None
+
+    def get_all_categories(self, utilisateur_id: int = None) -> List[Dict]:
+        """Récupère toutes les catégories avec info sur le parent"""
+        try:
+            with self.db.get_cursor() as cursor:
+                if utilisateur_id:
+                    query = """
+                    SELECT 
+                        c1.id, c1.numero, c1.nom, c1.parent_id, c1.type_compte,
+                        c1.compte_systeme, c1.compte_associe, c1.type_tva, c1.actif,
+                        c2.numero as parent_numero, c2.nom as parent_nom
+                    FROM categories_comptables c1
+                    LEFT JOIN categories_comptables c2 ON c1.parent_id = c2.id
+                    WHERE c1.utilisateur_id = %s
+                    ORDER BY c1.numero
+                    """
+                    cursor.execute(query, (utilisateur_id,))
+                else:
+                    query = """
+                    SELECT 
+                        c1.id, c1.numero, c1.nom, c1.parent_id, c1.type_compte,
+                        c1.compte_systeme, c1.compte_associe, c1.type_tva, c1.actif,
+                        c2.numero as parent_numero, c2.nom as parent_nom
+                    FROM categories_comptables c1
+                    LEFT JOIN categories_comptables c2 ON c1.parent_id = c2.id
+                    ORDER BY c1.numero
+                    """
+                    cursor.execute(query)
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur get_all_categories: {e}")
+            return []
+
 class EcritureComptable:
     """Modèle pour gérer les écritures comptables"""
     
@@ -3437,6 +4056,15 @@ class EcritureComptable:
     
     def create(self, data: Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
+        # Validation du lien catégorie ↔ plan comptable du compte
+        if data.get('id_contact'):
+            if not self._is_categorie_valid_for_contact(
+                data['id_contact'],
+                data['categorie_id'],
+                data['utilisateur_id']
+            ):
+                logging.warning("Catégorie non autorisée pour ce contact.")
+                return False
         try:
             with self.db.get_cursor() as cursor:
                 query = """
@@ -3462,6 +4090,7 @@ class EcritureComptable:
                     data.get('statut', 'pending'),  # 'pending', 'validée', 'rejetée'
                     data.get('id_contact')  # Ajout du id_contact à la fin
                 )
+                
                 cursor.execute(query, values)
                 # Récupérer l'ID de la dernière insertion
                 self.last_insert_id = cursor.lastrowid
@@ -3471,7 +4100,16 @@ class EcritureComptable:
             return False
     
     def update(self, ecriture_id: int, data: Dict) -> bool:
+        # Validation du lien catégorie ↔ plan comptable du compte
         try:
+            if data.get('id_contact'):
+                if not self._is_categorie_valid_for_contact(
+                    data['id_contact'],
+                    data['categorie_id'],
+                    data['utilisateur_id']
+                ):
+                    logging.warning("Catégorie non autorisée pour ce contact.")
+                    return False
             with self.db.get_cursor() as cursor:
                 query = """
                 UPDATE ecritures_comptables 
@@ -3498,8 +4136,10 @@ class EcritureComptable:
                     ecriture_id,
                     data['utilisateur_id']
                 )
+                
                 cursor.execute(query, values)
                 return cursor.rowcount > 0
+            return True
         except Error as e:
             logging.error(f"Erreur lors de la mise à jour de l'écriture comptable: {e}")
             return False
@@ -4046,7 +4686,6 @@ class EcritureComptable:
                 ORDER BY e.date_ecriture
             """, (transaction_id, user_id))
             return cursor.fetchall()
-    
         
     def get_total_ecritures_for_transaction(self, transaction_id: int, user_id: int) -> Decimal:
         with self.db.get_cursor() as cursor:
@@ -4057,7 +4696,6 @@ class EcritureComptable:
             """, (transaction_id, user_id))
             row = cursor.fetchone()
             return Decimal(str(row['total'])) if row and row['total'] else Decimal('0')
-
 
     def unlink_from_transaction(self, ecriture_id: int, user_id: int) -> bool:
         """
@@ -4150,6 +4788,66 @@ class EcritureComptable:
             logging.error(f"Erreur lors du délien de toutes les écritures de la transaction {transaction_id}: {e}")
             return 0
 
+    def _is_categorie_valid_for_contact(self, contact_id: int, categorie_id: int, utilisateur_id: int) -> bool:
+        if not contact_id:
+            return True
+        try:
+            with self.db.get_cursor() as cursor:
+                # Récupérer tous les plans du contact
+                cursor.execute("""
+                    SELECT plan_id FROM contact_plans
+                    WHERE contact_id = %s
+                """, (contact_id,))
+                plans = cursor.fetchall()
+                if not plans:
+                    return True  # pas de plan → tout autorisé
+                plan_ids = [p['plan_id'] for p in plans]
+                # Vérifier si la catégorie est dans l’un de ces plans
+                placeholders = ','.join(['%s'] * len(plan_ids))
+                cursor.execute(f"""
+                    SELECT 1 FROM plan_categorie
+                    WHERE plan_id IN ({placeholders}) AND categorie_id = %s
+                """, plan_ids + [categorie_id])
+                return cursor.fetchone() is not None
+        except Exception as e:
+            logging.error(f"Erreur validation catégorie pour contact {contact_id}: {e}")
+            return False
+
+class ContactPlan:
+    def __init__(self, db):
+        self.db = db
+
+    def get_plans_for_contact(self, contact_id: int, user_id: int) -> List[Dict]:
+        with self.db.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT p.*
+                FROM contact_plans cp
+                JOIN plans_comptables p ON cp.plan_id = p.id
+                WHERE cp.contact_id = %s AND p.utilisateur_id = %s
+                ORDER BY p.nom
+            """, (contact_id, user_id))
+            return cursor.fetchall()
+
+    def get_contacts_for_plan(self, plan_id: int, user_id: int) -> List[Dict]:
+        with self.db.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT c.*
+                FROM contact_plans cp
+                JOIN contacts c ON cp.contact_id = c.id_contact
+                WHERE cp.plan_id = %s AND c.utilisateur_id = %s
+                ORDER BY c.nom
+            """, (plan_id, user_id))
+            return cursor.fetchall()
+
+    def assign_plan_to_contact(self, contact_id: int, plan_id: int, user_id: int) -> bool:
+        # Vérifier propriété
+        with self.db.get_cursor() as cursor:
+            cursor.execute("SELECT 1 FROM contacts WHERE id_contact = %s AND utilisateur_id = %s", (contact_id, user_id))
+            if not cursor.fetchone(): return False
+            cursor.execute("SELECT 1 FROM plans_comptables WHERE id = %s AND utilisateur_id = %s", (plan_id, user_id))
+            if not cursor.fetchone(): return False
+            cursor.execute("INSERT IGNORE INTO contact_plans (contact_id, plan_id) VALUES (%s, %s)", (contact_id, plan_id))
+            return True
 class Contacts:
     def __init__(self, db):
         self.db = db
@@ -4275,6 +4973,101 @@ class Contacts:
                 return contacts
         except Error as e:
             logging.error(f"Erreur lors de la recherche de contacts: {e}")
+            return []
+
+class ContactCompte:
+    def __init__(self):
+        self.db = db
+
+    def link_to_compte(self, contact_id: int, compte_id: int, utilisateur_id: int) -> bool:
+        """Lie un contact à un compte bancaire"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que les entités existent et appartiennent à l'utilisateur
+                cursor.execute("""
+                            SELECT id_contact
+                            FROM contacts 
+                            WHERE id_contact = %s AND utilisateur_id = %s
+                            """, (contact_id, utilisateur_id))
+                if not cursor.fetchone():
+                    logging.warning(f'Tentative de liason avec un contact non autorisé: contact_id={contact_id}, user={utilisateur_id}')
+                    return False
+                cursor.execute("""
+                            SELECT id 
+                            FROM comptes_principaux 
+                            WHERE id = %s 
+                            """, (compte_id))
+                if not cursor.fetchone():
+                    logging.warning(f'Tentative de liason avec un compte non existant: compte_id = {compte_id}')
+                    return False
+
+                cursor.execute("""
+                    INSERT IGNORE INTO contact_comptes (contact_id, compte_id, utilisateur_id)
+                    VALUES (%s, %s, %s)
+                """, (contact_id, compte_id, utilisateur_id))
+                return True
+        except Error as e:
+            logging.error(f"Erreur SQL dans link_to_compte : {e}")
+            return False
+        except Exception as e:
+            logging.error(f"Erreur liaison contact-compte : {e}")
+            return False
+
+    def unlink_from_compte(self, contact_id: int, compte_id: int, utilisateur_id: int) -> bool:
+        """Supprime la liaison entre un contact et un compte"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    DELETE FROM contact_comptes
+                    WHERE contact_id = %s AND compte_id = %s AND utilisateur_id = %s
+                """, (contact_id, compte_id, utilisateur_id))
+                return cursor.rowcount > 0
+        except Error as e:
+            logging.error(f"Erreur SQL dans unlink_from_compte : {e}")
+            return False
+        except Exception as e:
+            logging.error(f"Erreur déliaison contact-compte : {e}")
+            return False
+
+    def get_comptes_for_contact(self, contact_id: int, utilisateur_id: int) -> List[Dict]:
+        """Récupère les comptes liés à un contact"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT cp.id, cp.nom_compte, cp.iban, cp.utilisateur_id AS compte_utilisateur_id,
+                               u.nom AS titulaire_nom,
+                               u.prenom AS titulaire_prenom,
+                    FROM contact_comptes cc
+                    JOIN comptes_principaux cp ON cc.compte_id = cp.id
+                    JOIN utilisateurs u ON cp.utilisateur_id = u.id
+                    WHERE cc.contact_id = %s AND cc.utilisateur_id = %s
+                    ORDER by cp.nom_compte
+                """, (contact_id, utilisateur_id))
+                return cursor.fetchall()
+        except Error as e:
+            logging.error(f"Erreur SQL dans get_comptes_for_contact : {e}")
+            return []
+        except Exception as e:
+            logging.error(f"Erreur récupération comptes pour contact : {e}")
+            return []
+
+    def get_contacts_for_compte(self, compte_id: int, utilisateur_id: int) -> List[Dict]:
+        """Récupère les contacts liés à un compte"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT c.id_contact, c.nom, c.email
+                    FROM contact_comptes cc
+                    JOIN contacts c ON cc.contact_id = c.id_contact
+                    WHERE cc.compte_id = %s AND cc.utilisateur_id = %s
+                    ORDER BY c.nom
+                """, (compte_id, utilisateur_id))
+                return cursor.fetchall()
+        except Error as e:
+            logging.error(f"Erreur SQL dans get_contacts_for_compte : {e}")
+            return []
+        except Exception as e:
+            logging.error(f"Erreur récupération contacts pour compte : {e}")
             return []
 
 class Rapport:
@@ -5766,6 +6559,7 @@ class SyntheseHebdomadaire:
         except Exception as e:
             logging.error(f"Erreur employeurs: {e}")
             return []
+
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
@@ -6146,12 +6940,16 @@ class ModelManager:
         self.user_model = Utilisateur(self.db)
         self.periode_favorite_model = PeriodeFavorite(self.db)
         self.compte_model = ComptePrincipal(self.db)
+        self.compte__principal_rapport_model = ComptePrincipalRapport(self.db)
         self.sous_compte_model = SousCompte(self.db)
         self.transaction_financiere_model = TransactionFinanciere(self.db)
         self.stats_model = StatistiquesBancaires(self.db)
         self.plan_comptable_model = PlanComptable(self.db)
         self.ecriture_comptable_model = EcritureComptable(self.db)
+        self.contact_plan_model = ContactPlan(self.db)
+        self.categorie_comptable_model = CategorieComptable(self.db)
         self.contact_model = Contacts(self.db)
+        self.contact_compte_model = ContactCompte(self.db)
         self.heure_model = HeureTravail(self.db)
         self.salaire_model = Salaire(self.db, self.heure_model)
         self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)

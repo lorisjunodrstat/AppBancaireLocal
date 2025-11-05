@@ -30,20 +30,19 @@
                             <td>
                                 <span class="badge 
                                     {% if categorie.type_compte == 'Actif' %}bg-primary
-                                    {% elif categorie.type_compte == 'Passif' or categorie.type_compte == 'Revenus' %}bg-success
-                                    {% elif categorie.type_compte == 'produit' %}bg-info
-                                    {% else %}bg-danger
+                                    {% elif categorie.type_compte == 'Passif' %}bg-secondary
+                                    {% elif categorie.type_compte == 'Revenus' %}bg-success
+                                    {% elif categorie.type_compte == 'Charge' %}bg-danger
+                                    {% else %}bg-light text-dark
                                     {% endif %}">
-                                    {{ categorie.type }}
+                                    {{ categorie.type_compte }}
                                 </span>
                             </td>
                             <td>
-                                {% if categorie.parent_id %}
-                                    {% for parent in categories if parent.numero == categorie.parent_id  %}
-                                        {{ parent.numero }} - {{ parent.nom }}
-                                    {% endfor %}
+                                {% if categorie.parent_numero %}
+                                {{ categorie.parent_numero }} - {{ categorie.parent_nom }}
                                 {% else %}
-                                    --{{ categorie.parent_id }}--
+                                —
                                 {% endif %}
                             </td>
                             <td>

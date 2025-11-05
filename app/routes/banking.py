@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, date, time
 from calendar import monthrange
-from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts
+from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts, ContactCompte, ComptePrincipalRapport, CategorieComptable
 from io import StringIO
 import csv as csv_mod
 import io
@@ -962,6 +962,13 @@ def depot():
         description = request.form.get('description', '')
         compte_type = request.form['compte_type']
         
+        if montant <= 0:
+            flash("Le montant doit être positif", 'error')
+            return render_template('banking/depot.html', 
+                                comptes=comptes, 
+                                all_comptes=all_comptes, 
+                                form_data=request.form, 
+                                now=datetime.now())
         # Gestion de la date de transaction
         date_transaction_str = request.form.get('date_transaction')
         if date_transaction_str:
@@ -975,8 +982,12 @@ def depot():
         
         # Appel de la fonction create_depot avec la date
         success, message = g.models.transaction_financiere_model.create_depot(
-            compte_id, user_id, montant, description, compte_type, date_transaction
-        )
+            compte_id, 
+            user_id, 
+            montant, 
+            description, 
+            compte_type, 
+            date_transaction)
         
         if success:
             flash(message, 'success')
@@ -2755,12 +2766,12 @@ def statistiques_comptables():
                         date_from=date_from,
                         date_to=date_to)
 
-
+### Partie comptabilité 
 @bp.route('/comptabilite/categories')
 @login_required
 def liste_categories_comptables():
     #plan_comptable = PlanComptable(g.db_manager)
-    categories = g.models.plan_comptable_model.get_all_categories()
+    categories = g.models.categorie_comptable_model.get_all_categories()
     return render_template('comptabilite/categories.html', categories=categories)
 
 @bp.route('/comptabilite/categories/nouvelle', methods=['GET', 'POST'])
@@ -2773,17 +2784,17 @@ def nouvelle_categorie():
             data = {
                 'numero': request.form['numero'],
                 'nom': request.form['nom'],
-                'type': request.form['type'],
+                'type_compte': request.form['type'],
                 'parent_id': request.form.get('parent_id') or None
             }         
-            if g.models.plan_comptable_model.create(data):
+            if g.models.categorie_comptable_model.create(data):
                 flash('Catégorie créée avec succès', 'success')
                 return redirect(url_for('banking.liste_categories_comptables'))
             else:
                 flash('Erreur lors de la création', 'danger')
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger')
-    categories = g.models.plan_comptable_model.get_all_categories()
+    categories = g.models.categorie_comptable_model.get_all_categories()
     return render_template('comptabilite/edit_categorie.html', 
                         categories=categories,
                         categorie=None)
@@ -2793,7 +2804,7 @@ def nouvelle_categorie():
 def edit_categorie(categorie_id):
     """Modifie une catégorie comptable existante"""
     #plan_comptable = PlanComptable(g.db_manager)
-    categorie = g.models.plan_comptable_model.get_by_id(categorie_id)
+    categorie = g.models.categorie_comptable_model.get_by_id(categorie_id)
     if not categorie:
         flash('Catégorie introuvable', 'danger')
         return redirect(url_for('banking.liste_categories_comptables'))
@@ -2802,20 +2813,24 @@ def edit_categorie(categorie_id):
             data = {
                 'numero': request.form['numero'],
                 'nom': request.form['nom'],
-                'type': request.form['type'],
-                'parent_id': request.form.get('parent_id') or None
+                'type_compte': request.form['type_compte'],
+                'parent_id': request.form.get('groupe') or None
             }
-            if g.models.plan_comptable_model.update(categorie_id, data):
+            if g.models.categorie_comptable_model.update(categorie_id, data):
                 flash('Catégorie mise à jour avec succès', 'success')
                 return redirect(url_for('banking.liste_categories_comptables'))
             else:
                 flash('Erreur lors de la mise à jour', 'danger')
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger')
-    categories = g.models.plan_comptable_model.get_all_categories()
+    categories = g.models.categorie_comptable_model.get_all_categories()
+    types_compte = ['Actif', 'Passif', 'Charge', 'Revenus']
+    types_tva = ['', 'taux_plein', 'taux_reduit', 'taux_zero', 'exonere']
     return render_template('comptabilite/edit_categorie.html', 
                         categories=categories,
-                        categorie=categorie)
+                        categorie=categorie,
+                        types_compte=types_compte,
+                        types_tva=types_tva)
 
 @bp.route('/comptabilite/categories/import-csv', methods=['POST'])
 @login_required
@@ -2873,7 +2888,7 @@ def import_plan_comptable_csv():
 @login_required
 def delete_categorie(categorie_id):
     """Supprime une catégorie comptable"""
-    if g.models.plan_comptable_model.delete(categorie_id):
+    if g.models.categorie_comptable_model.delete(categorie_id):
         flash('Catégorie supprimée avec succès', 'success')
     else:
         flash('Erreur lors de la suppression', 'danger')
@@ -2979,9 +2994,9 @@ def liste_ecritures():
     date_to = request.args.get('date_to')
     categorie_id = request.args.get('categorie_id')
     id_contact = request.args.get('id_contact')
-    statut = request.args.get('statut', 'tous')  # Nouveau paramètre statut
+    statut = request.args.get('statut', 'tous')
     
-    # Définir les statuts disponibles pour le template
+    # Statuts pour le template
     statuts_disponibles = [
         {'value': 'tous', 'label': 'Tous les statuts'},
         {'value': 'pending', 'label': 'En attente'},
@@ -2989,7 +3004,7 @@ def liste_ecritures():
         {'value': 'rejetée', 'label': 'Rejetées'}
     ]
     
-    # Préparer les paramètres pour la requête
+    # Récupérer les écritures
     filtres = {
         'user_id': current_user.id,
         'date_from': date_from,
@@ -2997,47 +3012,71 @@ def liste_ecritures():
         'statut': statut if statut != 'tous' else None,
         'contact_id': int(id_contact) if id_contact else None
     }
+    
     if categorie_id:
-        ecritures = g.models.ecriture_comptable_model.get_by_categorie(
-            categorie_id=int(categorie_id),
-            **filtres
-        )
+        ecritures = g.models.ecriture_comptable_model.get_by_categorie(categorie_id=int(categorie_id), **filtres)
     elif compte_id:
-        ecritures = g.models.ecriture_comptable_model.get_by_compte_bancaire(
-            compte_id=int(compte_id),
-            **filtres
-        )
+        ecritures = g.models.ecriture_comptable_model.get_by_compte_bancaire(compte_id=int(compte_id), **filtres)
     elif id_contact:
-        ecritures = g.models.ecriture_comptable_model.get_by_contact_id(
-            contact_id=int(id_contact),
-            **filtres
-        )   
+        ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id=int(id_contact), **filtres)
     else:
-        # Si aucun filtre spécifique, récupérer toutes les écritures avec les filtres
-        ecritures = g.models.ecriture_comptable_model.get_by_statut(
-            user_id=current_user.id,
-            statut=filtres['statut'],
-            date_from=date_from,
-            date_to=date_to
-        ) if filtres['statut'] else g.models.ecriture_comptable_model.get_all(
-            user_id=current_user.id,
-            date_from=date_from,
-            date_to=date_to
-        )
-    comptes = g.models.compte_model.get_by_user_id(current_user.id)
-    contacts=g.models.contact_model.get_all(current_user.id)
-    return render_template('comptabilite/ecritures.html', 
-                        ecritures=ecritures, 
-                        comptes=comptes,
-                        compte_selectionne=compte_id,
-                        statuts_disponibles=statuts_disponibles,
-                        statut_selectionne=statut,
-                        contacts=contacts,
-                        contact_selectionne=id_contact,
-                        date_from=date_from,
-                        date_to=date_to,
-                        categorie_id=categorie_id)
+        if filtres['statut']:
+            ecritures = g.models.ecriture_comptable_model.get_by_statut(
+                user_id=current_user.id,
+                statut=filtres['statut'],
+                date_from=date_from,
+                date_to=date_to
+            )
+        else:
+            ecritures = g.models.ecriture_comptable_model.get_all(
+                user_id=current_user.id,
+                date_from=date_from,
+                date_to=date_to
+            )
 
+    # Récupérer les données supplémentaires
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
+    contacts = g.models.contact_model.get_all(current_user.id)
+
+    # Gestion du modal de liaison
+    show_link_modal = request.args.get('show_link_modal') == '1'
+    ecriture_link = None
+    transactions_eligibles = []
+
+    if show_link_modal:
+        eid = request.args.get('ecriture_id', type=int)
+        ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
+        if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
+            # Récupérer les transactions de la même date (ou plage large)
+            date_tx = ecriture_link['date_ecriture']
+            all_tx = g.models.transaction_financiere_model.get_all_user_transactions(
+                user_id=current_user.id,
+                date_from=date_tx,
+                date_to=date_tx
+            )[0]  # (liste, total)
+            # Ajouter le total des écritures liées à chaque transaction
+            for tx in all_tx:
+                full_tx = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
+                    tx['id'], current_user.id
+                )
+                if full_tx:
+                    transactions_eligibles.append(full_tx)
+
+    return render_template('comptabilite/ecritures.html',
+        ecritures=ecritures,
+        comptes=comptes,
+        compte_selectionne=compte_id,
+        statuts_disponibles=statuts_disponibles,
+        statut_selectionne=statut,
+        contacts=contacts,
+        contact_selectionne=id_contact,
+        date_from=date_from,
+        date_to=date_to,
+        categorie_id=categorie_id,
+        show_link_modal=show_link_modal,
+        ecriture_link=ecriture_link,
+        transactions_eligibles=transactions_eligibles
+    )
 @bp.app_template_filter('datetimeformat')
 def datetimeformat(value, format='%d.%m.%Y'):
     """Filtre pour formater les dates dans les templates"""
@@ -3049,7 +3088,7 @@ def datetimeformat(value, format='%d.%m.%Y'):
         value = datetime.strptime(value, '%Y-%m-%d')
     return value.strftime(format)
 
-from datetime import datetime
+
 
 @bp.app_template_filter('month_french')
 def month_french_filter(value):
@@ -3071,21 +3110,44 @@ def month_french_filter(value):
 @login_required
 def liste_ecritures_par_contact(contact_id):
     """Affiche les écritures associées à un contact spécifique"""
-    current_user_id = current_user.id
-    contact = g.models.contact_model.get_by_id(contact_id, current_user_id)
-    
-    contact = g.models.contact_model.get_by_id(contact_id, current_user_id)
+    contact = g.models.contact_model.get_by_id(contact_id, current_user.id)
     if not contact:
         flash('Contact introuvable', 'danger')
         return redirect(url_for('banking.liste_contacts_comptables'))
-    ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id, utilisateur_id=current_user_id)
-    print(ecritures)
-    comptes = g.models.compte_model.get_by_user_id(current_user_id)
-    return render_template('comptabilite/ecritures_par_contact.html', 
-                        ecritures=ecritures, 
-                        contact=contact,
-                        comptes=comptes)
+    
+    ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id, utilisateur_id=current_user.id)
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
 
+    # Modal de liaison
+    show_link_modal = request.args.get('show_link_modal') == '1'
+    ecriture_link = None
+    transactions_eligibles = []
+
+    if show_link_modal:
+        eid = request.args.get('ecriture_id', type=int)
+        ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
+        if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
+            date_tx = ecriture_link['date_ecriture']
+            all_tx = g.models.transaction_financiere_model.get_all_user_transactions(
+                user_id=current_user.id,
+                date_from=date_tx,
+                date_to=date_tx
+            )[0]
+            for tx in all_tx:
+                full_tx = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
+                    tx['id'], current_user.id
+                )
+                if full_tx:
+                    transactions_eligibles.append(full_tx)
+
+    return render_template('comptabilite/ecritures_par_contact.html',
+        ecritures=ecritures,
+        contact=contact,
+        comptes=comptes,
+        show_link_modal=show_link_modal,
+        ecriture_link=ecriture_link,
+        transactions_eligibles=transactions_eligibles
+    )
 @bp.route('/comptabilite/ecritures/nouvelle', methods=['GET', 'POST'])
 @login_required
 def nouvelle_ecriture():
@@ -3131,7 +3193,7 @@ def nouvelle_ecriture():
             }  
     comptes = g.models.compte_model.get_by_user_id(current_user.id)   
     # CORRECTION: Utiliser l'instance existante plan_comptable
-    categories = g.models.plan_comptable_model.get_all_categories()        
+    categories = g.models.categorie_comptable_model.get_all_categories()        
     contacts = g.models.contact_model.get_all(current_user.id)
     statuts_disponibles = [
         {'value': 'pending', 'label': 'En attente'},
@@ -3204,7 +3266,7 @@ def nouvelle_ecriture_multiple():
         return redirect(url_for('banking.liste_ecritures'))
     # GET request processing
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
-    categories = g.models.plan_comptable_model.get_all_categories()
+    categories = g.models.categorie_comptable_model.get_all_categories()
     contacts = g.models.contact_model.get_all(current_user.id)
     statuts_disponibles = [
         {'value': 'pending', 'label': 'En attente'},
@@ -3245,6 +3307,15 @@ def edit_ecriture(ecriture_id):
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture introuvable ou non autorisée', 'danger')
         return redirect(url_for('banking.liste_ecritures'))
+    show_modal = request.args.get('show_modal') == 'liaison'
+    contact = None
+    comptes_lies = []
+    transactions_camdidats = []
+    tous_comptes = []
+    if show_modal and ecriture.get('id_contact'):
+        contact = g.models.contact_model.get_by_id(ecriture['id_contact'], current_user.id)
+        if contact:
+            comptes_lies = g.models-
     if request.method == 'POST':
         try:
             id_contact_str = request.form.get('id_contact', '')
@@ -3272,7 +3343,7 @@ def edit_ecriture(ecriture_id):
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger')
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
-    categories = g.models.plan_comptable_model.get_all_categories()
+    categories = g.models.categorie_comptable_model.get_all_categories()
     contacts = g.models.contact_model.get_all(current_user.id)
     # CORRECTION: Utiliser 'contacts' au lieu de 'Contacts'
     print(contacts)
@@ -3344,11 +3415,32 @@ def unlink_ecriture():
 def relink_ecriture():
     ecriture_id = request.form.get('ecriture_id', type=int)
     new_transaction_id = request.form.get('new_transaction_id', type=int)
+    
+    # Récupérer l'écriture et la transaction
+    ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
+    if not ecriture or ecriture['utilisateur_id'] != current_user.id:
+        flash("Écriture non autorisée", "danger")
+        return redirect(request.referrer)
+    
+    tx = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
+        new_transaction_id, current_user.id
+    )
+    if not tx:
+        flash("Transaction introuvable", "danger")
+        return redirect(request.referrer)
+    
+    # Calculer le nouveau total si on ajoute cette écriture
+    nouveau_total = (tx['total_ecritures'] or 0) + ecriture['montant']
+    if nouveau_total > tx['montant']:
+        flash(f"⚠️ Impossible : le total des écritures ({nouveau_total:.2f} CHF) dépasserait le montant de la transaction ({tx['montant']} CHF).", "warning")
+        return redirect(request.referrer)
+    
+    # Lier
     if g.models.ecriture_comptable_model.link_ecriture_to_transaction(ecriture_id, new_transaction_id, current_user.id):
-        flash("Écriture reliée à la nouvelle transaction.", "success")
+        flash("Écriture reliée à la transaction.", "success")
     else:
-        flash("Erreur lors du changement de lien.", "danger")
-    return redirect(request.referrer or url_for('banking.banking_dashboard'))
+        flash("Erreur lors du lien.", "danger")
+    return redirect(request.referrer)
 
 @bp.route('/test-compte-resultat')
 @login_required
@@ -3361,6 +3453,32 @@ def test_compte_resultat():
         date_to="2025-12-31"
     ) 
     return jsonify(stats)
+
+@bp.route('/banking/compte/<int:compte_id>/contact/<int:contact_id>/transactions')
+@login_required
+def transactions_by_contact_and_compte(compte_id: int, contact_id: int):
+    # Vérifier que le compte appartient à l'utilisateur
+    compte = g.models.compte_principal_model.get_by_id(compte_id)
+    if not compte or compte['utilisateur_id'] != current_user.id:
+        abort(403)
+
+    # Vérifier que le contact existe et appartient à l'utilisateur (si tu gères des contacts par utilisateur)
+    contact = g.models.contact_model.get_by_id(contact_id)
+    if not contact or contact['utilisateur_id'] != current_user.id:
+        abort(404)
+
+    transactions = g.models.transaction_financiere_model.get_transactions_by_contact_and_compte(
+        contact_id=contact_id,
+        compte_id=compte_id,
+        user_id=current_user.id
+    )
+
+    return render_template(
+        'banking/transactions_par_contact.html',
+        compte=compte,
+        contact=contact,
+        transactions=transactions
+    )
 
 @bp.route('/comptabilite/compte-de-resultat')
 @login_required
@@ -3569,7 +3687,7 @@ def journal_comptable():
     # Récupérer les années disponibles
     annees = g.models.ecriture_comptable_model.get_annees_disponibles(user_id=1)  # À adapter avec le vrai user_id
     # Récupérer les catégories comptables
-    categories = g.models.plan_comptable_model.get_all_categories()
+    categories = g.models.categorie_comptable_model.get_all_categories()
     # Paramètres par défaut
     annee_courante = datetime.now().year
     date_from = f"{annee_courante}-01-01"

@@ -26,21 +26,37 @@
                             <th>Contact</th>
                             <th class="text-end">Montant (CHF)</th>
                             <th>Statut</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for ecriture in ecritures %}
                         <tr>
-                            <td>{{ ecriture.date_ecriture|format_date }}</td>
+                            <td>{{ ecriture.date_ecriture|datetimeformat }}</td>
                             <td>{{ ecriture.description or '' }}</td>
                             <td>{{ ecriture.categorie_nom or '' }}</td>
                             <td>{{ ecriture.reference or '' }}</td>
-                            <td>{{ ecriture.id_contact or '' }} {{ ecriture.contact_nom or '' }}</td>
+                            <td>
+                                {% if ecriture.contact_nom %}
+                                {{ ecriture.contact_nom }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
                             <td class="text-end">{{ "%.2f"|format(ecriture.montant) }}</td>
                             <td>
                                 <span class="badge bg-{% if ecriture.statut == 'validée' %}success{% else %}warning{% endif %}">
                                     {{ ecriture.statut }}
                                 </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for(request.endpoint, 
+                                                      show_link_modal=1, 
+                                                      ecriture_id=ecriture.id,
+                                                      **request.args) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                    data-bs-target="#link-transaction-modal">
+                                    <i class="fas fa-link"></i> Lier
+                                </a>
                             </td>
                         </tr>
                         {% else %}
@@ -61,4 +77,7 @@
         </div>
     </div>
 </div>
+{% if show_link_modal and ecriture_link %}
+{% include 'comptabilite/modal_link_ecriture_transaction.html' %}
+{% endif %}
 {% endblock %}

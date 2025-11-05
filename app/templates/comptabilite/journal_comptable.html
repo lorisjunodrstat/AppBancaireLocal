@@ -181,6 +181,7 @@
                     <th>Catégorie</th>
                     <th>Description</th>
                     <th>Montant</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -192,6 +193,15 @@
                     <td>{{ ecriture.description or '' }}</td>
                     <td class="montant {% if ecriture.type_ecriture == 'depense' %}depense{% else %}recette{% endif %}">
                         {{ "%.2f"|format(ecriture.montant) }} {{ ecriture.devise or 'CHF' }}
+                    </td>
+                    <td>
+                        <a href="{{ url_for(request.endpoint, 
+                                              show_link_modal=1, 
+                                              ecriture_id=ecriture.id,
+                                              **request.args) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                            data-bs-target="#link-transaction-modal">
+                            <i class="fas fa-link"></i> Lier
+                        </a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -222,6 +232,9 @@
         <div class="compte-total" id="resultat">Résultat: CHF 0.00</div>
     </div>
     
+    {% if show_link_modal and ecriture_link %}
+    {% include 'partials/modal_link_transaction.html' %}
+    {% endif %}
     <!-- Minimal JavaScript pour les requêtes AJAX -->
     <script>
         document.getElementById('appliquer-filtres').addEventListener('click', function() {
