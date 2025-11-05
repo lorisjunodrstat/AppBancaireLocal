@@ -518,7 +518,8 @@ class DatabaseManager:
             logging.error(f"Erreur lors de la création des tables : {e}")
 
 class Utilisateur(UserMixin):
-    def __init__(self, id, nom=None, prenom=None, email=None, mot_de_passe=None):
+    def __init__(self, db, id, nom=None, prenom=None, email=None, mot_de_passe=None):
+        self.db = db
         self.id = id
         self.nom = nom
         self.prenom = prenom
@@ -547,7 +548,7 @@ class Utilisateur(UserMixin):
         Charge l'utilisateur depuis la base de données en utilisant le gestionnaire de contexte.
         """
         try:
-            with db.get_cursor(dictionary=True) as cursor:
+            with self.db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
                 cursor.execute(query, (user_id,))
                 row = cursor.fetchone()
@@ -564,7 +565,7 @@ class Utilisateur(UserMixin):
         Récupère un utilisateur par son adresse email.
         """
         try:
-            with db.get_cursor(dictionary=True) as cursor:
+            with self.db.get_cursor(dictionary=True) as cursor:
                 cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
                 row = cursor.fetchone()
                 if row:
@@ -580,7 +581,7 @@ class Utilisateur(UserMixin):
         Crée un nouvel utilisateur dans la base de données.
         """
         try:
-            with db.get_cursor() as cursor:
+            with self.db.get_cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
                     VALUES (%s, %s, %s, %s)
@@ -6938,7 +6939,7 @@ class ModelManager:
     def __init__(self, db):
         self.db = db
         self.banque_model = Banque(self.db)
-       #self.user_model = Utilisateur(self.db)
+        self.user_model = Utilisateur(self.db)
         self.periode_favorite_model = PeriodeFavorite(self.db)
         self.compte_model = ComptePrincipal(self.db)
         self.compte__principal_rapport_model = ComptePrincipalRapport(self.db)
