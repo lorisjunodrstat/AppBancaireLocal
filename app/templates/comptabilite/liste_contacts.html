@@ -128,14 +128,14 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     {% if item.a_des_comptes_lies %}
-                                    <a href="{{ url_for('banking.link_contact_to_compte', contact_id=item.contact.id_contact) }}"
+                                    <a href="{{ url_for('banking.liste_contacts_comptables', link_compte='1', contact_id=item.contact.id_contact) }}"
                                         class="btn btn-sm btn-outline-info">
                                         <i class="fas fa-link"></i> Gérer les liaisons ({{ item.comptes_lies|length }})
                                     </a>
                                     {% else %}
-                                    <a href="{{ url_for('banking.link_contact_to_compte', contact_id=item.contact.id_contact) }}"
+                                    <a href="{{ url_for('banking.liste_contacts_comptables', link_compte='1', contact_id=item.contact.id_contact) }}"
                                         class="btn btn-sm btn-outline-secondary">
-                                        <i class="fas fa-plus"></i>
+                                        <i class="fas fa-plus"></i> Lier à un compte
                                     </a>
                                     {% endif %}
 
