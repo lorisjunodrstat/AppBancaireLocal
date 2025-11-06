@@ -2993,7 +2993,6 @@ def edit_contact_comptable(contact_id):
     return render_template('comptabilite/nouveau_contact.html', contact=contact)
 
 @bp.route('/comptabilite/contacts/<int:contact_id>/link-compte', methods=['GET', 'POST'])
-@bp.route('/comptabilite/contacts/<int:contact_id>/link-compte', methods=['GET', 'POST'])
 @login_required
 def link_contact_to_compte(contact_id):
     """Affiche ou sauvegarde la liaison entre un contact et un compte bancaire."""
