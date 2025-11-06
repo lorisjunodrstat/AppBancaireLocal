@@ -1,45 +1,53 @@
-<!-- Modal pour lier un contact à un compte -->
-{% if show_link_compte_modal %}
-<div class="modal show" style="display: block; background-color: rgba(0,0,0,0.5);">
-    <div class="modal-dialog">
+<!-- app/templates/comptabilite/modal_link_ecriture_transaction.html -->
+{% if ecriture_link %}
+<div class="modal show" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1055;">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Lier « {{ contact.nom }} » à un compte</h5>
-                <a href="{{ url_for('banking.liste_contacts_comptables') }}" class="btn-close" aria-label="Fermer"></a>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    Lier l'écriture « {{ ecriture_link.description }} » ({{ "%.2f"|format(ecriture_link.montant) }} CHF)
+                </h5>
+                <a href="{{ url_for('banking.liste_ecritures_par_contact', contact_id=contact.id) }}"
+                    class="btn-close btn-close-white" aria-label="Fermer"></a>
             </div>
             <div class="modal-body">
-                {% if ids_lies %}
-                <div class="alert alert-info">
-                    <strong>Comptes déjà liés :</strong>
-                    <ul class="mb-0">
-                        {% for c in comptes_lies %}
-                        {% if c.id in ids_lies %}
-                        <li>{{ c.nom_compte }} ({{ c.iban or 'Sans IBAN' }})</li>
-                        {% endif %}
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-
-                <form method="POST"
-                    action="{{ url_for('banking.link_contact_to_compte', contact_id=contact.id_contact) }}">
+                {% if transactions_eligibles %}
+                <form method="POST" action="{{ url_for('banking.link_transaction_to_ecritures') }}">
+                    <input type="hidden" name="ecriture_id" value="{{ ecriture_link.id }}">
                     <div class="mb-3">
-                        <label for="compte_id" class="form-label">Sélectionnez un compte bancaire</label>
-                        <select class="form-select" id="compte_id" name="compte_id" required>
-                            <option value="">-- Choisir un compte --</option>
-                            {% for compte in comptes_interagis %}
-                            {% if compte.id not in ids_lies %}
-                            <option value="{{ compte.id }}">{{ compte.nom_compte }} ({{ compte.iban or 'Sans IBAN' }})
+                        <label for="transaction_id" class="form-label">Sélectionnez une transaction éligible</label>
+                        <select class="form-select" id="transaction_id" name="transaction_id" required>
+                            <option value="">-- Choisir une transaction --</option>
+                            {% for tx in transactions_eligibles %}
+                            <option value="{{ tx.id }}">
+                                {{ tx.date_transaction.strftime('%d.%m.%Y') }} |
+                                {% if tx.compte_nom %}{{ tx.compte_nom }}{% endif %}
+                                {% if tx.compte_destination_id %} → {{ tx.nom_compte_dest }}{% endif %}
+                                | {{ "%.2f"|format(tx.montant) }} CHF
+                                {% set total_ecritures =
+                                ecritures_comptables_model.get_total_ecritures_for_transaction(tx.id, current_user.id)
+                                %}
+                                {% if total_ecritures > 0 %}
+                                (déjà {{ "%.2f"|format(total_ecritures) }} CHF liés)
+                                {% endif %}
                             </option>
-                            {% endif %}
                             {% endfor %}
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-link"></i> Lier le compte
+                        <i class="fas fa-link"></i> Lier à la transaction sélectionnée
                     </button>
-                    <a href="{{ url_for('banking.liste_contacts_comptables') }}" class="btn btn-secondary">Annuler</a>
+                    <a href="{{ url_for('banking.liste_ecritures_par_contact', contact_id=contact.id) }}"
+                        class="btn btn-secondary">Annuler</a>
                 </form>
+                {% else %}
+                <div class="alert alert-warning">
+                    Aucune transaction éligible trouvée à la date du {{ ecriture_link.date_ecriture.strftime('%d.%m.%Y')
+                    }}.
+                </div>
+                <a href="{{ url_for('banking.liste_ecritures_par_contact', contact_id=contact.id) }}"
+                    class="btn btn-secondary">Retour</a>
+                {% endif %}
             </div>
         </div>
     </div>

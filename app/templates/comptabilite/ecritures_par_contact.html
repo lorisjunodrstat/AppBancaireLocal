@@ -118,7 +118,7 @@
 
                 {# Mettre à jour le solde cumulatif #}
                 {% set ns.cumulative_balance = ns.cumulative_balance + month_data.solde %}
-
+                <!-- th Date-->
                 <tr class="table-primary">
                     <td colspan="5" class="fw-bold text-center">
                         <i class="fas fa-calendar"></i> MOIS DE {{ month_formatted.upper() }}
@@ -134,14 +134,18 @@
                 {# Afficher les écritures de ce jour #}
                 {% for ecriture in day_data.ecritures %}
                 <tr>
+                    <!-- th Date-->
                     <td>{{ ecriture.date_ecriture.strftime('%d.%m.%Y') }}</td>
+                    <!-- th Description-->
                     <td>{{ ecriture.description }}</td>
+                    <!-- th Type-->
                     <td>
                         <span
                             class="badge {% if ecriture.type_ecriture == 'recette' %}bg-success{% else %}bg-danger{% endif %}">
                             {{ ecriture.type_ecriture|title }}
                         </span>
                     </td>
+                    <!-- th Compte -->
                     <td>
                         {% if ecriture.nom_compte %}
                         {{ ecriture.nom_compte }}
@@ -151,10 +155,25 @@
                         -
                         {% endif %}
                     </td>
+                    <!-- th Montant-->
                     <td
                         class="text-end {% if ecriture.type_ecriture == 'recette' %}text-success{% else %}text-danger{% endif %}">
                         {% if ecriture.type_ecriture == 'recette' %}+{% else %}-{% endif %}{{
                         "%.2f"|format(ecriture.montant) }} CHF
+                    </td>
+                    <!-- th Action-->
+                    <td>
+                        {% if ecriture.transaction_id %}
+                        <span class="badge bg-success">✅ Liée</span>
+                        {% else %}
+                        <a href="{{ url_for('banking.liste_ecritures_par_contact',
+                                                contact_id=contact.id,
+                                                show_link_modal=1,
+                                                ecriture_id=ecriture.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-link"></i> Lier
+                        </a>
+                        {% endif %}
+
                     </td>
                 </tr>
                 {% endfor %}

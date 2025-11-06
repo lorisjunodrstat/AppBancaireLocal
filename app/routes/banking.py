@@ -3187,17 +3187,23 @@ def liste_ecritures_par_contact(contact_id):
         ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
         if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
             date_tx = ecriture_link['date_ecriture']
-            all_tx = g.models.transaction_financiere_model.get_all_user_transactions(
+            # Récupérer TOUTES les transactions de l'utilisateur à cette date
+            transactions_all, _ = g.models.transaction_financiere_model.get_all_user_transactions(
                 user_id=current_user.id,
-                date_from=date_tx,
-                date_to=date_tx
-            )[0]
-            for tx in all_tx:
-                full_tx = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
-                    tx['id'], current_user.id
-                )
-                if full_tx:
-                    transactions_eligibles.append(full_tx)
+                date_from=date_tx.strftime('%Y-%m-%d'),
+                date_to=date_tx.strftime('%Y-%m-%d')
+            )
+            # Ne garder que celles qui ont un solde cohérent avec le montant de l'écriture
+            montant_ecriture = Decimal(str(ecriture_link['montant']))
+            for tx in transactions_all:
+                montant_tx = Decimal(str(tx.get('montant', 0)))
+                if abs(montant_tx - montant_ecriture) <= Decimal('0.02'):  # tolérance de 2 centimes
+                    # Récupérer total des écritures liées à cette transaction
+                    total_ecritures = g.models.ecriture_comptable_model.get_total_ecritures_for_transaction(
+                        tx['id'], current_user.id
+                    )
+                    if total_ecritures + montant_ecriture <= montant_tx:
+                        transactions_eligibles.append(tx)
 
     return render_template('comptabilite/ecritures_par_contact.html',
         ecritures=ecritures,
