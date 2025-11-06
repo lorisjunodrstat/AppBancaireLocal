@@ -20,7 +20,7 @@
         background: #f9f9f9;
     }
 
-    .alert.alert-warning {
+    /*  .alert.alert-warning {
         position: fixed;
         right: 20px;
         z-index: 100;
@@ -28,41 +28,42 @@
         max-width: 200px;
         background-color: #ddd;
         overflow-y: auto; 
-    }
+    }*/
 
-    .popover-toggle {
+    /*.popover-toggle {
         display: none;
-    }
+    }*/
 
     /* 2. Nouveau Conteneur : Gère la position relative pour le popover */
-    .popover-wrapper {
+    /* .popover-wrapper {
         position: relative;
         display: inline-block; /* Pour qu'il s'aligne dans le d-flex */
-    }
+    /*}*/
 
     /* 3. Stylisation de la bulle (le contenu du popover) */
-    .popover-content {
+    /*.popover-content {
         display: none; /* Cache la bulle par défaut */
-        position: absolute;
+        /*position: absolute;*/
         /* Configuration du placement "top" */
-        bottom: 100%; 
+        /*bottom: 100%; 
         left: 50%;
         transform: translateX(-50%);
         width: 250px;
         padding: 10px;
         margin-bottom: 5px; /* Marge vers le haut */
-        background-color: #333;
+        /*background-color: #333;
         color: white;
         border-radius: .3rem;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-        z-index: 1000; /* Assure qu'il est au-dessus du reste */
-    }
+        z-index: 1000; */
+        /* Assure qu'il est au-dessus du reste */
+    /*}*/
 
     /* 4. L'astuce CSS : si la checkbox est cochée, afficher le contenu */
     /* Le sélecteur cible le .popover-content qui suit le .popover-toggle */
-    .popover-toggle:checked ~ .popover-content { 
+    /*.popover-toggle:checked ~ .popover-content { 
         display: block;
-    }
+    }*/
 </style>
 {% endblock %}
 
