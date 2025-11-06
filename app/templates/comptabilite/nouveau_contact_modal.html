@@ -9,7 +9,7 @@
                     aria-label="Close"></button>
             </div>
                 <form method="POST" {% if contact %}action="{{ url_for('banking.edit_contact_comptable', contact_id=contact.id_contact) }}" {%
-                                else %}action="{{ url_for('banking.nouveau_contact_comptable', contact=contact) }}" {% endif %}>
+                                else %}action="{{ url_for('banking.nouveau_contact_comptable') }}" {% endif %}>
 
                 <div class="modal-body">
                     <div class="row">
