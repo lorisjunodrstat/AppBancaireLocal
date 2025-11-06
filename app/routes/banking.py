@@ -3019,7 +3019,7 @@ def edit_contact_comptable(contact_id):
 
 @bp.route('/comptabilite/contacts/<int:contact_id>/link-compte', methods=['POST'])
 @login_required
-def link_contact_to_compte_post(contact_id):
+def link_contact_to_compte(contact_id):
     """Traite uniquement la liaison (pas d'affichage)."""
     contact = g.models.contact_model.get_by_id(contact_id, current_user.id)
     if not contact:
