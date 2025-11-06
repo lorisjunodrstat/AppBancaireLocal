@@ -3386,13 +3386,15 @@ class TransactionFinanciere:
         
     def get_comptes_interagis(self, user_id: int) -> List[Dict]:
         """
-        Récupère la liste des comptes bancaires (internes ou externes liés à des contacts)
-        avec lesquels l'utilisateur a interagi via des transactions.
+        Récupère TOUS les comptes bancaires avec lesquels l'utilisateur a interagi :
+        - Ses propres comptes,
+        - Les comptes externes liés à des contacts,
+        - Les comptes apparaissant comme source ou destination dans ses transactions.
         """
         try:
             with self.db.get_cursor() as cursor:
-                # 1. Récupérer les comptes internes (déjà faits par get_by_user_id)
-                cursor.execute("""
+                # 1. Mes propres comptes
+                query_internes = """
                     SELECT 
                         c.id,
                         c.nom_compte,
@@ -3402,38 +3404,69 @@ class TransactionFinanciere:
                         c.solde,
                         c.devise,
                         c.date_ouverture,
-                        'interne' as type_compte_origine
+                        'interne' AS type_compte_origine
                     FROM comptes_principaux c
                     WHERE c.utilisateur_id = %s
-                """, (user_id,))
-                comptes_internes = cursor.fetchall()
+                """
+                cursor.execute(query_internes, (user_id,))
+                comptes = {row['id']: row for row in cursor.fetchall()}
 
-                # 2. Récupérer les comptes externes liés à des contacts via contact_comptes
-                cursor.execute("""
+                # 2. Comptes liés à des contacts (externes)
+                query_contacts = """
                     SELECT DISTINCT
                         cp.id,
                         cp.nom_compte,
                         cp.iban,
                         cp.bic,
                         cp.type_compte,
-                        0.00 as solde,
+                        0.00 AS solde,
                         cp.devise,
                         cp.date_ouverture,
-                        'externe' as type_compte_origine,
-                        c.nom as contact_nom
+                        'externe' AS type_compte_origine
                     FROM contact_comptes cc
-                    JOIN contacts c ON cc.contact_id = c.id_contact
                     JOIN comptes_principaux cp ON cc.compte_id = cp.id
                     WHERE cc.utilisateur_id = %s
-                """, (user_id,))
-                comptes_externes = cursor.fetchall()
+                """
+                cursor.execute(query_contacts, (user_id,))
+                for row in cursor.fetchall():
+                    if row['id'] not in comptes:
+                        comptes[row['id']] = row
 
-                # Fusionner les deux listes
-                tous_comptes = list(comptes_internes) + list(comptes_externes)
-                return tous_comptes
+                # 3. Comptes apparaissant dans les transactions (source ou destination)
+                query_transactions = """
+                    SELECT DISTINCT
+                        cp.id,
+                        cp.nom_compte,
+                        cp.iban,
+                        cp.bic,
+                        cp.type_compte,
+                        cp.solde,
+                        cp.devise,
+                        cp.date_ouverture,
+                        'transaction' AS type_compte_origine
+                    FROM transactions t
+                    JOIN comptes_principaux cp ON (
+                        cp.id = t.compte_destination_id OR 
+                        cp.id = t.compte_source_id
+                    )
+                    WHERE t.utilisateur_id = %s
+                    AND cp.id IS NOT NULL
+                """
+                cursor.execute(query_transactions, (user_id,))
+                for row in cursor.fetchall():
+                    if row['id'] not in comptes:
+                        # Marquer comme 'externe' si ce n’est pas l’un de mes comptes
+                        if row.get('type_compte_origine') == 'transaction' and row['id'] not in [
+                            c['id'] for c in comptes.values() if c.get('type_compte_origine') == 'interne'
+                        ]:
+                            row['type_compte_origine'] = 'externe'
+                        comptes[row['id']] = row
+
+                # Retourner la liste finale
+                return list(comptes.values())
 
         except Exception as e:
-            logging.error(f"Erreur récupération comptes avec interaction: {e}")
+            logging.error(f"Erreur dans get_comptes_interagis: {e}", exc_info=True)
             return []
 
 class StatistiquesBancaires:
@@ -5107,7 +5140,7 @@ class ContactCompte:
                 cursor.execute("""
                     SELECT cp.id, cp.nom_compte, cp.iban, cp.utilisateur_id AS compte_utilisateur_id,
                                u.nom AS titulaire_nom,
-                               u.prenom AS titulaire_prenom,
+                               u.prenom AS titulaire_prenom
                     FROM contact_comptes cc
                     JOIN comptes_principaux cp ON cc.compte_id = cp.id
                     JOIN utilisateurs u ON cp.utilisateur_id = u.id
