@@ -3366,6 +3366,75 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur get_transaction_with_ecritures_total: {e}")
             return None  
+
+    def get_contacts_avec_transactions(self, user_id: int) -> List[Dict]:
+        with self.db.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT DISTINCT
+                    c.id_contact,
+                    c.nom,
+                    c.iban_dest,   -- si tu stockes l'IBAN dans contacts
+                    te.iban_dest as iban_transaction
+                FROM ecritures_comptables e
+                JOIN contacts c ON e.id_contact = c.id_contact
+                LEFT JOIN transactions t ON e.transaction_id = t.id
+                LEFT JOIN transferts_externes te ON t.id = te.transaction_id
+                WHERE e.utilisateur_id = %s
+            """, (user_id,))
+            return cursor.fetchall()
+        
+    def get_comptes_interagis(self, user_id: int) -> List[Dict]:
+        """
+        Récupère la liste des comptes bancaires (internes ou externes liés à des contacts)
+        avec lesquels l'utilisateur a interagi via des transactions.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # 1. Récupérer les comptes internes (déjà faits par get_by_user_id)
+                cursor.execute("""
+                    SELECT 
+                        c.id,
+                        c.nom_compte,
+                        c.iban,
+                        c.bic,
+                        c.type_compte,
+                        c.solde,
+                        c.devise,
+                        c.date_ouverture,
+                        'interne' as type_compte_origine
+                    FROM comptes_principaux c
+                    WHERE c.utilisateur_id = %s
+                """, (user_id,))
+                comptes_internes = cursor.fetchall()
+
+                # 2. Récupérer les comptes externes liés à des contacts via contact_comptes
+                cursor.execute("""
+                    SELECT DISTINCT
+                        cp.id,
+                        cp.nom_compte,
+                        cp.iban,
+                        cp.bic,
+                        cp.type_compte,
+                        0.00 as solde,
+                        cp.devise,
+                        cp.date_ouverture,
+                        'externe' as type_compte_origine,
+                        c.nom as contact_nom
+                    FROM contact_comptes cc
+                    JOIN contacts c ON cc.contact_id = c.id_contact
+                    JOIN comptes_principaux cp ON cc.compte_id = cp.id
+                    WHERE cc.utilisateur_id = %s
+                """, (user_id,))
+                comptes_externes = cursor.fetchall()
+
+                # Fusionner les deux listes
+                tous_comptes = list(comptes_internes) + list(comptes_externes)
+                return tous_comptes
+
+        except Exception as e:
+            logging.error(f"Erreur récupération comptes avec interaction: {e}")
+            return []
+
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
 
