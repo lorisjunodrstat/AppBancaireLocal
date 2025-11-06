@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-
+{% include 'comptabilite/_modal_link_contact_compte.html' %}
 {% block content %}
 {% include 'comptabilite/nouveau_contact_modal.html' %}
 <div class="container mt-4">
@@ -76,7 +76,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for contact in contacts %}
+                        {% for item in contacts %}
+                        {% set contact = item.contact %}
                         <tr>
                             <td>{{ contact.id_contact }}</td>
                             <td>
@@ -120,12 +121,24 @@
                             </td>
                             <td class="text-center">
                                 <div class="btn-group" role="group">
+                                    
                                     <a href="{{ url_for('banking.edit_contact_comptable', contact_id=contact.id_contact) }}"
                                         class="btn btn-sm btn-outline-primary" title="Modifier">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form
-                                        action="{{ url_for('banking.delete_contact_comptable', contact_id=contact.id_contact) }}"
+                                    {% if item.a_des_comptes_lies %}
+                                    <a href="{{ url_for('banking.link_contact_to_compte', contact_id=item.contact.id_contact) }}"
+                                        class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-link"></i> Gérer les liaisons ({{ item.comptes_lies|length }})
+                                    </a>
+                                    {% else %}
+                                    <a href="{{ url_for('banking.link_contact_to_compte', contact_id=item.contact.id_contact) }}"
+                                        class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-plus"></i> Lier à un compte
+                                    </a>
+                                    {% endif %}
+
+                                    <form action="{{ url_for('banking.delete_contact_comptable', contact_id=contact.id_contact) }}"
                                         method="post" class="d-inline">
                                         <button type="submit" class="btn btn-sm btn-outline-danger"
                                             onclick="return confirm('Êtes-vous sûr de vouloir supprimer définitivement ce contact ?');"

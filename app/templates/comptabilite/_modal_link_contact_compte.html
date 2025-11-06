@@ -1,0 +1,47 @@
+<!-- Modal pour lier un contact à un compte -->
+{% if show_link_compte_modal %}
+<div class="modal show" style="display: block; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Lier « {{ contact.nom }} » à un compte</h5>
+                <a href="{{ url_for('banking.liste_contacts_comptables') }}" class="btn-close" aria-label="Fermer"></a>
+            </div>
+            <div class="modal-body">
+                {% if ids_lies %}
+                <div class="alert alert-info">
+                    <strong>Comptes déjà liés :</strong>
+                    <ul class="mb-0">
+                        {% for c in comptes_lies %}
+                        {% if c.id in ids_lies %}
+                        <li>{{ c.nom_compte }} ({{ c.iban or 'Sans IBAN' }})</li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <form method="POST"
+                    action="{{ url_for('banking.link_contact_to_compte', contact_id=contact.id_contact) }}">
+                    <div class="mb-3">
+                        <label for="compte_id" class="form-label">Sélectionnez un compte bancaire</label>
+                        <select class="form-select" id="compte_id" name="compte_id" required>
+                            <option value="">-- Choisir un compte --</option>
+                            {% for compte in comptes_interagis %}
+                            {% if compte.id not in ids_lies %}
+                            <option value="{{ compte.id }}">{{ compte.nom_compte }} ({{ compte.iban or 'Sans IBAN' }})
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-link"></i> Lier le compte
+                    </button>
+                    <a href="{{ url_for('banking.liste_contacts_comptables') }}" class="btn btn-secondary">Annuler</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

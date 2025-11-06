@@ -2948,8 +2948,9 @@ def liste_contacts_comptables():
     if contacts:
         print("Structure du premier contact:", contacts[0])
         print("Clés disponibles:", contacts[0].keys())
-    
-    return render_template('comptabilite/liste_contacts.html', contacts=contacts)
+    comptes_lies = g.models.transaction_financiere_model.get_comptes_interagis(current_user.id)
+    ids_lies = {c['id'] for c in comptes_lies}
+    return render_template('comptabilite/liste_contacts.html', contacts=contacts, comptes_lies=comptes_lies, ids_lies=ids_lies)
     
 @bp.route('/comptabilite/contacts/<int:contact_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -2983,6 +2984,45 @@ def edit_contact_comptable(contact_id):
             flash(f'Erreur: {str(e)}', 'danger')
     return render_template('comptabilite/nouveau_contact.html', contact=contact)
 
+@bp.route('/comptabilite/contacts/<int:contact_id>/link-compte', methods=['GET', 'POST'])
+@login_required
+def link_contact_to_compte(contact_id):
+    """Affiche un formulaire pour lier un contact à un compte bancaire, ou enregistre la liaison."""
+    contact = g.models.contact_model.get_by_id(contact_id, current_user.id)
+    if not contact:
+        flash("Contact introuvable", "danger")
+        return redirect(url_for('banking.liste_contacts_comptables'))
+
+    # Récupérer tous les comptes de l'utilisateur
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
+
+    if request.method == 'POST':
+        compte_id = request.form.get('compte_id', type=int)
+        if not compte_id:
+            flash("Veuillez sélectionner un compte", "warning")
+        else:
+            success = g.models.contact_compte_model.link_to_compte(
+                contact_id=contact_id,
+                compte_id=compte_id,
+                utilisateur_id=current_user.id
+            )
+            if success:
+                flash(f"Le contact « {contact['nom']} » a été lié au compte « {next((c['nom_compte'] for c in comptes if c['id'] == compte_id), 'Inconnu')} »", "success")
+            else:
+                flash("Erreur lors de la liaison du contact au compte", "danger")
+        return redirect(url_for('banking.link_contact_to_compte', contact_id=contact_id))
+
+    # Récupérer les comptes déjà liés (pour désactiver ou afficher)
+    comptes_lies = g.models.transaction_financiere_model.get_comptes_interagis(current_user.id)
+    ids_lies = {c['id'] for c in comptes_lies}
+
+    return render_template(
+        'comptabilite/link_contact_compte.html',
+        contact=contact,
+        comptes=comptes,
+        comptes_lies=comptes_lies,
+        ids_lies=ids_lies
+    )
 
 @bp.route('/comptabilite/ecritures')
 @login_required
@@ -3148,6 +3188,7 @@ def liste_ecritures_par_contact(contact_id):
         ecriture_link=ecriture_link,
         transactions_eligibles=transactions_eligibles
     )
+
 @bp.route('/comptabilite/ecritures/nouvelle', methods=['GET', 'POST'])
 @login_required
 def nouvelle_ecriture():

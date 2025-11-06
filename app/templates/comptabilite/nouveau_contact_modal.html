@@ -4,7 +4,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="nouveauContactModalLabel">{% if contact %}Modifier{% else %}Nouveau{% endif %} contact<</h5>
+                <h5 class="modal-title" id="nouveauContactModalLabel">{% if contact %}Modifier{% else %}Nouveau{% endif %} contact</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
@@ -47,6 +47,17 @@
                         <div class="col-md-8 mb-3">
                             <label for="ville" class="form-label">Ville</label>
                             <input type="text" class="form-control" id="ville" name="ville">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="lien_compte" form-label">Lien vers le compte bancaire</label>
+                            <a href="{{ url_for('banking.liste_contacts_comptables', 
+                                                                                    link_compte='1', 
+                                                                                    contact_id=contact.id_contact) }}"
+                                class="btn btn-sm btn-outline-secondary" title="Lier à un compte">
+                                <i class="fas fa-link"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
