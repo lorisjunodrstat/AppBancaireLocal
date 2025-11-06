@@ -2962,6 +2962,7 @@ def liste_contacts_comptables():
                 show_link_compte_modal = True
                 # Récupérer TOUS les comptes avec qui l'utilisateur interagit
                 comptes_interagis = g.models.transaction_financiere_model.get_comptes_interagis(current_user.id)
+                print(f'Comptes interagis: {comptes_interagis}')
                 # Récupérer les comptes déjà liés à ce contact
                 comptes_lies = g.models.contact_compte_model.get_comptes_for_contact(contact_id, current_user.id)
                 ids_lies = {c['id'] for c in comptes_lies}

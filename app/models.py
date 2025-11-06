@@ -13,6 +13,7 @@ import calendar
 import csv
 import time
 import math
+from collections import defaultdict
 
 from typing import List, Dict, Optional, Tuple
 import traceback
@@ -3774,7 +3775,7 @@ class StatistiquesBancaires:
                 solde_initial = float(row['solde_initial']) if row else 0.0
 
             # Calculer le solde cumulé JOUR PAR JOUR
-            from collections import defaultdict
+ 
             daily_net = defaultdict(float)
             for tx in transactions:
                 date_key = tx['date_transaction'].date()
@@ -5920,8 +5921,9 @@ class Salaire:
             current_app.logger.error(f"Erreur calcul salaire net: {e}")
             return 0.0
     
+
     def calculer_salaire_net_avec_details(self, heures_reelles: float, contrat: Dict, user_id: int = None, annee: int = None, 
-                                    mois: int = None, jour_estimation: int = 15) -> Dict:
+                                        mois: int = None, jour_estimation: int = 15) -> Dict:
         """
         Calcule le salaire net et retourne tous les détails du calcul pour affichage
         avec des noms explicites pour chaque élément
@@ -5937,7 +5939,7 @@ class Salaire:
             
             # Conversion du salaire horaire
             salaire_horaire = contrat.get('salaire_horaire', 24.05)
-            if isinstance(salaire_horaire, decimal.Decimal):
+            if isinstance(salaire_horaire, Decimal):  # Utilisez Decimal directement
                 salaire_horaire = float(salaire_horaire)
             elif isinstance(salaire_horaire, str):
                 salaire_horaire = float(salaire_horaire)
@@ -5948,7 +5950,7 @@ class Salaire:
             # Récupération des taux depuis le contrat
             def get_taux(key, default=0.0):
                 value = contrat.get(key, default)
-                if isinstance(value, decimal.Decimal):
+                if isinstance(value, Decimal):  # Utilisez Decimal directement
                     return float(value)
                 elif isinstance(value, str):
                     return float(value) if value else default
@@ -6096,7 +6098,6 @@ class Salaire:
                 'erreur': f"Erreur dans calculer_salaire_net_avec_details: {str(e)}",
                 'details': {}
             }
-
     def calculer_differences(self, salaire_calcule: float, salaire_verse: float) -> Tuple[float, float]:
         if salaire_verse is None:
             return 0.0, 0.0
