@@ -159,7 +159,7 @@
                         "%.2f"|format(ecriture.montant) }} CHF
                     </td>
                     <!-- th Action-->
-                    <td>
+                    <td class="text-end {% if ecriture.type_ecriture == 'recette' %}text-success{% else %}text-danger{% endif %}">
                         {% if ecriture.transaction_id %}
                         <span class="badge bg-success">✅ Liée</span>
                         {% else %}
