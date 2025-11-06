@@ -49,17 +49,6 @@
                             <input type="text" class="form-control" id="ville" name="ville">
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-8 mb-3">
-                            <label for="lien_compte" form-label">Lien vers le compte bancaire</label>
-                            <a href="{{ url_for('banking.liste_contacts_comptables', 
-                                                                                    link_compte='1', 
-                                                                                    contact_id=contact.id_contact) }}"
-                                class="btn btn-sm btn-outline-secondary" title="Lier à un compte">
-                                <i class="fas fa-link"></i>
-                            </a>
-                        </div>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>

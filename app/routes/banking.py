@@ -2898,7 +2898,6 @@ def delete_categorie(categorie_id):
 @bp.route('/comptabilite/nouveau-contact', methods=['GET', 'POST'])
 @login_required
 def nouveau_contact_comptable():
-    """Crée un nouveau contact pour la comptabilité"""
     if request.method == 'POST':
         try:
             data = {
@@ -2940,18 +2939,27 @@ def delete_contact_comptable(contact_id):
 @bp.route('/comptabilite/contacts')
 @login_required
 def liste_contacts_comptables():
-    """Affiche la liste des contacts comptables"""
-    #contact_model = Contacts(g.db_manager)
+    # Récupérer tous les contacts de l'utilisateur
     contacts = g.models.contact_model.get_all(current_user.id)
     
-    # Debug: afficher la structure du premier contact
-    if contacts:
-        print("Structure du premier contact:", contacts[0])
-        print("Clés disponibles:", contacts[0].keys())
-    comptes_lies = g.models.transaction_financiere_model.get_comptes_interagis(current_user.id)
-    ids_lies = {c['id'] for c in comptes_lies}
-    return render_template('comptabilite/liste_contacts.html', contacts=contacts, comptes_lies=comptes_lies, ids_lies=ids_lies)
+    # Récupérer tous les comptes avec lesquels l'utilisateur interagit (internes + externes liés)
+    comptes_interagis = g.models.transaction_financiere_model.get_comptes_interagis(current_user.id)
     
+    # Pour chaque contact, récupérer les comptes qui lui sont déjà liés
+    contacts_enrichis = []
+    for contact in contacts:
+        comptes_lies = g.models.contact_compte_model.get_comptes_for_contact(contact['id_contact'], current_user.id)
+        contacts_enrichis.append({
+            'contact': contact,
+            'comptes_lies': comptes_lies,
+            'a_des_comptes_lies': len(comptes_lies) > 0
+        })
+    
+    return render_template(
+        'comptabilite/liste_contacts.html',
+        contacts=contacts_enrichis,
+        comptes_interagis=comptes_interagis  # <-- Disponible dans le template pour le modal de liaison
+    )
 @bp.route('/comptabilite/contacts/<int:contact_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_contact_comptable(contact_id):
@@ -2985,16 +2993,17 @@ def edit_contact_comptable(contact_id):
     return render_template('comptabilite/nouveau_contact.html', contact=contact)
 
 @bp.route('/comptabilite/contacts/<int:contact_id>/link-compte', methods=['GET', 'POST'])
+@bp.route('/comptabilite/contacts/<int:contact_id>/link-compte', methods=['GET', 'POST'])
 @login_required
 def link_contact_to_compte(contact_id):
-    """Affiche un formulaire pour lier un contact à un compte bancaire, ou enregistre la liaison."""
+    """Affiche ou sauvegarde la liaison entre un contact et un compte bancaire."""
     contact = g.models.contact_model.get_by_id(contact_id, current_user.id)
     if not contact:
         flash("Contact introuvable", "danger")
         return redirect(url_for('banking.liste_contacts_comptables'))
 
-    # Récupérer tous les comptes de l'utilisateur
-    comptes = g.models.compte_model.get_by_user_id(current_user.id)
+    # ✅ Utilise get_comptes_interagis pour inclure les comptes externes liés
+    comptes = g.models.transaction_financiere_model.get_comptes_interagis(current_user.id)
 
     if request.method == 'POST':
         compte_id = request.form.get('compte_id', type=int)
@@ -3007,17 +3016,17 @@ def link_contact_to_compte(contact_id):
                 utilisateur_id=current_user.id
             )
             if success:
-                flash(f"Le contact « {contact['nom']} » a été lié au compte « {next((c['nom_compte'] for c in comptes if c['id'] == compte_id), 'Inconnu')} »", "success")
+                flash(f"Le contact « {contact['nom']} » a été lié au compte sélectionné", "success")
             else:
-                flash("Erreur lors de la liaison du contact au compte", "danger")
+                flash("Erreur lors de la liaison", "danger")
         return redirect(url_for('banking.link_contact_to_compte', contact_id=contact_id))
 
-    # Récupérer les comptes déjà liés (pour désactiver ou afficher)
-    comptes_lies = g.models.transaction_financiere_model.get_comptes_interagis(current_user.id)
+    # Récupérer les comptes déjà liés pour affichage / désactiver dans la liste
+    comptes_lies = g.models.contact_compte_model.get_comptes_for_contact(contact_id, current_user.id)
     ids_lies = {c['id'] for c in comptes_lies}
 
     return render_template(
-        'comptabilite/link_contact_compte.html',
+        'comptabilite/_modal_link_contact_compte.html',  # ou un template full si pas de modal JS
         contact=contact,
         comptes=comptes,
         comptes_lies=comptes_lies,
