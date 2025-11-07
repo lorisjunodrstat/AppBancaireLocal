@@ -155,8 +155,18 @@
                             </td>
                             <td>
                                 {% if ecriture.transaction_id %}
-                                <span class="badge bg-success">Liée à la transaction #{{ ecriture.transaction_id }} <a
-                                    href="{{ url_for('banking.liste_ecritures', show_transaction_modal=1, transaction_id=ecriture.transaction_id, ...) }}"><i class="fas fa-info"></i></a></span>
+                                <a href="{{ url_for('banking.liste_ecritures',
+                                                    show_transaction_modal=1,
+                                                    transaction_id=ecriture.transaction_id,
+                                                    compte_id=request.args.get('compte_id'),
+                                                    date_from=request.args.get('date_from'),
+                                                    date_to=request.args.get('date_to'),
+                                                    id_contact=request.args.get('id_contact'),
+                                                    statut=request.args.get('statut'),
+                                                    categorie_id=request.args.get('categorie_id')) }}"
+                                    class="badge bg-success text-white text-decoration-none" title="Voir les détails de la transaction">
+                                    Liée à la transaction #{{ ecriture.transaction_id }}
+                                </a>
                                 {% else %}
                                 <span class="badge bg-secondary">Non liée</span>
                                 <a href="{{ url_for('banking.liste_ecritures',
@@ -166,7 +176,8 @@
                                                     date_from=request.args.get('date_from'),
                                                     date_to=request.args.get('date_to'),
                                                     id_contact=request.args.get('id_contact'),
-                                                    statut=request.args.get('statut')) }}" class="btn btn-sm btn-outline-primary">
+                                                    statut=request.args.get('statut'),
+                                                    categorie_id=request.args.get('categorie_id')) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-link"></i> Lier
                                 </a>
                                 {% endif %}
