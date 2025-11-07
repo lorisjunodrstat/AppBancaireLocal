@@ -3563,13 +3563,13 @@ def editer_plan(plan_id):
 @bp.route('/plans2/<int:plan_id>/editer', methods=['GET', 'POST'])
 @login_required
 def editer_plan2(plan_id):
-    plan = g.models.plan_comptable_model.get_plan_with_categories(plan_id, session['user_id'])
+    plan = g.models.plan_comptable_model.get_plan_with_categories(plan_id, current_user.id)
     if not plan:
         abort(404)
     if request.method == 'POST':
         # Mise à jour + gestion des catégories via formulaires <select>
         pass
-    categories_dispo = g.models.plan_comptable_model.categorie_comptable.get_all_categories(session['user_id'])
+    categories_dispo = g.models.plan_comptable_model.categorie_comptable.get_all_categories(current_user.id)
     return render_template('plans/form.html', plan=plan, categories_dispo=categories_dispo)
 
 @bp.route('/plans/<int:plan_id>/supprimer', methods=['POST'])
