@@ -117,7 +117,7 @@
                 {% set ns.cumulative_balance = ns.cumulative_balance + month_data.solde %}
                 <!-- th Date-->
                 <tr class="table-primary">
-                    <td colspan="5" class="fw-bold text-center">
+                    <td colspan="6" class="fw-bold text-center">
                         <i class="fas fa-calendar"></i> MOIS DE {{ month_formatted.upper() }}
                     </td>
                 </tr>
@@ -180,6 +180,7 @@
                     <td colspan="3" class="text-end fw-bold">Total {{ day_formatted }} :</td>
                     <td class="text-end fw-bold text-danger">-{{ "%.2f"|format(day_data.depenses) }} CHF</td>
                     <td class="text-end fw-bold text-success">+{{ "%.2f"|format(day_data.recettes) }} CHF</td>
+                    <td></td>
                 </tr>
                 <tr class="table-info">
                     <td colspan="4" class="text-end fw-bold">Solde {{ day_formatted }} :</td>
@@ -187,6 +188,7 @@
                         class="text-end fw-bold {% if day_data.solde >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ "%+.2f"|format(day_data.solde) }} CHF
                     </td>
+                    <td
                 </tr>
                 <tr>
                     <td colspan="5" class="bg-secondary py-1"></td>
@@ -206,6 +208,7 @@
                         class="text-end fw-bold {% if month_data.solde >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ "%+.2f"|format(month_data.solde) }} CHF
                     </td>
+                    <td></td>
                 </tr>
                 <tr class="table-warning">
                     <td colspan="4" class="text-end fw-bold">Solde cumulatif (fin {{ month_formatted }}) :</td>
@@ -213,6 +216,7 @@
                         class="text-end fw-bold {% if ns.cumulative_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ "%+.2f"|format(ns.cumulative_balance) }} CHF
                     </td>
+                    <td></td>
                 </tr>
                 <tr>
                     <td colspan="5" class="bg-light py-2"></td>
@@ -225,6 +229,7 @@
                     <td colspan="3" class="text-end fw-bold">Total général :</td>
                     <td class="text-end fw-bold text-danger">-{{ "%.2f"|format(global_totals.depenses) }} CHF</td>
                     <td class="text-end fw-bold text-success">+{{ "%.2f"|format(global_totals.recettes) }} CHF</td>
+                    <td></td>
                 </tr>
                 <tr class="table-primary">
                     <td colspan="4" class="text-end fw-bold">Solde général final :</td>
@@ -232,6 +237,7 @@
                         class="text-end fw-bold {% if solde_general >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ "%+.2f"|format(solde_general) }} CHF
                     </td>
+                    <td></td>
                 </tr>
 
                 {% else %}
