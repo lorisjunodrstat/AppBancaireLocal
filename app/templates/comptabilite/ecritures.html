@@ -152,6 +152,12 @@
                                 <span class="badge bg-success">Liée à la transaction #{{ ecriture.transaction_id }}</span>
                                 {% else %}
                                 <span class="badge bg-secondary">Non liée</span>
+                                <a href="{{ url_for('banking.liste_ecritures_par_contact',
+                                                                                contact_id=contact.id_contact,
+                                                                                show_link_modal=1,
+                                                                                ecriture_id=ecriture.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-link"></i> Lier
+                                </a>
                                 {% endif %}
                             </td>
                         </tr>
