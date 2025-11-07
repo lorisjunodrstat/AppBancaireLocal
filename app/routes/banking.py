@@ -3096,6 +3096,7 @@ def liste_ecritures():
     # Récupérer les données supplémentaires
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
+    contact_map = {c['id']: c['nom'] for c in contacts}
 
     # Gestion du modal de liaison
     show_link_modal = request.args.get('show_link_modal') == '1'
@@ -3134,7 +3135,8 @@ def liste_ecritures():
         categorie_id=categorie_id,
         show_link_modal=show_link_modal,
         ecriture_link=ecriture_link,
-        transactions_eligibles=transactions_eligibles
+        transactions_eligibles=transactions_eligibles,
+        contact_map=contact_map
     )
 
 @bp.app_template_filter('datetimeformat')

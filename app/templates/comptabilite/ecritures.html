@@ -90,7 +90,13 @@
                                 {{ ecriture.categorie_nom }}
                             </td>
                             <td>{{ ecriture.description }}</td>
-                            <td>{{ecriture.id_contact }}</td>
+                            <td>{% if ecriture.id_contact and ecriture.id_contact in contact_map %}
+                            {{ contact_map[ecriture.id_contact] }}
+                            {% elif ecriture.id_contact %}
+                            {{ecriture.id_contact }}    
+                            {% else %}
+                            —
+                            {% endif %}</td>
                             <td class="text-end fw-bold">
                                 {{ "%.2f"|format(ecriture.montant) }} {{ ecriture.devise }}
                             </td>
