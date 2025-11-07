@@ -3449,7 +3449,7 @@ def delete_ecriture(ecriture_id):
 @login_required
 def link_transaction_to_ecritures():
     transaction_id = request.form.get('transaction_id', type=int)
-    ecriture_ids = request.form.getlist('ecriture_ids')  # Liste d'IDs
+    ecriture_id = request.form.getlist('ecriture_id')  # Liste d'IDs
 
     # Vérifier la transaction
     
