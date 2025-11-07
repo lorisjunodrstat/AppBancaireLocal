@@ -153,7 +153,7 @@
                                 {% else %}
                                 <span class="badge bg-secondary">Non liée</span>
                                 <a href="{{ url_for('banking.liste_ecritures_par_contact',
-                                                                                contact_id=ecriture.contact_id,
+                                                                                contact_id=ecriture.id_contact,
                                                                                 show_link_modal=1,
                                                                                 ecriture_id=ecriture.id) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-link"></i> Lier
