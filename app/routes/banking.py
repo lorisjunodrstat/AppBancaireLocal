@@ -3136,6 +3136,7 @@ def liste_ecritures():
         ecriture_link=ecriture_link,
         transactions_eligibles=transactions_eligibles
     )
+
 @bp.app_template_filter('datetimeformat')
 def datetimeformat(value, format='%d.%m.%Y'):
     """Filtre pour formater les dates dans les templates"""
@@ -3524,7 +3525,7 @@ def relink_ecriture():
 @bp.route('/plans')
 @login_required
 def liste_plans():
-    plans = g.models.plan_comptable_model.get_all_plans(session['user_id'])
+    plans = g.models.plan_comptable_model.get_all_plans(current_user.id)
     return render_template('plans/liste.html', plans=plans)
 
 @bp.route('/plans/creer', methods=['GET', 'POST'])
@@ -3532,7 +3533,7 @@ def liste_plans():
 def creer_plan():
     if request.method == 'POST':
         data = request.form.to_dict()
-        data['utilisateur_id'] = session['user_id']
+        data['utilisateur_id'] = current_user.id
         plan_id = g.models.plan_comptable_model.create_plan(data)
         if plan_id:
             return redirect(url_for('editer_plan', plan_id=plan_id))
@@ -3541,6 +3542,27 @@ def creer_plan():
 @bp.route('/plans/<int:plan_id>/editer', methods=['GET', 'POST'])
 @login_required
 def editer_plan(plan_id):
+    plan = g.models.plan_comptable_model.get_plan_with_categories(plan_id, current_user.id)
+    if not plan:
+        abort(404)
+
+    if request.method == 'POST':
+        data = request.form.to_dict()
+        updated = g.models.plan_comptable_model.modifier_plan(
+            plan_id=plan_id,
+            data=data,
+            utilisateur_id=current_user.id
+        )
+        if updated:
+            flash("Plan comptable mis à jour avec succès.", "success")
+            return redirect(url_for('plans.editer_plan', plan_id=plan_id))
+        else:
+            flash("Erreur lors de la mise à jour.", "danger")
+
+    return render_template('plans/editer_plan.html', plan=plan)
+@bp.route('/plans2/<int:plan_id>/editer', methods=['GET', 'POST'])
+@login_required
+def editer_plan2(plan_id):
     plan = g.models.plan_comptable_model.get_plan_with_categories(plan_id, session['user_id'])
     if not plan:
         abort(404)

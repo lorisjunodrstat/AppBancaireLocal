@@ -4047,6 +4047,36 @@ class CategorieComptable:
             logging.error(f"Erreur lors de la création de la catégorie comptable: {e}")
             return False
     
+    def modifier_plan(self, plan_id: int, data: Dict, utilisateur_id: int) -> bool:
+        """Met à jour un plan comptable"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que le plan existe et appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM plans_comptables WHERE id = %s AND utilisateur_id = %s",
+                    (plan_id, utilisateur_id)
+                )
+                if not cursor.fetchone():
+                    return False
+
+                query = """
+                UPDATE plans_comptables
+                SET nom = %s, description = %s, devise = %s
+                WHERE id = %s AND utilisateur_id = %s
+                """
+                values = (
+                    data['nom'],
+                    data.get('description', ''),
+                    data.get('devise', 'CHF'),
+                    plan_id,
+                    utilisateur_id
+                )
+                cursor.execute(query, values)
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Erreur mise à jour plan comptable: {e}")
+            return False
+    
     def update(self, categorie_id: int, data: Dict) -> bool:
         """Met à jour une catégorie comptable"""
         try:
@@ -4131,24 +4161,24 @@ class CategorieComptable:
             logging.error(f"Erreur get_all_categories: {e}")
             return []
 
-    def get_by_numero(self, numero: str) -> Optional[Dict]:
+    def get_by_numero(self, numero: str, utilisateur_id: int) -> Optional[Dict]:
         """Récupère une catégorie par son numéro"""
         try:
             with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM categories_comptables WHERE numero = %s"
-                cursor.execute(query, (numero,))
+                query = "SELECT * FROM categories_comptables WHERE numero = %s AND utilisateur_id = %s"
+                cursor.execute(query, (numero, utilisateur_id))
                 categorie = cursor.fetchone()
             return categorie
         except Error as e:
             logging.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
             return None
-            
-    def get_by_type(self, type_compte: str) -> List[Dict]:
+
+    def get_by_type(self, type_compte: str, utilisateur_id: int) -> List[Dict]:
         """Récupère les catégories par type de compte"""
         try:
             with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM categories_comptables WHERE type_compte = %s ORDER BY numero"
-                cursor.execute(query, (type_compte,))
+                query = "SELECT * FROM categories_comptables WHERE type_compte = %s AND utilisateur_id = %s ORDER BY numero"
+                cursor.execute(query, (type_compte, utilisateur_id))
                 categories = cursor.fetchall()
             return categories
         except Error as e:

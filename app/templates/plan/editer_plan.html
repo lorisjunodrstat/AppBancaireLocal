@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier le plan « {{ plan.nom }} »{% endblock %}
+
+{% block content %}
+<h2>Modifier le plan comptable</h2>
+
+<form method="POST" class="row g-3">
+  <input type="hidden" name="id" value="{{ plan.id }}">
+
+  <div class="col-md-6">
+    <label for="nom" class="form-label">Nom *</label>
+    <input type="text" class="form-control" id="nom" name="nom" value="{{ plan.nom }}" required maxlength="100">
+  </div>
+
+  <div class="col-md-6">
+    <label for="devise" class="form-label">Devise</label>
+    <select class="form-select" id="devise" name="devise">
+      <option value="CHF" {% if plan.devise == 'CHF' %}selected{% endif %}>CHF (Franc suisse)</option>
+      <option value="EUR" {% if plan.devise == 'EUR' %}selected{% endif %}>EUR (Euro)</option>
+      <option value="USD" {% if plan.devise == 'USD' %}selected{% endif %}>USD (Dollar US)</option>
+    </select>
+  </div>
+
+  <div class="col-12">
+    <label for="description" class="form-label">Description</label>
+    <textarea class="form-control" id="description" name="description" rows="3" maxlength="500">{{ plan.description }}</textarea>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">💾 Enregistrer les modifications</button>
+    <a href="{{ url_for('plans.liste_plans') }}" class="btn btn-secondary">Annuler</a>
+  </div>
+</form>
+
+<hr class="my-4">
+
+<h3>Catégories associées ({{ plan.categories|length }})</h3>
+{% if plan.categories %}
+  <ul class="list-group">
+    {% for cat in plan.categories %}
+      <li class="list-group-item">
+        <code>{{ cat.numero }}</code> {{ cat.nom }}
+        <small class="text-muted">({{ cat.type_compte }})</small>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-muted">Aucune catégorie n’est encore associée à ce plan.</p>
+{% endif %}
+
+<p class="mt-3">
+  <a href="{{ url_for('plans.gerer_categories_plan', plan_id=plan.id) }}" class="btn btn-outline-primary">
+    ➕ Ajouter ou supprimer des catégories
+  </a>
+</p>
+
+{% endblock %}
