@@ -1,0 +1,61 @@
+<div class="container mt-4">
+    <div class="card border-primary shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                {% if ecriture_link.transaction_id %}
+                Modifier le lien avec la transaction
+                {% else %}
+                Lier cette écriture à une transaction
+                {% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Écriture :</strong> {{ ecriture_link.description or '—' }} ({{
+                "%.2f"|format(ecriture_link.montant) }} CHF)</p>
+
+            {% if ecriture_link.transaction_id %}
+            <p><strong>Actuellement liée à :</strong> Transaction #{{ ecriture_link.transaction_id }}</p>
+            <form method="POST" action="{{ url_for('banking.unlink_ecriture') }}">
+                <input type="hidden" name="ecriture_id" value="{{ ecriture_link.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger"
+                    onclick="return confirm('Confirmer la suppression du lien ?');">
+                    <i class="fas fa-unlink"></i> Délier
+                </button>
+            </form>
+            <hr>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('banking.relink_ecriture') }}">
+                <input type="hidden" name="ecriture_id" value="{{ ecriture_link.id }}">
+                <div class="mb-3">
+                    <label class="form-label">Choisir une transaction</label>
+                    <select class="form-select" name="new_transaction_id" required>
+                        <option value="">-- Sélectionner --</option>
+                        {% for tx in transactions_eligibles %}
+                        <option value="{{ tx.id }}" {% if tx.id==ecriture_link.transaction_id %}selected{% endif %}>
+                            #{{ tx.id }} – {{ tx.date_transaction.strftime('%d.%m.%Y') }} –
+                            {{ tx.description or '–' }} –
+                            {{ "%.2f"|format(tx.montant) }} CHF
+                            {% if tx.total_ecritures > 0 %}
+                            <small class="text-muted">(déjà liées : {{ "%.2f"|format(tx.total_ecritures) }} CHF)</small>
+                            {% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-link"></i> Lier à cette transaction
+                </button>
+                <a href="{{ url_for(request.endpoint,
+                            compte_id=request.args.get('compte_id'),
+                            date_from=request.args.get('date_from'),
+                            date_to=request.args.get('date_to'),
+                            id_contact=request.args.get('id_contact'),
+                            statut=request.args.get('statut'),
+                            categorie_id=request.args.get('categorie_id')) }}" class="btn btn-secondary">
+                    Annuler
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
