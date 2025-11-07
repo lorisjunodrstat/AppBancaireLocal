@@ -6,7 +6,7 @@
 <h2>Plans comptables</h2>
 
 <div class="mb-3">
-  <a href="{{ url_for('plans.creer_plan') }}" class="btn btn-primary">➕ Créer un nouveau plan</a>
+  <a href="{{ url_for('banking.creer_plan') }}" class="btn btn-primary">➕ Créer un nouveau plan</a>
 </div>
 
 {% if plans %}
@@ -29,7 +29,7 @@
           <td>{{ plan.devise }}</td>
           <td>{{ plan.created_at.strftime('%d.%m.%Y') if plan.created_at else '' }}</td>
           <td>
-            <a href="{{ url_for('plans.editer_plan', plan_id=plan.id) }}" class="btn btn-sm btn-outline-secondary">Modifier</a>
+            <a href="{{ url_for('banking.editer_plan', plan_id=plan.id) }}" class="btn btn-sm btn-outline-secondary">Modifier</a>
             {# La suppression peut être ajoutée plus tard #}
           </td>
         </tr>
