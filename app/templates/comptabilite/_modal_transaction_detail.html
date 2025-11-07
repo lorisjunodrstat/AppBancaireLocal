@@ -1,60 +1,75 @@
-<!-- Bloc détails transaction (affiché en haut de la page, sans JS) -->
-<div class="container mt-4">
-    <div class="card border-info shadow-sm">
-        <div class="card-header bg-info text-white">
-            <h5 class="mb-0">Détails de la transaction #{{ transaction_detail.id }}</h5>
-        </div>
-        <div class="card-body">
-            <ul class="list-unstyled">
-                <li><strong>Date :</strong> {{ transaction_detail.date_transaction.strftime('%d.%m.%Y') if
-                    transaction_detail.date_transaction else '—' }}</li>
-                <li><strong>Montant :</strong> {{ "%.2f"|format(transaction_detail.montant) }} CHF</li>
-                <li><strong>Type :</strong> {{ transaction_detail.type_transaction or '—' }}</li>
-                <li><strong>Description :</strong> {{ transaction_detail.description or '—' }}</li>
-                <li><strong>Référence :</strong> {{ transaction_detail.reference or '—' }}</li>
+<!-- Modal pour les détails de transaction -->
+<div class="modal fade show" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel"
+    aria-hidden="false" style="display: block; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="transactionModalLabel">
+                    Détails de la transaction #{{ transaction_detail.id }}
+                </h5>
+                <!-- Bouton fermer avec lien direct -->
+                <a href="{{ url_for(request.endpoint,
+                          compte_id=request.args.get('compte_id'),
+                          date_from=request.args.get('date_from'),
+                          date_to=request.args.get('date_to'),
+                          id_contact=request.args.get('id_contact'),
+                          statut=request.args.get('statut'),
+                          categorie_id=request.args.get('categorie_id')) }}" class="btn-close btn-close-white"
+                    aria-label="Fermer">
+                </a>
+            </div>
+            <div class="modal-body">
+                <ul class="list-unstyled">
+                    <li><strong>Date :</strong> {{ transaction_detail.date_transaction.strftime('%d.%m.%Y') if
+                        transaction_detail.date_transaction else '—' }}</li>
+                    <li><strong>Montant :</strong> {{ "%.2f"|format(transaction_detail.montant) }} CHF</li>
+                    <li><strong>Type :</strong> {{ transaction_detail.type_transaction or '—' }}</li>
+                    <li><strong>Description :</strong> {{ transaction_detail.description or '—' }}</li>
+                    <li><strong>Référence :</strong> {{ transaction_detail.reference or '—' }}</li>
 
-                <!-- Compte principal -->
-                <li><strong>Compte principal :</strong>
-                    {{ transaction_detail.compte_principal_nom or '—' }}
-                    {% if transaction_detail.compte_principal_banque %}
-                    ({{ transaction_detail.compte_principal_banque }})
+                    <!-- Compte principal -->
+                    <li><strong>Compte principal :</strong>
+                        {{ transaction_detail.compte_principal_nom or '—' }}
+                        {% if transaction_detail.compte_principal_banque %}
+                        ({{ transaction_detail.compte_principal_banque }})
+                        {% endif %}
+                    </li>
+
+                    <!-- Compte destination (si transfert) -->
+                    {% if transaction_detail.compte_destination_nom %}
+                    <li><strong>Compte destinataire :</strong>
+                        {{ transaction_detail.compte_destination_nom }}
+                        {% if transaction_detail.compte_destination_banque %}
+                        ({{ transaction_detail.compte_destination_banque }})
+                        {% endif %}
+                    </li>
                     {% endif %}
-                </li>
 
-                <!-- Compte destination (si transfert) -->
-                {% if transaction_detail.compte_destination_nom %}
-                <li><strong>Compte destinataire :</strong>
-                    {{ transaction_detail.compte_destination_nom }}
-                    {% if transaction_detail.compte_destination_banque %}
-                    ({{ transaction_detail.compte_destination_banque }})
+                    <!-- Compte source (si applicable) -->
+                    {% if transaction_detail.compte_source_nom %}
+                    <li><strong>Compte source :</strong>
+                        {{ transaction_detail.compte_source_nom }}
+                        {% if transaction_detail.compte_source_banque %}
+                        ({{ transaction_detail.compte_source_banque }})
+                        {% endif %}
+                    </li>
                     {% endif %}
-                </li>
-                {% endif %}
 
-                <!-- Compte source (si applicable) -->
-                {% if transaction_detail.compte_source_nom %}
-                <li><strong>Compte source :</strong>
-                    {{ transaction_detail.compte_source_nom }}
-                    {% if transaction_detail.compte_source_banque %}
-                    ({{ transaction_detail.compte_source_banque }})
-                    {% endif %}
-                </li>
-                {% endif %}
-
-                <!-- Solde après (optionnel) -->
-                <li><strong>Solde après :</strong> {{ "%.2f"|format(transaction_detail.solde_apres) }} CHF</li>
-            </ul>
-
-            <!-- Bouton Fermer (retour sans les paramètres du modal) -->
-            <a href="{{ url_for(request.endpoint,
+                    <!-- Solde après (optionnel) -->
+                    <li><strong>Solde après :</strong> {{ "%.2f"|format(transaction_detail.solde_apres) }} CHF</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <a href="{{ url_for(request.endpoint,
                           compte_id=request.args.get('compte_id'),
                           date_from=request.args.get('date_from'),
                           date_to=request.args.get('date_to'),
                           id_contact=request.args.get('id_contact'),
                           statut=request.args.get('statut'),
                           categorie_id=request.args.get('categorie_id')) }}" class="btn btn-secondary">
-                Fermer
-            </a>
+                    Fermer
+                </a>
+            </div>
         </div>
     </div>
 </div>
