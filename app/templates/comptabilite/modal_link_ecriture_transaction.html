@@ -1,11 +1,9 @@
-<!-- app/templates/comptabilite/modal_link_ecriture_transaction.html -->
-{% if ecriture_link %}
 <div class="container mt-4">
     <div class="card border-primary shadow-sm">
         <div class="card-header bg-primary text-white">
             <h5 class="mb-0">
                 {% if ecriture_link.transaction_id %}
-                Modifier / Supprimer le lien avec la transaction
+                Modifier le lien avec la transaction
                 {% else %}
                 Lier cette écriture à une transaction
                 {% endif %}
@@ -17,11 +15,11 @@
 
             {% if ecriture_link.transaction_id %}
             <p><strong>Actuellement liée à :</strong> Transaction #{{ ecriture_link.transaction_id }}</p>
-            <form method="POST" action="{{ url_for('banking.unlink_ecriture') }}" class="mb-3">
+            <form method="POST" action="{{ url_for('banking.unlink_ecriture') }}">
                 <input type="hidden" name="ecriture_id" value="{{ ecriture_link.id }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"
                     onclick="return confirm('Confirmer la suppression du lien ?');">
-                    <i class="fas fa-unlink"></i> Délier de la transaction
+                    <i class="fas fa-unlink"></i> Délier
                 </button>
             </form>
             <hr>
@@ -36,17 +34,14 @@
                         {% for tx in transactions_eligibles %}
                         <option value="{{ tx.id }}" {% if tx.id==ecriture_link.transaction_id %}selected{% endif %}>
                             #{{ tx.id }} – {{ tx.date_transaction.strftime('%d.%m.%Y') }} –
-                            {{ tx.description or tx.reference or '–' }} –
+                            {{ tx.description or '–' }} –
                             {{ "%.2f"|format(tx.montant) }} CHF
-                            {% if tx.total_ecritures and tx.total_ecritures > 0 %}
+                            {% if tx.total_ecritures > 0 %}
                             <small class="text-muted">(déjà liées : {{ "%.2f"|format(tx.total_ecritures) }} CHF)</small>
                             {% endif %}
                         </option>
                         {% endfor %}
                     </select>
-                </div>
-                <div class="alert alert-warning">
-                    <small>⚠️ Le total des écritures liées ne doit pas dépasser le montant de la transaction.</small>
                 </div>
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-link"></i> Lier à cette transaction
@@ -64,4 +59,3 @@
         </div>
     </div>
 </div>
-{% endif %}
