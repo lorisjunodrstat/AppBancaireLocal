@@ -1,67 +1,58 @@
-<!-- Modal de liaison écriture ↔ transaction -->
-<div id="link-transaction-modal" class="modal fade" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    {% if ecriture_link.transaction_id %}
-                    Modifier / Supprimer le lien avec la transaction
-                    {% else %}
-                    Lier cette écriture à une transaction
-                    {% endif %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p><strong>Écriture :</strong> {{ ecriture_link.description or '—' }} ({{
-                    "%.2f"|format(ecriture_link.montant) }} CHF)</p>
+<!-- app/templates/comptabilite/modal_link_ecriture_transaction.html -->
+{% if ecriture_link %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            {% if ecriture_link.transaction_id %}
+            Modifier / Supprimer le lien avec la transaction
+            {% else %}
+            Lier cette écriture à une transaction
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body">
+        <p><strong>Écriture :</strong> {{ ecriture_link.description or '—' }} ({{ "%.2f"|format(ecriture_link.montant)
+            }} CHF)</p>
 
-                {% if ecriture_link.transaction_id %}
-                <p><strong>Actuellement liée à :</strong>
-                    Transaction #{{ ecriture_link.transaction_id }}
-                    ({{ ecriture_link.transaction_montant }} CHF)
-                </p>
-                <!-- Formulaire de déliaison -->
-                <form method="POST" action="{{ url_for('banking.unlink_ecriture') }}" class="mb-3">
-                    <input type="hidden" name="ecriture_id" value="{{ ecriture_link.id }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                        onclick="return confirm('Confirmer la suppression du lien ?')">
-                        <i class="fas fa-unlink"></i> Délier de la transaction
-                    </button>
-                </form>
-                <hr>
-                {% endif %}
+        {% if ecriture_link.transaction_id %}
+        <p><strong>Actuellement liée à :</strong> Transaction #{{ ecriture_link.transaction_id }}</p>
+        <form method="POST" action="{{ url_for('banking.unlink_ecriture') }}" class="mb-3">
+            <input type="hidden" name="ecriture_id" value="{{ ecriture_link.id }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger"
+                onclick="return confirm('Confirmer la suppression du lien ?');">
+                <i class="fas fa-unlink"></i> Délier de la transaction
+            </button>
+        </form>
+        <hr>
+        {% endif %}
 
-                <!-- Formulaire de (re)liaison -->
-                <form method="POST" action="{{ url_for('banking.relink_ecriture') }}">
-                    <input type="hidden" name="ecriture_id" value="{{ ecriture_link.id }}">
-                    <div class="mb-2">
-                        <label class="form-label">Choisir une transaction</label>
-                        <select class="form-select" name="new_transaction_id" required>
-                            <option value="">-- Sélectionner --</option>
-                            {% for tx in transactions_eligibles %}
-                            <option value="{{ tx.id }}" {% if tx.id==ecriture_link.transaction_id %}selected{% endif %}>
-                                #{{ tx.id }} – {{ tx.date_transaction.strftime('%d.%m.%Y') }} –
-                                {{ tx.description or tx.reference or '–' }} –
-                                {{ "%.2f"|format(tx.montant) }} CHF
-                                {% if tx.total_ecritures and tx.total_ecritures > 0 %}
-                                <small class="text-muted">(déjà liées : {{ "%.2f"|format(tx.total_ecritures) }}
-                                    CHF)</small>
-                                {% endif %}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="alert alert-warning" role="alert">
-                        <small>
-                            ⚠️ Le total des écritures liées ne doit pas dépasser le montant de la transaction.
-                        </small>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-link"></i> Lier à cette transaction
-                    </button>
-                </form>
+        <form method="POST" action="{{ url_for('banking.relink_ecriture') }}">
+            <input type="hidden" name="ecriture_id" value="{{ ecriture_link.id }}">
+            <div class="mb-3">
+                <label class="form-label">Choisir une transaction</label>
+                <select class="form-select" name="new_transaction_id" required>
+                    <option value="">-- Sélectionner --</option>
+                    {% for tx in transactions_eligibles %}
+                    <option value="{{ tx.id }}" {% if tx.id==ecriture_link.transaction_id %}selected{% endif %}>
+                        #{{ tx.id }} – {{ tx.date_transaction.strftime('%d.%m.%Y') }} –
+                        {{ tx.description or tx.reference or '–' }} –
+                        {{ "%.2f"|format(tx.montant) }} CHF
+                        {% if tx.total_ecritures and tx.total_ecritures > 0 %}
+                        <small class="text-muted">(déjà liées : {{ "%.2f"|format(tx.total_ecritures) }} CHF)</small>
+                        {% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-        </div>
+            <div class="alert alert-warning">
+                <small>⚠️ Le total des écritures liées ne doit pas dépasser le montant de la transaction.</small>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-link"></i> Lier à cette transaction
+            </button>
+            <a href="{{ url_for('banking.liste_ecritures_par_contact', contact_id=contact.id_contact) }}"
+                class="btn btn-secondary">Annuler</a>
+        </form>
     </div>
 </div>
+{% endif %}
