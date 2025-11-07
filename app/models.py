@@ -3099,22 +3099,39 @@ class TransactionFinanciere:
             return []
 
     def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict]:
-        """Récupère une transaction par son ID avec les infos de propriété"""
         try:
             with self.db.get_cursor() as cursor:
                 query = """
-                SELECT t.*, 
+                SELECT 
+                    t.*,
                     COALESCE(cp.utilisateur_id, (
                         SELECT cp2.utilisateur_id 
                         FROM sous_comptes sc 
                         JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
                         WHERE sc.id = t.sous_compte_id
                     )) as owner_user_id,
-                    cp.nom_compte as compte_nom,
-                    sc.nom_sous_compte as sous_compte_nom
+                    -- Compte principal + banque
+                    cp.nom_compte as compte_principal_nom,
+                    b1.nom as compte_principal_banque,
+                    sc.nom_sous_compte as sous_compte_nom,
+                    -- Compte destination + banque
+                    cp_dest.nom_compte as compte_destination_nom,
+                    b2.nom as compte_destination_banque,
+                    -- Compte source + banque
+                    cp_src.nom_compte as compte_source_nom,
+                    b3.nom as compte_source_banque
                 FROM transactions t
+                -- Compte principal
                 LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                LEFT JOIN banques b1 ON cp.banque_id = b1.id
+                -- Sous-compte
                 LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                -- Compte destination
+                LEFT JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id
+                LEFT JOIN banques b2 ON cp_dest.banque_id = b2.id
+                -- Compte source
+                LEFT JOIN comptes_principaux cp_src ON t.compte_source_id = cp_src.id
+                LEFT JOIN banques b3 ON cp_src.banque_id = b3.id
                 WHERE t.id = %s
                 """
                 cursor.execute(query, (transaction_id,))

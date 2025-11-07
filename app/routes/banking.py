@@ -3122,6 +3122,18 @@ def liste_ecritures():
                 if full_tx:
                     transactions_eligibles.append(full_tx)
 
+      # Gestion du modal de détail de transaction
+    show_transaction_modal = request.args.get('show_transaction_modal') == '1'
+    transaction_detail = None
+
+    if show_transaction_modal:
+        tid = request.args.get('transaction_id', type=int)
+        if tid:
+            transaction_detail = g.models.transaction_financiere_model.get_transaction_by_id(tid)
+            # Vérifier que l'utilisateur est bien le propriétaire
+            if not (transaction_detail and transaction_detail.get('owner_user_id') == current_user.id):
+                transaction_detail = None
+
     return render_template('comptabilite/ecritures.html',
         ecritures=ecritures,
         comptes=comptes,
@@ -3136,7 +3148,9 @@ def liste_ecritures():
         show_link_modal=show_link_modal,
         ecriture_link=ecriture_link,
         transactions_eligibles=transactions_eligibles,
-        contact_map=contact_map
+        contact_map=contact_map,
+        show_transaction_modal=show_transaction_modal,
+        transaction_detail=transaction_detail
     )
 
 @bp.app_template_filter('datetimeformat')

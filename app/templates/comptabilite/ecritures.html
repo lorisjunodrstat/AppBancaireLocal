@@ -155,7 +155,8 @@
                             </td>
                             <td>
                                 {% if ecriture.transaction_id %}
-                                <span class="badge bg-success">Liée à la transaction #{{ ecriture.transaction_id }}</span>
+                                <span class="badge bg-success">Liée à la transaction #{{ ecriture.transaction_id }} <a
+                                    href="{{ url_for('banking.liste_ecritures', show_transaction_modal=1, transaction_id=ecriture.transaction_id, ...) }}"><i class="fas fa-info"></i></a></span>
                                 {% else %}
                                 <span class="badge bg-secondary">Non liée</span>
                                 <a href="{{ url_for('banking.liste_ecritures',
