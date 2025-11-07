@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app, g, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app, g, session, abort
 from flask_login import login_required, current_user
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, date, time
@@ -3451,19 +3451,30 @@ def link_transaction_to_ecritures():
     ecriture_ids = request.form.getlist('ecriture_ids')  # Liste d'IDs
 
     # Vérifier la transaction
+    
+    if not transaction or transaction['owner_user_id'] != current_user.id:
+        flash("Transaction non trouvée ou non autorisée", "danger")
+        return redirect(url_for('banking.banking_dashboard'))
+    ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
+    if not ecriture or ecriture['utilisateur_id'] != current_user.id:
+        flash("Écriture non autorisée", "danger")
+        return redirect(url_for('banking.liste_ecritures'))
     transaction = g.models.transaction_financiere_model.get_transaction_by_id(transaction_id)
     if not transaction or transaction['owner_user_id'] != current_user.id:
         flash("Transaction non trouvée ou non autorisée", "danger")
         return redirect(url_for('banking.banking_dashboard'))
-
-    # Lier chaque écriture
-    success_count = 0
-    for eid in ecriture_ids:
-        if g.models.ecriture_comptable_model.link_to_transaction(int(eid), transaction_id, current_user.id):
-            success_count += 1
-
-    flash(f"{success_count} écriture(s) liée(s) à la transaction.", "success")
-    return redirect(url_for('banking.banking_compte_detail', compte_id=transaction['compte_principal_id'] or transaction['sous_compte_id']))
+    
+    total_actuel = g.models.ecriture_comptable_model.get_total_ecritures_for_transaction(transaction_id, current_user.id)
+    nouveau_total = total_actuel + Decimal(str(ecriture['montant']))
+    montant_transaction = Decimal(str(transaction['montant']))
+    if nouveau_total > montant_transaction:
+        flash(f"⚠️ Impossible : le total des écritures ({nouveau_total:.2f} CHF) dépasserait le montant de la transaction ({montant_transaction} CHF).", "warning")
+        return redirect(request.referrer or url_for('banking.banking_dashboard'))
+    if g.models.ecriture_comptable_model.link_ecriture_to_transaction(ecriture_id, transaction_id, current_user.id):
+        flash("Écriture reliée à la transaction.", "success")
+    else:
+        flash("Erreur lors du lien.", "danger")
+    return redirect(request.referrer or url_for('banking.banking_dashboard'))
 
     
 @bp.route('/banking/unlink_ecriture', methods=['POST'])
@@ -3507,6 +3518,47 @@ def relink_ecriture():
     else:
         flash("Erreur lors du lien.", "danger")
     return redirect(request.referrer)
+
+## Route pour la création des plans comptables
+
+@bp.route('/plans')
+@login_required
+def liste_plans():
+    plans = g.models.plan_comptable_model.get_all_plans(session['user_id'])
+    return render_template('plans/liste.html', plans=plans)
+
+@bp.route('/plans/creer', methods=['GET', 'POST'])
+@login_required
+def creer_plan():
+    if request.method == 'POST':
+        data = request.form.to_dict()
+        data['utilisateur_id'] = session['user_id']
+        plan_id = g.models.plan_comptable_model.create_plan(data)
+        if plan_id:
+            return redirect(url_for('editer_plan', plan_id=plan_id))
+    return render_template('plans/creer_plan.html', action='creer')
+
+@bp.route('/plans/<int:plan_id>/editer', methods=['GET', 'POST'])
+@login_required
+def editer_plan(plan_id):
+    plan = g.models.plan_comptable_model.get_plan_with_categories(plan_id, session['user_id'])
+    if not plan:
+        abort(404)
+    if request.method == 'POST':
+        # Mise à jour + gestion des catégories via formulaires <select>
+        pass
+    categories_dispo = g.models.plan_comptable_model.categorie_comptable.get_all_categories(session['user_id'])
+    return render_template('plans/form.html', plan=plan, categories_dispo=categories_dispo)
+
+@bp.route('/plans/<int:plan_id>/supprimer', methods=['POST'])
+@login_required
+def supprimer_plan(plan_id):
+    # Implémente delete_plan (soft/hard)
+    return redirect(url_for('liste_plans'))
+
+
+## routes pour les comptes de résultats
+
 
 @bp.route('/test-compte-resultat')
 @login_required

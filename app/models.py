@@ -3920,7 +3920,11 @@ class PlanComptable:
         except Exception as e:
             logging.error(f"Erreur création plan comptable: {e}")
             return None
-        
+
+    def modifier_plan(self, plan_id: int, data: Dict) -> bool:
+        pass
+    def supprimer_plan(self, plan_id: int, data: Dict) -> bool:
+        pass      
 
     def get_all_plans(self, utilisateur_id: int) -> List[Dict]:
         """Liste tous les plans de l'utilisateur"""
@@ -4013,31 +4017,6 @@ class PlanComptable:
             logging.error(f"Erreur catégories du plan: {e}")
             return []
         
-    
-    def get_by_numero(self, numero: str) -> Optional[Dict]:
-        """Récupère une catégorie par son numéro"""
-        try:
-            with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM categories_comptables WHERE numero = %s"
-                cursor.execute(query, (numero,))
-                categorie = cursor.fetchone()
-            return categorie
-        except Error as e:
-            logging.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
-            return None
-            
-    def get_by_type(self, type_compte: str) -> List[Dict]:
-        """Récupère les catégories par type de compte"""
-        try:
-            with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM categories_comptables WHERE type_compte = %s ORDER BY numero"
-                cursor.execute(query, (type_compte,))
-                categories = cursor.fetchall()
-            return categories
-        except Error as e:
-            logging.error(f"Erreur lors de la récupération des catégories comptables: {e}")
-            return []
-    
     
 class CategorieComptable:
     def __init__(self, db):
@@ -4151,6 +4130,31 @@ class CategorieComptable:
         except Exception as e:
             logging.error(f"Erreur get_all_categories: {e}")
             return []
+
+    def get_by_numero(self, numero: str) -> Optional[Dict]:
+        """Récupère une catégorie par son numéro"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "SELECT * FROM categories_comptables WHERE numero = %s"
+                cursor.execute(query, (numero,))
+                categorie = cursor.fetchone()
+            return categorie
+        except Error as e:
+            logging.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
+            return None
+            
+    def get_by_type(self, type_compte: str) -> List[Dict]:
+        """Récupère les catégories par type de compte"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = "SELECT * FROM categories_comptables WHERE type_compte = %s ORDER BY numero"
+                cursor.execute(query, (type_compte,))
+                categories = cursor.fetchall()
+            return categories
+        except Error as e:
+            logging.error(f"Erreur lors de la récupération des catégories comptables: {e}")
+            return []
+    
 
 class EcritureComptable:
     """Modèle pour gérer les écritures comptables"""
@@ -4952,6 +4956,7 @@ class ContactPlan:
             if not cursor.fetchone(): return False
             cursor.execute("INSERT IGNORE INTO contact_plans (contact_id, plan_id) VALUES (%s, %s)", (contact_id, plan_id))
             return True
+
 class Contacts:
     def __init__(self, db):
         self.db = db

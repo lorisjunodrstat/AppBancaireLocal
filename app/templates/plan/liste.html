@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Plans comptables{% endblock %}
+
+{% block content %}
+<h2>Plans comptables</h2>
+
+<div class="mb-3">
+  <a href="{{ url_for('plans.creer_plan') }}" class="btn btn-primary">➕ Créer un nouveau plan</a>
+</div>
+
+{% if plans %}
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Description</th>
+          <th>Devise</th>
+          <th>Créé le</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for plan in plans %}
+        <tr>
+          <td>{{ plan.nom }}</td>
+          <td>{{ plan.description or '' }}</td>
+          <td>{{ plan.devise }}</td>
+          <td>{{ plan.created_at.strftime('%d.%m.%Y') if plan.created_at else '' }}</td>
+          <td>
+            <a href="{{ url_for('plans.editer_plan', plan_id=plan.id) }}" class="btn btn-sm btn-outline-secondary">Modifier</a>
+            {# La suppression peut être ajoutée plus tard #}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="alert alert-info">
+    Aucun plan comptable n’a encore été créé.
+  </div>
+{% endif %}
+
+{% endblock %}

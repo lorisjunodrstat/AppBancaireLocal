@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if action == 'creer' %}Créer un plan comptable{% endif %}
+{% endblock %}
+
+{% block content %}
+<h2>
+  {% if action == 'creer' %}Créer un plan comptable{% endif %}
+</h2>
+
+<form method="POST" class="row g-3">
+  <div class="col-md-6">
+    <label for="nom" class="form-label">Nom *</label>
+    <input type="text" class="form-control" id="nom" name="nom" required maxlength="100">
+  </div>
+
+  <div class="col-md-6">
+    <label for="devise" class="form-label">Devise</label>
+    <select class="form-select" id="devise" name="devise">
+      <option value="CHF" selected>CHF (Franc suisse)</option>
+      <option value="EUR">EUR (Euro)</option>
+      <option value="USD">USD (Dollar US)</option>
+    </select>
+  </div>
+
+  <div class="col-12">
+    <label for="description" class="form-label">Description</label>
+    <textarea class="form-control" id="description" name="description" rows="3" maxlength="500"></textarea>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-success">💾 Enregistrer</button>
+    <a href="{{ url_for('plans.liste_plans') }}" class="btn btn-secondary">Annuler</a>
+  </div>
+</form>
+
+{% endblock %}

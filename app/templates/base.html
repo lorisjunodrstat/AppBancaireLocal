@@ -216,16 +216,30 @@
                             <!-- Section Plan Comptable -->
                             <li>
                                 <hr class="dropdown-divider">
+                                <li>
+                                    <h6 class="dropdown-header"><i class="fas fa-project-diagram me-2"></i>Gestion des plans comptables</h6>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('banking.liste_plans') }}">Liste des Plans</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('banking.creer_plan') }}">Créer un Plan</a>
+                                </li>
                             </li>
+                            <!-- Section Catégories Comptables -->
                             <li>
-                                <h6 class="dropdown-header"><i class="fas fa-project-diagram me-2"></i>Plan comptable</h6>
+                                <hr class="dropdown-divider">
+                                <li>
+                                    <h6 class="dropdown-header"><i class="fas fa-tags me-2"></i>Gestion des catégories comptables</h6>
+                                </li>
+                                <li><a class="dropdown-item" href="{{ url_for('banking.liste_categories_comptables') }}">
+                                        <i class="fas fa-tags me-2"></i>Catégories comptables
+                                    </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_categorie') }}">
+                                        <i class="fas fa-plus-square me-2"></i>Nouvelle catégorie
+                                    </a>
+                                </li>
                             </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.liste_categories_comptables') }}">
-                                    <i class="fas fa-tags me-2"></i>Catégories comptables
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_categorie') }}">
-                                    <i class="fas fa-plus-square me-2"></i>Nouvelle catégorie
-                                </a></li>
                     
                             <!-- Section Rapports -->
                             <li>
@@ -255,6 +269,8 @@
                                     <i class="fas fa-file-excel me-2"></i>Export Excel
                                 </a></li>
                         </ul>
+                        <ul class="dropdown-menu">
+                            <!-- Section Plan -->
                     </li>
                 </ul>
                 <ul class="navbar-nav">
