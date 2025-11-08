@@ -3488,201 +3488,260 @@ class TransactionFinanciere:
 
     def get_transactions_sans_ecritures(self, user_id: int, date_from: str = None, date_to: str = None, 
                                   statut_comptable: str = None, limit: int = 100) -> List[Dict]:
-    """Récupère les transactions sans écritures comptables associées"""
-    try:
-        with self.db.get_cursor() as cursor:
-            query = """
-            SELECT 
-                t.*,
-                cp.nom_compte as compte_principal_nom,
-                sc.nom_sous_compte as sous_compte_nom,
-                COUNT(e.id) as nb_ecritures_liees,
-                COALESCE(SUM(e.montant), 0) as total_ecritures
-            FROM transactions t
-            LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
-            LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
-            LEFT JOIN ecritures_comptables e ON t.id = e.transaction_id
-            WHERE (cp.utilisateur_id = %s OR sc.compte_principal_id IN (
-                SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
-            ))
-            AND t.id NOT IN (
-                SELECT DISTINCT transaction_id 
-                FROM ecritures_comptables 
-                WHERE transaction_id IS NOT NULL
-            )
-            """
-            params = [user_id, user_id]
-            
-            # Filtres optionnels
-            if date_from:
-                query += " AND DATE(t.date_transaction) >= %s"
-                params.append(date_from)
-            if date_to:
-                query += " AND DATE(t.date_transaction) <= %s"
-                params.append(date_to)
-            if statut_comptable:
-                query += " AND t.statut_comptable = %s"
-                params.append(statut_comptable)
-            
-            query += """
-            GROUP BY t.id
-            HAVING nb_ecritures_liees = 0
-            ORDER BY t.date_transaction DESC
-            LIMIT %s
-            """
-            params.append(limit)
-            
-            cursor.execute(query, params)
-            return cursor.fetchall()
-            
-    except Exception as e:
-        logging.error(f"Erreur récupération transactions sans écritures: {e}")
-        return []
-
-def update_statut_comptable(self, transaction_id: int, user_id: int, statut_comptable: str) -> Tuple[bool, str]:
-    """Met à jour le statut comptable d'une transaction"""
-    try:
-        with self.db.get_cursor() as cursor:
-            # Vérifier que l'utilisateur peut accéder à cette transaction
-            cursor.execute("""
-                SELECT t.id 
+        """Récupère les transactions sans écritures comptables associées"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT 
+                    t.*,
+                    cp.nom_compte as compte_principal_nom,
+                    sc.nom_sous_compte as sous_compte_nom,
+                    COUNT(e.id) as nb_ecritures_liees,
+                    COALESCE(SUM(e.montant), 0) as total_ecritures
                 FROM transactions t
                 LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
                 LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
-                WHERE t.id = %s AND (
-                    cp.utilisateur_id = %s OR 
-                    sc.compte_principal_id IN (
-                        SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
-                    )
+                LEFT JOIN ecritures_comptables e ON t.id = e.transaction_id
+                WHERE (cp.utilisateur_id = %s OR sc.compte_principal_id IN (
+                    SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
+                ))
+                AND t.id NOT IN (
+                    SELECT DISTINCT transaction_id 
+                    FROM ecritures_comptables 
+                    WHERE transaction_id IS NOT NULL
                 )
-            """, (transaction_id, user_id, user_id))
-            
-            if not cursor.fetchone():
-                return False, "Transaction non trouvée ou non autorisée"
-            
-            # Mettre à jour le statut
-            cursor.execute(
-                "UPDATE transactions SET statut_comptable = %s WHERE id = %s",
-                (statut_comptable, transaction_id)
-            )
-            
-            return True, "Statut comptable mis à jour avec succès"
-            
-    except Exception as e:
-        logging.error(f"Erreur mise à jour statut comptable: {e}")
-        return False, f"Erreur: {str(e)}"
-
-def get_stats_transactions_comptables(self, user_id: int) -> Dict:
-    """Retourne les statistiques des transactions par statut comptable"""
-    try:
-        with self.db.get_cursor() as cursor:
-            query = """
-            SELECT 
-                statut_comptable,
-                COUNT(*) as nb_transactions,
-                SUM(montant) as total_montant,
-                AVG(montant) as moyenne_montant
-            FROM transactions t
-            LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
-            LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
-            WHERE cp.utilisateur_id = %s OR sc.compte_principal_id IN (
-                SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
-            )
-            GROUP BY statut_comptable
-            """
-            cursor.execute(query, (user_id, user_id))
-            stats = cursor.fetchall()
-            
-            return {
-                'statistiques': stats,
-                'total_transactions': sum(s['nb_transactions'] for s in stats),
-                'total_montant': sum(float(s['total_montant'] or 0) for s in stats)
-            }
-            
-    except Exception as e:
-        logging.error(f"Erreur statistiques transactions comptables: {e}")
-        return {}
-
-def creer_ecriture_automatique(self, transaction_id: int, user_id: int, categorie_id: int = None) -> Tuple[bool, str]:
-    """Crée automatiquement une écriture comptable pour une transaction avec statut 'pending'"""
-    try:
-        with self.db.get_cursor() as cursor:
-            # Récupérer les détails de la transaction
-            transaction = self.get_transaction_by_id(transaction_id)
-            if not transaction or transaction.get('owner_user_id') != user_id:
-                return False, "Transaction non trouvée ou non autorisée"
-            
-            # Déterminer le type d'écriture basé sur le type de transaction
-            type_ecriture = self._determiner_type_ecriture(transaction['type_transaction'])
-            
-            # Déterminer la catégorie par défaut si non fournie
-            if not categorie_id:
-                categorie_id = self._get_categorie_par_defaut(type_ecriture, user_id)
-                if not categorie_id:
-                    return False, "Aucune catégorie par défaut trouvée"
-            
-            # Créer l'écriture comptable avec statut 'pending'
-            ecriture_data = {
-                'date_ecriture': transaction['date_transaction'],
-                'compte_bancaire_id': transaction['compte_principal_id'],
-                'categorie_id': categorie_id,
-                'montant': transaction['montant'],
-                'devise': 'CHF',
-                'description': f"Auto: {transaction['description']}",
-                'type_ecriture': type_ecriture,
-                'utilisateur_id': user_id,
-                'statut': 'pending',  # Statut en attente par défaut
-                'transaction_id': transaction_id
-            }
-            
-            # Utiliser votre modèle d'écriture comptable existant
-            success = self.ecriture_model.create(ecriture_data)
-            
-            if success:
-                # Marquer la transaction comme comptabilisée
-                self.update_statut_comptable(transaction_id, user_id, 'comptabilise')
-                return True, "Écriture créée automatiquement avec statut 'en attente'"
-            else:
-                return False, "Erreur lors de la création de l'écriture"
+                """
+                params = [user_id, user_id]
                 
-    except Exception as e:
-        logging.error(f"Erreur création écriture automatique: {e}")
-        return False, f"Erreur: {str(e)}"
+                # Filtres optionnels
+                if date_from:
+                    query += " AND DATE(t.date_transaction) >= %s"
+                    params.append(date_from)
+                if date_to:
+                    query += " AND DATE(t.date_transaction) <= %s"
+                    params.append(date_to)
+                if statut_comptable:
+                    query += " AND t.statut_comptable = %s"
+                    params.append(statut_comptable)
+                
+                query += """
+                GROUP BY t.id
+                HAVING nb_ecritures_liees = 0
+                ORDER BY t.date_transaction DESC
+                LIMIT %s
+                """
+                params.append(limit)
+                
+                cursor.execute(query, params)
+                return cursor.fetchall()
+                
+        except Exception as e:
+            logging.error(f"Erreur récupération transactions sans écritures: {e}")
+            return []
 
-def _determiner_type_ecriture(self, type_transaction: str) -> str:
-    """Détermine le type d'écriture basé sur le type de transaction"""
-    types_depense = ['retrait', 'transfert_sortant', 'transfert_externe']
-    types_recette = ['depot', 'transfert_entrant', 'recredit_annulation']
+    def update_statut_comptable(self, transaction_id: int, user_id: int, statut_comptable: str) -> Tuple[bool, str]:
+        """Met à jour le statut comptable d'une transaction"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que l'utilisateur peut accéder à cette transaction
+                cursor.execute("""
+                    SELECT t.id 
+                    FROM transactions t
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                    WHERE t.id = %s AND (
+                        cp.utilisateur_id = %s OR 
+                        sc.compte_principal_id IN (
+                            SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
+                        )
+                    )
+                """, (transaction_id, user_id, user_id))
+                
+                if not cursor.fetchone():
+                    return False, "Transaction non trouvée ou non autorisée"
+                
+                # Mettre à jour le statut
+                cursor.execute(
+                    "UPDATE transactions SET statut_comptable = %s WHERE id = %s",
+                    (statut_comptable, transaction_id)
+                )
+                
+                return True, "Statut comptable mis à jour avec succès"
+                
+        except Exception as e:
+            logging.error(f"Erreur mise à jour statut comptable: {e}")
+            return False, f"Erreur: {str(e)}"
+
+    def get_stats_transactions_comptables(self, user_id: int) -> Dict:
+        """Retourne les statistiques des transactions par statut comptable"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT 
+                    statut_comptable,
+                    COUNT(*) as nb_transactions,
+                    SUM(montant) as total_montant,
+                    AVG(montant) as moyenne_montant
+                FROM transactions t
+                LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                WHERE cp.utilisateur_id = %s OR sc.compte_principal_id IN (
+                    SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
+                )
+                GROUP BY statut_comptable
+                """
+                cursor.execute(query, (user_id, user_id))
+                stats = cursor.fetchall()
+                
+                return {
+                    'statistiques': stats,
+                    'total_transactions': sum(s['nb_transactions'] for s in stats),
+                    'total_montant': sum(float(s['total_montant'] or 0) for s in stats)
+                }
+                
+        except Exception as e:
+            logging.error(f"Erreur statistiques transactions comptables: {e}")
+            return {}
+
+    def creer_ecriture_automatique(self, transaction_id: int, user_id: int, categorie_id: int = None) -> Tuple[bool, str]:
+        """Crée automatiquement une écriture comptable pour une transaction avec statut 'pending'"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Récupérer les détails de la transaction
+                transaction = self.get_transaction_by_id(transaction_id)
+                if not transaction or transaction.get('owner_user_id') != user_id:
+                    return False, "Transaction non trouvée ou non autorisée"
+                
+                # Déterminer le type d'écriture basé sur le type de transaction
+                type_ecriture = self._determiner_type_ecriture(transaction['type_transaction'])
+                
+                # Déterminer la catégorie par défaut si non fournie
+                if not categorie_id:
+                    categorie_id = self._get_categorie_par_defaut(type_ecriture, user_id)
+                    if not categorie_id:
+                        return False, "Aucune catégorie par défaut trouvée"
+                
+                # Créer l'écriture comptable avec statut 'pending'
+                ecriture_data = {
+                    'date_ecriture': transaction['date_transaction'],
+                    'compte_bancaire_id': transaction['compte_principal_id'],
+                    'categorie_id': categorie_id,
+                    'montant': transaction['montant'],
+                    'devise': 'CHF',
+                    'description': f"Auto: {transaction['description']}",
+                    'type_ecriture': type_ecriture,
+                    'utilisateur_id': user_id,
+                    'statut': 'pending',  # Statut en attente par défaut
+                    'transaction_id': transaction_id
+                }
+                
+                # Utiliser votre modèle d'écriture comptable existant
+                success = self.ecriture_model.create(ecriture_data)
+                
+                if success:
+                    # Marquer la transaction comme comptabilisée
+                    self.update_statut_comptable(transaction_id, user_id, 'comptabilise')
+                    return True, "Écriture créée automatiquement avec statut 'en attente'"
+                else:
+                    return False, "Erreur lors de la création de l'écriture"
+                    
+        except Exception as e:
+            logging.error(f"Erreur création écriture automatique: {e}")
+            return False, f"Erreur: {str(e)}"
+
+    def _determiner_type_ecriture(self, type_transaction: str) -> str:
+        """Détermine le type d'écriture basé sur le type de transaction"""
+        types_depense = ['retrait', 'transfert_sortant', 'transfert_externe']
+        types_recette = ['depot', 'transfert_entrant', 'recredit_annulation']
+        
+        if type_transaction in types_depense:
+            return 'depense'
+        elif type_transaction in types_recette:
+            return 'recette'
+        else:
+            return 'depense'  # par défaut
+
+    def _get_categorie_par_defaut(self, type_ecriture: str, user_id: int) -> int:
+        """Récupère la catégorie par défaut selon le type d'écriture"""
+        try:
+            with self.db.get_cursor() as cursor:
+                if type_ecriture == 'depense':
+                    cursor.execute("""
+                        SELECT id FROM categories_comptables 
+                        WHERE utilisateur_id = %s AND nom LIKE '%divers%' OR nom LIKE '%autres%'
+                        LIMIT 1
+                    """, (user_id,))
+                else:
+                    cursor.execute("""
+                        SELECT id FROM categories_comptables 
+                        WHERE utilisateur_id = %s AND type_compte = 'Revenus'
+                        LIMIT 1
+                    """, (user_id,))
+                
+                result = cursor.fetchone()
+                return result['id'] if result else None
+        except Exception as e:
+            logging.error(f"Erreur récupération catégorie par défaut: {e}")
+            return None
     
-    if type_transaction in types_depense:
-        return 'depense'
-    elif type_transaction in types_recette:
-        return 'recette'
-    else:
-        return 'depense'  # par défaut
+    def get_transactions_sans_ecritures_par_compte(self, compte_id: int, user_id: int, 
+                                                date_from: str = None, date_to: str = None,
+                                                statut_comptable: str = None) -> List[Dict]:
+        """Récupère les transactions sans écritures comptables pour un compte spécifique"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que le compte appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s",
+                    (compte_id, user_id)
+                )
+                if not cursor.fetchone():
+                    return []
+                
+                query = """
+                SELECT 
+                    t.*,
+                    cp.nom_compte as compte_principal_nom,
+                    sc.nom_sous_compte as sous_compte_nom,
+                    COUNT(e.id) as nb_ecritures_liees,
+                    COALESCE(SUM(e.montant), 0) as total_ecritures
+                FROM transactions t
+                LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                LEFT JOIN ecritures_comptables e ON t.id = e.transaction_id
+                WHERE t.compte_principal_id = %s
+                AND t.id NOT IN (
+                    SELECT DISTINCT transaction_id 
+                    FROM ecritures_comptables 
+                    WHERE transaction_id IS NOT NULL
+                )
+                """
+                params = [compte_id]
+                
+                # Filtres optionnels
+                if date_from:
+                    query += " AND DATE(t.date_transaction) >= %s"
+                    params.append(date_from)
+                if date_to:
+                    query += " AND DATE(t.date_transaction) <= %s"
+                    params.append(date_to)
+                if statut_comptable:
+                    query += " AND t.statut_comptable = %s"
+                    params.append(statut_comptable)
+                
+                query += """
+                GROUP BY t.id
+                HAVING nb_ecritures_liees = 0
+                ORDER BY t.date_transaction DESC
+                """
+                
+                cursor.execute(query, params)
+                return cursor.fetchall()
+                
+        except Exception as e:
+            logging.error(f"Erreur récupération transactions sans écritures par compte: {e}")
+            return []
 
-def _get_categorie_par_defaut(self, type_ecriture: str, user_id: int) -> int:
-    """Récupère la catégorie par défaut selon le type d'écriture"""
-    try:
-        with self.db.get_cursor() as cursor:
-            if type_ecriture == 'depense':
-                cursor.execute("""
-                    SELECT id FROM categories_comptables 
-                    WHERE utilisateur_id = %s AND nom LIKE '%divers%' OR nom LIKE '%autres%'
-                    LIMIT 1
-                """, (user_id,))
-            else:
-                cursor.execute("""
-                    SELECT id FROM categories_comptables 
-                    WHERE utilisateur_id = %s AND type_compte = 'Revenus'
-                    LIMIT 1
-                """, (user_id,))
-            
-            result = cursor.fetchone()
-            return result['id'] if result else None
-    except Exception as e:
-        logging.error(f"Erreur récupération catégorie par défaut: {e}")
-        return None
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
 
