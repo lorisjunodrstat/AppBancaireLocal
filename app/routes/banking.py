@@ -3053,7 +3053,7 @@ def liste_ecritures():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     categorie_id = request.args.get('categorie_id')
-    id_contact = request.args.get('id_contact')
+    id_contact = request.args.get('id')
     statut = request.args.get('statut', 'tous')
     
     # Statuts pour le template
