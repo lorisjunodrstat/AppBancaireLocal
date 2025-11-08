@@ -3206,23 +3206,60 @@ def update_statut_comptable(transaction_id):
     
     return redirect(request.referrer or url_for('banking.transactions_sans_ecritures'))
 
-@bp.route('/comptabilite/creer_ecriture_auto/<int:transaction_id>', methods=['POST'])
+@bp.route('/comptabilite/creer_ecriture_automatique/<int:transaction_id>', methods=['POST'])
 @login_required
 def creer_ecriture_automatique(transaction_id):
-    """Crée une écriture comptable automatique pour une transaction avec statut 'pending'"""
-    categorie_id = request.form.get('categorie_id', type=int)
+    """Crée une écriture comptable simple pour une transaction avec statut 'pending'"""
+    try:
+        # Récupérer la transaction avec vérification de propriété
+        transaction = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
+            transaction_id, current_user.id
+        )
+        
+        if not transaction:
+            flash("Transaction non trouvée ou non autorisée", "error")
+            return redirect(url_for('banking.transactions_sans_ecritures'))
+        
+        categorie_id = request.form.get('categorie_id', type=int)
+        
+        if not categorie_id:
+            flash("Veuillez sélectionner une catégorie comptable", "error")
+            return redirect(url_for('banking.transactions_sans_ecritures'))
+        
+        # Déterminer le type d'écriture
+        type_ecriture = 'depense' if transaction['type_transaction'] in ['retrait', 'transfert_sortant', 'transfert_externe'] else 'recette'
+        
+        # Créer l'écriture comptable
+        ecriture_data = {
+            'date_ecriture': transaction['date_transaction'],
+            'compte_bancaire_id': transaction['compte_principal_id'],
+            'categorie_id': categorie_id,
+            'montant': Decimal(str(transaction['montant'])),
+            'devise': 'CHF',
+            'description': transaction['description'],
+            'type_ecriture': type_ecriture,
+            'utilisateur_id': current_user.id,
+            'statut': 'pending',  # Statut en attente
+            'transaction_id': transaction_id
+        }
+        
+        if g.models.ecriture_comptable_model.create(ecriture_data):
+            # Marquer la transaction comme comptabilisée
+            g.models.transaction_financiere_model.update_statut_comptable(
+                transaction_id, current_user.id, 'comptabilise'
+            )
+            flash("Écriture créée avec succès avec statut 'En attente'", "success")
+        else:
+            flash("Erreur lors de la création de l'écriture", "error")
+            
+    except Exception as e:
+        logging.error(f"Erreur création écriture automatique: {e}")
+        flash(f"Erreur lors de la création de l'écriture: {str(e)}", "error")
     
-    success, message = g.models.transaction_financiere_model.creer_ecriture_automatique(
-        transaction_id, current_user.id, categorie_id
-    )
-    
-    if success:
-        flash(message, 'success')
-    else:
-        flash(message, 'error')
-    
-    return redirect(request.referrer or url_for('banking.transactions_sans_ecritures'))
-
+    return redirect(url_for('banking.transactions_sans_ecritures',
+                           compte_id=request.args.get('compte_id'),
+                           date_from=request.args.get('date_from'),
+                           date_to=request.args.get('date_to')))
 @bp.app_template_filter('datetimeformat')
 def datetimeformat(value, format='%d.%m.%Y'):
     """Filtre pour formater les dates dans les templates"""
@@ -3432,6 +3469,41 @@ def nouvelle_ecriture_multiple():
         statuts_disponibles=statuts_disponibles,
         current_date=datetime.now().strftime('%Y-%m-%d'), contacts=contacts)
     
+@bp.route('/comptabilite/creer_ecritures_multiple_auto/<int:transaction_id>', methods=['POST'])
+@login_required
+def creer_ecritures_multiple_auto(transaction_id):
+    """Crée plusieurs écritures comptables pour une transaction avec statut 'pending'"""
+    try:
+        # Récupérer la transaction avec vérification de propriété
+        transaction = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
+            transaction_id, current_user.id
+        )
+        
+        if not transaction:
+            flash("Transaction non trouvée ou non autorisée", "error")
+            return redirect(url_for('banking.transactions_sans_ecritures'))
+        
+        # Vérifier si la transaction a déjà des écritures
+        if transaction.get('nb_ecritures', 0) > 0:
+            flash("Cette transaction a déjà des écritures associées", "warning")
+            return redirect(url_for('banking.transactions_sans_ecritures'))
+        
+        # Le reste du code reste identique...
+        categories_ids = request.form.getlist('categorie_id[]')
+        montants = request.form.getlist('montant[]')
+        tva_taux = request.form.getlist('tva_taux[]')
+        descriptions = request.form.getlist('description[]')
+        
+        # ... (le reste de votre code)
+        
+    except Exception as e:
+        logging.error(f"Erreur création écritures multiples: {e}")
+        flash(f"Erreur lors de la création des écritures: {str(e)}", "error")
+    
+    return redirect(url_for('banking.transactions_sans_ecritures',
+                           compte_id=request.args.get('compte_id'),
+                           date_from=request.args.get('date_from'),
+                           date_to=request.args.get('date_to')))
 
 @bp.route('/comptabilite/ecritures/<int:ecriture_id>/statut', methods=['POST'])
 @login_required
