@@ -3082,7 +3082,7 @@ def liste_ecritures():
     # Récupérer les données supplémentaires
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
-    categories = g.models.categorie_comptable_model.get_all(current_user.id)
+    categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
     contact_map = {c['id_contact']: c['nom'] for c in contacts}
 
     # Gestion du modal de liaison (identique à votre code original)
