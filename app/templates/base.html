@@ -6,8 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Application Flask{% endblock %}</title>
 
-    <!-- CSS Bootstrap -->
+    <!-- CSS Bootstrap (UNIQUEMENT ICI) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mystyle.css') }}">
@@ -55,6 +57,15 @@
         .comptabilite-nav {
             background: linear-gradient(135deg, #4e54c8 0%, #8f94fb 100%);
         }
+
+        /* Correction pour les modals */
+        .modal-backdrop {
+            opacity: 0.5 !important;
+        }
+
+        .modal.fade .modal-dialog {
+            transition: transform 0.3s ease-out;
+        }
     </style>
 </head>
 
@@ -64,7 +75,8 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="#">
-                <i class="fas fa-users me-2"></i>Mon App Flask :{% if current_user %}Hi {{ current_user.nom }}! {% endif %}
+                <i class="fas fa-users me-2"></i>Mon App Flask :{% if current_user %}Hi {{ current_user.nom }}! {% endif
+                %}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -103,177 +115,181 @@
                                 <!-- ⚠️ ICI : c'était "nav-item dropdown", c'est FAUX -->
                                 {% if user_comptes and current_user.is_authenticated %}
                                 {% for compte in user_comptes %}
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}">
-                                        <i class="fas fa-info-circle me-2"></i>Détails du compte {{ compte.nom_compte }} [{{ compte.id }}]
-                                    </a>
-                                </li>
-                                {% endfor %}
-                                {% else %}
-                                <li><span class="dropdown-item-text text-muted">Aucun compte</span></li>
-                                {% endif %}
-                            </li>
-
-                            <li><a class="dropdown-item" href="{{ url_for('banking.banking_nouveau_compte') }}">
-                                    <i class="fas fa-plus me-2"></i>Nouveau compte
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.banking_transfert') }}">
-                                    <i class="fas fa-exchange-alt me-2"></i>Transferts entres comptes
-                                </a>
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.banking_transfert_compte_sous_compte') }}">
-                                    <i class="fas fa-exchange-alt me-2"></i>Transferts intra-comptes
-                                </a>
-                            </li>
-                            
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('banking.depot') }}">
-                                    <i class="fas fa-arrow-down me-2"></i>Dépôt
+                                <a class="dropdown-item"
+                                    href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}">
+                                    <i class="fas fa-info-circle me-2"></i>Détails du compte {{ compte.nom_compte }} [{{
+                                    compte.id }}]
                                 </a>
                             </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('banking.retrait') }}">
-                                    <i class="fas fa-arrow-up me-2"></i>Retrait
-                                </a>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.liste_transferts') }}">
-                                    <i class="fas fa-money-bill-wave me-2"></i>Liste des transferts
-                                </a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.banking_statistiques') }}">
-                                    <i class="fas fa-chart-line me-2"></i>Statistiques
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.banking_statistique_dashboard') }}">
-                                    <i class="fas fa-chart-line me-2"></i>Statistiques générales
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.liste_banques') }}">
-                                    <i class="fas fa-chart-line me-2"></i>Liste des Banques
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle salaire-nav" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa fa-hourglass-half me-2"></i>Salaires
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('banking.heures_travail') }}">
-                                    <i class="fas fa-list me-2"></i>Heures travail
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.salaires') }}">
-                                        <i class="fas fa-plus-square me-2"></i>Calcul salaire
-                                    </a>
-                                </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.gestion_contrat') }}">
-                                        <i class="fas fa-file-contract me-2"></i> Mon contrat
-                                    </a>
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.synthese_mensuelle') }}">
-                                    <i class="fas fa-file-contract me-2"></i> Synthèse mensuelle
-                                </a>
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.synthese_hebdomadaire') }}">
-                                    <i class="fas fa-file-contract me-2"></i> Synthèse hebdomadaire
-                                </a>
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.synthese_heures') }}">
-                                    <i class="fas fa-file-contract me-2"></i> Synthèse des heures
-                                </a>
-                            </li>
-                        </ul>
+                            {% endfor %}
+                            {% else %}
+                            <li><span class="dropdown-item-text text-muted">Aucun compte</span></li>
+                            {% endif %}
                     </li>
 
-                    <!-- Menu Comptabilité amélioré -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle comptabilite-nav" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-calculator me-1"></i>Comptabilité
+                    <li><a class="dropdown-item" href="{{ url_for('banking.banking_nouveau_compte') }}">
+                            <i class="fas fa-plus me-2"></i>Nouveau compte
+                        </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('banking.banking_transfert') }}">
+                            <i class="fas fa-exchange-alt me-2"></i>Transferts entres comptes
                         </a>
-                        <ul class="dropdown-menu">
-                            <!-- Section Écritures -->
-                            <li>
-                                <h6 class="dropdown-header"><i class="fas fa-pen-fancy me-2"></i>Gestion des écritures</h6>
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.liste_ecritures') }}">
-                                    <i class="fas fa-list me-2"></i>Liste des écritures
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.transactions_sans_ecritures') }}">
-                                    <i class="fas fa-list me-2"></i>Transactions sans écritures
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_ecriture') }}">
-                                    <i class="fas fa-plus-circle me-2"></i>Nouvelle écriture
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_ecriture_multiple') }}">
-                                    <i class="fas fa-plus-circle me-2"></i>Nouvelle écriture multiple
-                                </a></li>
-                            
-                            <!-- Section Contact -->
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.liste_contacts_comptables') }}">
-                                    <i class="fas fa-address-book me-2"></i>Liste des contacts
-                                </a></li>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('banking.banking_transfert_compte_sous_compte') }}">
+                            <i class="fas fa-exchange-alt me-2"></i>Transferts intra-comptes
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('banking.depot') }}">
+                            <i class="fas fa-arrow-down me-2"></i>Dépôt
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('banking.retrait') }}">
+                            <i class="fas fa-arrow-up me-2"></i>Retrait
+                        </a>
+                    <li><a class="dropdown-item" href="{{ url_for('banking.liste_transferts') }}">
+                            <i class="fas fa-money-bill-wave me-2"></i>Liste des transferts
+                        </a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="{{ url_for('banking.banking_statistiques') }}">
+                            <i class="fas fa-chart-line me-2"></i>Statistiques
+                        </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('banking.banking_statistique_dashboard') }}">
+                            <i class="fas fa-chart-line me-2"></i>Statistiques générales
+                        </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('banking.liste_banques') }}">
+                            <i class="fas fa-chart-line me-2"></i>Liste des Banques
+                        </a>
+                    </li>
+                </ul>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle salaire-nav" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fa fa-hourglass-half me-2"></i>Salaires
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('banking.heures_travail') }}">
+                                <i class="fas fa-list me-2"></i>Heures travail
+                            </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.salaires') }}">
+                                <i class="fas fa-plus-square me-2"></i>Calcul salaire
+                            </a>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.gestion_contrat') }}">
+                                <i class="fas fa-file-contract me-2"></i> Mon contrat
+                            </a>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.synthese_mensuelle') }}">
+                                <i class="fas fa-file-contract me-2"></i> Synthèse mensuelle
+                            </a>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.synthese_hebdomadaire') }}">
+                                <i class="fas fa-file-contract me-2"></i> Synthèse hebdomadaire
+                            </a>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.synthese_heures') }}">
+                                <i class="fas fa-file-contract me-2"></i> Synthèse des heures
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Menu Comptabilité amélioré -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle comptabilite-nav" href="#" role="button"
+                        data-bs-toggle="dropdown">
+                        <i class="fas fa-calculator me-1"></i>Comptabilité
+                    </a>
+                    <ul class="dropdown-menu">
+                        <!-- Section Écritures -->
+                        <li>
+                            <h6 class="dropdown-header"><i class="fas fa-pen-fancy me-2"></i>Gestion des écritures</h6>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.liste_ecritures') }}">
+                                <i class="fas fa-list me-2"></i>Liste des écritures
+                            </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.transactions_sans_ecritures') }}">
+                                <i class="fas fa-list me-2"></i>Transactions sans écritures
+                            </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_ecriture') }}">
+                                <i class="fas fa-plus-circle me-2"></i>Nouvelle écriture
+                            </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_ecriture_multiple') }}">
+                                <i class="fas fa-plus-circle me-2"></i>Nouvelle écriture multiple
+                            </a></li>
+
+                        <!-- Section Contact -->
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.liste_contacts_comptables') }}">
+                                <i class="fas fa-address-book me-2"></i>Liste des contacts
+                            </a></li>
 
 
-                            <!-- Section Plan Comptable -->
-                            <li>
-                                <hr class="dropdown-divider">
-                                <li>
-                                    <h6 class="dropdown-header"><i class="fas fa-project-diagram me-2"></i>Gestion des plans comptables</h6>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('banking.liste_plans') }}">Liste des Plans</a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('banking.creer_plan') }}">Créer un Plan</a>
-                                </li>
-                            </li>
-                            <!-- Section Catégories Comptables -->
-                            <li>
-                                <hr class="dropdown-divider">
-                                <li>
-                                    <h6 class="dropdown-header"><i class="fas fa-tags me-2"></i>Gestion des catégories comptables</h6>
-                                </li>
-                                <li><a class="dropdown-item" href="{{ url_for('banking.liste_categories_comptables') }}">
-                                        <i class="fas fa-tags me-2"></i>Catégories comptables
-                                    </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_categorie') }}">
-                                        <i class="fas fa-plus-square me-2"></i>Nouvelle catégorie
-                                    </a>
-                                </li>
-                            </li>
-                    
-                            <!-- Section Rapports -->
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li>
-                                <h6 class="dropdown-header"><i class="fas fa-chart-line me-2"></i>Rapports</h6>
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.compte_de_resultat') }}">
-                                    <i class="fas fa-file-invoice-dollar me-2"></i>Compte de résultat
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.statistiques_comptables') }}">
-                                    <i class="fas fa-chart-pie me-2"></i>Statistiques
-                                </a></li>
-                    
-                            <!-- Section Export -->
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li>
-                                <h6 class="dropdown-header"><i class="fas fa-download me-2"></i>Exports</h6>
-                            </li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.export_compte_de_resultat', format='pdf') }}">
-                                    <i class="fas fa-file-pdf me-2"></i>Export PDF
-                                </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('banking.export_compte_de_resultat', format='excel') }}">
-                                    <i class="fas fa-file-excel me-2"></i>Export Excel
-                                </a></li>
-                        </ul>
-                        <ul class="dropdown-menu">
-                            <!-- Section Plan -->
+                        <!-- Section Plan Comptable -->
+                        <li>
+                            <hr class="dropdown-divider">
+                        <li>
+                            <h6 class="dropdown-header"><i class="fas fa-project-diagram me-2"></i>Gestion des plans
+                                comptables</h6>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('banking.liste_plans') }}">Liste des Plans</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('banking.creer_plan') }}">Créer un Plan</a>
+                        </li>
+                </li>
+                <!-- Section Catégories Comptables -->
+                <li>
+                    <hr class="dropdown-divider">
+                <li>
+                    <h6 class="dropdown-header"><i class="fas fa-tags me-2"></i>Gestion des catégories comptables</h6>
+                </li>
+                <li><a class="dropdown-item" href="{{ url_for('banking.liste_categories_comptables') }}">
+                        <i class="fas fa-tags me-2"></i>Catégories comptables
+                    </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_categorie') }}">
+                        <i class="fas fa-plus-square me-2"></i>Nouvelle catégorie
+                    </a>
+                </li>
+                </li>
+
+                <!-- Section Rapports -->
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
+                <li>
+                    <h6 class="dropdown-header"><i class="fas fa-chart-line me-2"></i>Rapports</h6>
+                </li>
+                <li><a class="dropdown-item" href="{{ url_for('banking.compte_de_resultat') }}">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>Compte de résultat
+                    </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('banking.statistiques_comptables') }}">
+                        <i class="fas fa-chart-pie me-2"></i>Statistiques
+                    </a></li>
+
+                <!-- Section Export -->
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
+                <li>
+                    <h6 class="dropdown-header"><i class="fas fa-download me-2"></i>Exports</h6>
+                </li>
+                <li><a class="dropdown-item" href="{{ url_for('banking.export_compte_de_resultat', format='pdf') }}">
+                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                    </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('banking.export_compte_de_resultat', format='excel') }}">
+                        <i class="fas fa-file-excel me-2"></i>Export Excel
+                    </a></li>
+                </ul>
+                <ul class="dropdown-menu">
+                    <!-- Section Plan -->
                     </li>
                 </ul>
                 <ul class="navbar-nav">
@@ -333,7 +349,9 @@
         </div>
     </footer>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap JS (UNIQUEMENT ICI, en bas de page) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     {% block scripts %}{% endblock %}
 </body>
 
