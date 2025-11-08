@@ -3356,35 +3356,80 @@ class TransactionFinanciere:
             return {}
 
     def get_transaction_with_ecritures_total(self, transaction_id: int, user_id: int) -> Optional[Dict]:
-        """Récupère une transaction + le total des écritures liées"""
+        """Récupère une transaction + le total des écritures liées avec vérification de propriété complète"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Requête améliorée avec toutes les vérifications de propriété
+                cursor.execute("""
+                    SELECT 
+                        t.*,
+                        COALESCE(SUM(e.montant), 0) as total_ecritures,
+                        COUNT(e.id) as nb_ecritures,
+                        -- Informations de propriété
+                        COALESCE(cp.utilisateur_id, (
+                            SELECT cp2.utilisateur_id 
+                            FROM sous_comptes sc 
+                            JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
+                            WHERE sc.id = t.sous_compte_id
+                        )) as owner_user_id,
+                        -- Informations du compte
+                        cp.nom_compte as compte_principal_nom,
+                        sc.nom_sous_compte as sous_compte_nom
+                    FROM transactions t
+                    LEFT JOIN ecritures_comptables e ON t.id = e.transaction_id
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                    WHERE t.id = %s
+                    GROUP BY t.id, cp.utilisateur_id, cp.nom_compte, sc.nom_sous_compte
+                """, (transaction_id,))
+                
+                tx = cursor.fetchone()
+                if not tx:
+                    return None
+                
+                # Vérification de propriété améliorée
+                owner_id = tx.get('owner_user_id')
+                if not owner_id or owner_id != user_id:
+                    # Vérification supplémentaire pour les transactions liées à des sous-comptes
+                    if tx.get('sous_compte_id'):
+                        cursor.execute("""
+                            SELECT cp.utilisateur_id 
+                            FROM sous_comptes sc
+                            JOIN comptes_principaux cp ON sc.compte_principal_id = cp.id
+                            WHERE sc.id = %s
+                        """, (tx['sous_compte_id'],))
+                        sous_compte_owner = cursor.fetchone()
+                        if not sous_compte_owner or sous_compte_owner['utilisateur_id'] != user_id:
+                            return None
+                    else:
+                        return None
+                
+                return tx
+        except Exception as e:
+            logging.error(f"Erreur get_transaction_with_ecritures_total: {e}")
+            return None
+    def _check_transaction_ownership(self, transaction_id: int, user_id: int) -> bool:
+        """Vérifie si l'utilisateur est propriétaire de la transaction"""
         try:
             with self.db.get_cursor() as cursor:
                 cursor.execute("""
                     SELECT 
-                        t.*, 
-                        COALESCE(SUM(e.montant), 0) as total_ecritures
+                        COALESCE(cp.utilisateur_id, (
+                            SELECT cp2.utilisateur_id 
+                            FROM sous_comptes sc 
+                            JOIN comptes_principaux cp2 ON sc.compte_principal_id = cp2.id 
+                            WHERE sc.id = t.sous_compte_id
+                        )) as owner_user_id
                     FROM transactions t
-                    LEFT JOIN ecritures_comptables e ON t.id = e.transaction_id
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
                     WHERE t.id = %s
-                    GROUP BY t.id
                 """, (transaction_id,))
-                tx = cursor.fetchone()
-                if not tx:
-                    return None
-                # Vérifier propriété (sécurité)
-                if tx.get('utilisateur_id') != user_id:
-                    compte_ok = False
-                    if tx.get('compte_principal_id'):
-                        cursor.execute("SELECT utilisateur_id FROM comptes_principaux WHERE id = %s", (tx['compte_principal_id'],))
-                        row = cursor.fetchone()
-                        compte_ok = row and row['utilisateur_id'] == user_id
-                    if not compte_ok:
-                        return None
-                return tx
+                
+                result = cursor.fetchone()
+                return result and result['owner_user_id'] == user_id
         except Exception as e:
-            logging.error(f"Erreur get_transaction_with_ecritures_total: {e}")
-            return None  
-
+            logging.error(f"Erreur vérification propriété transaction: {e}")
+            return False
     def get_contacts_avec_transactions(self, user_id: int) -> List[Dict]:
         with self.db.get_cursor() as cursor:
             cursor.execute("""
@@ -4969,6 +5014,7 @@ class EcritureComptable:
         except Error as e:
             logging.error(f"Erreur lors de la récupération des écritures: {e}")
             return []
+    
     def get_with_filters(self, user_id: int, date_from: str = None, date_to: str = None, 
                         statut: str = None, contact_id: int = None, compte_id: int = None, 
                         categorie_id: int = None, limit: int = 100) -> List[Dict]:

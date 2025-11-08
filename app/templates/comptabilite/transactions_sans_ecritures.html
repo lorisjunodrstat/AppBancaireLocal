@@ -112,9 +112,16 @@
                                 </div>
                             </td>
                             <td>
+                                <!-- Bouton pour ouvrir le modal d'écriture simple -->
                                 <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
-                                    data-bs-target="#modalCreerEcriture{{ transaction.id }}">
+                                    data-bs-target="#modalEcritureSimple{{ transaction.id }}">
                                     <i class="bi bi-plus-circle"></i> Créer écriture
+                                </button>
+
+                                <!-- Bouton pour ouvrir le modal d'écritures multiples -->
+                                <button type="button" class="btn btn-outline-info btn-sm mt-1" data-bs-toggle="modal"
+                                    data-bs-target="#modalEcrituresMultiples{{ transaction.id }}">
+                                    <i class="bi bi-layers"></i> Écritures multiples
                                 </button>
                             </td>
                         </tr>
@@ -127,9 +134,10 @@
     {% endif %}
 </div>
 
-<!-- Modals -->
+<!-- Modals pour écriture simple -->
 {% for transaction in transactions %}
-<div class="modal fade" id="modalCreerEcriture{{ transaction.id }}" tabindex="-1" aria-hidden="true">
+<!-- Modal Écriture Simple -->
+<div class="modal fade" id="modalEcritureSimple{{ transaction.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -140,28 +148,32 @@
                 method="post">
                 <div class="modal-body">
                     <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> L'écriture sera créée avec le statut "En attente"
+                        <i class="bi bi-info-circle"></i>
+                        L'écriture sera créée avec le statut "En attente"
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label"><strong>Transaction:</strong></label>
-                        <p>{{ transaction.description }}</p>
+                        <p class="form-control-plaintext">{{ transaction.description }}</p>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label"><strong>Montant:</strong></label>
-                            <p>{{ "%.2f"|format(transaction.montant) }} CHF</p>
+                            <p class="form-control-plaintext">{{ "%.2f"|format(transaction.montant) }} CHF</p>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label"><strong>Date:</strong></label>
-                            <p>{{ transaction.date_transaction.strftime('%d.%m.%Y') }}</p>
+                            <p class="form-control-plaintext">{{ transaction.date_transaction.strftime('%d.%m.%Y') }}
+                            </p>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="categorie{{ transaction.id }}" class="form-label">Catégorie comptable *</label>
-                        <select id="categorie{{ transaction.id }}" name="categorie_id" class="form-select" required>
+                        <label for="categorie_simple{{ transaction.id }}" class="form-label">Catégorie comptable
+                            *</label>
+                        <select id="categorie_simple{{ transaction.id }}" name="categorie_id" class="form-select"
+                            required>
                             <option value="">Choisir une catégorie...</option>
                             {% for categorie in categories %}
                             <option value="{{ categorie.id }}">{{ categorie.numero }} - {{ categorie.nom }}</option>
@@ -177,5 +189,131 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Écritures Multiples -->
+<div class="modal fade" id="modalEcrituresMultiples{{ transaction.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Créer plusieurs écritures comptables</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('banking.creer_ecritures_multiple_auto', transaction_id=transaction.id) }}"
+                method="post">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Répartissez le montant de la transaction en plusieurs écritures.
+                        Les écritures seront créées avec le statut "En attente".
+                    </div>
+
+                    <!-- Informations de la transaction -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Transaction originale</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Description:</strong><br>
+                                    {{ transaction.description }}
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Montant total:</strong><br>
+                                    {{ "%.2f"|format(transaction.montant) }} CHF
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Date:</strong><br>
+                                    {{ transaction.date_transaction.strftime('%d.%m.%Y') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Écritures multiples - 3 lignes fixes -->
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Écritures comptables (maximum 3)</h6>
+                        </div>
+                        <div class="card-body">
+                            {% for i in range(3) %}
+                            <div class="row g-3 mb-3 p-3 border rounded {% if i > 0 %}bg-light{% endif %}">
+                                <div class="col-md-5">
+                                    <label class="form-label">Catégorie comptable</label>
+                                    <select name="categorie_id[]" class="form-select">
+                                        <option value="">Choisir une catégorie...</option>
+                                        {% for categorie in categories %}
+                                        <option value="{{ categorie.id }}">{{ categorie.numero }} - {{ categorie.nom }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Montant (CHF)</label>
+                                    <input type="number" step="0.01" class="form-control" name="montant[]" {% if i==0
+                                        %}value="{{ " %.2f"|format(transaction.montant) }}"{% endif %}>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">TVA (%)</label>
+                                    <input type="number" step="0.1" class="form-control" name="tva_taux[]" value="7.7">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Description</label>
+                                    <input type="text" class="form-control" name="description[]"
+                                        value="{% if i == 0 %}{{ transaction.description }}{% else %}{{ transaction.description }} - Partie {{ i+1 }}{% endif %}">
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Important:</strong> La somme des montants doit être égale à {{
+                                "%.2f"|format(transaction.montant) }} CHF
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Créer les écritures
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endfor %}
+
+<!-- CSS pour améliorer l'apparence -->
+<style>
+    .modal-lg {
+        max-width: 800px;
+    }
+
+    .border.rounded {
+        border-color: #dee2e6 !important;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+
+    .btn-group .btn {
+        margin-right: 2px;
+    }
+
+    .btn-group .btn:last-child {
+        margin-right: 0;
+    }
+
+    /* Style pour les lignes d'écritures multiples */
+    .row.g-3.mb-3.p-3.border.rounded {
+        transition: background-color 0.2s ease;
+    }
+
+    .row.g-3.mb-3.p-3.border.rounded:hover {
+        background-color: #f8f9fa;
+    }
+</style>
 {% endblock %}
