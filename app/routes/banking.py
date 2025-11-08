@@ -3172,8 +3172,8 @@ def transactions_sans_ecritures():
             statut_comptable=statut_comptable
         )
     
-    # Récupérer les catégories pour le modal de création automatique
-    categories = g.models.categorie_comptable_model.get_all(current_user.id)
+    # CORRECTION : Utilisez get_all_categories() au lieu de get_all()
+    categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
     
     return render_template('comptabilite/transactions_sans_ecritures.html',
         transactions=transactions,
@@ -3185,7 +3185,6 @@ def transactions_sans_ecritures():
         date_to=date_to,
         categories=categories
     )
-
 @bp.route('/comptabilite/update_statut_comptable/<int:transaction_id>', methods=['POST'])
 @login_required
 def update_statut_comptable(transaction_id):
