@@ -3138,6 +3138,92 @@ def liste_ecritures():
         transaction_detail=transaction_detail
     )
 
+
+#### ecritures comptables automatiques
+
+@bp.route('/comptabilite/transactions-sans-ecritures')
+@login_required
+def transactions_sans_ecritures():
+    """Affiche la liste des transactions sans écritures comptables filtrées par compte"""
+    # Récupération des paramètres de filtrage
+    compte_id = request.args.get('compte_id', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    statut_comptable = request.args.get('statut_comptable', 'a_comptabiliser')
+    
+    # Statuts comptables disponibles
+    statuts_comptables = [
+        {'value': 'a_comptabiliser', 'label': 'À comptabiliser'},
+        {'value': 'comptabilise', 'label': 'Comptabilisé'},
+        {'value': 'ne_pas_comptabiliser', 'label': 'Ne pas comptabiliser'}
+    ]
+    
+    # Récupérer les comptes de l'utilisateur
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
+    
+    # Récupérer les transactions sans écritures
+    transactions = []
+    if compte_id:
+        transactions = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_compte(
+            compte_id=compte_id,
+            user_id=current_user.id,
+            date_from=date_from,
+            date_to=date_to,
+            statut_comptable=statut_comptable
+        )
+    
+    # Récupérer les catégories pour le modal de création automatique
+    categories = g.models.categorie_comptable_model.get_all(current_user.id)
+    
+    return render_template('comptabilite/transactions_sans_ecritures.html',
+        transactions=transactions,
+        comptes=comptes,
+        compte_selectionne=compte_id,
+        statuts_comptables=statuts_comptables,
+        statut_comptable_selectionne=statut_comptable,
+        date_from=date_from,
+        date_to=date_to,
+        categories=categories
+    )
+
+@bp.route('/comptabilite/update_statut_comptable/<int:transaction_id>', methods=['POST'])
+@login_required
+def update_statut_comptable(transaction_id):
+    """Met à jour le statut comptable d'une transaction"""
+    nouveau_statut = request.form.get('statut_comptable')
+    
+    if nouveau_statut not in ['a_comptabiliser', 'comptabilise', 'ne_pas_comptabiliser']:
+        flash('Statut invalide', 'error')
+        return redirect(request.referrer or url_for('banking.transactions_sans_ecritures'))
+    
+    success, message = g.models.transaction_financiere_model.update_statut_comptable(
+        transaction_id, current_user.id, nouveau_statut
+    )
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+    
+    return redirect(request.referrer or url_for('banking.transactions_sans_ecritures'))
+
+@bp.route('/comptabilite/creer_ecriture_auto/<int:transaction_id>', methods=['POST'])
+@login_required
+def creer_ecriture_automatique(transaction_id):
+    """Crée une écriture comptable automatique pour une transaction avec statut 'pending'"""
+    categorie_id = request.form.get('categorie_id', type=int)
+    
+    success, message = g.models.transaction_financiere_model.creer_ecriture_automatique(
+        transaction_id, current_user.id, categorie_id
+    )
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+    
+    return redirect(request.referrer or url_for('banking.transactions_sans_ecritures'))
+
 @bp.app_template_filter('datetimeformat')
 def datetimeformat(value, format='%d.%m.%Y'):
     """Filtre pour formater les dates dans les templates"""

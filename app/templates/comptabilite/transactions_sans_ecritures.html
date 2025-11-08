@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Transactions sans écritures comptables</h2>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="compte_id" class="form-label">Compte bancaire</label>
+                    <select id="compte_id" name="compte_id" class="form-select" required>
+                        <option value="">Sélectionner un compte</option>
+                        {% for compte in comptes %}
+                        <option value="{{ compte.id }}" {% if compte.id==compte_selectionne %}selected{% endif %}>
+                            {{ compte.nom_compte }} ({{ compte.nom_banque }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="date_from" class="form-label">Du</label>
+                    <input type="date" id="date_from" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_to" class="form-label">Au</label>
+                    <input type="date" id="date_to" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="statut_comptable" class="form-label">Statut</label>
+                    <select id="statut_comptable" name="statut_comptable" class="form-select">
+                        {% for statut in statuts_comptables %}
+                        <option value="{{ statut.value }}" {% if statut.value==statut_comptable_selectionne %}selected{%
+                            endif %}>
+                            {{ statut.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Filtrer</button>
+                    <a href="{{ url_for('banking.transactions_sans_ecritures') }}"
+                        class="btn btn-outline-secondary ms-2">Réinitialiser</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Résultats -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                Transactions sans écritures
+                {% if compte_selectionne %}
+                - {{ comptes|selectattr("id", "equalto", compte_selectionne)|map(attribute="nom_compte")|first }}
+                {% endif %}
+            </h5>
+            {% if transactions %}
+            <span class="badge bg-primary">{{ transactions|length }} transaction(s)</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if not compte_selectionne %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-bank fs-1"></i>
+                <p class="mt-2">Veuillez sélectionner un compte pour afficher les transactions</p>
+            </div>
+            {% elif not transactions %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-check-circle-fill text-success fs-1"></i>
+                <p class="mt-2">Aucune transaction sans écriture trouvée pour ce compte</p>
+            </div>
+            {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th class="text-end">Montant</th>
+                            <th>Statut comptable</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.date_transaction.strftime('%d.%m.%Y') }}</td>
+                            <td>
+                                <span
+                                    class="badge {% if transaction.type_transaction in ['depot', 'transfert_entrant'] %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ transaction.type_transaction|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                            <td>{{ transaction.description }}</td>
+                            <td class="text-end fw-bold">
+                                {{ "%.2f"|format(transaction.montant) }} CHF
+                            </td>
+                            <td>
+                                <!-- Boutons radio pour le statut comptable -->
+                                <div class="btn-group" role="group">
+                                    <form
+                                        action="{{ url_for('banking.update_statut_comptable', transaction_id=transaction.id) }}"
+                                        method="post" class="d-inline">
+                                        <input type="hidden" name="statut_comptable" value="a_comptabiliser">
+                                        <button type="submit"
+                                            class="btn btn-sm {% if transaction.statut_comptable == 'a_comptabiliser' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                                            À comptabiliser
+                                        </button>
+                                    </form>
+
+                                    <form
+                                        action="{{ url_for('banking.update_statut_comptable', transaction_id=transaction.id) }}"
+                                        method="post" class="d-inline">
+                                        <input type="hidden" name="statut_comptable" value="ne_pas_comptabiliser">
+                                        <button type="submit"
+                                            class="btn btn-sm {% if transaction.statut_comptable == 'ne_pas_comptabiliser' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                                            Ne pas comptabiliser
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <!-- Bouton pour créer une écriture automatique -->
+                                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                                        data-bs-target="#modalCreerEcriture{{ transaction.id }}">
+                                        <i class="bi bi-plus-circle"></i> Créer écriture
+                                    </button>
+
+                                    <!-- Voir détails -->
+                                    <a href="{{ url_for('banking.liste_ecritures', show_transaction_modal=1, transaction_id=transaction.id) }}"
+                                        class="btn btn-outline-info">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </div>
+
+                                <!-- Modal pour création d'écriture -->
+                                <div class="modal fade" id="modalCreerEcriture{{ transaction.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Créer une écriture comptable</h5>
+                                                <button type="button" class="btn-close"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form
+                                                action="{{ url_for('banking.creer_ecriture_automatique', transaction_id=transaction.id) }}"
+                                                method="post">
+                                                <div class="modal-body">
+                                                    <div class="alert alert-info">
+                                                        <i class="bi bi-info-circle"></i>
+                                                        L'écriture sera créée avec le statut "En attente"
+                                                    </div>
+
+                                                    <p><strong>Transaction:</strong> {{ transaction.description }}</p>
+                                                    <p><strong>Montant:</strong> {{ "%.2f"|format(transaction.montant)
+                                                        }} CHF</p>
+                                                    <p><strong>Date:</strong> {{
+                                                        transaction.date_transaction.strftime('%d.%m.%Y') }}</p>
+                                                    <p><strong>Type:</strong> {{
+                                                        transaction.type_transaction|replace('_', ' ')|title }}</p>
+
+                                                    <div class="mb-3">
+                                                        <label for="categorie{{ transaction.id }}"
+                                                            class="form-label">Catégorie comptable *</label>
+                                                        <select id="categorie{{ transaction.id }}" name="categorie_id"
+                                                            class="form-select" required>
+                                                            <option value="">Choisir une catégorie...</option>
+                                                            {% for categorie in categories %}
+                                                            <option value="{{ categorie.id }}">{{ categorie.numero }} -
+                                                                {{ categorie.nom }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                        <div class="form-text">
+                                                            Cette écriture sera créée avec le statut "En attente"
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">Annuler</button>
+                                                    <button type="submit" class="btn btn-primary">
+                                                        <i class="bi bi-plus-circle"></i> Créer l'écriture
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
