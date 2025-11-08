@@ -11,6 +11,8 @@ from decimal import Decimal
 from datetime import datetime, date, timedelta
 import calendar
 import csv
+import os
+import uuid
 import time
 import math
 from collections import defaultdict
@@ -4509,6 +4511,7 @@ class EcritureComptable:
     
     def __init__(self, db):
         self.db = db
+        self.upload_folder = os.path.join(os.getcwd(), 'uploads', 'justificatifs')
     
     def create(self, data: Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
@@ -5529,9 +5532,6 @@ class EcritureComptable:
 
     
     # Fonction utilitaire pour vérifier les types de fichiers
-    def allowed_file(filename):
-        return '.' in filename and \
-            filename.rsplit('.', 1)[1].lower() in {'pdf', 'png', 'jpg', 'jpeg'}
     def _allowed_file(self, filename):
         """Vérifie si le type de fichier est autorisé"""
         allowed_extensions = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp'}
