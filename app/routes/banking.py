@@ -3138,6 +3138,88 @@ def liste_ecritures():
         transaction_detail=transaction_detail
     )
 
+@bp.route('/comptabilite/ecritures/update_statut/<int:ecriture_id>', methods=['POST'])
+@login_required
+def update_statut_ecriture(ecriture_id):
+    """Met à jour uniquement le statut d'une écriture via modal"""
+    nouveau_statut = request.form.get('statut')
+    commentaire = request.form.get('commentaire', '')
+    
+    if nouveau_statut not in ['pending', 'validée', 'rejetée']:
+        flash('Statut invalide', 'error')
+        return redirect(request.referrer or url_for('banking.liste_ecritures'))
+    
+    try:
+        success = g.models.ecriture_comptable_model.update_statut(
+            ecriture_id, current_user.id, nouveau_statut
+        )
+        
+        if success:
+            if commentaire:
+                logging.info(f"Statut écriture {ecriture_id} changé: {commentaire}")
+            flash(f"Statut mis à jour: {nouveau_statut}", 'success')
+        else:
+            flash("Erreur lors de la mise à jour", 'error')
+            
+    except Exception as e:
+        logging.error(f"Erreur mise à jour statut: {e}")
+        flash("Erreur lors de la mise à jour", 'error')
+    
+    return redirect(request.referrer or url_for('banking.liste_ecritures'))
+
+##### Fichier dans transactions 
+@bp.route('/comptabilite/ecritures/upload_fichier/<int:ecriture_id>', methods=['POST'])
+@login_required
+def upload_fichier_ecriture(ecriture_id):
+    """Upload un fichier pour une écriture"""
+    if 'fichier' not in request.files:
+        flash('Aucun fichier sélectionné', 'error')
+        return redirect(request.referrer or url_for('banking.liste_ecritures'))
+    
+    fichier = request.files['fichier']
+    success, message = g.models.ecriture_comptable_model.ajouter_fichier(
+        ecriture_id, current_user.id, fichier
+    )
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+    
+    return redirect(request.referrer or url_for('banking.liste_ecritures'))
+
+@bp.route('/comptabilite/ecritures/download_fichier/<int:ecriture_id>')
+@login_required
+def download_fichier_ecriture(ecriture_id):
+    """Télécharge le fichier joint d'une écriture"""
+    fichier_data = g.models.ecriture_comptable_model.get_fichier(ecriture_id, current_user.id)
+    
+    if not fichier_data:
+        flash('Fichier non trouvé', 'error')
+        return redirect(request.referrer or url_for('banking.liste_ecritures'))
+    
+    return Response(
+        fichier_data['data'],
+        mimetype=fichier_data['type_mime'],
+        headers={
+            'Content-Disposition': f'attachment; filename="{fichier_data["nom_fichier"]}"'
+        }
+    )
+
+@bp.route('/comptabilite/ecritures/supprimer_fichier/<int:ecriture_id>', methods=['POST'])
+@login_required
+def supprimer_fichier_ecriture(ecriture_id):
+    """Supprime le fichier joint d'une écriture"""
+    success, message = g.models.ecriture_comptable_model.supprimer_fichier(
+        ecriture_id, current_user.id
+    )
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+    
+    return redirect(request.referrer or url_for('banking.liste_ecritures'))
 
 #### ecritures comptables automatiques
 

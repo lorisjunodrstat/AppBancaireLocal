@@ -4599,7 +4599,115 @@ class EcritureComptable:
         except Error as e:
             logging.error(f"Erreur lors de la mise à jour de l'écriture comptable: {e}")
             return False
-
+    
+    def delete_hard(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
+        """
+        Supprime une écriture comptable après avoir délié sa transaction.
+        
+        Args:
+            ecriture_id: ID de l'écriture à supprimer
+            user_id: ID de l'utilisateur pour vérification de propriété
+        
+        Returns:
+            Tuple (succès, message)
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # 1. Vérifier que l'écriture existe et appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id, transaction_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    (ecriture_id, user_id)
+                )
+                ecriture = cursor.fetchone()
+                
+                if not ecriture:
+                    return False, "Écriture non trouvée ou non autorisée"
+                
+                # 2. Délier la transaction si elle existe
+                if ecriture['transaction_id']:
+                    cursor.execute(
+                        "UPDATE ecritures_comptables SET transaction_id = NULL WHERE id = %s",
+                        (ecriture_id,)
+                    )
+                    logging.info(f"Écriture {ecriture_id} déliée de la transaction {ecriture['transaction_id']}")
+                
+                # 3. Supprimer l'écriture
+                cursor.execute(
+                    "DELETE FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    (ecriture_id, user_id)
+                )
+                
+                if cursor.rowcount > 0:
+                    logging.info(f"Écriture {ecriture_id} supprimée avec succès")
+                    return True, "Écriture supprimée avec succès"
+                else:
+                    return False, "Erreur lors de la suppression de l'écriture"
+                    
+        except Exception as e:
+            logging.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
+            return False, f"Erreur lors de la suppression: {str(e)}"
+    
+    def delete_soft(self, ecriture_id: int, user_id: int, soft_delete: bool = True) -> Tuple[bool, str]:
+        """
+        Supprime une écriture comptable (soft delete par défaut).
+        
+        Args:
+            ecriture_id: ID de l'écriture à supprimer
+            user_id: ID de l'utilisateur pour vérification de propriété
+            soft_delete: Si True, marque comme supprimée au lieu de supprimer définitivement
+        
+        Returns:
+            Tuple (succès, message)
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que l'écriture existe et appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id, transaction_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    (ecriture_id, user_id)
+                )
+                ecriture = cursor.fetchone()
+                
+                if not ecriture:
+                    return False, "Écriture non trouvée ou non autorisée"
+                
+                # Délier la transaction si elle existe
+                if ecriture['transaction_id']:
+                    cursor.execute(
+                        "UPDATE ecritures_comptables SET transaction_id = NULL WHERE id = %s",
+                        (ecriture_id,)
+                    )
+                    logging.info(f"Écriture {ecriture_id} déliée de la transaction {ecriture['transaction_id']}")
+                
+                if soft_delete:
+                    # SOFT DELETE: marquer comme supprimée
+                    cursor.execute("""
+                        UPDATE ecritures_comptables 
+                        SET statut = 'supprimee', date_suppression = NOW() 
+                        WHERE id = %s AND utilisateur_id = %s
+                    """, (ecriture_id, user_id))
+                    
+                    if cursor.rowcount > 0:
+                        logging.info(f"Écriture {ecriture_id} marquée comme supprimée")
+                        return True, "Écriture marquée comme supprimée"
+                    else:
+                        return False, "Erreur lors du marquage de l'écriture comme supprimée"
+                else:
+                    # HARD DELETE: suppression définitive
+                    cursor.execute(
+                        "DELETE FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                        (ecriture_id, user_id)
+                    )
+                    
+                    if cursor.rowcount > 0:
+                        logging.info(f"Écriture {ecriture_id} supprimée définitivement")
+                        return True, "Écriture supprimée définitivement"
+                    else:
+                        return False, "Erreur lors de la suppression de l'écriture"
+                        
+        except Exception as e:
+            logging.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
+            return False, f"Erreur lors de la suppression: {str(e)}"
     def get_by_id(self, ecriture_id: int) -> Optional[Dict]:
         """Récupère une écriture par son ID"""
         try:
@@ -5315,6 +5423,115 @@ class EcritureComptable:
             logging.error(f"Erreur validation catégorie pour contact {contact_id}: {e}")
             return False
 
+    ## Gestion fichiers 
+    def ajouter_fichier(self, ecriture_id: int, user_id: int, fichier) -> Tuple[bool, str]:
+        """
+        Ajoute un fichier joint à une écriture comptable.
+        
+        Args:
+            ecriture_id: ID de l'écriture
+            user_id: ID de l'utilisateur
+            fichier: FileStorage de Flask
+        
+        Returns:
+            Tuple (succès, message)
+        """
+        try:
+            # Vérifications du fichier
+            if not fichier or fichier.filename == '':
+                return False, "Aucun fichier sélectionné"
+            
+            if not allowed_file(fichier.filename):
+                return False, "Type de fichier non autorisé. Formats acceptés: PDF, PNG, JPG, JPEG"
+            
+            # Taille max: 10MB
+            max_size = 10 * 1024 * 1024
+            fichier_data = fichier.read()
+            if len(fichier_data) > max_size:
+                return False, "Fichier trop volumineux (max 10MB)"
+            
+            with self.db.get_cursor() as cursor:
+                # Vérifier que l'écriture appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    (ecriture_id, user_id)
+                )
+                if not cursor.fetchone():
+                    return False, "Écriture non trouvée ou non autorisée"
+                
+                # Mettre à jour l'écriture avec le fichier
+                cursor.execute("""
+                    UPDATE ecritures_comptables 
+                    SET fichier_joint = %s, nom_fichier = %s, type_mime = %s, taille_fichier = %s
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (
+                    fichier_data,
+                    fichier.filename,
+                    fichier.content_type,
+                    len(fichier_data),
+                    ecriture_id,
+                    user_id
+                ))
+                
+                return True, "Fichier joint ajouté avec succès"
+                
+        except Exception as e:
+            logging.error(f"Erreur ajout fichier écriture {ecriture_id}: {e}")
+            return False, f"Erreur lors de l'ajout du fichier: {str(e)}"
+
+    def get_fichier(self, ecriture_id: int, user_id: int) -> Optional[Dict]:
+        """
+        Récupère les informations du fichier joint d'une écriture.
+        
+        Returns:
+            Dict avec les données du fichier ou None
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT fichier_joint, nom_fichier, type_mime, taille_fichier
+                    FROM ecritures_comptables 
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (ecriture_id, user_id))
+                
+                result = cursor.fetchone()
+                if result and result['fichier_joint']:
+                    return {
+                        'data': result['fichier_joint'],
+                        'nom_fichier': result['nom_fichier'],
+                        'type_mime': result['type_mime'],
+                        'taille': result['taille_fichier']
+                    }
+                return None
+        except Exception as e:
+            logging.error(f"Erreur récupération fichier écriture {ecriture_id}: {e}")
+            return None
+
+    def supprimer_fichier(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
+        """
+        Supprime le fichier joint d'une écriture.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    UPDATE ecritures_comptables 
+                    SET fichier_joint = NULL, nom_fichier = NULL, type_mime = NULL, taille_fichier = NULL
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (ecriture_id, user_id))
+                
+                if cursor.rowcount > 0:
+                    return True, "Fichier supprimé avec succès"
+                else:
+                    return False, "Écriture non trouvée ou non autorisée"
+                    
+        except Exception as e:
+            logging.error(f"Erreur suppression fichier écriture {ecriture_id}: {e}")
+            return False, f"Erreur lors de la suppression: {str(e)}"
+
+    # Fonction utilitaire pour vérifier les types de fichiers
+    def allowed_file(filename):
+        return '.' in filename and \
+            filename.rsplit('.', 1)[1].lower() in {'pdf', 'png', 'jpg', 'jpeg'}
 class ContactPlan:
     def __init__(self, db):
         self.db = db
