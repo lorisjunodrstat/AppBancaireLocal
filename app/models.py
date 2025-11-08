@@ -5441,8 +5441,8 @@ class EcritureComptable:
             if not fichier or fichier.filename == '':
                 return False, "Aucun fichier sélectionné"
             
-            if not allowed_file(fichier.filename):
-                return False, "Type de fichier non autorisé. Formats acceptés: PDF, PNG, JPG, JPEG"
+            if not self._allowed_file(fichier.filename):
+                return False, "Type de fichier non autorisé. Formats acceptés: PDF, PNG, JPG, JPEG, GIF, BMP"
             
             # Taille max: 10MB
             max_size = 10 * 1024 * 1024
@@ -5478,7 +5478,6 @@ class EcritureComptable:
         except Exception as e:
             logging.error(f"Erreur ajout fichier écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de l'ajout du fichier: {str(e)}"
-
     def get_fichier(self, ecriture_id: int, user_id: int) -> Optional[Dict]:
         """
         Récupère les informations du fichier joint d'une écriture.
@@ -5528,10 +5527,17 @@ class EcritureComptable:
             logging.error(f"Erreur suppression fichier écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
 
+    
     # Fonction utilitaire pour vérifier les types de fichiers
     def allowed_file(filename):
         return '.' in filename and \
             filename.rsplit('.', 1)[1].lower() in {'pdf', 'png', 'jpg', 'jpeg'}
+    def _allowed_file(self, filename):
+        """Vérifie si le type de fichier est autorisé"""
+        allowed_extensions = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp'}
+        return '.' in filename and \
+            filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    
 class ContactPlan:
     def __init__(self, db):
         self.db = db
