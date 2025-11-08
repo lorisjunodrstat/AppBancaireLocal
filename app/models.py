@@ -5016,7 +5016,7 @@ class EcritureComptable:
             return []
     
     def get_with_filters(self, user_id: int, date_from: str = None, date_to: str = None, 
-                        statut: str = None, contact_id: int = None, compte_id: int = None, 
+                        statut: str = None, id_contact: int = None, compte_id: int = None, 
                         categorie_id: int = None, limit: int = 100) -> List[Dict]:
         """Récupère les écritures avec tous les filtres combinés"""
         ecritures = []
@@ -5041,9 +5041,9 @@ class EcritureComptable:
                 if statut:
                     query += " AND e.statut = %s"
                     params.append(statut)
-                if contact_id:
+                if id_contact:
                     query += " AND e.id_contact = %s"
-                    params.append(contact_id)
+                    params.append(id_contact)
                 if compte_id:
                     query += " AND e.compte_bancaire_id = %s"
                     params.append(compte_id)

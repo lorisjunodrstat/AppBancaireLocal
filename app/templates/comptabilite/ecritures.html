@@ -32,7 +32,7 @@
                     <select id="id_contact" name="id_contact" class="form-select"   >
                         <option value="">Tous les contacts</option>
                         {% for contact in contacts %}
-                        <option value="{{ contact.id }}" {% if contact.id == contact_selectionne|int %}selected{% endif %}>
+                        <option value="{{ contact.id_contact }}" {% if contact.id_contact == contact_selectionne|int %}selected{% endif %}>
                             {{ contact.nom }}
                         </option>
                         {% endfor %}

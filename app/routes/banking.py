@@ -3053,7 +3053,7 @@ def liste_ecritures():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     categorie_id = request.args.get('categorie_id')
-    id_contact = request.args.get('id')
+    id_contact = request.args.get('id_contact')
     statut = request.args.get('statut', 'tous')
     
     # Statuts pour le template
@@ -3070,7 +3070,7 @@ def liste_ecritures():
         'date_from': date_from,
         'date_to': date_to,
         'statut': statut if statut != 'tous' else None,
-        'contact_id': int(id_contact) if id_contact else None,
+        'id_contact': int(id_contact) if id_contact else None,
         'compte_id': int(compte_id) if compte_id else None,
         'categorie_id': int(categorie_id) if categorie_id else None,
         'limit': 1000  # Ou la limite que vous souhaitez
@@ -3078,7 +3078,7 @@ def liste_ecritures():
     
     # Utiliser la nouvelle méthode de filtrage
     ecritures = g.models.ecriture_comptable_model.get_with_filters(**filtres)
-
+    print(f"Ecritures récupérées avec filtres {filtres}: {ecritures}")
     # Récupérer les données supplémentaires
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
