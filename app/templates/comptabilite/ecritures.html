@@ -290,29 +290,32 @@
 </div>
 
 <!-- Modal pour visualisation de fichier -->
+
 {% if ecriture.nom_fichier %}
 <div class="modal fade" id="modalFichier{{ ecriture.id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Fichier joint: {{ ecriture.nom_fichier }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center">
+            <div class="modal-body p-0">
                 {% if ecriture.type_mime and 'image' in ecriture.type_mime %}
                 <!-- Affichage d'image -->
-                <img src="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}" class="img-fluid"
-                    alt="{{ ecriture.nom_fichier }}" style="max-height: 70vh;">
+                <div class="text-center p-3">
+                    <img src="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}"
+                        class="img-fluid rounded" alt="{{ ecriture.nom_fichier }}" style="max-height: 70vh;">
+                </div>
                 {% elif ecriture.type_mime == 'application/pdf' %}
-                <!-- Affichage PDF -->
-                <div class="alert alert-info">
-                    <i class="bi bi-file-pdf fs-1"></i>
-                    <p class="mt-2">Visualisation PDF non disponible dans le navigateur</p>
-                    <p>Téléchargez le fichier pour le visualiser</p>
+                <!-- Affichage PDF avec embed -->
+                <div class="embed-container">
+                    <embed
+                        src="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}#toolbar=1&navpanes=1&scrollbar=1"
+                        type="application/pdf" width="100%" height="600px" />
                 </div>
                 {% else %}
                 <!-- Autres types de fichiers -->
-                <div class="alert alert-warning">
+                <div class="alert alert-warning text-center m-3">
                     <i class="bi bi-file-earmark fs-1"></i>
                     <p class="mt-2">Prévisualisation non disponible</p>
                     <p>Téléchargez le fichier pour le visualiser</p>
