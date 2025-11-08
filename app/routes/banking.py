@@ -2986,6 +2986,7 @@ def liste_contacts_comptables():
         comptes_lies=comptes_lies,
         ids_lies=ids_lies
     )
+
 @bp.route('/comptabilite/contacts/<int:contact_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_contact_comptable(contact_id):
@@ -3063,42 +3064,28 @@ def liste_ecritures():
         {'value': 'rejetée', 'label': 'Rejetées'}
     ]
     
-    # Récupérer les écritures
+    # Préparer les filtres pour la méthode
     filtres = {
         'user_id': current_user.id,
         'date_from': date_from,
         'date_to': date_to,
         'statut': statut if statut != 'tous' else None,
-        'contact_id': int(id_contact) if id_contact else None
+        'contact_id': int(id_contact) if id_contact else None,
+        'compte_id': int(compte_id) if compte_id else None,
+        'categorie_id': int(categorie_id) if categorie_id else None,
+        'limit': 1000  # Ou la limite que vous souhaitez
     }
     
-    if categorie_id:
-        ecritures = g.models.ecriture_comptable_model.get_by_categorie(categorie_id=int(categorie_id), **filtres)
-    elif compte_id:
-        ecritures = g.models.ecriture_comptable_model.get_by_compte_bancaire(compte_id=int(compte_id), **filtres)
-    elif id_contact:
-        ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id=int(id_contact), **filtres)
-    else:
-        if filtres['statut']:
-            ecritures = g.models.ecriture_comptable_model.get_by_statut(
-                user_id=current_user.id,
-                statut=filtres['statut'],
-                date_from=date_from,
-                date_to=date_to
-            )
-        else:
-            ecritures = g.models.ecriture_comptable_model.get_all(
-                user_id=current_user.id,
-                date_from=date_from,
-                date_to=date_to
-            )
+    # Utiliser la nouvelle méthode de filtrage
+    ecritures = g.models.ecriture_comptable_model.get_with_filters(**filtres)
 
     # Récupérer les données supplémentaires
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
+    categories = g.models.categorie_comptable_model.get_all(current_user.id)
     contact_map = {c['id_contact']: c['nom'] for c in contacts}
 
-    # Gestion du modal de liaison
+    # Gestion du modal de liaison (identique à votre code original)
     show_link_modal = request.args.get('show_link_modal') == '1'
     ecriture_link = None
     transactions_eligibles = []
@@ -3107,14 +3094,12 @@ def liste_ecritures():
         eid = request.args.get('ecriture_id', type=int)
         ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
         if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
-            # Récupérer les transactions de la même date (ou plage large)
             date_tx = ecriture_link['date_ecriture']
             all_tx = g.models.transaction_financiere_model.get_all_user_transactions(
                 user_id=current_user.id,
                 date_from=date_tx,
                 date_to=date_tx
-            )[0]  # (liste, total)
-            # Ajouter le total des écritures liées à chaque transaction
+            )[0]
             for tx in all_tx:
                 full_tx = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
                     tx['id'], current_user.id
@@ -3122,7 +3107,7 @@ def liste_ecritures():
                 if full_tx:
                     transactions_eligibles.append(full_tx)
 
-      # Gestion du modal de détail de transaction
+    # Gestion du modal de détail de transaction (identique)
     show_transaction_modal = request.args.get('show_transaction_modal') == '1'
     transaction_detail = None
 
@@ -3130,13 +3115,13 @@ def liste_ecritures():
         tid = request.args.get('transaction_id', type=int)
         if tid:
             transaction_detail = g.models.transaction_financiere_model.get_transaction_by_id(tid)
-            # Vérifier que l'utilisateur est bien le propriétaire
             if not (transaction_detail and transaction_detail.get('owner_user_id') == current_user.id):
                 transaction_detail = None
 
     return render_template('comptabilite/ecritures.html',
         ecritures=ecritures,
         comptes=comptes,
+        categories=categories,  # Nouveau
         compte_selectionne=compte_id,
         statuts_disponibles=statuts_disponibles,
         statut_selectionne=statut,
@@ -3144,7 +3129,7 @@ def liste_ecritures():
         contact_selectionne=id_contact,
         date_from=date_from,
         date_to=date_to,
-        categorie_id=categorie_id,
+        categorie_id=categorie_id,  # Important pour préserver la sélection
         show_link_modal=show_link_modal,
         ecriture_link=ecriture_link,
         transactions_eligibles=transactions_eligibles,
@@ -3163,7 +3148,6 @@ def datetimeformat(value, format='%d.%m.%Y'):
         from datetime import datetime
         value = datetime.strptime(value, '%Y-%m-%d')
     return value.strftime(format)
-
 
 
 @bp.app_template_filter('month_french')
@@ -4228,6 +4212,9 @@ def process_day(request, user_id, date_str, annee, mois, semaine, mode, employeu
 def format_date(date_str):
     return datetime.fromisoformat(date_str).strftime('%d/%m/%Y')
 
+def format_date(date_str):
+    return date.fromisoformat(date_str).strftime('%d/%m/%Y')
+
 def generate_days(annee: int, mois: int, semaine: int) -> list[date]:
     if semaine > 0:
         try:
@@ -4381,8 +4368,6 @@ def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
         mode=mode,
         employeur=employeur
     ))
-def format_date(date_str):
-    return date.fromisoformat(date_str).strftime('%d/%m/%Y')
 
 def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
     src_start = request.form.get('source_week_start')

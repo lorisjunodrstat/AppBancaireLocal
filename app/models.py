@@ -4713,7 +4713,52 @@ class EcritureComptable:
         except Error as e:
             logging.error(f"Erreur lors de la récupération des écritures: {e}")
             return []
+    def get_with_filters(self, user_id: int, date_from: str = None, date_to: str = None, 
+                        statut: str = None, contact_id: int = None, compte_id: int = None, 
+                        categorie_id: int = None, limit: int = 100) -> List[Dict]:
+        """Récupère les écritures avec tous les filtres combinés"""
+        ecritures = []
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
+                    cb.nom_compte as compte_bancaire_nom
+                FROM ecritures_comptables e
+                LEFT JOIN categories_comptables c ON e.categorie_id = c.id
+                LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id
+                WHERE e.utilisateur_id = %s
+                """
+                params = [user_id]
+                
+                if date_from:
+                    query += " AND e.date_ecriture >= %s"
+                    params.append(date_from)
+                if date_to:
+                    query += " AND e.date_ecriture <= %s"
+                    params.append(date_to)
+                if statut:
+                    query += " AND e.statut = %s"
+                    params.append(statut)
+                if contact_id:
+                    query += " AND e.id_contact = %s"
+                    params.append(contact_id)
+                if compte_id:
+                    query += " AND e.compte_bancaire_id = %s"
+                    params.append(compte_id)
+                if categorie_id:
+                    query += " AND e.categorie_id = %s"
+                    params.append(categorie_id)
+                
+                query += " ORDER BY e.date_ecriture DESC LIMIT %s"
+                params.append(limit)
+                
+                cursor.execute(query, tuple(params))
+                ecritures = cursor.fetchall()
 
+                return ecritures
+        except Error as e:
+            logging.error(f"Erreur lors de la récupération des écritures avec filtres: {e}")
+            return []
     
     def get_by_user_period(self, user_id, date_from, date_to):
         """Récupère toutes les écritures pour une période donnée"""

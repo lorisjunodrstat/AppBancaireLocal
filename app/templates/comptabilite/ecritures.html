@@ -39,6 +39,17 @@
                     </select>
                 </div>
                 <div class="col-md-3">
+                    <label for="categorie_id" class="form-label">Catégorie comptable</label>
+                    <select id="categorie_id" name="categorie_id" class="form-select">
+                        <option value="">Toutes les catégories</option>
+                        {% for categorie in categories %}
+                        <option value="{{ categorie.id }}" {% if categorie.id==categorie_id|int %}selected{% endif %}>
+                            {{ categorie.numero }} - {{ categorie.nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label for="statut" class="form-label">Statut</label>
                     <select id="statut" name="statut" class="form-select">
                         {% for statut in statuts_disponibles %}
@@ -156,7 +167,9 @@
                             <td>
                                 {% if ecriture.transaction_id %}
                                 <a href="{{ url_for('banking.liste_ecritures',
+                                                    show_link_modal=1,
                                                     show_transaction_modal=1,
+                                                    ecriture_id=ecriture.id,
                                                     transaction_id=ecriture.transaction_id,
                                                     compte_id=request.args.get('compte_id'),
                                                     date_from=request.args.get('date_from'),
@@ -171,6 +184,7 @@
                                 <span class="badge bg-secondary">Non liée</span>
                                 <a href="{{ url_for('banking.liste_ecritures',
                                                     show_link_modal=1,
+                                                    show_transaction_modal=0,
                                                     ecriture_id=ecriture.id,
                                                     compte_id=request.args.get('compte_id'),
                                                     date_from=request.args.get('date_from'),
