@@ -4511,7 +4511,19 @@ class EcritureComptable:
     
     def __init__(self, db):
         self.db = db
-        self.upload_folder = os.path.join(os.getcwd(), 'uploads', 'justificatifs')
+        self.upload_folder = os.path.join(os.getcwd(), 'app', 'uploads', 'justificatifs')
+        self._ensure_upload_folder()
+    def _ensure_upload_folder(self):
+        """Crée le dossier d'upload s'il n'existe pas"""
+        try:
+            os.makedirs(self.upload_folder, exist_ok=True)
+            logging.info(f"Dossier d'upload créé/sur: {self.upload_folder}")
+        except Exception as e:
+            logging.error(f"Erreur création dossier upload: {e}")
+    
+    def _get_file_path(self, filename):
+        """Génère le chemin complet du fichier"""
+        return os.path.join(self.upload_folder, filename)
     
     def create(self, data: Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
@@ -5496,7 +5508,7 @@ class EcritureComptable:
                 # Sauvegarder le fichier sur le filesystem
                 with open(file_path, 'wb') as f:
                     f.write(fichier_data)
-                    
+
                 
                 # Mettre à jour la base de données avec le chemin du fichier
                 cursor.execute("""
