@@ -3183,6 +3183,7 @@ def upload_fichier_ecriture(ecriture_id):
     
     if success:
         flash(message, 'success')
+        flash(f'Fichier uploadé avec succès {fichier.filename} à {ecriture_id} sur {fichier.content_type}', 'success')
     else:
         flash(message, 'error')
     
@@ -3192,19 +3193,45 @@ def upload_fichier_ecriture(ecriture_id):
 @login_required
 def download_fichier_ecriture(ecriture_id):
     """Télécharge le fichier joint d'une écriture"""
-    fichier_data = g.models.ecriture_comptable_model.get_fichier(ecriture_id, current_user.id)
+    fichier_info = g.models.ecriture_comptable_model.get_fichier(ecriture_id, current_user.id)
     
-    if not fichier_data:
+    if not fichier_info:
         flash('Fichier non trouvé', 'error')
         return redirect(request.referrer or url_for('banking.liste_ecritures'))
     
-    return Response(
-        fichier_data['data'],
-        mimetype=fichier_data['type_mime'],
-        headers={
-            'Content-Disposition': f'attachment; filename="{fichier_data["nom_fichier"]}"'
-        }
-    )
+    try:
+        return send_file(
+            fichier_info['chemin_complet'],
+            as_attachment=True,
+            download_name=fichier_info['nom_original'],
+            mimetype=fichier_info['type_mime']
+        )
+    except Exception as e:
+        logging.error(f"Erreur téléchargement fichier: {e}")
+        flash('Erreur lors du téléchargement du fichier', 'error')
+        return redirect(request.referrer or url_for('banking.liste_ecritures'))
+
+@bp.route('/comptabilite/ecritures/view_fichier/<int:ecriture_id>')
+@login_required
+def view_fichier_ecriture(ecriture_id):
+    """Affiche le fichier joint dans le navigateur"""
+    fichier_info = g.models.ecriture_comptable_model.get_fichier(ecriture_id, current_user.id)
+    
+    if not fichier_info:
+        flash('Fichier non trouvé', 'error')
+        return redirect(request.referrer or url_for('banking.liste_ecritures'))
+    
+    try:
+        return send_file(
+            fichier_info['chemin_complet'],
+            as_attachment=False,  # Important: affichage dans le navigateur
+            download_name=fichier_info['nom_original'],
+            mimetype=fichier_info['type_mime']
+        )
+    except Exception as e:
+        logging.error(f"Erreur affichage fichier: {e}")
+        flash('Erreur lors de l\'affichage du fichier', 'error')
+        return redirect(request.referrer or url_for('banking.liste_ecritures'))
 
 @bp.route('/comptabilite/ecritures/supprimer_fichier/<int:ecriture_id>', methods=['POST'])
 @login_required

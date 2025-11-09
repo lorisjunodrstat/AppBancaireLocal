@@ -5496,6 +5496,7 @@ class EcritureComptable:
                 # Sauvegarder le fichier sur le filesystem
                 with open(file_path, 'wb') as f:
                     f.write(fichier_data)
+                    
                 
                 # Mettre à jour la base de données avec le chemin du fichier
                 cursor.execute("""
