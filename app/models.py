@@ -4524,6 +4524,37 @@ class EcritureComptable:
     def _get_file_path(self, filename):
         """Génère le chemin complet du fichier"""
         return os.path.join(self.upload_folder, filename)
+    def test_dossier_upload(self):
+        """Teste l'accès au dossier d'upload"""
+        print(f"=== TEST DOSSIER UPLOAD ===")
+        print(f"Chemin absolu: {os.path.abspath(self.upload_folder)}")
+        print(f"Dossier existe: {os.path.exists(self.upload_folder)}")
+        
+        if os.path.exists(self.upload_folder):
+            print(f"Permissions lecture: {os.access(self.upload_folder, os.R_OK)}")
+            print(f"Permissions écriture: {os.access(self.upload_folder, os.W_OK)}")
+            
+            # Test d'écriture
+            test_file = os.path.join(self.upload_folder, 'test.txt')
+            try:
+                with open(test_file, 'w') as f:
+                    f.write('test écriture')
+                print("✓ Test écriture réussi")
+                
+                # Lire pour vérifier
+                with open(test_file, 'r') as f:
+                    content = f.read()
+                print(f"✓ Contenu lu: {content}")
+                
+                os.remove(test_file)
+                print("✓ Test suppression réussi")
+                return True
+            except Exception as e:
+                print(f"✗ Erreur écriture: {e}")
+                return False
+        else:
+            print("❌ Dossier n'existe pas")
+            return False
     
     def create(self, data: Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
@@ -5476,16 +5507,40 @@ class EcritureComptable:
     def ajouter_fichier(self, ecriture_id: int, user_id: int, fichier) -> Tuple[bool, str]:
         """Ajoute un fichier joint à une écriture comptable (stockage filesystem)."""
         try:
-            # Vérifications du fichier
+            # Vérifications de base
             if not fichier or fichier.filename == '':
                 return False, "Aucun fichier sélectionné"
             
-            if not self._allowed_file(fichier.filename):
-                return False, "Type de fichier non autorisé. Formats acceptés: PDF, PNG, JPG, JPEG, GIF, BMP, WEBP"
+            logging.info(f"Tentative d'upload - Fichier: {fichier.filename}, Taille: {fichier.content_length}")
             
-            # Taille max: 10MB
-            max_size = 10 * 1024 * 1024
+            # Vérifier le dossier d'upload
+            logging.info(f"Chemin upload folder: {self.upload_folder}")
+            logging.info(f"Dossier existe: {os.path.exists(self.upload_folder)}")
+            
+            if not os.path.exists(self.upload_folder):
+                try:
+                    os.makedirs(self.upload_folder, exist_ok=True)
+                    logging.info(f"Dossier créé: {self.upload_folder}")
+                except Exception as e:
+                    logging.error(f"Erreur création dossier: {e}")
+                    return False, f"Erreur création dossier: {str(e)}"
+            
+            # Vérifier les permissions
+            if not os.access(self.upload_folder, os.W_OK):
+                logging.error(f"Pas de permission d'écriture dans: {self.upload_folder}")
+                return False, "Pas de permission d'écriture"
+
+            if not self._allowed_file(fichier.filename):
+                return False, "Type de fichier non autorisé"
+            
+            # Lire le fichier
             fichier_data = fichier.read()
+            logging.info(f"Fichier lu - Taille données: {len(fichier_data)} bytes")
+            
+            if len(fichier_data) == 0:
+                return False, "Fichier vide"
+            
+            max_size = 10 * 1024 * 1024
             if len(fichier_data) > max_size:
                 return False, "Fichier trop volumineux (max 10MB)"
             
@@ -5502,32 +5557,48 @@ class EcritureComptable:
                 nouveau_nom = self._generate_filename(ecriture_id, fichier.filename, user_id)
                 file_path = self._get_file_path(nouveau_nom)
                 
-                # Sauvegarder le fichier sur le filesystem
-                with open(file_path, 'wb') as f:
-                    f.write(fichier_data)
-
+                logging.info(f"Chemin complet du fichier: {file_path}")
+                logging.info(f"Nom généré: {nouveau_nom}")
                 
-                # Mettre à jour la base de données avec le chemin du fichier
+                # Sauvegarder le fichier sur le filesystem
+                try:
+                    with open(file_path, 'wb') as f:
+                        f.write(fichier_data)
+                    logging.info(f"Fichier sauvegardé avec succès: {file_path}")
+                    
+                    # Vérifier que le fichier a bien été écrit
+                    if os.path.exists(file_path):
+                        file_size = os.path.getsize(file_path)
+                        logging.info(f"Fichier vérifié - Taille sur disk: {file_size} bytes")
+                    else:
+                        logging.error("Fichier non trouvé après écriture!")
+                        return False, "Erreur lors de l'écriture du fichier"
+                        
+                except Exception as e:
+                    logging.error(f"Erreur écriture fichier: {e}")
+                    return False, f"Erreur écriture fichier: {str(e)}"
+
+                # Mettre à jour la base de données
                 cursor.execute("""
                     UPDATE ecritures_comptables 
-                    SET nom_fichier = %s, justificatif_url = %s, type_mime = %s, taille_fichier = %s,
-                        date_upload_fichier = NOW()
+                    SET nom_fichier = %s, justificatif_url = %s, type_mime = %s, taille_fichier = %s
                     WHERE id = %s AND utilisateur_id = %s
                 """, (
-                    fichier.filename,  # Nom original
-                    nouveau_nom,       # Nom physique sur le disk
+                    fichier.filename,
+                    nouveau_nom,
                     fichier.content_type,
                     len(fichier_data),
                     ecriture_id,
                     user_id
                 ))
                 
+                logging.info(f"Base de données mise à jour pour écriture {ecriture_id}")
                 return True, "Fichier joint ajouté avec succès"
                 
         except Exception as e:
             logging.error(f"Erreur ajout fichier écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de l'ajout du fichier: {str(e)}"
-    
+        
     def get_fichier(self, ecriture_id: int, user_id: int) -> Optional[Dict]:
         """
         Récupère les informations du fichier joint d'une écriture.
