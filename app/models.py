@@ -5427,25 +5427,52 @@ class EcritureComptable:
             return False
 
     ## Gestion fichiers 
+    
+    def _ensure_upload_folder(self):
+        """Crée le dossier d'upload s'il n'existe pas"""
+        os.makedirs(self.upload_folder, exist_ok=True)
+    
+    def _get_file_path(self, filename):
+        """Génère le chemin complet du fichier"""
+        return os.path.join(self.upload_folder, filename)
+    
+    def _generate_filename(self, ecriture_id, original_filename, user_id):
+        """
+        Génère un nom de fichier unique et significatif
+        Format: YYYYMMDD_HHMMSS_ecritureID_userID_contact_extension
+        """
+        # Récupérer les infos de l'écriture pour le nom
+        ecriture = self.get_by_id(ecriture_id)
+        date_part = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Partie contact
+        contact_part = ""
+        if ecriture and ecriture.get('id_contact'):
+            contact_part = f"_contact{ecriture['id_contact']}"
+        
+        # Extension du fichier
+        file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
+        
+        # Nom final
+        filename = f"{date_part}_ecriture{ecriture_id}_user{user_id}{contact_part}.{file_extension}"
+        
+        return filename
+    
+    def _allowed_file(self, filename):
+        """Vérifie si le type de fichier est autorisé"""
+        allowed_extensions = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
+        return '.' in filename and \
+               filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    
     def ajouter_fichier(self, ecriture_id: int, user_id: int, fichier) -> Tuple[bool, str]:
-        """
-        Ajoute un fichier joint à une écriture comptable.
-        
-        Args:
-            ecriture_id: ID de l'écriture
-            user_id: ID de l'utilisateur
-            fichier: FileStorage de Flask
-        
-        Returns:
-            Tuple (succès, message)
-        """
+        """Ajoute un fichier joint à une écriture comptable (stockage filesystem)."""
         try:
             # Vérifications du fichier
             if not fichier or fichier.filename == '':
                 return False, "Aucun fichier sélectionné"
             
             if not self._allowed_file(fichier.filename):
-                return False, "Type de fichier non autorisé. Formats acceptés: PDF, PNG, JPG, JPEG, GIF, BMP"
+                return False, "Type de fichier non autorisé. Formats acceptés: PDF, PNG, JPG, JPEG, GIF, BMP, WEBP"
             
             # Taille max: 10MB
             max_size = 10 * 1024 * 1024
@@ -5462,14 +5489,23 @@ class EcritureComptable:
                 if not cursor.fetchone():
                     return False, "Écriture non trouvée ou non autorisée"
                 
-                # Mettre à jour l'écriture avec le fichier
+                # Générer un nom de fichier unique
+                nouveau_nom = self._generate_filename(ecriture_id, fichier.filename, user_id)
+                file_path = self._get_file_path(nouveau_nom)
+                
+                # Sauvegarder le fichier sur le filesystem
+                with open(file_path, 'wb') as f:
+                    f.write(fichier_data)
+                
+                # Mettre à jour la base de données avec le chemin du fichier
                 cursor.execute("""
                     UPDATE ecritures_comptables 
-                    SET fichier_joint = %s, nom_fichier = %s, type_mime = %s, taille_fichier = %s
+                    SET nom_fichier = %s, chemin_fichier = %s, type_mime = %s, taille_fichier = %s,
+                        date_upload_fichier = NOW()
                     WHERE id = %s AND utilisateur_id = %s
                 """, (
-                    fichier_data,
-                    fichier.filename,
+                    fichier.filename,  # Nom original
+                    nouveau_nom,       # Nom physique sur le disk
                     fichier.content_type,
                     len(fichier_data),
                     ecriture_id,
@@ -5481,62 +5517,91 @@ class EcritureComptable:
         except Exception as e:
             logging.error(f"Erreur ajout fichier écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de l'ajout du fichier: {str(e)}"
+    
     def get_fichier(self, ecriture_id: int, user_id: int) -> Optional[Dict]:
         """
         Récupère les informations du fichier joint d'une écriture.
-        
-        Returns:
-            Dict avec les données du fichier ou None
         """
         try:
             with self.db.get_cursor() as cursor:
                 cursor.execute("""
-                    SELECT fichier_joint, nom_fichier, type_mime, taille_fichier
+                    SELECT nom_fichier, chemin_fichier, type_mime, taille_fichier
                     FROM ecritures_comptables 
-                    WHERE id = %s AND utilisateur_id = %s
+                    WHERE id = %s AND utilisateur_id = %s AND chemin_fichier IS NOT NULL
                 """, (ecriture_id, user_id))
                 
                 result = cursor.fetchone()
-                if result and result['fichier_joint']:
-                    return {
-                        'data': result['fichier_joint'],
-                        'nom_fichier': result['nom_fichier'],
-                        'type_mime': result['type_mime'],
-                        'taille': result['taille_fichier']
-                    }
+                if result and result['chemin_fichier']:
+                    file_path = self._get_file_path(result['chemin_fichier'])
+                    
+                    # Vérifier que le fichier existe physiquement
+                    if os.path.exists(file_path):
+                        return {
+                            'nom_original': result['nom_fichier'],
+                            'chemin_physique': result['chemin_fichier'],
+                            'type_mime': result['type_mime'],
+                            'taille': result['taille_fichier'],
+                            'chemin_complet': file_path
+                        }
+                    else:
+                        logging.warning(f"Fichier manquant sur le disk: {file_path}")
+                        return None
                 return None
         except Exception as e:
             logging.error(f"Erreur récupération fichier écriture {ecriture_id}: {e}")
             return None
-
+    
     def supprimer_fichier(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
         """
-        Supprime le fichier joint d'une écriture.
+        Supprime le fichier joint d'une écriture (physiquement et en base).
         """
         try:
             with self.db.get_cursor() as cursor:
+                # Récupérer le chemin du fichier avant suppression
+                cursor.execute("""
+                    SELECT chemin_fichier FROM ecritures_comptables 
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (ecriture_id, user_id))
+                
+                result = cursor.fetchone()
+                fichier_supprime = False
+                
+                # Supprimer le fichier physique s'il existe
+                if result and result['chemin_fichier']:
+                    file_path = self._get_file_path(result['chemin_fichier'])
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        fichier_supprime = True
+                        logging.info(f"Fichier physique supprimé: {file_path}")
+                
+                # Mettre à jour la base de données
                 cursor.execute("""
                     UPDATE ecritures_comptables 
-                    SET fichier_joint = NULL, nom_fichier = NULL, type_mime = NULL, taille_fichier = NULL
+                    SET nom_fichier = NULL, chemin_fichier = NULL, type_mime = NULL, 
+                        taille_fichier = NULL, date_upload_fichier = NULL
                     WHERE id = %s AND utilisateur_id = %s
                 """, (ecriture_id, user_id))
                 
                 if cursor.rowcount > 0:
-                    return True, "Fichier supprimé avec succès"
+                    message = "Fichier supprimé avec succès"
+                    if fichier_supprime:
+                        message += " (fichier physique supprimé)"
+                    else:
+                        message += " (fichier physique non trouvé)"
+                    return True, message
                 else:
                     return False, "Écriture non trouvée ou non autorisée"
                     
         except Exception as e:
             logging.error(f"Erreur suppression fichier écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
-
     
-    # Fonction utilitaire pour vérifier les types de fichiers
-    def _allowed_file(self, filename):
-        """Vérifie si le type de fichier est autorisé"""
-        allowed_extensions = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp'}
-        return '.' in filename and \
-            filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    def get_chemin_fichier_physique(self, ecriture_id: int, user_id: int) -> Optional[str]:
+        """
+        Retourne le chemin physique du fichier pour le téléchargement.
+        """
+        fichier_info = self.get_fichier(ecriture_id, user_id)
+        return fichier_info['chemin_complet'] if fichier_info else None
     
 class ContactPlan:
     def __init__(self, db):
