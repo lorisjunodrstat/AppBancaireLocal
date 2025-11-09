@@ -5538,14 +5538,15 @@ class EcritureComptable:
         try:
             with self.db.get_cursor() as cursor:
                 cursor.execute("""
-                    SELECT nom_fichier, chemin_fichier, type_mime, taille_fichier
+                    SELECT nom_fichier, justificatif_url, type_mime, taille_fichier, fichier_joint
                     FROM ecritures_comptables 
-                    WHERE id = %s AND utilisateur_id = %s AND chemin_fichier IS NOT NULL
+                    WHERE id = %s AND utilisateur_id = %s AND (justificatif_url IS NOT NULL OR fichier_joint IS NOT NULL)
                 """, (ecriture_id, user_id))
                 
                 result = cursor.fetchone()
-                if result and result['chemin_fichier']:
-                    file_path = self._get_file_path(result['chemin_fichier'])
+                if result['justificatif_url']:
+                    file_path = self._get_file_path(result['justificatif_url'])
+                
                     
                     # Vérifier que le fichier existe physiquement
                     if os.path.exists(file_path):
@@ -5554,11 +5555,20 @@ class EcritureComptable:
                             'chemin_physique': result['chemin_fichier'],
                             'type_mime': result['type_mime'],
                             'taille': result['taille_fichier'],
-                            'chemin_complet': file_path
+                            'chemin_complet': file_path,
+                            'stockage': 'filesystem'
                         }
                     else:
                         logging.warning(f"Fichier manquant sur le disk: {file_path}")
                         return None
+                elif result['fichier_joint']:
+                    return {
+                    'nom_original': result['nom_fichier'],
+                    'contenu_blob': result['fichier_joint'],
+                    'type_mime': result['type_mime'],
+                    'taille': result['taille_fichier'],
+                    'stockage': 'blob'
+                }
                 return None
         except Exception as e:
             logging.error(f"Erreur récupération fichier écriture {ecriture_id}: {e}")
