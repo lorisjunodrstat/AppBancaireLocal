@@ -1,11 +1,12 @@
 import logging
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app, g, session, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app, g, session, abort, send_file
 from flask_login import login_required, current_user
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, date, time
 from calendar import monthrange
 from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts, ContactCompte, ComptePrincipalRapport, CategorieComptable
 from io import StringIO
+import os
 import csv as csv_mod
 import io
 import traceback
@@ -3172,15 +3173,17 @@ def update_statut_ecriture(ecriture_id):
 @login_required
 def upload_fichier_ecriture(ecriture_id):
     """Upload un fichier pour une écriture"""
+    logging.info(f"Route upload appelée - Écriture: {ecriture_id}, Utilisateur: {current_user.id}")
     if 'fichier' not in request.files:
         flash('Aucun fichier sélectionné', 'error')
         return redirect(request.referrer or url_for('banking.liste_ecritures'))
     
     fichier = request.files['fichier']
+    logging.info(f"Fichier reçu - Nom: {fichier.filename}, Type: {fichier.content_type}")
     success, message = g.models.ecriture_comptable_model.ajouter_fichier(
         ecriture_id, current_user.id, fichier
     )
-    
+    logging.info(f"Résultat upload: {success} - {message}")
     if success:
         flash(message, 'success')
         flash(f'Fichier uploadé avec succès {fichier.filename} à {ecriture_id} sur {fichier.content_type}', 'success')
@@ -3189,6 +3192,19 @@ def upload_fichier_ecriture(ecriture_id):
     
     return redirect(request.referrer or url_for('banking.liste_ecritures'))
 
+@bp.route('/test_upload')
+@login_required
+def test_upload():
+    """Route de test pour vérifier le dossier d'upload"""
+    from your_module import EcritureComptable  # Importez votre classe
+    
+    # Créer une instance du modèle
+    ecriture_model = EcritureComptable(g.db)  # ou current_app.db selon votre configuration
+    
+    # Tester le dossier
+    result = ecriture_model.test_dossier_upload()
+    
+    return f"Test terminé - Vérifiez les logs pour les résultats"
 @bp.route('/comptabilite/ecritures/download_fichier/<int:ecriture_id>')
 @login_required
 def download_fichier_ecriture(ecriture_id):
@@ -3215,24 +3231,37 @@ def download_fichier_ecriture(ecriture_id):
 @login_required
 def view_fichier_ecriture(ecriture_id):
     """Affiche le fichier joint dans le navigateur"""
+    logging.info(f"📍 Route view_fichier appelée - Écriture: {ecriture_id}")
+    
     fichier_info = g.models.ecriture_comptable_model.get_fichier(ecriture_id, current_user.id)
     
     if not fichier_info:
+        logging.error(f"❌ Fichier non trouvé pour l'écriture {ecriture_id}")
         flash('Fichier non trouvé', 'error')
         return redirect(request.referrer or url_for('banking.liste_ecritures'))
     
+    logging.info(f"📍 Fichier info: {fichier_info}")
+    
     try:
+        # Vérifications supplémentaires
+        if not os.path.exists(fichier_info['chemin_complet']):
+            logging.error(f"❌ Fichier manquant sur le disk: {fichier_info['chemin_complet']}")
+            flash('Fichier manquant sur le serveur', 'error')
+            return redirect(request.referrer or url_for('banking.liste_ecritures'))
+        
+        logging.info(f"📍 Envoi du fichier: {fichier_info['chemin_complet']}")
+        
         return send_file(
             fichier_info['chemin_complet'],
-            as_attachment=False,  # Important: affichage dans le navigateur
+            as_attachment=False,
             download_name=fichier_info['nom_original'],
             mimetype=fichier_info['type_mime']
         )
     except Exception as e:
-        logging.error(f"Erreur affichage fichier: {e}")
+        logging.error(f"❌ Erreur send_file: {str(e)}")
+        logging.error(f"❌ Traceback complète: {traceback.format_exc()}")
         flash('Erreur lors de l\'affichage du fichier', 'error')
         return redirect(request.referrer or url_for('banking.liste_ecritures'))
-
 @bp.route('/comptabilite/ecritures/supprimer_fichier/<int:ecriture_id>', methods=['POST'])
 @login_required
 def supprimer_fichier_ecriture(ecriture_id):
