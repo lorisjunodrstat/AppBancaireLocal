@@ -4511,7 +4511,9 @@ class EcritureComptable:
     
     def __init__(self, db):
         self.db = db
-        self.upload_folder = os.path.join(os.getcwd(), 'app', 'uploads', 'justificatifs')
+        logging.info(f"📁 Dossier courant (os.getcwd()): {os.getcwd()}")
+        logging.info(f"📁 Fichier courant (__file__): {__file__}")
+        self.upload_folder = os.path.join(os.getcwd(), 'ROOT', 'app', 'uploads', 'justificatifs')
         self._ensure_upload_folder()
     def _ensure_upload_folder(self):
         """Crée le dossier d'upload s'il n'existe pas"""

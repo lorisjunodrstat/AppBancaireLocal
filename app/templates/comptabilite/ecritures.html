@@ -300,29 +300,44 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0">
-                {% if ecriture.type_mime and 'image' in ecriture.type_mime %}
+                {% if ecriture.type_mime and ecriture.type_mime.startswith('image/') %}
                 <!-- Affichage d'image -->
                 <div class="text-center p-3">
-                    <img src="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}"
-                        class="img-fluid rounded" alt="{{ ecriture.nom_fichier }}" style="max-height: 70vh;">
+                    <img src="{{ url_for('banking.view_fichier_ecriture', ecriture_id=ecriture.id) }}"
+                        class="img-fluid rounded" alt="{{ ecriture.nom_fichier }}" style="max-height: 70vh;"
+                        onerror="this.style.display='none'; document.getElementById('fallback{{ ecriture.id }}').style.display='block';">
                 </div>
+                <div id="fallback{{ ecriture.id }}" class="alert alert-warning text-center m-3" style="display:none;">
+                    <i class="bi bi-file-earmark fs-1"></i>
+                    <p class="mt-2">Impossible d'afficher l'image</p>
+                    <p>Téléchargez le fichier pour le visualiser</p>
+                </div>
+
                 {% elif ecriture.type_mime == 'application/pdf' %}
                 <!-- Affichage PDF avec embed -->
                 <div class="embed-container">
                     <embed
-                        src="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}#toolbar=1&navpanes=1&scrollbar=1"
+                        src="{{ url_for('banking.view_fichier_ecriture', ecriture_id=ecriture.id) }}#toolbar=1&navpanes=1&scrollbar=1"
                         type="application/pdf" width="100%" height="600px" />
                 </div>
+
                 {% else %}
                 <!-- Autres types de fichiers -->
-                <div class="alert alert-warning text-center m-3">
+                <div class="alert alert-info text-center m-3">
                     <i class="bi bi-file-earmark fs-1"></i>
                     <p class="mt-2">Prévisualisation non disponible</p>
+                    <p>Type de fichier: {{ ecriture.type_mime or 'Inconnu' }}</p>
                     <p>Téléchargez le fichier pour le visualiser</p>
                 </div>
                 {% endif %}
             </div>
             <div class="modal-footer">
+                <!-- Affichage dans le navigateur -->
+                <a href="{{ url_for('banking.view_fichier_ecriture', ecriture_id=ecriture.id) }}"
+                    class="btn btn-outline-primary" target="_blank">
+                    <i class="bi bi-eye"></i> Ouvrir
+                </a>
+
                 <!-- Téléchargement -->
                 <a href="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}"
                     class="btn btn-success" download>
