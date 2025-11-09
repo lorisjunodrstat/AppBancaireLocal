@@ -5440,9 +5440,6 @@ class EcritureComptable:
 
     ## Gestion fichiers 
     
-    def _ensure_upload_folder(self):
-        """Crée le dossier d'upload s'il n'existe pas"""
-        os.makedirs(self.upload_folder, exist_ok=True)
     
     def _get_file_path(self, filename):
         """Génère le chemin complet du fichier"""
@@ -5513,7 +5510,7 @@ class EcritureComptable:
                 # Mettre à jour la base de données avec le chemin du fichier
                 cursor.execute("""
                     UPDATE ecritures_comptables 
-                    SET nom_fichier = %s, chemin_fichier = %s, type_mime = %s, taille_fichier = %s,
+                    SET nom_fichier = %s, justificatif_url = %s, type_mime = %s, taille_fichier = %s,
                         date_upload_fichier = NOW()
                     WHERE id = %s AND utilisateur_id = %s
                 """, (
@@ -5552,7 +5549,7 @@ class EcritureComptable:
                     if os.path.exists(file_path):
                         return {
                             'nom_original': result['nom_fichier'],
-                            'chemin_physique': result['chemin_fichier'],
+                            'chemin_physique': result['justificatif_url'],
                             'type_mime': result['type_mime'],
                             'taille': result['taille_fichier'],
                             'chemin_complet': file_path,
@@ -5582,7 +5579,7 @@ class EcritureComptable:
             with self.db.get_cursor() as cursor:
                 # Récupérer le chemin du fichier avant suppression
                 cursor.execute("""
-                    SELECT chemin_fichier FROM ecritures_comptables 
+                    SELECT justificatif_url FROM ecritures_comptables 
                     WHERE id = %s AND utilisateur_id = %s
                 """, (ecriture_id, user_id))
                 
@@ -5590,8 +5587,8 @@ class EcritureComptable:
                 fichier_supprime = False
                 
                 # Supprimer le fichier physique s'il existe
-                if result and result['chemin_fichier']:
-                    file_path = self._get_file_path(result['chemin_fichier'])
+                if result and result['justificatif_url']:
+                    file_path = self._get_file_path(result['justificatif_url'])
                     if os.path.exists(file_path):
                         os.remove(file_path)
                         fichier_supprime = True
@@ -5600,7 +5597,7 @@ class EcritureComptable:
                 # Mettre à jour la base de données
                 cursor.execute("""
                     UPDATE ecritures_comptables 
-                    SET nom_fichier = NULL, chemin_fichier = NULL, type_mime = NULL, 
+                    SET nom_fichier = NULL, justificatif_url = NULL, type_mime = NULL, 
                         taille_fichier = NULL, date_upload_fichier = NULL
                     WHERE id = %s AND utilisateur_id = %s
                 """, (ecriture_id, user_id))
