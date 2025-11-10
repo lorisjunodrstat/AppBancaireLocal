@@ -241,6 +241,40 @@ class DatabaseManager:
                 """
                 cursor.execute(create_transactions_table_query)
 
+                # Table categories_transactions
+                create_categories_table_query = """
+                CREATE TABLE IF NOT EXISTS categories_transactions (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    utilisateur_id INT NOT NULL,
+                    nom VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    type_categorie ENUM('Revenu', 'Dépense', 'Transfert') NOT NULL DEFAULT 'Dépense',
+                    couleur VARCHAR(7) DEFAULT '#007bff',
+                    icone VARCHAR(50),
+                    budget_mensuel DECIMAL(15,2) DEFAULT 0,
+                    actif BOOLEAN DEFAULT TRUE,
+                    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id),
+                    UNIQUE KEY unique_categorie_user (utilisateur_id, nom, type_categorie)
+                );
+                """
+                cursor.execute(create_categories_table_query)
+
+                # table transactions_categories
+                create_transactions_categories_table_query = """
+                CREATE TABLE IF NOT EXISTS transaction_categories (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    transaction_id INT NOT NULL,
+                    categorie_id INT NOT NULL,
+                    utilisateur_id INT NOT NULL,
+                    date_association TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+                    FOREIGN KEY (categorie_id) REFERENCES categories_transactions(id) ON DELETE CASCADE,
+                    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id),
+                    UNIQUE KEY unique_transaction_categorie (transaction_id, categorie_id)
+                );
+                """
+                cursor.execute(create_transactions_categories_table_query)
                 # Table transferts_externes
                 create_transferts_externes_table_query = """
                 CREATE TABLE IF NOT EXISTS transferts_externes (
@@ -3789,6 +3823,312 @@ class TransactionFinanciere:
             logging.error(f"Erreur récupération transactions sans écritures par compte: {e}")
             return []
 
+class CategorieTransaction:
+    """Classe pour gérer les catégories de transactions"""
+
+    def __init__(self, db):
+        self.db = db
+
+    def get_categories_utilisateur(self, user_id: int, type_categorie: str = None) -> List[Dict]:
+        """Récupère les catégories de transactions pour un utilisateur donné"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                    SELECT id, nom, description, couleur, icone, type_categorie, budget_mensuel
+                    FROM categories_transactions
+                    WHERE utilisateur_id = %s AND actif = TRUE
+                """
+                params = [user_id]
+                
+                if type_categorie:
+                    query += " AND type_categorie = %s"
+                    params.append(type_categorie)
+                
+                query += " ORDER BY type_categorie, nom ASC"
+                
+                cursor.execute(query, params)
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur récupération catégories: {e}")
+            return []
+
+    def creer_categorie(self, user_id: int, nom: str, type_categorie: str = "Dépense", 
+                       description: str = '', couleur: str = None, icone: str = None) -> Tuple[bool, str]:
+        """Crée une nouvelle catégorie de transaction pour un utilisateur"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier si la catégorie existe déjà
+                cursor.execute("""
+                    SELECT id FROM categories_transactions
+                    WHERE utilisateur_id = %s AND nom = %s AND type_categorie = %s
+                """, (user_id, nom, type_categorie))
+                
+                if cursor.fetchone():
+                    return False, "Cette catégorie existe déjà"
+                
+                # Couleur par défaut si non fournie
+                if not couleur:
+                    couleur = self._generer_couleur_aleatoire()
+                
+                cursor.execute("""
+                    INSERT INTO categories_transactions 
+                    (utilisateur_id, nom, description, type_categorie, couleur, icone)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (user_id, nom, description, type_categorie, couleur, icone))
+                
+                return True, "Catégorie créée avec succès"
+        except Exception as e:
+            logging.error(f"Erreur création catégorie: {e}")
+            return False, f"Erreur: {str(e)}"
+
+    def modifier_categorie(self, categorie_id: int, user_id: int, **kwargs) -> Tuple[bool, str]:
+        """Met à jour une catégorie de transaction existante"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que la catégorie appartient à l'utilisateur
+                cursor.execute("""
+                    SELECT id FROM categories_transactions
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (categorie_id, user_id))
+                
+                if not cursor.fetchone():
+                    return False, "Catégorie non trouvée ou non autorisée"
+                
+                # Construire la requête dynamiquement
+                champs = []
+                valeurs = []
+                for champ, valeur in kwargs.items():
+                    if valeur is not None:
+                        champs.append(f"{champ} = %s")
+                        valeurs.append(valeur)
+                
+                if not champs:
+                    return False, "Aucune modification spécifiée"
+                
+                valeurs.extend([categorie_id, user_id])
+                query = f"""
+                    UPDATE categories_transactions
+                    SET {', '.join(champs)}
+                    WHERE id = %s AND utilisateur_id = %s
+                """
+                
+                cursor.execute(query, valeurs)
+                return True, "Catégorie modifiée avec succès"
+        except Exception as e:
+            logging.error(f"Erreur mise à jour catégorie: {e}")
+            return False, f"Erreur: {str(e)}"
+
+    def supprimer_categorie(self, categorie_id: int, user_id: int) -> Tuple[bool, str]:
+        """Supprime une catégorie de transaction (soft delete)"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier s'il y a des transactions utilisant cette catégorie
+                cursor.execute("""
+                    SELECT COUNT(*) as count 
+                    FROM transaction_categories 
+                    WHERE categorie_id = %s
+                """, (categorie_id,))
+                result = cursor.fetchone()
+                
+                if result and result['count'] > 0:
+                    return False, "Impossible de supprimer : catégorie utilisée dans des transactions"
+                
+                # Soft delete
+                cursor.execute("""
+                    UPDATE categories_transactions
+                    SET actif = FALSE
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (categorie_id, user_id))
+                
+                if cursor.rowcount > 0:
+                    return True, "Catégorie supprimée avec succès"
+                else:
+                    return False, "Catégorie non trouvée ou non autorisée"
+        except Exception as e:
+            logging.error(f"Erreur suppression catégorie: {e}")
+            return False, f"Erreur: {str(e)}"
+
+    def associer_categorie_transaction(self, transaction_id: int, categorie_id: int, user_id: int) -> Tuple[bool, str]:
+        """Associe une catégorie à une transaction via table de liaison"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que la transaction et la catégorie appartiennent à l'utilisateur
+                cursor.execute("""
+                    SELECT t.id 
+                    FROM transactions t
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                    WHERE t.id = %s AND (
+                        cp.utilisateur_id = %s OR 
+                        sc.compte_principal_id IN (
+                            SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
+                        )
+                    )
+                """, (transaction_id, user_id, user_id))
+                
+                if not cursor.fetchone():
+                    return False, "Transaction non trouvée ou non autorisée"
+                
+                # Vérifier la catégorie
+                cursor.execute("""
+                    SELECT id FROM categories_transactions
+                    WHERE id = %s AND utilisateur_id = %s AND actif = TRUE
+                """, (categorie_id, user_id))
+                
+                if not cursor.fetchone():
+                    return False, "Catégorie non trouvée ou non autorisée"
+                
+                # Insérer ou mettre à jour l'association
+                cursor.execute("""
+                    INSERT INTO transaction_categories (transaction_id, categorie_id, utilisateur_id)
+                    VALUES (%s, %s, %s)
+                    ON DUPLICATE KEY UPDATE categorie_id = VALUES(categorie_id)
+                """, (transaction_id, categorie_id, user_id))
+                
+                return True, "Catégorie associée avec succès"
+        except Exception as e:
+            logging.error(f"Erreur association catégorie à transaction: {e}")
+            return False, f"Erreur: {str(e)}"
+
+    def dissocier_categorie_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
+        """Dissocie une catégorie d'une transaction"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier les permissions
+                cursor.execute("""
+                    SELECT tc.id 
+                    FROM transaction_categories tc
+                    JOIN transactions t ON tc.transaction_id = t.id
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                    WHERE tc.transaction_id = %s AND tc.utilisateur_id = %s
+                    AND (
+                        cp.utilisateur_id = %s OR 
+                        sc.compte_principal_id IN (
+                            SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
+                        )
+                    )
+                """, (transaction_id, user_id, user_id, user_id))
+                
+                if not cursor.fetchone():
+                    return False, "Association non trouvée ou non autorisée"
+                
+                cursor.execute("""
+                    DELETE FROM transaction_categories
+                    WHERE transaction_id = %s AND utilisateur_id = %s
+                """, (transaction_id, user_id))
+                
+                return True, "Catégorie dissociée avec succès"
+        except Exception as e:
+            logging.error(f"Erreur dissociation catégorie de transaction: {e}")
+            return False, f"Erreur: {str(e)}"
+
+    def get_categorie_par_id(self, categorie_id: int, user_id: int) -> Optional[Dict]:
+        """Récupère une catégorie par son ID pour un utilisateur donné"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, nom, description, couleur, icone, type_categorie, budget_mensuel
+                    FROM categories_transactions
+                    WHERE id = %s AND utilisateur_id = %s AND actif = TRUE
+                """, (categorie_id, user_id))
+                return cursor.fetchone()
+        except Exception as e:
+            logging.error(f"Erreur récupération catégorie par ID: {e}")
+            return None
+
+    def get_transactions_par_categorie(self, categorie_id: int, user_id: int, 
+                                     date_debut: str = None, date_fin: str = None) -> List[Dict]:
+        """Récupère toutes les transactions associées à une catégorie"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                    SELECT 
+                        t.*,
+                        cp.nom_compte as nom_compte_principal,
+                        sc.nom_sous_compte as nom_sous_compte
+                    FROM transaction_categories tc
+                    JOIN transactions t ON tc.transaction_id = t.id
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                    WHERE tc.categorie_id = %s AND tc.utilisateur_id = %s
+                """
+                params = [categorie_id, user_id]
+                
+                if date_debut and date_fin:
+                    query += " AND DATE(t.date_transaction) BETWEEN %s AND %s"
+                    params.extend([date_debut, date_fin])
+                
+                query += " ORDER BY t.date_transaction DESC"
+                
+                cursor.execute(query, params)
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur récupération transactions par catégorie: {e}")
+            return []
+
+    def get_statistiques_categories(self, user_id: int, date_debut: str = None, date_fin: str = None) -> List[Dict]:
+        """Récupère des statistiques sur les catégories de transactions"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                    SELECT  
+                        c.id,
+                        c.nom,
+                        c.type_categorie,
+                        c.couleur,
+                        c.icone,
+                        COUNT(tc.transaction_id) AS nb_transactions,
+                        SUM(t.montant) AS total_montant,
+                        AVG(t.montant) AS moyenne_montant,
+                        c.budget_mensuel,
+                        CASE 
+                            WHEN c.budget_mensuel > 0 THEN 
+                                ROUND((SUM(t.montant) / c.budget_mensuel) * 100, 2)
+                            ELSE 0
+                        END as pourcentage_budget
+                    FROM categories_transactions c
+                    LEFT JOIN transaction_categories tc ON c.id = tc.categorie_id
+                    LEFT JOIN transactions t ON tc.transaction_id = t.id
+                    WHERE c.utilisateur_id = %s AND c.actif = TRUE
+                """
+                params = [user_id]
+                
+                if date_debut and date_fin:
+                    query += " AND t.date_transaction BETWEEN %s AND %s"
+                    params.extend([date_debut, date_fin])
+                
+                query += """
+                    GROUP BY c.id, c.nom, c.type_categorie, c.couleur, c.icone, c.budget_mensuel
+                    ORDER BY c.type_categorie, total_montant DESC
+                """
+                
+                cursor.execute(query, params)
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur récupération statistiques catégories: {e}")
+            return []
+
+    def _generer_couleur_aleatoire(self) -> str:
+        """Génère une couleur hexadécimale aléatoire"""
+        import random
+        return f"#{random.randint(0, 0xFFFFFF):06x}"
+
+    def get_categorie_transaction(self, transaction_id: int, user_id: int) -> Optional[Dict]:
+        """Récupère la catégorie d'une transaction spécifique"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT c.id, c.nom, c.description, c.couleur, c.icone, c.type_categorie
+                    FROM transaction_categories tc
+                    JOIN categories_transactions c ON tc.categorie_id = c.id
+                    WHERE tc.transaction_id = %s AND tc.utilisateur_id = %s
+                """, (transaction_id, user_id))
+                return cursor.fetchone()
+        except Exception as e:
+            logging.error(f"Erreur récupération catégorie transaction: {e}")
+            return None
+
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
 
@@ -5644,50 +5984,71 @@ class EcritureComptable:
             logging.error(f"Erreur récupération fichier écriture {ecriture_id}: {e}")
             return None
     
-    def supprimer_fichier(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
-        """
-        Supprime le fichier joint d'une écriture (physiquement et en base).
-        """
-        try:
-            with self.db.get_cursor() as cursor:
-                # Récupérer le chemin du fichier avant suppression
-                cursor.execute("""
-                    SELECT justificatif_url FROM ecritures_comptables 
-                    WHERE id = %s AND utilisateur_id = %s
-                """, (ecriture_id, user_id))
-                
-                result = cursor.fetchone()
-                fichier_supprime = False
-                
-                # Supprimer le fichier physique s'il existe
-                if result and result['justificatif_url']:
-                    file_path = self._get_file_path(result['justificatif_url'])
-                    if os.path.exists(file_path):
+def supprimer_fichier(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
+    """
+    Supprime le fichier joint d'une écriture (physiquement et en base).
+    """
+    try:
+        logging.info(f"📍 Début suppression fichier - Écriture: {ecriture_id}, User: {user_id}")
+        
+        with self.db.get_cursor() as cursor:
+            # Récupérer les infos du fichier avant suppression
+            cursor.execute("""
+                SELECT nom_fichier, justificatif_url, fichier_joint 
+                FROM ecritures_comptables 
+                WHERE id = %s AND utilisateur_id = %s
+            """, (ecriture_id, user_id))
+            
+            result = cursor.fetchone()
+            if not result:
+                logging.error(f"❌ Écriture {ecriture_id} non trouvée pour l'utilisateur {user_id}")
+                return False, "Écriture non trouvée ou non autorisée"
+            
+            fichier_supprime = False
+            message_suppression = ""
+            
+            # Supprimer le fichier physique s'il existe (justificatif_url)
+            if result['justificatif_url']:
+                file_path = self._get_file_path(result['justificatif_url'])
+                if os.path.exists(file_path):
+                    try:
                         os.remove(file_path)
                         fichier_supprime = True
-                        logging.info(f"Fichier physique supprimé: {file_path}")
-                
-                # Mettre à jour la base de données
-                cursor.execute("""
-                    UPDATE ecritures_comptables 
-                    SET nom_fichier = NULL, justificatif_url = NULL, type_mime = NULL, 
-                        taille_fichier = NULL, date_upload_fichier = NULL
-                    WHERE id = %s AND utilisateur_id = %s
-                """, (ecriture_id, user_id))
-                
-                if cursor.rowcount > 0:
-                    message = "Fichier supprimé avec succès"
-                    if fichier_supprime:
-                        message += " (fichier physique supprimé)"
-                    else:
-                        message += " (fichier physique non trouvé)"
-                    return True, message
+                        message_suppression = f"Fichier physique supprimé: {file_path}"
+                        logging.info(f"✓ {message_suppression}")
+                    except Exception as e:
+                        logging.error(f"❌ Erreur suppression fichier physique: {e}")
+                        return False, f"Erreur suppression fichier: {str(e)}"
                 else:
-                    return False, "Écriture non trouvée ou non autorisée"
-                    
-        except Exception as e:
-            logging.error(f"Erreur suppression fichier écriture {ecriture_id}: {e}")
-            return False, f"Erreur lors de la suppression: {str(e)}"
+                    logging.warning(f"⚠️ Fichier physique non trouvé: {file_path}")
+            
+            # Mettre à jour la base de données
+            cursor.execute("""
+                UPDATE ecritures_comptables 
+                SET nom_fichier = NULL, 
+                    justificatif_url = NULL, 
+                    type_mime = NULL, 
+                    taille_fichier = NULL,
+                    fichier_joint = NULL
+                WHERE id = %s AND utilisateur_id = %s
+            """, (ecriture_id, user_id))
+            
+            if cursor.rowcount > 0:
+                if fichier_supprime:
+                    message = f"Fichier '{result['nom_fichier']}' supprimé avec succès"
+                else:
+                    message = f"Informations fichier supprimées (fichier physique non trouvé)"
+                
+                logging.info(f"✓ Suppression réussie: {message}")
+                return True, message
+            else:
+                logging.error(f"❌ Aucune ligne mise à jour dans la base")
+                return False, "Erreur lors de la suppression en base de données"
+                
+    except Exception as e:
+        logging.error(f"❌ Erreur suppression fichier écriture {ecriture_id}: {e}")
+        logging.error(f"❌ Traceback: {traceback.format_exc()}")
+        return False, f"Erreur lors de la suppression: {str(e)}"
     
     def get_chemin_fichier_physique(self, ecriture_id: int, user_id: int) -> Optional[str]:
         """
@@ -7827,6 +8188,7 @@ class ModelManager:
         self.compte__principal_rapport_model = ComptePrincipalRapport(self.db)
         self.sous_compte_model = SousCompte(self.db)
         self.transaction_financiere_model = TransactionFinanciere(self.db)
+        self.categorie_transaction_model = CategorieTransaction(self.db)
         self.stats_model = StatistiquesBancaires(self.db)
         self.plan_comptable_model = PlanComptable(self.db)
         self.ecriture_comptable_model = EcritureComptable(self.db)

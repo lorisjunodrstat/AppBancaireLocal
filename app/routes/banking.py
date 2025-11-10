@@ -3196,15 +3196,14 @@ def upload_fichier_ecriture(ecriture_id):
 @login_required
 def test_upload():
     """Route de test pour vérifier le dossier d'upload"""
-    from your_module import EcritureComptable  # Importez votre classe
+ # Importez votre classe
     
     # Créer une instance du modèle
-    ecriture_model = EcritureComptable(g.db)  # ou current_app.db selon votre configuration
-    
+
     # Tester le dossier
-    result = ecriture_model.test_dossier_upload()
+    result = g.models.ecriture_comptable_model.test_dossier_upload()
     
-    return f"Test terminé - Vérifiez les logs pour les résultats"
+    return f"Test terminé - Vérifiez les logs pour les résultats détaillés: {result}"
 @bp.route('/comptabilite/ecritures/download_fichier/<int:ecriture_id>')
 @login_required
 def download_fichier_ecriture(ecriture_id):
@@ -3276,6 +3275,172 @@ def supprimer_fichier_ecriture(ecriture_id):
         flash(message, 'error')
     
     return redirect(request.referrer or url_for('banking.liste_ecritures'))
+#### Catégorie des transactions
+# routes_categories
+
+@bp.route('/')
+@login_required
+def gestion_categories():
+    """Page principale de gestion des catégories"""
+    try:
+        categories = g.models.categorie_transaction_model.get_categories_utilisateur(current_user.id)
+        
+        # Séparer par type pour l'affichage
+        categories_revenus = [c for c in categories if c['type_categorie'] == 'Revenu']
+        categories_depenses = [c for c in categories if c['type_categorie'] == 'Dépense']
+        categories_transferts = [c for c in categories if c['type_categorie'] == 'Transfert']
+        
+        return render_template(
+            'categories/gestion_categories.html',
+            categories_revenus=categories_revenus,
+            categories_depenses=categories_depenses,
+            categories_transferts=categories_transferts
+        )
+    except Exception as e:
+        logging.error(f"Erreur chargement page catégories: {e}")
+        flash("Erreur lors du chargement des catégories", "error")
+        return redirect(url_for('dashboard.index'))
+
+@bp.route('/creer', methods=['GET', 'POST'])
+@login_required
+def creer_categorie():
+    """Créer une nouvelle catégorie"""
+    if request.method == 'POST':
+        try:
+            nom = request.form.get('nom', '').strip()
+            type_categorie = request.form.get('type_categorie', 'Dépense')
+            description = request.form.get('description', '').strip()
+            couleur = request.form.get('couleur', '')
+            icone = request.form.get('icone', '')
+            
+            if not nom:
+                flash("Le nom de la catégorie est obligatoire", "error")
+                return render_template('categories/creer_categorie.html')
+            
+
+            success, message = g.models.categorie_transaction_model.creer_categorie(
+                current_user.id, nom, type_categorie, description, couleur, icone
+            )
+            
+            if success:
+                flash(message, "success")
+                return redirect(url_for('categories.gestion_categories'))
+            else:
+                flash(message, "error")
+                
+        except Exception as e:
+            logging.error(f"Erreur création catégorie: {e}")
+            flash("Erreur lors de la création de la catégorie", "error")
+    
+    return render_template('categories/creer_categorie.html')
+
+@bp.route('/<int:categorie_id>/modifier', methods=['GET', 'POST'])
+@login_required
+def modifier_categorie(categorie_id):
+    """Modifier une catégorie existante"""
+    categorie = g.models.categorie_transaction_model.get_categorie_par_id(categorie_id, current_user.id)
+    
+    if not categorie:
+        flash("Catégorie non trouvée", "error")
+        return redirect(url_for('categories.gestion_categories'))
+    
+    if request.method == 'POST':
+        try:
+            nom = request.form.get('nom', '').strip()
+            description = request.form.get('description', '').strip()
+            couleur = request.form.get('couleur', '')
+            icone = request.form.get('icone', '')
+            budget_mensuel = request.form.get('budget_mensuel', 0)
+            
+            updates = {}
+            if nom and nom != categorie['nom']:
+                updates['nom'] = nom
+            if description != categorie.get('description', ''):
+                updates['description'] = description
+            if couleur and couleur != categorie.get('couleur', ''):
+                updates['couleur'] = couleur
+            if icone != categorie.get('icone', ''):
+                updates['icone'] = icone
+            if budget_mensuel:
+                try:
+                    updates['budget_mensuel'] = float(budget_mensuel)
+                except ValueError:
+                    pass
+            
+            if updates:
+                success, message = g.models.categorie_transaction_model.modifier_categorie(
+                    categorie_id, current_user.id, **updates
+                )
+                
+                if success:
+                    flash(message, "success")
+                    return redirect(url_for('categories.gestion_categories'))
+                else:
+                    flash(message, "error")
+            else:
+                flash("Aucune modification apportée", "info")
+                
+        except Exception as e:
+            logging.error(f"Erreur modification catégorie: {e}")
+            flash("Erreur lors de la modification de la catégorie", "error")
+    
+    return render_template('categories/modifier_categorie.html', categorie=categorie)
+
+@bp.route('/<int:categorie_id>/supprimer', methods=['POST'])
+@login_required
+def supprimer_categorie(categorie_id):
+    """Supprimer une catégorie"""
+    try:
+        success, message = g.models.categorie_transaction_model.supprimer_categorie(categorie_id, current_user.id)
+        
+        if success:
+            flash(message, "success")
+        else:
+            flash(message, "error")
+            
+    except Exception as e:
+        logging.error(f"Erreur suppression catégorie: {e}")
+        flash("Erreur lors de la suppression de la catégorie", "error")
+    
+    return redirect(url_for('categories.gestion_categories'))
+
+# API endpoints pour AJAX
+@bp.route('/api/categories', methods=['GET'])
+@login_required
+def api_get_categories():
+    """API pour récupérer les catégories (AJAX)"""
+    try:
+        type_categorie = request.args.get('type')
+        categories = g.models.categorie_transaction_model.get_categories_utilisateur(current_user.id, type_categorie)
+        return jsonify({'success': True, 'categories': categories})
+    except Exception as e:
+        logging.error(f"Erreur API catégories: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/api/categorie/associer', methods=['POST'])
+@login_required
+def api_associer_categorie():
+    """API pour associer une catégorie à une transaction (AJAX)"""
+    try:
+        data = request.get_json()
+        transaction_id = data.get('transaction_id')
+        categorie_id = data.get('categorie_id')
+        
+        if not transaction_id or not categorie_id:
+            return jsonify({'success': False, 'error': 'Données manquantes'}), 400
+        
+        success, message = g.models.categorie_transaction_model.associer_categorie_transaction(
+            transaction_id, categorie_id, current_user.id
+        )
+        
+        return jsonify({'success': success, 'message': message})
+        
+    except Exception as e:
+        logging.error(f"Erreur association catégorie: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
 
 #### ecritures comptables automatiques
 
@@ -3309,7 +3474,19 @@ def transactions_sans_ecritures():
             date_to=date_to,
             statut_comptable=statut_comptable
         )
-    
+    total_transactions = []
+
+    for i in comptes:
+        txs = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_compte(
+            compte_id=i['id'],
+            user_id=current_user.id,
+            date_from=i['date_ouverture'],
+            date_to=date.today().strftime('%Y-%m-%d'),
+            statut_comptable=statut_comptable
+        )
+        total_transactions.extend(txs)
+    total_a_comptabiliser = sum(tx['montant'] for tx in total_transactions if tx['statut_comptable'] == 'a_comptabiliser')
+    total_a_comptabiliser_len = len([tx for tx in total_transactions if tx['statut_comptable'] == 'a_comptabiliser'])
     # CORRECTION : Utilisez get_all_categories() au lieu de get_all()
     categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
     
@@ -3321,8 +3498,11 @@ def transactions_sans_ecritures():
         statut_comptable_selectionne=statut_comptable,
         date_from=date_from,
         date_to=date_to,
-        categories=categories
+        categories=categories,
+        total_a_comptabiliser=total_a_comptabiliser,
+        total_a_comptabiliser_len=total_a_comptabiliser_len
     )
+
 @bp.route('/comptabilite/update_statut_comptable/<int:transaction_id>', methods=['POST'])
 @login_required
 def update_statut_comptable(transaction_id):

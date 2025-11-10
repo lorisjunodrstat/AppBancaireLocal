@@ -3,6 +3,14 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Transactions sans écritures comptables</h2>
+    <div class=row mb-4>
+        <div class="col">
+            <p class="text-muted">
+                Gérez les transactions bancaires qui n'ont pas encore été associées à des écritures comptables.
+                Vous avez encore <strong>{{ total_a_comptabiliser_len }}</strong> pour <strong>{{ total_a_comptabiliser }} CHF</strong> à comptabiliser.
+            </p>
+        </div>
+    </div>
 
     <!-- Filtres -->
     <div class="card mb-4">

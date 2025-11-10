@@ -1,0 +1,74 @@
+<!-- templates/categories/creer_categorie.html -->
+{% extends "base.html" %}
+
+{% block title %}Créer une Catégorie{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Créer une Nouvelle Catégorie</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="nom" class="form-label">Nom de la catégorie *</label>
+                            <input type="text" class="form-control" id="nom" name="nom" required
+                                placeholder="Ex: Restaurant, Loyer, Salaire...">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="type_categorie" class="form-label">Type de catégorie *</label>
+                            <select class="form-select" id="type_categorie" name="type_categorie" required>
+                                <option value="Dépense" selected>Dépense</option>
+                                <option value="Revenu">Revenu</option>
+                                <option value="Transfert">Transfert</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                                placeholder="Description optionnelle..."></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="couleur" class="form-label">Couleur</label>
+                                    <input type="color" class="form-control form-control-color" id="couleur"
+                                        name="couleur" value="#007bff" title="Choisir une couleur">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="icone" class="form-label">Icône</label>
+                                    <select class="form-select" id="icone" name="icone">
+                                        <option value="fas fa-tag">Tag</option>
+                                        <option value="fas fa-home">Maison</option>
+                                        <option value="fas fa-utensils">Restaurant</option>
+                                        <option value="fas fa-car">Voiture</option>
+                                        <option value="fas fa-heart">Santé</option>
+                                        <option value="fas fa-shopping-cart">Shopping</option>
+                                        <option value="fas fa-film">Loisirs</option>
+                                        <option value="fas fa-money-bill">Argent</option>
+                                        <option value="fas fa-piggy-bank">Épargne</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('banking.gestion_categories') }}"
+                                class="btn btn-secondary">Annuler</a>
+                            <button type="submit" class="btn btn-primary">Créer la Catégorie</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+<!-- templates/categories/modifier_categorie.html -->
+{% extends "base.html" %}
+
+{% block title %}Modifier {{ categorie.nom }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Modifier la Catégorie</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="nom" class="form-label">Nom de la catégorie</label>
+                            <input type="text" class="form-control" id="nom" name="nom" 
+                                   value="{{ categorie.nom }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="3">{{ categorie.description or '' }}</textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="couleur" class="form-label">Couleur</label>
+                                    <input type="color" class="form-control form-control-color" 
+                                           id="couleur" name="couleur" 
+                                           value="{{ categorie.couleur or '#007bff' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="icone" class="form-label">Icône</label>
+                                    <select class="form-select" id="icone" name="icone">
+                                        <option value="fas fa-tag" {% if categorie.icone == 'fas fa-tag' %}selected{% endif %}>Tag</option>
+                                        <option value="fas fa-home" {% if categorie.icone == 'fas fa-home' %}selected{% endif %}>Maison</option>
+                                        <option value="fas fa-utensils" {% if categorie.icone == 'fas fa-utensils' %}selected{% endif %}>Restaurant</option>
+                                        <!-- Autres options... -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="budget_mensuel" class="form-label">Budget mensuel (CHF)</label>
+                            <input type="number" class="form-control" id="budget_mensuel" 
+                                   name="budget_mensuel" step="0.01" min="0"
+                                   value="{{ '%.2f'|format(categorie.budget_mensuel or 0) }}">
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('banking.gestion_categories') }}" 
+                               class="btn btn-secondary">Annuler</a>
+                            <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+<!-- templates/categories/gestion_categories.html -->
+{% extends "base.html" %}
+
+{% block title %}Gestion des Catégories{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestion des Catégories</h1>
+        <a href="{{ url_for('banking.creer_categorie') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nouvelle Catégorie
+        </a>
+    </div>
+
+    <!-- Catégories de Dépenses -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-arrow-down"></i> Dépenses</h5>
+        </div>
+        <div class="card-body">
+            {% if categories_depenses %}
+            <div class="row">
+                {% for categorie in categories_depenses %}
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title">
+                                        <span class="badge" style="background-color: {{ categorie.couleur }}; color: white;">
+                                            <i class="{{ categorie.icone|default('fas fa-tag') }}"></i>
+                                        </span>
+                                        {{ categorie.nom }}
+                                    </h6>
+                                    {% if categorie.description %}
+                                    <p class="card-text text-muted small">{{ categorie.description }}</p>
+                                    {% endif %}
+                                    {% if categorie.budget_mensuel %}
+                                    <p class="card-text">
+                                        <small>Budget: {{ "%.2f"|format(categorie.budget_mensuel) }} CHF</small>
+                                    </p>
+                                    {% endif %}
+                                </div>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('banking.modifier_categorie', categorie_id=categorie.id) }}" 
+                                       class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('banking.supprimer_categorie', categorie_id=categorie.id) }}" 
+                                          class="d-inline" onsubmit="return confirm('Supprimer cette catégorie?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">Aucune catégorie de dépense créée</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Catégories de Revenus -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-arrow-up"></i> Revenus</h5>
+        </div>
+        <div class="card-body">
+            {% if categories_revenus %}
+            <div class="row">
+                {% for categorie in categories_revenus %}
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <!-- Même structure que pour les dépenses -->
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title">
+                                        <span class="badge" style="background-color: {{ categorie.couleur }}; color: white;">
+                                            <i class="{{ categorie.icone|default('fas fa-tag') }}"></i>
+                                        </span>
+                                        {{ categorie.nom }}
+                                    </h6>
+                                    {% if categorie.description %}
+                                    <p class="card-text text-muted small">{{ categorie.description }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('banking.modifier_categorie', categorie_id=categorie.id) }}" 
+                                       class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('banking.supprimer_categorie', categorie_id=categorie.id) }}" 
+                                          class="d-inline" onsubmit="return confirm('Supprimer cette catégorie?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">Aucune catégorie de revenu créée</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
