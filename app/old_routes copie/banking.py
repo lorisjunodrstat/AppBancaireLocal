@@ -281,20 +281,17 @@ def banking_compte_detail(compte_id):
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))
-    
     pf = g.models.periode_favorite_model.get_by_user_and_compte(user_id, compte_id, 'principal')
     if pf:
         date_debut_str = pf['date_debut'].strftime('%Y-%m-%d')
         date_fin_str = pf['date_fin'].strftime('%Y-%m-%d')
-    
     # Paramètre de filtrage et tri
     sort = request.args.get('sort', 'date_desc')
     filter_type = request.args.get('filter_type', 'tous')
     filter_min_amount = request.args.get('filter_min_amount')
     filter_max_amount = request.args.get('filter_max_amount')
     search_query = request.args.get('search', '').strip()
-    filter_categorie = request.args.get('filter_categorie', 'tous')
-    toutes_categories = g.models.categorie_transaction_model.get_categories_utilisateur(user_id)
+
     # Gestion de la période sélectionnée
     periode = request.args.get('periode', 'mois')
     
@@ -339,20 +336,25 @@ def banking_compte_detail(compte_id):
         libelle_periode = f"{['1er', '2ème', '3ème', '4ème'][trimestre-1]} trimestre"
     else:  # mois par défaut
         if pf:
+            # pf['date_debut'] est déjà un objet date ou datetime
             if isinstance(pf['date_debut'], datetime):
                 debut = pf['date_debut'].replace(hour=0, minute=0, second=0, microsecond=0)
                 fin = pf['date_fin'].replace(hour=23, minute=59, second=59, microsecond=0)
             else:
+                # C'est un datetime.date, on le convertit en datetime
                 debut = datetime.combine(pf['date_debut'], time.min)
                 fin = datetime.combine(pf['date_fin'], time.max).replace(microsecond=0)
+            
             libelle_periode = f"Période favorite : {pf['nom']}"
             periode = 'favorite'
         else:
+            # défaut : mois courant
             debut = maintenant.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             fin_mois = (debut.replace(month=debut.month+1, day=1) - timedelta(days=1))
             fin = fin_mois.replace(hour=23, minute=59, second=59)
             libelle_periode = "Ce mois"
             periode = 'mois'
+        
     
     # Récupération des mouvements avec la nouvelle classe unifiée
     mouvements = g.models.transaction_financiere_model.get_historique_compte(
@@ -363,15 +365,6 @@ def banking_compte_detail(compte_id):
         date_to=fin.strftime('%Y-%m-%d'),
         limit=200
     )
-    
-    # 🔥 NOUVEAU : Récupérer les catégories pour chaque transaction
-    categories_par_transaction = {}
-    for mouvement in mouvements:
-        categories = g.models.categorie_transaction_model.get_categories_transaction(
-            mouvement['id'], 
-            user_id
-        )
-        categories_par_transaction[mouvement['id']] = categories
     
     # Utiliser les statistiques corrigées plutôt que le calcul manuel
     stats_compte = g.models.transaction_financiere_model.get_statistiques_compte(
@@ -419,16 +412,7 @@ def banking_compte_detail(compte_id):
             or (m.get('reference', '') and search_lower in m['reference'].lower())
             or (m.get('beneficiaire', '') and search_lower in m['beneficiaire'].lower())
         ]
-    if filter_categorie != 'tous':
-        try:
-            categorie_id = int(filter_categorie)
-            # Filtrer les mouvements : ne garder que ceux qui ont cette catégorie
-            filtred_mouvements = [m for m in filtred_mouvements 
-                                  if any(cat['id'] == categorie_id for cat in categories_par_transaction.get(m['id'], []))]
-        except ValueError:
-            # Si la conversion en entier échoue, on ignore le filtre
-            pass
-        
+    
     # Correction des totaux - utilisation des statistiques plutôt que du calcul manuel
     total_recettes = Decimal(str(stats_compte.get('total_entrees', 0))) if stats_compte else Decimal('0')
     total_depenses = Decimal(str(stats_compte.get('total_sorties', 0))) if stats_compte else Decimal('0')
@@ -468,22 +452,25 @@ def banking_compte_detail(compte_id):
     graphique_svg = None
 
     if soldes_quotidiens:
-        soldes_values = [s['solde_apres'] for s in soldes_quotidiens]
+        soldes_values = [s['solde_apres'] for s in soldes_quotidiens] # Les valeurs sont déjà des floats
         min_solde = min(soldes_values) if soldes_values else 0.0
         max_solde = max(soldes_values) if soldes_values else 0.0
 
+        # --- Optimisation de la Marge Y (Sauf si déjà fait dans le modèle) ---
         if min_solde == max_solde:
             if min_solde == 0:
-                min_solde = -50.0
+                min_solde = -50.0  # Marge par défaut autour de zéro
                 max_solde = 50.0
             else:
                 y_padding = abs(min_solde) * 0.1
                 min_solde -= y_padding
                 max_solde += y_padding
         else:
+            # Ajout d'une marge visuelle de 5% de l'amplitude pour les cas normaux
             y_padding = (max_solde - min_solde) * 0.05
             min_solde -= y_padding
             max_solde += y_padding
+        # -------------------------------------------------------------------
 
         n = len(soldes_quotidiens)
         points = []
@@ -492,22 +479,29 @@ def banking_compte_detail(compte_id):
         plot_width = largeur_svg * 0.8
         plot_height = hauteur_svg * 0.8
         
+        # Précalcul des intervalles X et de l'amplitude Y pour la performance
         x_interval = plot_width / (n - 1) if n > 1 else 0
         solde_range = max_solde - min_solde
 
         for i, solde in enumerate(soldes_quotidiens):
             solde_float = solde['solde_apres']
+            
+            # Position X (Simplifiée)
             x = margin_x + i * x_interval if n > 1 else margin_x + plot_width / 2
+            
+            # Position Y
             if solde_range != 0:
                 y = margin_y + plot_height - ((solde_float - min_solde) / solde_range) * plot_height
             else:
                 y = margin_y + plot_height / 2
+                
             points.append(f"{x},{y}")
 
         graphique_svg = {
             'points': points,
             'min_solde': min_solde,
             'max_solde': max_solde,
+            # 'date' est un objet date, pas besoin de float()
             'dates': [s['date'].strftime('%d/%m/%Y') for s in soldes_quotidiens],
             'soldes': soldes_values,
             'nb_points': n,
@@ -540,8 +534,7 @@ def banking_compte_detail(compte_id):
                         largeur_svg=largeur_svg,
                         hauteur_svg=hauteur_svg,
                         sort=sort,
-                        pf=pf,
-                        categories_par_transaction=categories_par_transaction)  # 🔥 NOUVEAU : Passer les catégories
+                        pf=pf)
 
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required
@@ -3444,14 +3437,9 @@ def modifier_categorie(categorie_id):
                 updates['icone'] = icone
             if budget_mensuel:
                 try:
-                    budget_value = float(budget_mensuel) if budget_mensuel else 0
-                    if budget_value < 0:
-                        flash("Le budget mensuel ne peut pas être négatif", "error")
-                        return render_template('categories/modifier_categorie.html', categorie=categorie)
-                    updates['budget_mensuel'] = budget_value
+                    updates['budget_mensuel'] = float(budget_mensuel)
                 except ValueError:
-                    flash("Le budget mensuel doit être un nombre valide", "error")
-                    return render_template('categories/modifier_categorie.html', categorie=categorie)
+                    pass
             
             if updates:
                 success, message = g.models.categorie_transaction_model.modifier_categorie(
@@ -3477,12 +3465,6 @@ def modifier_categorie(categorie_id):
 def supprimer_categorie(categorie_id):
     """Supprimer une catégorie"""
     try:
-        # 🔥 AJOUT : Vérification supplémentaire
-        categorie = g.models.categorie_transaction_model.get_categorie_par_id(categorie_id, current_user.id)
-        if not categorie:
-            flash("Catégorie non trouvée", "error")
-            return redirect(url_for('categories.gestion_categories'))
-        
         success, message = g.models.categorie_transaction_model.supprimer_categorie(categorie_id, current_user.id)
         
         if success:
@@ -3496,36 +3478,6 @@ def supprimer_categorie(categorie_id):
     
     return redirect(url_for('categories.gestion_categories'))
 
-@bp.route('/<int:categorie_id>/transactions')
-@login_required
-def transactions_par_categorie(categorie_id):
-    """Affiche les transactions d'une catégorie spécifique"""
-    try:
-        categorie = g.models.categorie_transaction_model.get_categorie_par_id(categorie_id, current_user.id)
-        if not categorie:
-            flash("Catégorie non trouvée", "error")
-            return redirect(url_for('categories.gestion_categories'))
-        
-        date_debut = request.args.get('date_debut')
-        date_fin = request.args.get('date_fin')
-        
-        transactions = g.models.categorie_transaction_model.get_transactions_par_categorie(
-            categorie_id, current_user.id, date_debut, date_fin
-        )
-        
-        return render_template(
-            'categories/transactions_par_categorie.html',
-            categorie=categorie,
-            transactions=transactions,
-            date_debut=date_debut,
-            date_fin=date_fin
-        )
-        
-    except Exception as e:
-        logging.error(f"Erreur chargement transactions par catégorie: {e}")
-        flash("Erreur lors du chargement des transactions", "error")
-        return redirect(url_for('categories.gestion_categories'))
-    
 # API endpoints pour AJAX
 @bp.route('/api/categories', methods=['GET'])
 @login_required

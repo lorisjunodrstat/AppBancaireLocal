@@ -1,0 +1,134 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g
+from flask_login import login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from ..models import Utilisateur
+from mysql.connector import Error
+
+# Créez le Blueprint avec le nom 'admin' et un préfixe d'URL
+bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+@bp.before_request
+@login_required
+def before_request_check_auth():
+    """
+    Vérifie simplement que l'utilisateur est connecté avant chaque requête.
+    """
+    # Pas de vérification d'admin, juste une confirmation de connexion
+    pass
+@bp.route('/utilisateurs')
+def liste_utilisateurs():
+    """Affiche la liste des utilisateurs."""
+    utilisateurs = []
+    try:
+        # Utilisez g.db_manager passé en paramètre
+        utilisateurs = Utilisateur.get_all(g.db_manager)
+    except Exception as e:
+        flash(f"Erreur lors de la récupération des utilisateurs : {str(e)}", 'error')
+    return render_template('admin/liste_utilisateurs.html', utilisateurs=utilisateurs)
+
+@bp.route('/ajouter_utilisateur', methods=['GET', 'POST'])
+def ajouter_utilisateur():
+    """Ajoute un nouvel utilisateur."""
+    if request.method == 'POST':
+        nom = request.form.get('nom', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '').strip()
+        
+        if not nom or not email or not password:
+            flash('Le nom, email et mot de passe sont obligatoires.', 'error')
+            return render_template('admin/ajouter_utilisateur.html')
+        
+        try:
+            # Utilisez g.db_manager passé en paramètre
+            if Utilisateur.get_by_email(email, g.db_manager):
+                flash("Cet email est déjà utilisé.", 'error')
+                return render_template('admin/ajouter_utilisateur.html')
+            
+            hashed_password = generate_password_hash(password)
+            # Utilisez g.db_manager passé en paramètre
+            if Utilisateur.create(nom=nom, prenom="", email=email, mot_de_passe=hashed_password, db_manager=g.db_manager):
+                flash(f"Utilisateur {nom} ajouté avec succès !", 'success')
+                return redirect(url_for('admin.liste_utilisateurs'))
+            else:
+                flash("Erreur lors de l'ajout.", 'error')
+        except Exception as e:
+            flash(f"Erreur lors de l'ajout de l'utilisateur : {str(e)}", 'error')
+    
+    return render_template('admin/ajouter_utilisateur.html')
+
+@bp.route('/supprimer_utilisateur/<int:user_id>')
+def supprimer_utilisateur(user_id):
+    """Supprime un utilisateur (soft delete)."""
+    if user_id == current_user.id:
+        flash('Vous ne pouvez pas supprimer votre propre compte.', 'error')
+        return redirect(url_for('admin.liste_utilisateurs'))
+    
+    try:
+        # Utilisez g.db_manager au lieu de db
+        with g.db_manager.get_cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT COUNT(*) FROM comptes_principaux WHERE utilisateur_id = %s AND actif = TRUE", (user_id,))
+            nb_comptes = cursor.fetchone()['COUNT(*)']
+            
+            if nb_comptes > 0:
+                flash("Impossible de supprimer un utilisateur qui a des comptes bancaires actifs.", 'error')
+            else:
+                cursor.execute("UPDATE utilisateurs SET actif = FALSE WHERE id = %s", (user_id,))
+                if cursor.rowcount > 0:
+                    flash("Utilisateur supprimé avec succès.", 'success')
+                else:
+                    flash("Utilisateur non trouvé.", 'error')
+    except Error as e:
+        flash(f"Erreur lors de la suppression : {str(e)}", 'error')
+    
+    return redirect(url_for('admin.liste_utilisateurs'))
+
+@bp.route('/utilisateur/<int:user_id>')
+@bp.route('/profil_utilisateur')
+def detail_utilisateur(user_id=None):
+    """Page de détail d'un utilisateur avec ses comptes bancaires"""
+    if user_id is None:
+        user_id = current_user.id
+    
+    try:
+        with g.db_manager.get_cursor(dictionary=True) as cursor:
+            # Récupérer l'utilisateur
+            cursor.execute("SELECT * FROM utilisateurs WHERE id = %s AND actif = TRUE", (user_id,))
+            utilisateur = cursor.fetchone()
+            
+            if not utilisateur:
+                flash('Utilisateur non trouvé', 'error')
+                return redirect(url_for('banking.dashboard'))
+            
+            # Récupérer ses comptes bancaires
+            cursor.execute("""
+                SELECT c.*, b.nom as nom_banque, b.couleur as couleur_banque
+                FROM comptes_principaux c
+                LEFT JOIN banques b ON c.banque_id = b.id
+                WHERE c.utilisateur_id = %s AND c.actif = TRUE
+                ORDER BY c.date_creation DESC
+            """, (user_id,))
+            comptes = cursor.fetchall()
+            
+            return render_template('users/detail_utilisateur.html', 
+                                 utilisateur=utilisateur, 
+                                 comptes=comptes)
+    except Error as e:
+        flash(f'Erreur lors de la récupération des données: {str(e)}', 'error')
+        return redirect(url_for('banking.dashboard'))
+
+@bp.route('/api/utilisateurs')
+def api_utilisateurs():
+    """API JSON pour récupérer la liste des utilisateurs"""
+    try:
+        with g.db_manager.get_cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT id, nom, email, date_creation FROM utilisateurs WHERE actif = TRUE ORDER BY date_creation DESC")
+            utilisateurs = cursor.fetchall()
+            
+            # Conversion des dates en string pour JSON
+            for user in utilisateurs:
+                if user['date_creation']:
+                    user['date_creation'] = user['date_creation'].strftime('%Y-%m-%d %H:%M:%S')
+            
+            return jsonify({'success': True, 'utilisateurs': utilisateurs})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)})
