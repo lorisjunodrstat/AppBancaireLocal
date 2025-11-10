@@ -8,15 +8,28 @@
                     Détails de la transaction #{{ transaction_detail.id }}
                 </h5>
                 <!-- Bouton fermer avec lien direct -->
-                <a href="{{ url_for(request.endpoint,
-                          compte_id=request.args.get('compte_id'),
-                          date_from=request.args.get('date_from'),
-                          date_to=request.args.get('date_to'),
-                          id_contact=request.args.get('id_contact'),
-                          statut=request.args.get('statut'),
-                          categorie_id=request.args.get('categorie_id')) }}" class="btn-close btn-close-white"
+                {% if request.endpoint == 'banking.liste_ecritures_par_contact' %}
+                <a href="{{ url_for('banking.liste_ecritures_par_contact',
+                                          contact_id=contact.id_contact,
+                                          compte_id=request.args.get('compte_id'),
+                                          date_from=request.args.get('date_from'),
+                                          date_to=request.args.get('date_to'),
+                                          id_contact=request.args.get('id_contact'),
+                                          statut=request.args.get('statut'),
+                                          categorie_id=request.args.get('categorie_id')) }}" class="btn-close btn-close-white"
                     aria-label="Fermer">
                 </a>
+                {% else %}
+                <a href="{{ url_for('banking.liste_ecritures',
+                                          compte_id=request.args.get('compte_id'),
+                                          date_from=request.args.get('date_from'),
+                                          date_to=request.args.get('date_to'),
+                                          id_contact=request.args.get('id_contact'),
+                                          statut=request.args.get('statut'),
+                                          categorie_id=request.args.get('categorie_id')) }}" class="btn-close btn-close-white"
+                    aria-label="Fermer">
+                </a>
+                {% endif %}
             </div>
             <div class="modal-body">
                 <ul class="list-unstyled">
