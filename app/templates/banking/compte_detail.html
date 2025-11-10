@@ -721,6 +721,78 @@
                     </div>
                 </div>
             </div>
+            {# --- Extraction des soldes à la dernière transaction de chaque mois (mois en lettres) --- #}
+            {%- set soldes_fin_mois = [] -%}
+            {%- set mois_deja_vus = {} -%}
+            
+            {# Dictionnaire des noms de mois en français #}
+            {%- set noms_mois = {
+            1: 'Janvier',
+            2: 'Février',
+            3: 'Mars',
+            4: 'Avril',
+            5: 'Mai',
+            6: 'Juin',
+            7: 'Juillet',
+            8: 'Août',
+            9: 'Septembre',
+            10: 'Octobre',
+            11: 'Novembre',
+            12: 'Décembre'
+            } -%}
+            
+            {%- for mvt in mouvements -%}
+            {%- if mvt.solde_apres is not none -%}
+            {%- set annee_mois = mvt.date_transaction.strftime('%Y-%m') -%}
+            {%- if annee_mois not in mois_deja_vus -%}
+            {%- set _ = mois_deja_vus.update({annee_mois: true}) -%}
+            {%- set _ = soldes_fin_mois.append({
+            'annee': mvt.date_transaction.year,
+            'mois_num': mvt.date_transaction.month,
+            'mois_nom': noms_mois[mvt.date_transaction.month],
+            'solde': mvt.solde_apres
+            }) -%}
+            {%- endif -%}
+            {%- endif -%}
+            {%- endfor -%}
+            
+            {# --- Affichage dans une card --- #}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Solde à la dernière transaction de chaque
+                                mois</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if soldes_fin_mois %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Année</th>
+                                            <th>Mois</th>
+                                            <th>Solde ({{ compte.devise }})</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in soldes_fin_mois %}
+                                        <tr>
+                                            <td>{{ item.annee }}</td>
+                                            <td>{{ item.mois_nom }}</td>
+                                            <td>{{ "%.2f"|format(item.solde) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">Aucune donnée disponible.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!--Liste des transactions et transferts-->
