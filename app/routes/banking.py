@@ -3361,6 +3361,7 @@ def gestion_categories():
         
         return render_template(
             'categories/gestion_categories.html',
+            categories=categories,
             categories_revenus=categories_revenus,
             categories_depenses=categories_depenses,
             categories_transferts=categories_transferts, statistiques=statistiques
