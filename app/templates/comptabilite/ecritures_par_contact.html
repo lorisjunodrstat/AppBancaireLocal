@@ -159,19 +159,6 @@
                         "%.2f"|format(ecriture.montant) }} CHF
                     </td>
                     <!-- th Action-->
-                    <td class="text-end {% if ecriture.type_ecriture == 'recette' %}text-success{% else %}text-danger{% endif %}">
-                        {% if ecriture.transaction_id %}
-                        <span class="badge bg-success">✅ Liée</span>
-                        {% else %}
-                        <a href="{{ url_for('banking.liste_ecritures_par_contact',
-                                                contact_id=contact.id_contact,
-                                                show_link_modal=1,
-                                                ecriture_id=ecriture.id) }}" 
-                                                class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-link"></i> Lier
-                        </a>
-                        {% endif %}
-                    </td>
                     <td>
                         {% if ecriture.transaction_id %}
                         <a href="{{ url_for('banking.liste_ecritures',
