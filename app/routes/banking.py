@@ -3369,7 +3369,7 @@ def gestion_categories():
         flash("Erreur lors du chargement des catégories", "error")
         return redirect(url_for('dashboard.index'))
 
-@bp.route('/creer', methods=['GET', 'POST'])
+@bp.route('/categorie/creer', methods=['GET', 'POST'])
 @login_required
 def creer_categorie():
     """Créer une nouvelle catégorie"""
@@ -3415,7 +3415,7 @@ def creer_categorie():
     
     return render_template('categories/creer_categorie.html')
 
-@bp.route('/<int:categorie_id>/modifier', methods=['GET', 'POST'])
+@bp.route('/categorie/<int:categorie_id>/modifier', methods=['GET', 'POST'])
 @login_required
 def modifier_categorie(categorie_id):
     """Modifier une catégorie existante"""
@@ -3472,7 +3472,7 @@ def modifier_categorie(categorie_id):
     
     return render_template('categories/modifier_categorie.html', categorie=categorie)
 
-@bp.route('/<int:categorie_id>/supprimer', methods=['POST'])
+@bp.route('/categorie/<int:categorie_id>/supprimer', methods=['POST'])
 @login_required
 def supprimer_categorie(categorie_id):
     """Supprimer une catégorie"""
@@ -3496,7 +3496,7 @@ def supprimer_categorie(categorie_id):
     
     return redirect(url_for('categories.gestion_categories'))
 
-@bp.route('/<int:categorie_id>/transactions')
+@bp.route('/categorie/<int:categorie_id>/transactions')
 @login_required
 def transactions_par_categorie(categorie_id):
     """Affiche les transactions d'une catégorie spécifique"""
