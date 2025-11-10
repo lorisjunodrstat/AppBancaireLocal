@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des Catégories{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1>Gestion des Catégories</h1>
+
+    <!-- Test des catégories de dépenses -->
+    <h2>Dépenses</h2>
+    {% if categories_depenses %}
+        <ul>
+        {% for categorie in categories_depenses %}
+            <li>{{ categorie.nom }}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>Aucune catégorie de dépense</p>
+    {% endif %}
+
+    <!-- Test des catégories de revenus -->
+    <h2>Revenus</h2>
+    {% if categories_revenus %}
+        <ul>
+        {% for categorie in categories_revenus %}
+            <li>{{ categorie.nom }}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>Aucune catégorie de revenu</p>
+    {% endif %}
+</div>
+{% endblock %}
