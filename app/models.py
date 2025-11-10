@@ -5996,78 +5996,78 @@ class EcritureComptable:
             logging.error(f"Erreur récupération fichier écriture {ecriture_id}: {e}")
             return None
     
-def supprimer_fichier(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
-    """
-    Supprime le fichier joint d'une écriture (physiquement et en base).
-    """
-    try:
-        logging.info(f"📍 Début suppression fichier - Écriture: {ecriture_id}, User: {user_id}")
+    def supprimer_fichier(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
+        """
+        Supprime le fichier joint d'une écriture (physiquement et en base).
+        """
+        try:
+            logging.info(f"📍 Début suppression fichier - Écriture: {ecriture_id}, User: {user_id}")
+            
+            with self.db.get_cursor() as cursor:
+                # Récupérer les infos du fichier avant suppression
+                cursor.execute("""
+                    SELECT nom_fichier, justificatif_url, fichier_joint 
+                    FROM ecritures_comptables 
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (ecriture_id, user_id))
+                
+                result = cursor.fetchone()
+                if not result:
+                    logging.error(f"❌ Écriture {ecriture_id} non trouvée pour l'utilisateur {user_id}")
+                    return False, "Écriture non trouvée ou non autorisée"
+                
+                fichier_supprime = False
+                message_suppression = ""
+                
+                # Supprimer le fichier physique s'il existe (justificatif_url)
+                if result['justificatif_url']:
+                    file_path = self._get_file_path(result['justificatif_url'])
+                    if os.path.exists(file_path):
+                        try:
+                            os.remove(file_path)
+                            fichier_supprime = True
+                            message_suppression = f"Fichier physique supprimé: {file_path}"
+                            logging.info(f"✓ {message_suppression}")
+                        except Exception as e:
+                            logging.error(f"❌ Erreur suppression fichier physique: {e}")
+                            return False, f"Erreur suppression fichier: {str(e)}"
+                    else:
+                        logging.warning(f"⚠️ Fichier physique non trouvé: {file_path}")
+                
+                # Mettre à jour la base de données
+                cursor.execute("""
+                    UPDATE ecritures_comptables 
+                    SET nom_fichier = NULL, 
+                        justificatif_url = NULL, 
+                        type_mime = NULL, 
+                        taille_fichier = NULL,
+                        fichier_joint = NULL
+                    WHERE id = %s AND utilisateur_id = %s
+                """, (ecriture_id, user_id))
+                
+                if cursor.rowcount > 0:
+                    if fichier_supprime:
+                        message = f"Fichier '{result['nom_fichier']}' supprimé avec succès"
+                    else:
+                        message = f"Informations fichier supprimées (fichier physique non trouvé)"
+                    
+                    logging.info(f"✓ Suppression réussie: {message}")
+                    return True, message
+                else:
+                    logging.error(f"❌ Aucune ligne mise à jour dans la base")
+                    return False, "Erreur lors de la suppression en base de données"
+                    
+        except Exception as e:
+            logging.error(f"❌ Erreur suppression fichier écriture {ecriture_id}: {e}")
+            logging.error(f"❌ Traceback: {traceback.format_exc()}")
+            return False, f"Erreur lors de la suppression: {str(e)}"
         
-        with self.db.get_cursor() as cursor:
-            # Récupérer les infos du fichier avant suppression
-            cursor.execute("""
-                SELECT nom_fichier, justificatif_url, fichier_joint 
-                FROM ecritures_comptables 
-                WHERE id = %s AND utilisateur_id = %s
-            """, (ecriture_id, user_id))
-            
-            result = cursor.fetchone()
-            if not result:
-                logging.error(f"❌ Écriture {ecriture_id} non trouvée pour l'utilisateur {user_id}")
-                return False, "Écriture non trouvée ou non autorisée"
-            
-            fichier_supprime = False
-            message_suppression = ""
-            
-            # Supprimer le fichier physique s'il existe (justificatif_url)
-            if result['justificatif_url']:
-                file_path = self._get_file_path(result['justificatif_url'])
-                if os.path.exists(file_path):
-                    try:
-                        os.remove(file_path)
-                        fichier_supprime = True
-                        message_suppression = f"Fichier physique supprimé: {file_path}"
-                        logging.info(f"✓ {message_suppression}")
-                    except Exception as e:
-                        logging.error(f"❌ Erreur suppression fichier physique: {e}")
-                        return False, f"Erreur suppression fichier: {str(e)}"
-                else:
-                    logging.warning(f"⚠️ Fichier physique non trouvé: {file_path}")
-            
-            # Mettre à jour la base de données
-            cursor.execute("""
-                UPDATE ecritures_comptables 
-                SET nom_fichier = NULL, 
-                    justificatif_url = NULL, 
-                    type_mime = NULL, 
-                    taille_fichier = NULL,
-                    fichier_joint = NULL
-                WHERE id = %s AND utilisateur_id = %s
-            """, (ecriture_id, user_id))
-            
-            if cursor.rowcount > 0:
-                if fichier_supprime:
-                    message = f"Fichier '{result['nom_fichier']}' supprimé avec succès"
-                else:
-                    message = f"Informations fichier supprimées (fichier physique non trouvé)"
-                
-                logging.info(f"✓ Suppression réussie: {message}")
-                return True, message
-            else:
-                logging.error(f"❌ Aucune ligne mise à jour dans la base")
-                return False, "Erreur lors de la suppression en base de données"
-                
-    except Exception as e:
-        logging.error(f"❌ Erreur suppression fichier écriture {ecriture_id}: {e}")
-        logging.error(f"❌ Traceback: {traceback.format_exc()}")
-        return False, f"Erreur lors de la suppression: {str(e)}"
-    
-    def get_chemin_fichier_physique(self, ecriture_id: int, user_id: int) -> Optional[str]:
-        """
-        Retourne le chemin physique du fichier pour le téléchargement.
-        """
-        fichier_info = self.get_fichier(ecriture_id, user_id)
-        return fichier_info['chemin_complet'] if fichier_info else None
+        def get_chemin_fichier_physique(self, ecriture_id: int, user_id: int) -> Optional[str]:
+            """
+            Retourne le chemin physique du fichier pour le téléchargement.
+            """
+            fichier_info = self.get_fichier(ecriture_id, user_id)
+            return fichier_info['chemin_complet'] if fichier_info else None
     
 class ContactPlan:
     def __init__(self, db):
@@ -6309,24 +6309,36 @@ class ContactCompte:
             return []
 
     def get_contacts_for_compte(self, compte_id: int, utilisateur_id: int) -> List[Dict]:
-        """Récupère les contacts liés à un compte"""
+        """Récupère TOUS les contacts liés à un compte"""
         try:
             with self.db.get_cursor() as cursor:
                 cursor.execute("""
-                    SELECT c.id_contact, c.nom, c.email
-                    FROM contact_comptes cc
-                    JOIN contacts c ON cc.contact_id = c.id_contact
+                    SELECT c.id_contact, c.nom, c.email, c.telephone, c.adresse, c.ville
+                    FROM contact_comptes cc      
+                    JOIN contacts c ON cc.contact_id = c.id_contact  # ✅ Jointure corrigée
                     WHERE cc.compte_id = %s AND cc.utilisateur_id = %s
                     ORDER BY c.nom
                 """, (compte_id, utilisateur_id))
                 return cursor.fetchall()
-        except Error as e:
-            logging.error(f"Erreur SQL dans get_contacts_for_compte : {e}")
-            return []
         except Exception as e:
             logging.error(f"Erreur récupération contacts pour compte : {e}")
             return []
 
+    def get_contact_by_compte(self, compte_id: int, utilisateur_id: int) -> Optional[Dict]:
+        """Récupère le PREMIER contact lié à un compte (pour écriture automatique)"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT cc.contact_id, c.nom, c.email 
+                    FROM contact_comptes cc      
+                    INNER JOIN contacts c ON cc.contact_id = c.id_contact  # ✅ Jointure corrigée
+                    WHERE cc.compte_id = %s AND cc.utilisateur_id = %s
+                    LIMIT 1
+                """, (compte_id, utilisateur_id))
+                return cursor.fetchone()
+        except Exception as e:
+            logging.error(f"Erreur récupération contact par compte : {e}")
+            return None
 class Rapport:
     def __init__(self, db):
         self.db = db

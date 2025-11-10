@@ -96,8 +96,8 @@
                                     {{ transaction.type_transaction|replace('_', ' ')|title }}
                                 </span>
                             </td>
-                            <td>{{ transaction.description }}</td>
-                            <td>{{ transaction.compte_destination_nom or '-' }}</td>
+                            <td>{{ transaction.compte_destination_nom }}</td>
+                            <td>{{ transaction.description  or '-' }}</td>
                             <td class="text-end fw-bold">{{ "%.2f"|format(transaction.montant) }} CHF</td>
                             <td>
                                 <div class="btn-group" role="group">
@@ -176,6 +176,26 @@
                             <label class="form-label"><strong>Date:</strong></label>
                             <p class="form-control-plaintext">{{ transaction.date_transaction.strftime('%d.%m.%Y') }}
                             </p>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contact_simple{{ transaction.id }}" class="form-label">Contact</label>
+                        <select id="contact_simple{{ transaction.id }}" name="contact_id" class="form-select">
+                            <option value="">Aucun contact</option>
+                            {% for contact in contacts %}
+                            <option value="{{ contact.id_contact }}" {% if contact_lie and contact_lie.contact_id==contact.id_contact
+                                %}selected{% endif %}>
+                                {{ contact.nom }} {% if contact.email %}({{ contact.email }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            {% if contact_lie %}
+                            <i class="bi bi-info-circle text-primary"></i> Contact lié au compte détecté : <strong>{{ contact_lie.nom
+                                }}</strong>
+                            {% else %}
+                            <i class="bi bi-info-circle text-muted"></i> Aucun contact lié à ce compte
+                            {% endif %}
                         </div>
                     </div>
 
