@@ -172,6 +172,36 @@
                         </a>
                         {% endif %}
                     </td>
+                    <td>
+                        {% if ecriture.transaction_id %}
+                        <a href="{{ url_for('banking.liste_ecritures',
+                                                                            show_transaction_modal=1,
+                                                                            transaction_id=ecriture.transaction_id,
+                                                                            compte_id=request.args.get('compte_id'),
+                                                                            date_from=request.args.get('date_from'),
+                                                                            date_to=request.args.get('date_to'),
+                                                                            id_contact=request.args.get('id_contact'),
+                                                                            statut=request.args.get('statut'),
+                                                                            categorie_id=request.args.get('categorie_id')) }}"
+                            class="badge bg-success text-white text-decoration-none" title="Voir les détails de la transaction">
+                            >✅ Liée #{{ ecriture.transaction_id }}
+                        </a>
+                        {% else %}
+                        <span class="badge bg-secondary">Non liée</span>
+                        <a href="{{ url_for('banking.liste_ecritures',
+                                                                            show_link_modal=1,
+                                                                            ecriture_id=ecriture.id,
+                                                                            compte_id=request.args.get('compte_id'),
+                                                                            date_from=request.args.get('date_from'),
+                                                                            date_to=request.args.get('date_to'),
+                                                                            id_contact=request.args.get('id_contact'),
+                                                                            statut=request.args.get('statut'),
+                                                                            categorie_id=request.args.get('categorie_id')) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-link"></i>
+                        </a>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
 
@@ -258,5 +288,8 @@
 
 {% if show_link_modal and ecriture_link %}
 {% include 'comptabilite/modal_link_ecriture_transaction.html' %}
+{% endif %}
+{% if show_transaction_modal and transaction_detail %}
+{% include 'comptabilite/_modal_transaction_detail.html' %}
 {% endif %}
 {% endblock %}
