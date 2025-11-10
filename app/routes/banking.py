@@ -3350,7 +3350,7 @@ def supprimer_fichier_ecriture(ecriture_id):
     
 @bp.route('/gestion_categorie')
 @login_required
-def gestion_categories2():
+def gestion_categories():
     """Page principale de gestion des catégories"""
     try:
         categories = g.models.categorie_transaction_model.get_categories_utilisateur(current_user.id)
