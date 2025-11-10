@@ -45,10 +45,9 @@
                             <option value="">-- Sélectionner --</option>
                             {% for tx in transactions_eligibles %}
                             <option value="{{ tx.id }}" {% if tx.id==ecriture_link.transaction_id %}selected{% endif %}>
-                                #{{ tx.id }} – {{ tx.date_transaction.strftime('%d.%m.%Y') }} –
-                                {{ tx.description or '–' }} –
-                                {{ "%.2f"|format(tx.montant) }} CHF
-                                {% if tx.total_ecritures > 0 %}
+                                #{{ tx.id }} – {{ "%.2f"|format(tx.montant) }} CHF - {% if tx.total_ecritures > 0 %} -  {{ tx.date_transaction.strftime('%d.%m.%Y') }} –
+                                {{ tx.description or '–' }}
+                                
                                 <small class="text-muted">(déjà liées : {{ "%.2f"|format(tx.total_ecritures) }}
                                     CHF)</small>
                                 {% endif %}
