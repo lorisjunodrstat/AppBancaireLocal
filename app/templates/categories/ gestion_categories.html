@@ -34,10 +34,16 @@
                                     </h6>
                                     {% if categorie.description %}
                                     <p class="card-text text-muted small">{{ categorie.description }}</p>
+                                    {% else %}
+                                    <p class="card-text text-muted small">Pas de descriptif</p>
                                     {% endif %}
                                     {% if categorie.budget_mensuel  and categorie.budget_mensuel > 0 %}
                                     <p class="card-text">
                                         <small>Budget: {{ "%.2f"|format(categorie.budget_mensuel) }} CHF</small>
+                                    </p>
+                                    {% else %}
+                                    <p class="card-text">
+                                        <small>Pas de budget défini</small>
                                     </p>
                                     {% endif %}
                                 </div>
@@ -88,6 +94,8 @@
                                     </h6>
                                     {% if categorie.description %}
                                     <p class="card-text text-muted small">{{ categorie.description }}</p>
+                                    {% else %}
+                                    <p>Pas de descriptif</p>
                                     {% endif %}
                                 </div>
                                 <div class="btn-group">
