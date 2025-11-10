@@ -3353,10 +3353,14 @@ def gestion_categories():
     """Page principale de gestion des catégories"""
     try:
         categories = g.models.categorie_transaction_model.get_categories_utilisateur(current_user.id)
+        logging.info(f"Catégories récupérées pour utilisateur {current_user.id} : {categories}")
         statistiques = g.models.categorie_transaction_model.get_statistiques_categories(current_user.id)
+        logging.info(f"Statistiques des catégories pour utilisateur {current_user.id} : {statistiques}")
         # Séparer par type pour l'affichage
         categories_revenus = [c for c in categories if c['type_categorie'] == 'Revenu']
+        logging.info(f"Catégories de revenus pour utilisateur {current_user.id} : {categories_revenus}")
         categories_depenses = [c for c in categories if c['type_categorie'] == 'Dépense']
+        logging
         categories_transferts = [c for c in categories if c['type_categorie'] == 'Transfert']
         logging.info(f"Chargement page catégories pour utilisateur {current_user.id} : {categories}")
         return render_template(
@@ -3364,7 +3368,8 @@ def gestion_categories():
             categories=categories,
             categories_revenus=categories_revenus,
             categories_depenses=categories_depenses,
-            categories_transferts=categories_transferts, statistiques=statistiques
+            categories_transferts=categories_transferts,
+            statistiques=statistiques
         )
     except Exception as e:
         logging.error(f"Erreur chargement page catégories: {e}")
