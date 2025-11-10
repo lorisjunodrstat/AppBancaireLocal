@@ -3367,7 +3367,7 @@ def gestion_categories():
     except Exception as e:
         logging.error(f"Erreur chargement page catégories: {e}")
         flash("Erreur lors du chargement des catégories", "error")
-        return redirect(url_for('dashboard.index'))
+        return redirect(url_for('banking/dashboard.html'))
 
 @bp.route('/categorie/creer', methods=['GET', 'POST'])
 @login_required
@@ -3405,7 +3405,7 @@ def creer_categorie():
             
             if success:
                 flash(message, "success")
-                return redirect(url_for('categories.gestion_categories'))
+                return redirect(url_for('banking.gestion_categories'))
             else:
                 flash(message, "error")
                 
@@ -3423,7 +3423,7 @@ def modifier_categorie(categorie_id):
     
     if not categorie:
         flash("Catégorie non trouvée", "error")
-        return redirect(url_for('categories.gestion_categories'))
+        return redirect(url_for('banking.gestion_categories'))
     
     if request.method == 'POST':
         try:
@@ -3481,7 +3481,7 @@ def supprimer_categorie(categorie_id):
         categorie = g.models.categorie_transaction_model.get_categorie_par_id(categorie_id, current_user.id)
         if not categorie:
             flash("Catégorie non trouvée", "error")
-            return redirect(url_for('categories.gestion_categories'))
+            return redirect(url_for('banking.gestion_categories'))
         
         success, message = g.models.categorie_transaction_model.supprimer_categorie(categorie_id, current_user.id)
         
@@ -3494,7 +3494,7 @@ def supprimer_categorie(categorie_id):
         logging.error(f"Erreur suppression catégorie: {e}")
         flash("Erreur lors de la suppression de la catégorie", "error")
     
-    return redirect(url_for('categories.gestion_categories'))
+    return redirect(url_for('banking.gestion_categories'))
 
 @bp.route('/categorie/<int:categorie_id>/transactions')
 @login_required
@@ -3504,7 +3504,7 @@ def transactions_par_categorie(categorie_id):
         categorie = g.models.categorie_transaction_model.get_categorie_par_id(categorie_id, current_user.id)
         if not categorie:
             flash("Catégorie non trouvée", "error")
-            return redirect(url_for('categories.gestion_categories'))
+            return redirect(url_for('banking.gestion_categories'))
         
         date_debut = request.args.get('date_debut')
         date_fin = request.args.get('date_fin')
@@ -3524,7 +3524,7 @@ def transactions_par_categorie(categorie_id):
     except Exception as e:
         logging.error(f"Erreur chargement transactions par catégorie: {e}")
         flash("Erreur lors du chargement des transactions", "error")
-        return redirect(url_for('categories.gestion_categories'))
+        return redirect(url_for('banking.gestion_categories'))
     
 # API endpoints pour AJAX
 @bp.route('/api/categories', methods=['GET'])
