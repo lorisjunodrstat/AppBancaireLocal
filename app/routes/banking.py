@@ -3160,7 +3160,24 @@ def liste_ecritures_par_contact(contact_id):
         eid = request.args.get('ecriture_id', type=int)
         ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
         if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
-            # ... votre logique existante pour transactions_eligibles ...
+            date_tx = ecriture_link['date_ecriture']
+            # 🔥 CORRECTION : Récupérer TOUTES les transactions de l'utilisateur à cette date
+            transactions_all, _ = g.models.transaction_financiere_model.get_all_user_transactions(
+                user_id=current_user.id,
+                date_from=date_tx.strftime('%Y-%m-%d'),
+                date_to=date_tx.strftime('%Y-%m-%d')
+            )
+            # 🔥 CORRECTION : Ne garder que celles qui ont un solde cohérent avec le montant de l'écriture
+            montant_ecriture = Decimal(str(ecriture_link['montant']))
+            for tx in transactions_all:
+                montant_tx = Decimal(str(tx.get('montant', 0)))
+                if abs(montant_tx - montant_ecriture) <= Decimal('0.02'):  # tolérance de 2 centimes
+                    # Récupérer total des écritures liées à cette transaction
+                    total_ecritures = g.models.ecriture_comptable_model.get_total_ecritures_for_transaction(
+                        tx['id'], current_user.id
+                    )
+                    if total_ecritures + montant_ecriture <= montant_tx:
+                        transactions_eligibles.append(tx)
 
     # 🔥 AJOUT : Gestion du modal de détail de transaction
     show_transaction_modal = request.args.get('show_transaction_modal') == '1'
@@ -3179,11 +3196,10 @@ def liste_ecritures_par_contact(contact_id):
         comptes=comptes,
         show_link_modal=show_link_modal,
         ecriture_link=ecriture_link,
-        transactions_eligibles=transactions_eligibles,
-        show_transaction_modal=show_transaction_modal,  # 🔥 AJOUT
-        transaction_detail=transaction_detail  # 🔥 AJOUT
+        transactions_eligibles=transactions_eligibles,  # 🔥 CORRECTION : Cette variable doit être définie
+        show_transaction_modal=show_transaction_modal,
+        transaction_detail=transaction_detail
     )
-
 @bp.route('/comptabilite/ecritures/update_statut/<int:ecriture_id>', methods=['POST'])
 @login_required
 def update_statut_ecriture(ecriture_id):
