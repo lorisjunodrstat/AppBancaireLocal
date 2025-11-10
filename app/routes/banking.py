@@ -3362,7 +3362,7 @@ def gestion_categories():
             'categories/gestion_categories.html',
             categories_revenus=categories_revenus,
             categories_depenses=categories_depenses,
-            categories_transferts=categories_transferts
+            categories_transferts=categories_transferts, statistiques=statistiques
         )
     except Exception as e:
         logging.error(f"Erreur chargement page catégories: {e}")
