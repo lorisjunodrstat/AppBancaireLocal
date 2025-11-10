@@ -541,7 +541,8 @@ def banking_compte_detail(compte_id):
                         hauteur_svg=hauteur_svg,
                         sort=sort,
                         pf=pf,
-                        categories_par_transaction=categories_par_transaction)  # 🔥 NOUVEAU : Passer les catégories
+                        categories_par_transaction=categories_par_transaction,
+                        toutes_categories=toutes_categories)  # 🔥 NOUVEAU : Passer les catégories
 
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required

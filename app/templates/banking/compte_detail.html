@@ -754,6 +754,32 @@
                                         {% endfor %}
                                     </ul>
                                 </li>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Filtre par Catégorie
+                                    </a>
+                                    <ul class="dropdown-menu">
+                                        {% set base_args = request.args.copy() %}
+                                        {% set args_tous = base_args.copy() %}
+                                        {% set _ = args_tous.update({'filter_categorie': 'tous'}) %}
+                                        <li><a class="dropdown-item"
+                                                href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id, **args_tous) }}">
+                                                Toutes les catégories
+                                            </a></li>
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        {% for categorie in toutes_categories %}
+                                        {% set args = base_args.copy() %}
+                                        {% set _ = args.update({'filter_categorie': categorie.id}) %}
+                                        <li><a class="dropdown-item" href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id, **args) }}">
+                                                <span class="badge me-2" style="background-color: {{ categorie.couleur }}; color: white;">●</span>
+                                                {{ categorie.nom }}
+                                            </a></li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+
                         
                                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
                                     aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
@@ -817,6 +843,7 @@
                                         <th>Source</th>
                                         <th>Destination</th>
                                         <th>Description</th>
+                                        <th>Catégories</th>
                                         <th class="text-end">Montant</th>
                                         <th>Action</th>
                                         <th>Solde</th>
@@ -875,6 +902,19 @@
                                             {% endif %}
                                             {% endif %}
                                         </td>
+                                        <td>
+                                            {% set categories = categories_par_transaction.get(mv.id, []) %}
+                                            {% if categories %}
+                                            {% for categorie in categories %}
+                                            <span class="badge me-1" style="background-color: {{ categorie.couleur }}; color: white;">
+                                                {% if categorie.icone %}<i class="{{ categorie.icone }} me-1"></i>{% endif %}
+                                                {{ categorie.nom }}
+                                            </span>
+                                            {% endfor %}
+                                            {% else %}
+                                            <span class="text-muted small">Aucune catégorie</span>
+                                            {% endif %}
+                                        </td>
                                         <td
                                             class="text-end {{ 'text-success' if mv.montant > 0 else 'text-danger' if mv.montant < 0 else 'text-muted' }}">
                                             {{ '-' if mv.type_transaction in ['transfert_sortant',
@@ -899,7 +939,7 @@
                                     {% endfor %}
                                     {% else %}
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted">Aucun mouvement trouvé pour cette
+                                        <td colspan="9" class="text-center text-muted">Aucun mouvement trouvé pour cette
                                             période.</td>
                                     </tr>
                                     {% endif %}
