@@ -3783,22 +3783,31 @@ class TransactionFinanciere:
                 SELECT 
                     t.*,
                     cp.nom_compte as compte_principal_nom,
-                    cp_dest.nom_compte as compte_destination_nom,  -- J'ai ajouté un nouvel alias et renommé la colonne ici
+                    cp_dest.nom_compte as compte_destination_nom,
                     sc.nom_sous_compte as sous_compte_nom,
                     COUNT(e.id) as nb_ecritures_liees,
                     COALESCE(SUM(e.montant), 0) as total_ecritures
-                FROM transactions t
-                LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id 
-                LEFT JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id -- Correction de l'alias ici
-                LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
-                LEFT JOIN ecritures_comptables e ON t.id = e.transaction_id
-                LEFT JOIN comptes_principaux -- J'ai retiré cette ligne qui était vide dans votre code original
-                WHERE t.compte_principal_id = 92
-                AND t.id NOT IN (
-                    SELECT DISTINCT transaction_id 
-                    FROM ecritures_comptables 
-                    WHERE transaction_id IS NOT NULL
-                );
+                FROM 
+                    transactions t
+                LEFT JOIN 
+                    comptes_principaux cp 
+                    ON t.compte_principal_id = cp.id 
+                LEFT JOIN 
+                    comptes_principaux cp_dest 
+                    ON t.compte_destination_id = cp_dest.id 
+                LEFT JOIN 
+                    sous_comptes sc 
+                    ON t.sous_compte_id = sc.id
+                LEFT JOIN 
+                    ecritures_comptables e 
+                    ON t.id = e.transaction_id
+                WHERE 
+                    t.compte_principal_id = %s
+                    AND t.id NOT IN (
+                        SELECT DISTINCT transaction_id 
+                        FROM ecritures_comptables 
+                        WHERE transaction_id IS NOT NULL
+                    )
                 """
                 params = [compte_id]
                 
