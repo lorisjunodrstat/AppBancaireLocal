@@ -161,7 +161,7 @@
                     <!-- th Action-->
                     <td>
                         {% if ecriture.transaction_id %}
-                        <a href="{{ url_for('banking.liste_ecritures',
+                        <a href="{{ url_for('banking.liste_ecritures_par_contact',
                                                                             show_transaction_modal=1,
                                                                             transaction_id=ecriture.transaction_id,
                                                                             compte_id=request.args.get('compte_id'),
@@ -175,7 +175,7 @@
                         </a>
                         {% else %}
                         <span class="badge bg-secondary">Non liée</span>
-                        <a href="{{ url_for('banking.liste_ecritures',
+                        <a href="{{ url_for('banking.liste_ecritures_par_contact',
                                                                             show_link_modal=1,
                                                                             ecriture_id=ecriture.id,
                                                                             compte_id=request.args.get('compte_id'),
