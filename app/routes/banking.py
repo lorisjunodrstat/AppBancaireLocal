@@ -3365,7 +3365,7 @@ def gestion_categories():
         categories_transferts = [c for c in categories if c['type_categorie'] == 'Transfert']
         logging.info(f"Chargement page catégories pour utilisateur {current_user.id} : {categories}")
         return render_template(
-            'categories/gestion_categories.html',
+            'categories/old-gestion_categories.html',
             categories=categories,
             categories_revenus=categories_revenus,
             categories_depenses=categories_depenses,
