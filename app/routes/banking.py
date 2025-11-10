@@ -3346,17 +3346,7 @@ def supprimer_fichier_ecriture(ecriture_id):
     return redirect(request.referrer or url_for('banking.liste_ecritures'))
 #### Catégorie des transactions
 # routes_categories
-@bp.route('/gestion_categorie')
-@login_required
-def gestion_categories():
-    """Page principale de gestion des catégories"""
-    try:
-        categories = g.models.categorie_transaction_model.get_categories_utilisateur(current_user.id)
-        return render_template('categories/test_simple.html', categories=categories)
-    except Exception as e:
-        logging.error(f"Erreur chargement page catégories: {e}")
-        flash("Erreur lors du chargement des catégories", "error")
-        return redirect(url_for('banking.banking_dashboard'))
+
     
 @bp.route('/gestion_categorie')
 @login_required
