@@ -2562,6 +2562,7 @@ class TransactionFinanciere:
                 # ⚠️ UTILISER _inserer_transaction_with_cursor pour DÉBIT sur le compte principal
                 success, message, debit_transaction_id = self._inserer_transaction_with_cursor(
                     cursor,
+                    compte_principal_id = compte_id,
                     compte_type='compte_principal',
                     compte_id=compte_id,
                     type_transaction='transfert_compte_vers_sous',
