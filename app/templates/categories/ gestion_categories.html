@@ -35,7 +35,7 @@
                                     {% if categorie.description %}
                                     <p class="card-text text-muted small">{{ categorie.description }}</p>
                                     {% endif %}
-                                    {% if categorie.budget_mensuel %}
+                                    {% if categorie.budget_mensuel  and categorie.budget_mensuel > 0 %}
                                     <p class="card-text">
                                         <small>Budget: {{ "%.2f"|format(categorie.budget_mensuel) }} CHF</small>
                                     </p>
