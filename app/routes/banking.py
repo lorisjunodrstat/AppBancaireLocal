@@ -3139,6 +3139,51 @@ def liste_ecritures():
         transaction_detail=transaction_detail
     )
 
+@bp.route('/comptabilite/ecritures/by-contact/<int:contact_id>', methods=['GET'])
+@login_required
+def liste_ecritures_par_contact(contact_id):
+    """Affiche les écritures associées à un contact spécifique"""
+    contact = g.models.contact_model.get_by_id(contact_id, current_user.id)
+    if not contact:
+        flash('Contact introuvable', 'danger')
+        return redirect(url_for('banking.liste_contacts_comptables'))
+    
+    ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id, utilisateur_id=current_user.id)
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
+
+    # Modal de liaison
+    show_link_modal = request.args.get('show_link_modal') == '1'
+    ecriture_link = None
+    transactions_eligibles = []
+
+    if show_link_modal:
+        eid = request.args.get('ecriture_id', type=int)
+        ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
+        if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
+            # ... votre logique existante pour transactions_eligibles ...
+
+    # 🔥 AJOUT : Gestion du modal de détail de transaction
+    show_transaction_modal = request.args.get('show_transaction_modal') == '1'
+    transaction_detail = None
+
+    if show_transaction_modal:
+        tid = request.args.get('transaction_id', type=int)
+        if tid:
+            transaction_detail = g.models.transaction_financiere_model.get_transaction_by_id(tid)
+            if not (transaction_detail and transaction_detail.get('owner_user_id') == current_user.id):
+                transaction_detail = None
+
+    return render_template('comptabilite/ecritures_par_contact.html',
+        ecritures=ecritures,
+        contact=contact,
+        comptes=comptes,
+        show_link_modal=show_link_modal,
+        ecriture_link=ecriture_link,
+        transactions_eligibles=transactions_eligibles,
+        show_transaction_modal=show_transaction_modal,  # 🔥 AJOUT
+        transaction_detail=transaction_detail  # 🔥 AJOUT
+    )
+
 @bp.route('/comptabilite/ecritures/update_statut/<int:ecriture_id>', methods=['POST'])
 @login_required
 def update_statut_ecriture(ecriture_id):
@@ -3649,54 +3694,6 @@ def month_french_filter(value):
     month_english = value.strftime('%B')
     return months_fr.get(month_english, month_english.upper())
 
-@bp.route('/comptabilite/ecritures/by-contact/<int:contact_id>', methods=['GET'])
-@login_required
-def liste_ecritures_par_contact(contact_id):
-    """Affiche les écritures associées à un contact spécifique"""
-    contact = g.models.contact_model.get_by_id(contact_id, current_user.id)
-    if not contact:
-        flash('Contact introuvable', 'danger')
-        return redirect(url_for('banking.liste_contacts_comptables'))
-    
-    ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id, utilisateur_id=current_user.id)
-    comptes = g.models.compte_model.get_by_user_id(current_user.id)
-
-    # Modal de liaison
-    show_link_modal = request.args.get('show_link_modal') == '1'
-    ecriture_link = None
-    transactions_eligibles = []
-
-    if show_link_modal:
-        eid = request.args.get('ecriture_id', type=int)
-        ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
-        if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
-            date_tx = ecriture_link['date_ecriture']
-            # Récupérer TOUTES les transactions de l'utilisateur à cette date
-            transactions_all, _ = g.models.transaction_financiere_model.get_all_user_transactions(
-                user_id=current_user.id,
-                date_from=date_tx.strftime('%Y-%m-%d'),
-                date_to=date_tx.strftime('%Y-%m-%d')
-            )
-            # Ne garder que celles qui ont un solde cohérent avec le montant de l'écriture
-            montant_ecriture = Decimal(str(ecriture_link['montant']))
-            for tx in transactions_all:
-                montant_tx = Decimal(str(tx.get('montant', 0)))
-                if abs(montant_tx - montant_ecriture) <= Decimal('0.02'):  # tolérance de 2 centimes
-                    # Récupérer total des écritures liées à cette transaction
-                    total_ecritures = g.models.ecriture_comptable_model.get_total_ecritures_for_transaction(
-                        tx['id'], current_user.id
-                    )
-                    if total_ecritures + montant_ecriture <= montant_tx:
-                        transactions_eligibles.append(tx)
-
-    return render_template('comptabilite/ecritures_par_contact.html',
-        ecritures=ecritures,
-        contact=contact,
-        comptes=comptes,
-        show_link_modal=show_link_modal,
-        ecriture_link=ecriture_link,
-        transactions_eligibles=transactions_eligibles
-    )
 
 @bp.route('/comptabilite/ecritures/nouvelle', methods=['GET', 'POST'])
 @login_required
