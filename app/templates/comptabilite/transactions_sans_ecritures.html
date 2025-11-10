@@ -79,6 +79,7 @@
                         <tr>
                             <th>Date</th>
                             <th>Type</th>
+                            <th>destinataire</th>
                             <th>Description</th>
                             <th class="text-end">Montant</th>
                             <th>Statut comptable</th>
@@ -96,6 +97,7 @@
                                 </span>
                             </td>
                             <td>{{ transaction.description }}</td>
+                            <td>{{ transaction.compte_destination_nom or '-' }}</td>
                             <td class="text-end fw-bold">{{ "%.2f"|format(transaction.montant) }} CHF</td>
                             <td>
                                 <div class="btn-group" role="group">
