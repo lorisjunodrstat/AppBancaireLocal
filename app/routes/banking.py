@@ -428,7 +428,7 @@ def banking_compte_detail(compte_id):
         except ValueError:
             # Si la conversion en entier échoue, on ignore le filtre
             pass
-        
+
     # Correction des totaux - utilisation des statistiques plutôt que du calcul manuel
     total_recettes = Decimal(str(stats_compte.get('total_entrees', 0))) if stats_compte else Decimal('0')
     total_depenses = Decimal(str(stats_compte.get('total_sorties', 0))) if stats_compte else Decimal('0')
@@ -3346,7 +3346,7 @@ def supprimer_fichier_ecriture(ecriture_id):
 #### Catégorie des transactions
 # routes_categories
 
-@bp.route('/')
+@bp.route('/gestion_categorie')
 @login_required
 def gestion_categories():
     """Page principale de gestion des catégories"""
