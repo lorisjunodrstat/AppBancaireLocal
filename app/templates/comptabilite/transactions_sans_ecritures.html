@@ -22,7 +22,7 @@
                         <option value="">Sélectionner un compte</option>
                         {% for compte in comptes %}
                         <option value="{{ compte.id }}" {% if compte.id==compte_selectionne %}selected{% endif %}>
-                            {{ compte.nom_compte }} ({{ compte.nom_banque }})
+                            {{ compte.nom_compte }} ({{ compte.nom_banque }}) - {{ transactions|length }} tx - 
                         </option>
                         {% endfor %}
                     </select>
