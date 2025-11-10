@@ -3865,7 +3865,7 @@ class CategorieTransaction:
             return []
 
     def creer_categorie(self, user_id: int, nom: str, type_categorie: str = "Dépense", 
-                       description: str = '', couleur: str = None, icone: str = None) -> Tuple[bool, str]:
+                       description: str = '', couleur: str = None, icone: str = None, budget_mensuel: float = 0.0) -> Tuple[bool, str]:
         """Crée une nouvelle catégorie de transaction pour un utilisateur"""
         try:
             with self.db.get_cursor() as cursor:
@@ -3884,9 +3884,9 @@ class CategorieTransaction:
                 
                 cursor.execute("""
                     INSERT INTO categories_transactions 
-                    (utilisateur_id, nom, description, type_categorie, couleur, icone)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (user_id, nom, description, type_categorie, couleur, icone))
+                    (utilisateur_id, nom, description, type_categorie, couleur, icone, budget_mensuel)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (user_id, nom, description, type_categorie, couleur, icone, budget_mensuel))
                 
                 return True, "Catégorie créée avec succès"
         except Exception as e:
