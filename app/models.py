@@ -3961,47 +3961,31 @@ class CategorieTransaction:
             return False, f"Erreur: {str(e)}"
 
     def associer_categorie_transaction(self, transaction_id: int, categorie_id: int, user_id: int) -> Tuple[bool, str]:
-        """Associe une catégorie à une transaction via table de liaison"""
+        """Associe une catégorie à une transaction (évite les doublons)"""
         try:
             with self.db.get_cursor() as cursor:
-                # Vérifier que la transaction et la catégorie appartiennent à l'utilisateur
+                # ... vérifications de permissions existantes ...
+                
+                # Vérifier si l'association existe déjà
                 cursor.execute("""
-                    SELECT t.id 
-                    FROM transactions t
-                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
-                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
-                    WHERE t.id = %s AND (
-                        cp.utilisateur_id = %s OR 
-                        sc.compte_principal_id IN (
-                            SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
-                        )
-                    )
-                """, (transaction_id, user_id, user_id))
+                    SELECT id FROM transaction_categories 
+                    WHERE transaction_id = %s AND categorie_id = %s AND utilisateur_id = %s
+                """, (transaction_id, categorie_id, user_id))
                 
-                if not cursor.fetchone():
-                    return False, "Transaction non trouvée ou non autorisée"
+                if cursor.fetchone():
+                    return False, "Cette catégorie est déjà associée à la transaction"
                 
-                # Vérifier la catégorie
-                cursor.execute("""
-                    SELECT id FROM categories_transactions
-                    WHERE id = %s AND utilisateur_id = %s AND actif = TRUE
-                """, (categorie_id, user_id))
-                
-                if not cursor.fetchone():
-                    return False, "Catégorie non trouvée ou non autorisée"
-                
-                # Insérer ou mettre à jour l'association
+                # Créer la nouvelle association
                 cursor.execute("""
                     INSERT INTO transaction_categories (transaction_id, categorie_id, utilisateur_id)
                     VALUES (%s, %s, %s)
-                    ON DUPLICATE KEY UPDATE categorie_id = VALUES(categorie_id)
                 """, (transaction_id, categorie_id, user_id))
                 
                 return True, "Catégorie associée avec succès"
         except Exception as e:
             logging.error(f"Erreur association catégorie à transaction: {e}")
             return False, f"Erreur: {str(e)}"
-
+        
     def dissocier_categorie_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
         """Dissocie une catégorie d'une transaction"""
         try:
@@ -4126,8 +4110,8 @@ class CategorieTransaction:
         import random
         return f"#{random.randint(0, 0xFFFFFF):06x}"
 
-    def get_categorie_transaction(self, transaction_id: int, user_id: int) -> Optional[Dict]:
-        """Récupère la catégorie d'une transaction spécifique"""
+    def get_categories_transaction(self, transaction_id: int, user_id: int) -> List[Dict]:
+        """Récupère TOUTES les catégories d'une transaction spécifique"""
         try:
             with self.db.get_cursor() as cursor:
                 cursor.execute("""
@@ -4136,10 +4120,39 @@ class CategorieTransaction:
                     JOIN categories_transactions c ON tc.categorie_id = c.id
                     WHERE tc.transaction_id = %s AND tc.utilisateur_id = %s
                 """, (transaction_id, user_id))
-                return cursor.fetchone()
+                return cursor.fetchall()  # Retourne une LISTE
         except Exception as e:
-            logging.error(f"Erreur récupération catégorie transaction: {e}")
-            return None
+            logging.error(f"Erreur récupération catégories transaction: {e}")
+            return []
+    def dissocier_categorie_transaction(self, transaction_id: int, categorie_id: int, user_id: int) -> Tuple[bool, str]:
+        """Dissocie une catégorie spécifique d'une transaction"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    DELETE FROM transaction_categories
+                    WHERE transaction_id = %s AND categorie_id = %s AND utilisateur_id = %s
+                """, (transaction_id, categorie_id, user_id))
+                
+                if cursor.rowcount > 0:
+                    return True, "Catégorie dissociée avec succès"
+                else:
+                    return False, "Association non trouvée"
+        except Exception as e:
+            logging.error(f"Erreur dissociation catégorie de transaction: {e}")
+            return False, f"Erreur: {str(e)}"
+
+    def dissocier_toutes_categories_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
+        """Dissocie TOUTES les catégories d'une transaction"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    DELETE FROM transaction_categories
+                    WHERE transaction_id = %s AND utilisateur_id = %s
+                """, (transaction_id, user_id))
+                return True, "Toutes les catégories ont été dissociées"
+        except Exception as e:
+            logging.error(f"Erreur dissociation catégories de transaction: {e}")
+            return False, f"Erreur: {str(e)}"
 
 class StatistiquesBancaires:
     """Classe pour générer des statistiques bancaires"""
