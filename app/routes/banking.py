@@ -3367,7 +3367,7 @@ def gestion_categories():
     except Exception as e:
         logging.error(f"Erreur chargement page catégories: {e}")
         flash("Erreur lors du chargement des catégories", "error")
-        return redirect(url_for('banking/dashboard.html'))
+        return redirect(url_for('banking.banking_dashboard'))
 
 @bp.route('/categorie/creer', methods=['GET', 'POST'])
 @login_required
