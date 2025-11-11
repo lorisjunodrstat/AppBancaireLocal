@@ -172,6 +172,7 @@
                     </li>
                 </ul>
                 </li>
+                <!-- Menu Salaires -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle salaire-nav" href="#" role="button" data-bs-toggle="dropdown">
                         <i class="fa fa-hourglass-half me-2"></i>Salaires
@@ -239,64 +240,62 @@
                         <!-- Section Plan Comptable -->
                         <li>
                             <hr class="dropdown-divider">
-                        <li>
-                            <h6 class="dropdown-header"><i class="fas fa-project-diagram me-2"></i>Gestion des plans
+                            <li>
+                                <h6 class="dropdown-header"><i class="fas fa-project-diagram me-2"></i>Gestion des plans
                                 comptables</h6>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('banking.liste_plans') }}">Liste des Plans</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('banking.creer_plan') }}">Créer un Plan</a>
+                            </li>
+                        </li>
+                        <!-- Section Catégories Comptables -->
+                        <li>
+                            <hr class="dropdown-divider">
+                        <li>
+                            <h6 class="dropdown-header"><i class="fas fa-tags me-2"></i>Gestion des catégories comptables</h6>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.liste_categories_comptables') }}">
+                                <i class="fas fa-tags me-2"></i>Catégories comptables
+                            </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_categorie') }}">
+                                <i class="fas fa-plus-square me-2"></i>Nouvelle catégorie
+                            </a>
+                        </li>
+                        </li>
+
+                        <!-- Section Rapports -->
+                        <li>
+                            <hr class="dropdown-divider">
                         </li>
                         <li>
-                            <a class="dropdown-item" href="{{ url_for('banking.liste_plans') }}">Liste des Plans</a>
+                            <h6 class="dropdown-header"><i class="fas fa-chart-line me-2"></i>Rapports</h6>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.compte_de_resultat') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>Compte de résultat
+                            </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.statistiques_comptables') }}">
+                                <i class="fas fa-chart-pie me-2"></i>Statistiques
+                            </a></li>
+
+                        <!-- Section Export -->
+                        <li>
+                            <hr class="dropdown-divider">
                         </li>
                         <li>
-                            <a class="dropdown-item" href="{{ url_for('banking.creer_plan') }}">Créer un Plan</a>
+                            <h6 class="dropdown-header"><i class="fas fa-download me-2"></i>Exports</h6>
                         </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.export_compte_de_resultat', format='pdf') }}">
+                                <i class="fas fa-file-pdf me-2"></i>Export PDF
+                            </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.export_compte_de_resultat', format='excel') }}">
+                                <i class="fas fa-file-excel me-2"></i>Export Excel
+                            </a>
+                        </li>
+                    </ul>
                 </li>
-                <!-- Section Catégories Comptables -->
-                <li>
-                    <hr class="dropdown-divider">
-                <li>
-                    <h6 class="dropdown-header"><i class="fas fa-tags me-2"></i>Gestion des catégories comptables</h6>
-                </li>
-                <li><a class="dropdown-item" href="{{ url_for('banking.liste_categories_comptables') }}">
-                        <i class="fas fa-tags me-2"></i>Catégories comptables
-                    </a></li>
-                <li><a class="dropdown-item" href="{{ url_for('banking.nouvelle_categorie') }}">
-                        <i class="fas fa-plus-square me-2"></i>Nouvelle catégorie
-                    </a>
-                </li>
-                </li>
-
-                <!-- Section Rapports -->
-                <li>
-                    <hr class="dropdown-divider">
-                </li>
-                <li>
-                    <h6 class="dropdown-header"><i class="fas fa-chart-line me-2"></i>Rapports</h6>
-                </li>
-                <li><a class="dropdown-item" href="{{ url_for('banking.compte_de_resultat') }}">
-                        <i class="fas fa-file-invoice-dollar me-2"></i>Compte de résultat
-                    </a></li>
-                <li><a class="dropdown-item" href="{{ url_for('banking.statistiques_comptables') }}">
-                        <i class="fas fa-chart-pie me-2"></i>Statistiques
-                    </a></li>
-
-                <!-- Section Export -->
-                <li>
-                    <hr class="dropdown-divider">
-                </li>
-                <li>
-                    <h6 class="dropdown-header"><i class="fas fa-download me-2"></i>Exports</h6>
-                </li>
-                <li><a class="dropdown-item" href="{{ url_for('banking.export_compte_de_resultat', format='pdf') }}">
-                        <i class="fas fa-file-pdf me-2"></i>Export PDF
-                    </a></li>
-                <li><a class="dropdown-item" href="{{ url_for('banking.export_compte_de_resultat', format='excel') }}">
-                        <i class="fas fa-file-excel me-2"></i>Export Excel
-                    </a></li>
-                </ul>
-                <ul class="dropdown-menu">
-                    <!-- Section Plan -->
-                    </li>
-                </ul>
                 <ul class="navbar-nav">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.logout') }}">
