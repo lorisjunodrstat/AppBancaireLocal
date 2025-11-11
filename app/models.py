@@ -2270,7 +2270,7 @@ class TransactionFinanciere:
             
             # Insérer la transaction avec toutes les colonnes
             query = """
-            INSERT INTO transactions_financieres 
+            INSERT INTO transactions 
             (compte_principal_id, sous_compte_id, type_transaction, montant, description, 
             utilisateur_id, date_transaction, solde_apres, reference_transfert,
             compte_destination_id, sous_compte_destination_id,
