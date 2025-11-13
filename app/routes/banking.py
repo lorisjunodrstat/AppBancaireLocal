@@ -699,19 +699,18 @@ def banking_compte_top_echanges(compte_id):
 @bp.route('/banking/compte/<int:compte_id>/evolution_echanges', methods=['GET', 'POST'])
 @login_required
 def banking_compte_evolution_echanges(compte_id):
-    """Affiche l'évolution des transactions avec des comptes spécifiques."""
     user_id = current_user.id
     compte_source = g.models.compte_model.get_by_id(compte_id)
     if not compte_source or compte_source['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))
 
-    # Récupérer la liste des comptes avec lesquels il a échangé (pour le sélecteur)
+    # Récupérer la liste des comptes avec lesquels il a échangé
     top_comptes = g.models.transaction_financiere_model.get_top_comptes_echanges(
-        compte_id, user_id, 
-        (date.today() - timedelta(days=365)).isoformat(), 
-        date.today().isoformat(), 
-        'tous', 
+        compte_id, user_id,
+        (date.today() - timedelta(days=365)).isoformat(),
+        date.today().isoformat(),
+        'tous',
         20
     )
     comptes_cibles_possibles = top_comptes
@@ -721,7 +720,8 @@ def banking_compte_evolution_echanges(compte_id):
     date_fin = date.today().isoformat()
     comptes_cibles_ids = []
     type_graphique = 'lignes'
-    couleur = '#4e79a7'
+    couleur = '#4e79a7'  # Couleur par défaut pour le cumul
+    cumuler = False
 
     svg_code = None
     if request.method == 'POST':
@@ -730,17 +730,48 @@ def banking_compte_evolution_echanges(compte_id):
         comptes_cibles_ids = request.form.getlist('comptes_cibles')
         type_graphique = request.form.get('type_graphique', 'lignes')
         couleur = request.form.get('couleur', '#4e79a7')
+        cumuler = request.form.get('cumuler') == 'on'
 
         if comptes_cibles_ids:
-            # Récupérer les données
-            donnees = g.models.transaction_financiere_model.get_transactions_avec_comptes(
+            # Récupérer les données brutes
+            donnees_brutes = g.models.transaction_financiere_model.get_transactions_avec_comptes(
                 compte_id, user_id, comptes_cibles_ids, date_debut, date_fin
             )
-            # Générer le graphique
+            # Structurer les données
+            donnees_struct = g.models.transaction_financiere_model._structurer_donnees_pour_graphique(
+                donnees_brutes, cumuler=cumuler
+            )
+
+            # Gestion des couleurs
+            couleurs_a_utiliser = None
+            if not cumuler and donnees_struct['series']: # Si non cumulé et qu'il y a des séries
+                couleurs_a_utiliser = []
+                # On suppose que les clés de 'series' sont les noms des comptes dans l'ordre
+                # où ils ont été sélectionnés (ce n'est pas garanti par un dictionnaire, mais c'est souvent le cas en Python 3.7+)
+                # Pour plus de fiabilité, on pourrait trier les clés par ordre d'apparition dans la liste initiale
+                # Mais pour Flask/Jinja, on peut aussi envoyer les couleurs dans l'ordre des noms de série.
+                noms_series = list(donnees_struct['series'].keys())
+                for nom_serie in noms_series:
+                    # Trouver l'ID du compte à partir du nom (nécessite une correspondance avec top_comptes)
+                    # On va associer les couleurs dans l'ordre de sélection
+                    # On récupère les couleurs envoyées via le formulaire
+                    # On suppose que les couleurs sont envoyées dans l'ordre des IDs sélectionnés
+                    couleur_envoyee = request.form.get(f'couleur_compte_{next((c["compte_id"] for c in top_comptes if c["nom_compte"] == nom_serie), "unknown")}', None)
+                    if couleur_envoyee:
+                        couleurs_a_utiliser.append(couleur_envoyee)
+                    else:
+                        # Si aucune couleur spécifique n'est envoyée pour ce compte, utiliser une par défaut
+                        couleurs_a_utiliser.append('#000000') # ou une couleur par défaut dynamique
+
+            # Générer le graphique avec les nouvelles méthodes
             if type_graphique == 'barres':
-                svg_code = g.models.transaction_financiere_model.generer_graphique_echanges_temporel_barres(donnees, couleur)
-            else:
-                svg_code = g.models.transaction_financiere_model.generer_graphique_echanges_temporel_lignes(donnees, couleur)
+                svg_code = g.models.transaction_financiere_model.generer_graphique_echanges_temporel_barres(
+                    donnees_struct, couleurs_a_utiliser
+                )
+            else: # lignes
+                svg_code = g.models.transaction_financiere_model.generer_graphique_echanges_temporel_lignes(
+                    donnees_struct, couleurs_a_utiliser
+                )
 
     return render_template('banking/compte_evolution_echanges.html',
                          compte_source=compte_source,
@@ -750,7 +781,8 @@ def banking_compte_evolution_echanges(compte_id):
                          date_fin=date_fin,
                          comptes_cibles_ids=comptes_cibles_ids,
                          type_graphique=type_graphique,
-                         couleur=couleur)
+                         couleur=couleur,
+                         cumuler=cumuler)
 
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required

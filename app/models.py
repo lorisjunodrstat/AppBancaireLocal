@@ -4705,7 +4705,8 @@ class TransactionFinanciere:
                 x = marge_gauche + (i / (len(dates) - 1 if len(dates) > 1 else 1)) * largeur_graph
                 y = marge_haut + hauteur_graph - (montant / max_montant) * hauteur_graph
                 points.append(f"{x},{y}")
-                svg += f'<circle cx="{x}" cy="{y}" r="3" fill="{couleur}" />\n'
+                # On peut dessiner des points ici aussi
+                svg += f'<circle cx="{x}" cy="{y}" r="2" fill="{couleur}" />\n'
 
             if len(points) > 1:
                 svg += f'<polyline points="{" ".join(points)}" fill="none" stroke="{couleur}" stroke-width="2" />\n'
@@ -4721,24 +4722,31 @@ class TransactionFinanciere:
             for idx, nom_serie in enumerate(series.keys()):
                 y_leg = marge_haut + idx * 20
                 svg += f'<rect x="{largeur_svg - 120}" y="{y_leg}" width="15" height="10" fill="{couleurs[idx]}" />\n'
-                svg += f'<text x="{largeur_svg - 100}" y="{y_leg + 8}" font-size="12">{nom_serie}</text>\n'
+                # Tronquer le nom de la série si trop long
+                nom_affiche = nom_serie[:15] + "..." if len(nom_serie) > 15 else nom_serie
+                svg += f'<text x="{largeur_svg - 100}" y="{y_leg + 8}" font-size="12">{nom_affiche}</text>\n'
 
         svg += '</svg>'
         return svg
 
-    def generer_graphique_echanges_temporel_barres(self, donnees: List[Dict], couleur_barre: str = "#4e79a7") -> str:
+    def generer_graphique_echanges_temporel_barres(self, donnees_structurees: Dict, 
+                                                couleurs: List[str] = None) -> str:
         """
-        Génère un graphique en barres SVG montrant l'évolution des transactions dans le temps.
+        Génère un graphique en barres SVG avec axes Y améliorés.
         """
-        if not donnees:
+        if not donnees_structurees or not donnees_structurees['series']:
             return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée disponible.</text></svg>"
 
-        # Trier les données par date
-        donnees_triees = sorted(donnees, key=lambda x: x['date_transaction'])
-        dates = [d['date_transaction'] for d in donnees_triees]
-        montants = [float(d['montant']) for d in donnees_triees]
+        dates = donnees_structurees['dates']
+        series = donnees_structurees['series']
+        n_series = len(series)
+        n_dates = len(dates)
 
-        # Paramètres du graphique
+        default_colors = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"]
+        if couleurs is None or len(couleurs) < n_series:
+            couleurs = (couleurs or []) + default_colors[len(couleurs or []):]
+        couleurs = couleurs[:n_series]
+
         largeur_svg = 800
         hauteur_svg = 400
         marge_gauche = 60
@@ -4748,42 +4756,64 @@ class TransactionFinanciere:
         largeur_graph = largeur_svg - marge_gauche - marge_droite
         hauteur_graph = hauteur_svg - marge_haut - marge_bas
 
-        max_montant = max(montants) if montants else 1
+        max_montant = max(max(vals) for vals in series.values()) if series else 1
         if max_montant == 0:
             max_montant = 1
 
         svg = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
 
-        # Axes
+        # === AXES PRINCIPAUX ===
         svg += f'<line x1="{marge_gauche}" y1="{marge_haut}" x2="{marge_gauche}" y2="{marge_haut + hauteur_graph}" stroke="black" stroke-width="2" />\n'
         svg += f'<line x1="{marge_gauche}" y1="{marge_haut + hauteur_graph}" x2="{largeur_svg - marge_droite}" y2="{marge_haut + hauteur_graph}" stroke="black" stroke-width="2" />\n'
 
-        # Barres
-        nb_bars = len(montants)
-        if nb_bars <= 1:
-            largeur_barre = largeur_graph * 0.5
+        # === QUADRILLAGE ET GRADUATIONS (Y) ===
+        pas = self._trouver_pas_gravitation(max_montant)
+        current_val = pas
+        while current_val <= max_montant + pas:
+            y_pos = marge_haut + hauteur_graph - (current_val / max_montant) * hauteur_graph
+            if y_pos >= marge_haut:
+                svg += f'<line x1="{marge_gauche}" y1="{y_pos}" x2="{largeur_svg - marge_droite}" y2="{y_pos}" stroke="#ddd" stroke-width="0.5" />\n'
+                svg += f'<text x="{marge_gauche - 10}" y="{y_pos + 4}" text-anchor="end" font-size="10">{int(current_val)}</text>\n'
+            current_val += pas
+
+        # === DESSINER LES BARRES (Groupées par date) ===
+        if n_dates <= 1:
+            largeur_groupe = largeur_graph * 0.5
             espacement = 0
         else:
-            largeur_barre = largeur_graph / nb_bars * 0.8
-            espacement = largeur_graph / nb_bars - largeur_barre
+            largeur_groupe = largeur_graph / n_dates * 0.9
+            espacement = largeur_graph / n_dates - largeur_groupe
 
-        for i, (dt, montant) in enumerate(zip(dates, montants)):
-            x = marge_gauche + i * (largeur_barre + espacement)
-            hauteur = (montant / max_montant) * hauteur_graph
-            y = marge_haut + hauteur_graph - hauteur
-            svg += f'<rect x="{x}" y="{y}" width="{largeur_barre}" height="{hauteur}" fill="{couleur_barre}" />\n'
+        for i, dt in enumerate(dates):
+            x_groupe = marge_gauche + i * (largeur_groupe + espacement)
+            # Largeur d'une barre unitaire dans le groupe
+            largeur_barre_unitaire = largeur_groupe / n_series if n_series > 0 else largeur_groupe
 
-            # Labels des dates
-            if i % max(1, nb_bars//10) == 0:
-                svg += f'<text x="{x + largeur_barre/2}" y="{marge_haut + hauteur_graph + 20}" text-anchor="middle" font-size="10">{dt.strftime("%d.%m")}</text>\n'
+            for j, (nom_serie, valeurs) in enumerate(series.items()):
+                montant = valeurs[i] if i < len(valeurs) else 0 # Protection si la série est plus courte
+                hauteur = (montant / max_montant) * hauteur_graph
+                y = marge_haut + hauteur_graph - hauteur
+                x = x_groupe + j * largeur_barre_unitaire
 
-        # Labels des montants (Y)
-        svg += f'<text x="{marge_gauche - 10}" y="{marge_haut + 10}" text-anchor="end" font-size="10">{max_montant:.2f}</text>\n'
-        svg += f'<text x="{marge_gauche - 10}" y="{marge_haut + hauteur_graph}" text-anchor="end" font-size="10">0</text>\n'
+                svg += f'<rect x="{x}" y="{y}" width="{largeur_barre_unitaire}" height="{hauteur}" fill="{couleurs[j]}" />\n'
+
+        # === LABELS DES DATES (X) ===
+        for i, dt in enumerate(dates):
+            if i % max(1, n_dates//10) == 0:
+                x = marge_gauche + (i / (n_dates - 1 if n_dates > 1 else 1)) * largeur_graph
+                svg += f'<text x="{x}" y="{marge_haut + hauteur_graph + 20}" text-anchor="middle" font-size="10">{dt.strftime("%d.%m")}</text>\n'
+
+        # === LÉGENDE ===
+        if n_series > 1 or list(series.keys())[0] != 'Tous les comptes':
+            for idx, nom_serie in enumerate(series.keys()):
+                y_leg = marge_haut + idx * 20
+                svg += f'<rect x="{largeur_svg - 120}" y="{y_leg}" width="15" height="10" fill="{couleurs[idx]}" />\n'
+                nom_affiche = nom_serie[:15] + "..." if len(nom_serie) > 15 else nom_serie
+                svg += f'<text x="{largeur_svg - 100}" y="{y_leg + 8}" font-size="12">{nom_affiche}</text>\n'
 
         svg += '</svg>'
         return svg
-
+    
 class CategorieTransaction:
     """Classe pour gérer les catégories de transactions"""
 
