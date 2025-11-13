@@ -4106,7 +4106,7 @@ class TransactionFinanciere:
 
         return svg_content
 
-    def compare_comptes_soldes_barres(self, compte_id_1: int, compte_id_2: int,
+    def old_compare_comptes_soldes_barres(self, compte_id_1: int, compte_id_2: int,
                                     date_debut: date, date_fin: date,
                                     type_1: str, type_2: str,
                                     couleur_1: str = "#0000FF", couleur_2: str = "#00FF00") -> str:
@@ -4200,7 +4200,156 @@ class TransactionFinanciere:
 
         svg_content += '</svg>'
         return svg_content
+    
+    def compare_comptes_soldes_barres(self, compte_id_1: int, compte_id_2: int,
+                                date_debut: date, date_fin: date,
+                                type_1: str, type_2: str,
+                                couleur_1: str = "#0000FF", couleur_2: str = "#00FF00") -> str:
+        """
+        Génère un graphique en BARRES SVG comparant l'évolution des soldes de deux comptes.
+        Axes épais, quadrillage fin, et graduations automatiques.
+        """
+        from datetime import timedelta
 
+        # Récupérer les soldes quotidiens pour chaque compte et type
+        soldes_1 = self._get_daily_balances(compte_id_1, date_debut, date_fin, type_1)
+        soldes_2 = self._get_daily_balances(compte_id_2, date_debut, date_fin, type_2)
+
+        # Trier les dates
+        toutes_dates = sorted(set(soldes_1.keys()) | set(soldes_2.keys()))
+        if not toutes_dates:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+
+        # Obtenir les valeurs
+        valeurs_1 = [soldes_1.get(dt, Decimal('0')) for dt in toutes_dates]
+        valeurs_2 = [soldes_2.get(dt, Decimal('0')) for dt in toutes_dates]
+
+        # Calculer les valeurs absolues pour l'échelle X
+        toutes_valeurs = valeurs_1 + valeurs_2
+        if not toutes_valeurs:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+
+        max_val = max(abs(float(v)) for v in toutes_valeurs)
+        if max_val == 0:
+            max_val = 1  # Éviter la division par zéro
+
+        # --- Paramètres du graphique ---
+        largeur_svg, hauteur_svg = 900, 500
+        marge_gauche, marge_droite = 120, 40
+        marge_haut, marge_bas = 40, 40
+        largeur_graph = largeur_svg - marge_gauche - marge_droite
+        hauteur_graph = hauteur_svg - marge_haut - marge_bas
+
+        # Échelle pour les valeurs (axe X)
+        echelle_x = largeur_graph / (2 * max_val)
+
+        # Échelle pour les dates (axe Y)
+        nb_dates = len(toutes_dates)
+        if nb_dates <= 1:
+            hauteur_barre = hauteur_graph * 0.8
+            espacement = 0
+        else:
+            hauteur_barre = hauteur_graph / nb_dates * 0.8
+            espacement = hauteur_graph / nb_dates - hauteur_barre
+
+        svg_content = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+
+        # === AXES PRINCIPAUX (plus épais) ===
+        x_zero = marge_gauche + largeur_graph / 2
+        y_haut = marge_haut
+        y_bas = marge_haut + hauteur_graph
+        # Axe Y (vertical central)
+        svg_content += f'<line x1="{x_zero}" y1="{y_haut}" x2="{x_zero}" y2="{y_bas}" stroke="#000" stroke-width="2" />\n'
+        # Axe X (horizontal du haut)
+        svg_content += f'<line x1="{marge_gauche}" y1="{y_haut}" x2="{marge_gauche + largeur_graph}" y2="{y_haut}" stroke="#000" stroke-width="2" />\n'
+        # Axe X (horizontal du bas)
+        svg_content += f'<line x1="{marge_gauche}" y1="{y_bas}" x2="{marge_gauche + largeur_graph}" y2="{y_bas}" stroke="#000" stroke-width="2" />\n'
+
+        # === QUADRILLAGE FIN ===
+        svg_content += '<g stroke="#ddd" stroke-width="0.5">\n'
+        # Lignes horizontales (une par date)
+        for i in range(nb_dates):
+            y_pos = marge_haut + (i * (hauteur_barre + espacement)) + (hauteur_barre + espacement) / 2
+            svg_content += f'  <line x1="{marge_gauche}" y1="{y_pos}" x2="{marge_gauche + largeur_graph}" y2="{y_pos}" />\n'
+        svg_content += '</g>\n'
+
+        # === GRADUATIONS SUR L'AXE X (valeurs) ===
+        def trouver_pas_gravitation(max_val):
+            """Détermine un pas de graduation lisible."""
+            if max_val >= 5000:
+                return 1000
+            elif max_val >= 1000:
+                return 500
+            elif max_val >= 500:
+                return 100
+            elif max_val >= 100:
+                return 50
+            elif max_val >= 50:
+                return 25
+            elif max_val >= 20:
+                return 10
+            elif max_val >= 10:
+                return 5
+            else:
+                return 1
+
+        pas = trouver_pas_gravitation(max_val)
+        # Générer les marques et labels
+        svg_content += '<g font-size="10" fill="#000">\n'
+        # Côté positif (droite de l'axe Y)
+        current_val = pas
+        while current_val <= max_val + pas:
+            x_pos = x_zero + (current_val * echelle_x)
+            if x_pos <= marge_gauche + largeur_graph:
+                svg_content += f'  <line x1="{x_pos}" y1="{y_haut}" x2="{x_pos}" y2="{y_bas}" stroke="#ccc" stroke-width="0.8" />\n'
+                svg_content += f'  <text x="{x_pos}" y="{y_bas + 15}" text-anchor="middle">{int(current_val)}</text>\n'
+            current_val += pas
+
+        # Côté négatif (gauche de l'axe Y)
+        current_val = pas
+        while current_val <= max_val + pas:
+            x_pos = x_zero - (current_val * echelle_x)
+            if x_pos >= marge_gauche:
+                svg_content += f'  <line x1="{x_pos}" y1="{y_haut}" x2="{x_pos}" y2="{y_bas}" stroke="#ccc" stroke-width="0.8" />\n'
+                svg_content += f'  <text x="{x_pos}" y="{y_bas + 15}" text-anchor="middle">-{int(current_val)}</text>\n'
+            current_val += pas
+        svg_content += '</g>\n'
+
+        # === BARRES DE DONNÉES ===
+        for i, (dt, val_1, val_2) in enumerate(zip(toutes_dates, valeurs_1, valeurs_2)):
+            y_centre = marge_haut + (i * (hauteur_barre + espacement)) + (hauteur_barre + espacement) / 2
+
+            # Barre Compte 1 (gauche)
+            largeur_1 = abs(float(val_1)) * echelle_x
+            if val_1 >= 0:
+                x_1 = x_zero
+                largeur_1 = -largeur_1
+            else:
+                x_1 = x_zero + float(val_1) * echelle_x
+            svg_content += f'<rect x="{x_1 + largeur_1}" y="{y_centre - hauteur_barre/2}" width="{abs(largeur_1)}" height="{hauteur_barre}" fill="{couleur_1}" />\n'
+
+            # Barre Compte 2 (droite)
+            largeur_2 = abs(float(val_2)) * echelle_x
+            if val_2 >= 0:
+                x_2 = x_zero
+            else:
+                x_2 = x_zero + float(val_2) * echelle_x
+                largeur_2 = -largeur_2
+            svg_content += f'<rect x="{x_2}" y="{y_centre - hauteur_barre/2}" width="{abs(largeur_2)}" height="{hauteur_barre}" fill="{couleur_2}" />\n'
+
+        # === LABELS DES DATES (Axe Y à gauche) ===
+        for i, dt in enumerate(toutes_dates):
+            y_centre = marge_haut + (i * (hauteur_barre + espacement)) + (hauteur_barre + espacement) / 2
+            svg_content += f'<text x="{marge_gauche - 10}" y="{y_centre}" text-anchor="end" dominant-baseline="middle" font-size="10">{dt.strftime("%d.%m")}</text>\n'
+
+        # === LÉGENDE ===
+        svg_content += f'<rect x="{marge_gauche}" y="{marge_haut - 25}" width="15" height="10" fill="{couleur_1}" />\n'
+        svg_content += f'<text x="{marge_gauche + 20}" y="{marge_haut - 15}" font-size="12">Compte 1 ({type_1})</text>\n'
+        svg_content += f'<rect x="{marge_gauche + 150}" y="{marge_haut - 25}" width="15" height="10" fill="{couleur_2}" />\n'
+        svg_content += f'<text x="{marge_gauche + 170}" y="{marge_haut - 15}" font-size="12">Compte 2 ({type_2})</text>\n'
+
+        svg_content += '</svg>'
+        return svg_content
 
 class CategorieTransaction:
     """Classe pour gérer les catégories de transactions"""
