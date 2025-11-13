@@ -116,8 +116,20 @@
                                     </a>
                                 </div>
                             </div>
+                            <div class="col-sm-6">
+                                <!-- Dans compte_detail.html -->
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('banking.banking_comparer_soldes', compte_id=compte.id) }}" class="btn btn-info btn-sm">
+                                        <i class="fas fa-chart-bar"></i> Comparer deux comptes
+                                    </a>
+                                    <a href="{{ url_for('banking.banking_compte_top_echanges', compte_id=compte.id) }}" class="btn btn-info btn-sm">
+                                        <i class="fas fa-chart-bar"></i> Top Échanges
+                                    </a>
+                                </div>
+                            </div>
                             
                         </div>
+
                     </div>
 
                     <!-- Solde et actions -->

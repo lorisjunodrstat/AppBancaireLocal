@@ -4351,6 +4351,168 @@ class TransactionFinanciere:
         svg_content += '</svg>'
         return svg_content
 
+    def get_top_comptes_echanges(self, compte_principal_id: int, user_id: int, 
+                           date_debut: str, date_fin: str, 
+                           direction: str = 'tous', 
+                           limite: int = 10) -> List[Dict]:
+        """
+        Récupère les comptes avec lesquels un compte a le plus échangé de l'argent.
+        
+        Args:
+            compte_principal_id (int): ID du compte principal source.
+            user_id (int): ID de l'utilisateur (pour vérification).
+            date_debut (str): Date de début (format 'YYYY-MM-DD').
+            date_fin (str): Date de fin (format 'YYYY-MM-DD').
+            direction (str): 'envoye', 'recu', ou 'tous'.
+            limite (int): Nombre maximum de comptes à retourner.
+        
+        Returns:
+            List[Dict]: Liste triée de dictionnaires avec clés 'compte_id', 'nom_compte', 'total_montant', 'direction'
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que le compte appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s",
+                    (compte_principal_id, user_id)
+                )
+                if not cursor.fetchone():
+                    return []
+
+                # Construire la requête selon la direction
+                if direction == 'envoye':
+                    # Transferts sortants vers d'autres comptes principaux
+                    query = """
+                    SELECT 
+                        cp_dest.id as compte_id,
+                        cp_dest.nom_compte,
+                        SUM(t.montant) as total_montant,
+                        'envoye' as direction
+                    FROM transactions t
+                    JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id
+                    WHERE t.compte_principal_id = %s
+                    AND t.type_transaction = 'transfert_sortant'
+                    AND t.date_transaction BETWEEN %s AND %s
+                    GROUP BY cp_dest.id, cp_dest.nom_compte
+                    ORDER BY total_montant DESC
+                    LIMIT %s
+                    """
+                elif direction == 'recu':
+                    # Transferts entrants depuis d'autres comptes principaux
+                    query = """
+                    SELECT 
+                        cp_src.id as compte_id,
+                        cp_src.nom_compte,
+                        SUM(t.montant) as total_montant,
+                        'recu' as direction
+                    FROM transactions t
+                    JOIN comptes_principaux cp_src ON t.compte_source_id = cp_src.id
+                    WHERE t.compte_principal_id = %s
+                    AND t.type_transaction = 'transfert_entrant'
+                    AND t.date_transaction BETWEEN %s AND %s
+                    GROUP BY cp_src.id, cp_src.nom_compte
+                    ORDER BY total_montant DESC
+                    LIMIT %s
+                    """
+                else: # 'tous'
+                    # Combiner les deux directions
+                    query = """
+                    SELECT 
+                        compte_id,
+                        nom_compte,
+                        SUM(total_montant) as total_montant,
+                        'tous' as direction
+                    FROM (
+                        -- Transferts ENVOYES
+                        SELECT 
+                            cp_dest.id as compte_id,
+                            cp_dest.nom_compte,
+                            SUM(t.montant) as total_montant
+                        FROM transactions t
+                        JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id
+                        WHERE t.compte_principal_id = %s
+                        AND t.type_transaction = 'transfert_sortant'
+                        AND t.date_transaction BETWEEN %s AND %s
+                        GROUP BY cp_dest.id, cp_dest.nom_compte
+                        
+                        UNION ALL
+                        
+                        -- Transferts RECUS
+                        SELECT 
+                            cp_src.id as compte_id,
+                            cp_src.nom_compte,
+                            SUM(t.montant) as total_montant
+                        FROM transactions t
+                        JOIN comptes_principaux cp_src ON t.compte_source_id = cp_src.id
+                        WHERE t.compte_principal_id = %s
+                        AND t.type_transaction = 'transfert_entrant'
+                        AND t.date_transaction BETWEEN %s AND %s
+                        GROUP BY cp_src.id, cp_src.nom_compte
+                    ) AS combined
+                    GROUP BY compte_id, nom_compte
+                    ORDER BY total_montant DESC
+                    LIMIT %s
+                    """
+                    # Pour 'tous', on a 3 fois les paramètres
+                    params = [compte_principal_id, date_debut, date_fin,
+                            compte_principal_id, date_debut, date_fin,
+                            limite]
+                if direction in ['envoye', 'recu']:
+                    params = [compte_principal_id, date_debut, date_fin, limite]
+
+                cursor.execute(query, params)
+                resultats = cursor.fetchall()
+                return [dict(row) for row in resultats]
+
+        except Exception as e:
+            logging.error(f"Erreur dans get_top_comptes_echanges: {e}")
+            return []
+    
+    def generer_graphique_top_comptes_echanges(self, donnees: List[Dict], 
+                                            couleur_barre: str = "#4e79a7") -> str:
+        """
+        Génère un graphique en barres horizontales SVG pour les top comptes d'échange.
+        La barre la plus longue (montant le plus élevé) est en haut.
+        """
+        if not donnees:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée disponible.</text></svg>"
+
+        # Trouver le montant maximum pour l'échelle
+        max_montant = max(row['total_montant'] for row in donnees)
+        if max_montant == 0:
+            max_montant = 1
+
+        # Paramètres du graphique
+        largeur_svg = 800
+        hauteur_svg = max(400, len(donnees) * 40)  # Hauteur dynamique
+        marge_gauche = 250  # Pour laisser de la place au nom des comptes
+        marge_droite = 40
+        marge_haut = 30
+        marge_bas = 30
+        largeur_graph = largeur_svg - marge_gauche - marge_droite
+        hauteur_graph = hauteur_svg - marge_haut - marge_bas
+
+        # Hauteur d'une barre
+        hauteur_barre = hauteur_graph / len(donnees) * 0.8
+        espacement = hauteur_graph / len(donnees) * 0.2
+
+        svg_content = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+
+        # Dessiner les barres
+        for i, row in enumerate(donnees):
+            y_pos = marge_haut + i * (hauteur_barre + espacement)
+            largeur = (row['total_montant'] / max_montant) * largeur_graph
+
+            # Barre
+            svg_content += f'<rect x="{marge_gauche}" y="{y_pos}" width="{largeur}" height="{hauteur_barre}" fill="{couleur_barre}" />\n'
+            # Label du montant (à droite de la barre)
+            svg_content += f'<text x="{marge_gauche + largeur + 10}" y="{y_pos + hauteur_barre/2 + 4}" font-size="12" dominant-baseline="middle">{row["total_montant"]:,.2f}</text>\n'
+            # Label du nom du compte (à gauche de la barre)
+            svg_content += f'<text x="{marge_gauche - 10}" y="{y_pos + hauteur_barre/2 + 4}" font-size="12" dominant-baseline="middle" text-anchor="end">{row["nom_compte"]}</text>\n'
+
+        svg_content += '</svg>'
+        return svg_content
+
 class CategorieTransaction:
     """Classe pour gérer les catégories de transactions"""
 
