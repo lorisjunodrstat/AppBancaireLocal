@@ -5121,6 +5121,7 @@ class EcritureComptable:
         except Exception as e:
             logging.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
+    
     def get_by_id(self, ecriture_id: int) -> Optional[Dict]:
         """Récupère une écriture par son ID"""
         try:
@@ -5273,7 +5274,7 @@ class EcritureComptable:
                     JOIN categories_comptables c ON e.categorie_id = c.id
                     WHERE e.utilisateur_id = %s 
                     AND e.date_ecriture BETWEEN %s AND %s
-                    AND c.type_compte = 'Revenus'
+                    AND c.type_compte = 'Actif' OR c.type_compte = 'revenus'
                     GROUP BY c.id, c.numero, c.nom
                     ORDER BY c.numero
                 """, (user_id, date_from, date_to))
@@ -5291,7 +5292,7 @@ class EcritureComptable:
                     JOIN categories_comptables c ON e.categorie_id = c.id
                     WHERE e.utilisateur_id = %s 
                     AND e.date_ecriture BETWEEN %s AND %s
-                    AND c.type_compte = 'Charge'
+                    AND c.type_compte = 'Charge' OR c.type_compte = 'Passif'
                     GROUP BY c.id, c.numero, c.nom
                     ORDER BY c.numero
                 """, (user_id, date_from, date_to))

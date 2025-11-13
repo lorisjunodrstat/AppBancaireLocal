@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Comparer les Soldes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-2 text-gray-800">Comparer les Soldes des Comptes</h1>
+            <p class="mb-4">Sélectionnez deux comptes et une période pour comparer leur évolution.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-6 col-lg-6">
+            <!-- Formulaire -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Paramètres</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Champs du formulaire -->
+                        <!-- ... (identique au template précédent) ... -->
+                        <div class="form-group">
+                            <label for="compte_id_1">Compte 1:</label>
+                            <select class="form-control" id="compte_id_1" name="compte_id_1" required>
+                                <option value="">Sélectionnez...</option>
+                                {% for compte in comptes %}
+                                    <option value="{{ compte.id }}" {% if form_data.compte_id_1 == compte.id|string %}selected{% endif %}>{{ compte.nom_compte }} ({{ compte.iban[-4:] or compte.numero_compte[-4:] }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="type_1">Type pour Compte 1:</label>
+                            <select class="form-control" id="type_1" name="type_1" required>
+                                <option value="total" {% if form_data.type_1 == 'total' %}selected{% endif %}>Total</option>
+                                <option value="recette" {% if form_data.type_1 == 'recette' %}selected{% endif %}>Recette</option>
+                                <option value="depense" {% if form_data.type_1 == 'depense' %}selected{% endif %}>Dépense</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="compte_id_2">Compte 2:</label>
+                            <select class="form-control" id="compte_id_2" name="compte_id_2" required>
+                                <option value="">Sélectionnez...</option>
+                                {% for compte in comptes %}
+                                    <option value="{{ compte.id }}" {% if form_data.compte_id_2 == compte.id|string %}selected{% endif %}>{{ compte.nom_compte }} ({{ compte.iban[-4:] or compte.numero_compte[-4:] }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="type_2">Type pour Compte 2:</label>
+                            <select class="form-control" id="type_2" name="type_2" required>
+                                <option value="total" {% if form_data.type_2 == 'total' %}selected{% endif %}>Total</option>
+                                <option value="recette" {% if form_data.type_2 == 'recette' %}selected{% endif %}>Recette</option>
+                                <option value="depense" {% if form_data.type_2 == 'depense' %}selected{% endif %}>Dépense</option>
+                            </select>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="date_debut">Date de début:</label>
+                                <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ form_data.date_debut }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="date_fin">Date de fin:</label>
+                                <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ form_data.date_fin }}" required>
+                            </div>
+                        </div>
+
+                        <h5 class="mt-3">Couleurs</h5>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="couleur_1_recette" class="small">Compte 1:</label>
+                                <input type="color" class="form-control form-control-color" id="couleur_1_recette" name="couleur_1_recette" value="{{ form_data.couleur_1_recette }}">
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="couleur_2_recette" class="small">Compte 2:</label>
+                                <input type="color" class="form-control form-control-color" id="couleur_2_recette" name="couleur_2_recette" value="{{ form_data.couleur_2_recette }}">
+                            </div>
+                        </div>
+                        
+                        {% if csrf_token %}<!-- Si vous utilisez Flask-WTF -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        {% endif %}
+                        
+                        <button type="submit" class="btn btn-primary btn-block">Générer le Graphique</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-6 col-lg-6">
+            <!-- Graphique -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Graphique de Comparaison</h6>
+                </div>
+                <div class="card-body text-center">
+                    {% if svg_code %}
+                        {{ svg_code|safe }} <!-- Important : 'safe' pour ne pas échapper le HTML/SVG -->
+                    {% else %}
+                        <p class="text-muted">Le graphique apparaîtra ici après avoir soumis le formulaire.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
