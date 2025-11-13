@@ -9,7 +9,6 @@ import pymysql
 from pymysql import Error
 from decimal import Decimal
 from datetime import datetime, date, timedelta
-from database import Error
 import calendar
 import csv
 import os
