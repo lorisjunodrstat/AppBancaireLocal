@@ -4287,8 +4287,11 @@ def detail_ecritures_categorie(type, categorie_id):
     """Affiche le détail des écritures d'une catégorie"""
     try:
         annee = request.args.get('annee', datetime.now().year)
+        logging.debug(f"DEBUG: Affichage des écritures pour l'année {annee}")
         date_from = f"{annee}-01-01"
+        logging.debug(f"DEBUG: date_from = {date_from}")
         date_to = f"{annee}-12-31"
+        logging.debug(f"DEBUG: date_to = {date_to}")
         connection = g.models.ecriture_comptable_model.db.get_connection()
         if not connection:
             flash("Erreur de connexion à la base de données", "danger")
