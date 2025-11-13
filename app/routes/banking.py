@@ -546,13 +546,20 @@ def banking_compte_detail(compte_id):
                         toutes_categories=toutes_categories)  # 🔥 NOUVEAU : Passer les catégories
 
 
-@bp.route('/banking/comparer_soldes', methods=['GET', 'POST'])
+@bp.route('/banking/compte/<int:compte_id>/comparer_soldes', methods=['GET', 'POST'])
 @login_required
-def banking_comparer_soldes():
+def banking_comparer_soldes(compte_id):
     logging.info("Début de la route banking_comparer_soldes")
     """Affiche la page de sélection pour la comparaison des soldes et génère le graphique."""
     user_id = current_user.id
-    logging.info(f"Utilisateur connecté: {user_id}")
+
+    # Vérifier que le compte_id appartient à l'utilisateur (pour le bouton de retour)
+    compte = g.models.compte_model.get_by_id(compte_id)
+    if not compte or compte['utilisateur_id'] != user_id:
+        flash('Compte non trouvé ou non autorisé', 'error')
+        return redirect(url_for('banking.banking_dashboard'))
+
+    logging.info(f"Utilisateur connecté: {user_id}, Compte de référence: {compte_id}")
 
     try:
         logging.info("Récupération des comptes de l'utilisateur...")
@@ -561,7 +568,8 @@ def banking_comparer_soldes():
     except Exception as e:
         logging.error(f"Erreur lors de la récupération des comptes: {e}")
         flash("Erreur lors du chargement des comptes.", 'error')
-        return render_template('banking/comparer_soldes.html', comptes=[], form_data={}, svg_code=None)
+        # Passer 'compte' ici aussi en cas d'erreur
+        return render_template('banking/comparer_soldes.html', compte=compte, comptes=[], form_data={}, svg_code=None)
 
     # Initialisation des variables pour le template
     svg_code = None
@@ -647,6 +655,7 @@ def banking_comparer_soldes():
     logging.info("Rendu du template comparer_soldes.html.")
     try:
         return render_template('banking/comparer_soldes.html',
+                            compte=compte, # <-- Ajouté ici
                             comptes=comptes,
                             form_data=form_data,
                             svg_code=svg_code)
@@ -654,7 +663,8 @@ def banking_comparer_soldes():
         logging.error(f"Erreur lors du rendu du template: {e}", exc_info=True)
         # Retourner une page d'erreur simple ou un message
         flash("Une erreur est survenue lors de l'affichage de la page.", 'error')
-        return render_template('banking/comparer_soldes.html', comptes=[], form_data={}, svg_code=None)
+        # Passer 'compte' ici aussi
+        return render_template('banking/comparer_soldes.html', compte=compte, comptes=[], form_data={}, svg_code=None)
 
 @bp.route('/banking/compte/<int:compte_id>/top_echanges', methods=['GET', 'POST'])
 @login_required

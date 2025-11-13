@@ -3,15 +3,12 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="row mt-4">
-        <div class="col-12">
-            <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Retour au compte principal
-            </a>
-        </div>
-    </div>
     <div class="row">
         <div class="col-12">
+            <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}"
+                class="btn btn-outline-secondary mb-4">
+                <i class="fas fa-arrow-left me-2"></i>Retour au compte principal
+            </a>
             <h1 class="h3 mb-2 text-gray-800">Comparer les Soldes des Comptes</h1>
             <p class="mb-4">Sélectionnez deux comptes et une période pour comparer leur évolution.</p>
         </div>
