@@ -4513,6 +4513,193 @@ class TransactionFinanciere:
         svg_content += '</svg>'
         return svg_content
 
+    def get_transactions_avec_comptes(self, compte_principal_id: int, user_id: int, 
+                                comptes_cibles_ids: List[int],
+                                date_debut: str, date_fin: str) -> List[Dict]:
+        """
+        Récupère la liste des transactions entre un compte principal et une liste de comptes cibles.
+        
+        Returns:
+            List[Dict]: Liste de dictionnaires avec clés 'date_transaction', 'montant', 'compte_cible_id', 'nom_compte_cible', 'type_transaction'
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que le compte source appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s",
+                    (compte_principal_id, user_id)
+                )
+                if not cursor.fetchone():
+                    return []
+
+                if not comptes_cibles_ids:
+                    return []
+
+                # Préparer la liste des IDs pour la requête
+                placeholders = ','.join(['%s'] * len(comptes_cibles_ids))
+                params = [compte_principal_id, date_debut, date_fin] + comptes_cibles_ids
+
+                # Requête pour récupérer les transactions sortantes ET entrantes
+                query = f"""
+                (
+                    -- Transferts SORTANTS vers les comptes cibles
+                    SELECT 
+                        t.date_transaction,
+                        t.montant,
+                        cp_dest.id as compte_cible_id,
+                        cp_dest.nom_compte as nom_compte_cible,
+                        'sortant' as direction
+                    FROM transactions t
+                    JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id
+                    WHERE t.compte_principal_id = %s
+                    AND t.type_transaction = 'transfert_sortant'
+                    AND t.date_transaction BETWEEN %s AND %s
+                    AND cp_dest.id IN ({placeholders})
+                )
+                UNION ALL
+                (
+                    -- Transferts ENTRANTS depuis les comptes cibles
+                    SELECT 
+                        t.date_transaction,
+                        t.montant,
+                        cp_src.id as compte_cible_id,
+                        cp_src.nom_compte as nom_compte_cible,
+                        'entrant' as direction
+                    FROM transactions t
+                    JOIN comptes_principaux cp_src ON t.compte_source_id = cp_src.id
+                    WHERE t.compte_principal_id = %s
+                    AND t.type_transaction = 'transfert_entrant'
+                    AND t.date_transaction BETWEEN %s AND %s
+                    AND cp_src.id IN ({placeholders})
+                )
+                ORDER BY date_transaction ASC
+                """
+                # Pour UNION ALL, on a besoin de répéter les paramètres
+                params = [compte_principal_id, date_debut, date_fin] + comptes_cibles_ids + [compte_principal_id, date_debut, date_fin] + comptes_cibles_ids
+
+                cursor.execute(query, params)
+                resultats = cursor.fetchall()
+                return [dict(row) for row in resultats]
+
+        except Exception as e:
+            logging.error(f"Erreur dans get_transactions_avec_comptes: {e}")
+            return []
+
+    def generer_graphique_echanges_temporel_lignes(self, donnees: List[Dict], couleur_ligne: str = "#4e79a7") -> str:
+        """
+        Génère un graphique en lignes SVG montrant l'évolution des transactions dans le temps.
+        """
+        if not donnees:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée disponible.</text></svg>"
+
+        # Trier les données par date
+        donnees_triees = sorted(donnees, key=lambda x: x['date_transaction'])
+        dates = [d['date_transaction'] for d in donnees_triees]
+        montants = [float(d['montant']) for d in donnees_triees]
+
+        # Paramètres du graphique
+        largeur_svg = 800
+        hauteur_svg = 400
+        marge_gauche = 60
+        marge_droite = 40
+        marge_haut = 40
+        marge_bas = 60
+        largeur_graph = largeur_svg - marge_gauche - marge_droite
+        hauteur_graph = hauteur_svg - marge_haut - marge_bas
+
+        max_montant = max(montants) if montants else 1
+        if max_montant == 0:
+            max_montant = 1
+
+        # Générer le SVG
+        svg = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+
+        # Axes
+        svg += f'<line x1="{marge_gauche}" y1="{marge_haut}" x2="{marge_gauche}" y2="{marge_haut + hauteur_graph}" stroke="black" stroke-width="2" />\n'
+        svg += f'<line x1="{marge_gauche}" y1="{marge_haut + hauteur_graph}" x2="{largeur_svg - marge_droite}" y2="{marge_haut + hauteur_graph}" stroke="black" stroke-width="2" />\n'
+
+        # Points et lignes
+        points = []
+        for i, (dt, montant) in enumerate(zip(dates, montants)):
+            x = marge_gauche + (i / (len(dates) - 1 if len(dates) > 1 else 1)) * largeur_graph
+            y = marge_haut + hauteur_graph - (montant / max_montant) * hauteur_graph
+            points.append(f"{x},{y}")
+            svg += f'<circle cx="{x}" cy="{y}" r="3" fill="{couleur_ligne}" />\n'
+
+        if len(points) > 1:
+            svg += f'<polyline points="{" ".join(points)}" fill="none" stroke="{couleur_ligne}" stroke-width="2" />\n'
+
+        # Labels des dates (X)
+        for i, dt in enumerate(dates):
+            if i % max(1, len(dates)//10) == 0: # Pour éviter la surcharge
+                x = marge_gauche + (i / (len(dates) - 1 if len(dates) > 1 else 1)) * largeur_graph
+                svg += f'<text x="{x}" y="{marge_haut + hauteur_graph + 20}" text-anchor="middle" font-size="10">{dt.strftime("%d.%m")}</text>\n'
+
+        # Labels des montants (Y)
+        svg += f'<text x="{marge_gauche - 10}" y="{marge_haut + 10}" text-anchor="end" font-size="10">{max_montant:.2f}</text>\n'
+        svg += f'<text x="{marge_gauche - 10}" y="{marge_haut + hauteur_graph}" text-anchor="end" font-size="10">0</text>\n'
+
+        svg += '</svg>'
+        return svg
+
+    def generer_graphique_echanges_temporel_barres(self, donnees: List[Dict], couleur_barre: str = "#4e79a7") -> str:
+        """
+        Génère un graphique en barres SVG montrant l'évolution des transactions dans le temps.
+        """
+        if not donnees:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée disponible.</text></svg>"
+
+        # Trier les données par date
+        donnees_triees = sorted(donnees, key=lambda x: x['date_transaction'])
+        dates = [d['date_transaction'] for d in donnees_triees]
+        montants = [float(d['montant']) for d in donnees_triees]
+
+        # Paramètres du graphique
+        largeur_svg = 800
+        hauteur_svg = 400
+        marge_gauche = 60
+        marge_droite = 40
+        marge_haut = 40
+        marge_bas = 60
+        largeur_graph = largeur_svg - marge_gauche - marge_droite
+        hauteur_graph = hauteur_svg - marge_haut - marge_bas
+
+        max_montant = max(montants) if montants else 1
+        if max_montant == 0:
+            max_montant = 1
+
+        svg = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+
+        # Axes
+        svg += f'<line x1="{marge_gauche}" y1="{marge_haut}" x2="{marge_gauche}" y2="{marge_haut + hauteur_graph}" stroke="black" stroke-width="2" />\n'
+        svg += f'<line x1="{marge_gauche}" y1="{marge_haut + hauteur_graph}" x2="{largeur_svg - marge_droite}" y2="{marge_haut + hauteur_graph}" stroke="black" stroke-width="2" />\n'
+
+        # Barres
+        nb_bars = len(montants)
+        if nb_bars <= 1:
+            largeur_barre = largeur_graph * 0.5
+            espacement = 0
+        else:
+            largeur_barre = largeur_graph / nb_bars * 0.8
+            espacement = largeur_graph / nb_bars - largeur_barre
+
+        for i, (dt, montant) in enumerate(zip(dates, montants)):
+            x = marge_gauche + i * (largeur_barre + espacement)
+            hauteur = (montant / max_montant) * hauteur_graph
+            y = marge_haut + hauteur_graph - hauteur
+            svg += f'<rect x="{x}" y="{y}" width="{largeur_barre}" height="{hauteur}" fill="{couleur_barre}" />\n'
+
+            # Labels des dates
+            if i % max(1, nb_bars//10) == 0:
+                svg += f'<text x="{x + largeur_barre/2}" y="{marge_haut + hauteur_graph + 20}" text-anchor="middle" font-size="10">{dt.strftime("%d.%m")}</text>\n'
+
+        # Labels des montants (Y)
+        svg += f'<text x="{marge_gauche - 10}" y="{marge_haut + 10}" text-anchor="end" font-size="10">{max_montant:.2f}</text>\n'
+        svg += f'<text x="{marge_gauche - 10}" y="{marge_haut + hauteur_graph}" text-anchor="end" font-size="10">0</text>\n'
+
+        svg += '</svg>'
+        return svg
+
 class CategorieTransaction:
     """Classe pour gérer les catégories de transactions"""
 
