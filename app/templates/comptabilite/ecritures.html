@@ -151,15 +151,6 @@
                                         class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-
-                                    <!-- Suppression -->
-                                    <form action="{{ url_for('banking.delete_ecriture', ecriture_id=ecriture.id) }}"
-                                        method="post" class="d-inline"
-                                        onsubmit="return confirm('Supprimer cette écriture ?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
                                     <!-- Formulaire de suppression normale -->
                                     <form action="{{ url_for('banking.delete_ecriture', ecriture_id=ecriture.id) }}" 
                                     method="post" class="d-inline" onsubmit="return confirm('Supprimer cette écriture avec la méthode soft ?');"> 
