@@ -4585,17 +4585,84 @@ class TransactionFinanciere:
             logging.error(f"Erreur dans get_transactions_avec_comptes: {e}")
             return []
 
-    def generer_graphique_echanges_temporel_lignes(self, donnees: List[Dict], couleur_ligne: str = "#4e79a7") -> str:
+
+    def _structurer_donnees_pour_graphique(self, donnees_brutes: List[Dict], cumuler: bool = False) -> Dict:
         """
-        Génère un graphique en lignes SVG montrant l'évolution des transactions dans le temps.
+        Transforme une liste plate de transactions en une structure utilisable pour le graphique.
+        Si cumuler=True, toutes les transactions sont fusionnées en une seule série.
+        Si cumuler=False, les transactions sont regroupées par compte cible.
         """
-        if not donnees:
+        if not donnees_brutes:
+            return {}
+
+        # Trier par date
+        donnees_triees = sorted(donnees_brutes, key=lambda x: x['date_transaction'])
+        dates_uniques = sorted(set(d['date_transaction'] for d in donnees_triees))
+
+        if cumuler:
+            # Mode cumulé : une seule série
+            serie_cumulee = []
+            for dt in dates_uniques:
+                total_jour = sum(d['montant'] for d in donnees_triees if d['date_transaction'] == dt)
+                serie_cumulee.append(total_jour)
+            return {
+                'dates': dates_uniques,
+                'series': {
+                    'Tous les comptes': serie_cumulee
+                }
+            }
+        else:
+            # Mode séparé : une série par compte cible
+            series = {}
+            for d in donnees_triees:
+                nom_compte = d['nom_compte_cible']
+                if nom_compte not in series:
+                    series[nom_compte] = [0] * len(dates_uniques)
+                # Trouver l'index de la date
+                idx = dates_uniques.index(d['date_transaction'])
+                series[nom_compte][idx] += d['montant']
+
+            return {
+                'dates': dates_uniques,
+                'series': series
+            }
+    
+    def _trouver_pas_gravitation(self, max_val: float) -> int:
+        """Détermine un pas de graduation lisible pour l'axe Y."""
+        if max_val >= 5000:
+            return 1000
+        elif max_val >= 1000:
+            return 500
+        elif max_val >= 500:
+            return 100
+        elif max_val >= 100:
+            return 50
+        elif max_val >= 50:
+            return 25
+        elif max_val >= 20:
+            return 10
+        elif max_val >= 10:
+            return 5
+        else:
+            return 1
+    
+    def generer_graphique_echanges_temporel_lignes(self, donnees_structurees: Dict, 
+                                              couleurs: List[str] = None) -> str:
+        """
+        Génère un graphique en lignes SVG avec axes Y améliorés.
+        """
+        if not donnees_structurees or not donnees_structurees['series']:
             return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée disponible.</text></svg>"
 
-        # Trier les données par date
-        donnees_triees = sorted(donnees, key=lambda x: x['date_transaction'])
-        dates = [d['date_transaction'] for d in donnees_triees]
-        montants = [float(d['montant']) for d in donnees_triees]
+        dates = donnees_structurees['dates']
+        series = donnees_structurees['series']
+        n_series = len(series)
+
+        # Gérer les couleurs
+        default_colors = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"]
+        if couleurs is None or len(couleurs) < n_series:
+            couleurs = (couleurs or []) + default_colors[len(couleurs or []):]
+        couleurs = couleurs[:n_series]
 
         # Paramètres du graphique
         largeur_svg = 800
@@ -4607,37 +4674,54 @@ class TransactionFinanciere:
         largeur_graph = largeur_svg - marge_gauche - marge_droite
         hauteur_graph = hauteur_svg - marge_haut - marge_bas
 
-        max_montant = max(montants) if montants else 1
+        # Trouver le max global pour l'échelle Y
+        max_montant = max(max(vals) for vals in series.values()) if series else 1
         if max_montant == 0:
             max_montant = 1
 
-        # Générer le SVG
         svg = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
 
-        # Axes
+        # === AXES PRINCIPAUX ===
         svg += f'<line x1="{marge_gauche}" y1="{marge_haut}" x2="{marge_gauche}" y2="{marge_haut + hauteur_graph}" stroke="black" stroke-width="2" />\n'
         svg += f'<line x1="{marge_gauche}" y1="{marge_haut + hauteur_graph}" x2="{largeur_svg - marge_droite}" y2="{marge_haut + hauteur_graph}" stroke="black" stroke-width="2" />\n'
 
-        # Points et lignes
-        points = []
-        for i, (dt, montant) in enumerate(zip(dates, montants)):
-            x = marge_gauche + (i / (len(dates) - 1 if len(dates) > 1 else 1)) * largeur_graph
-            y = marge_haut + hauteur_graph - (montant / max_montant) * hauteur_graph
-            points.append(f"{x},{y}")
-            svg += f'<circle cx="{x}" cy="{y}" r="3" fill="{couleur_ligne}" />\n'
+        # === QUADRILLAGE ET GRADUATIONS (Y) ===
+        pas = self._trouver_pas_gravitation(max_montant)
+        current_val = pas
+        while current_val <= max_montant + pas:
+            y_pos = marge_haut + hauteur_graph - (current_val / max_montant) * hauteur_graph
+            if y_pos >= marge_haut:
+                # Ligne de quadrillage
+                svg += f'<line x1="{marge_gauche}" y1="{y_pos}" x2="{largeur_svg - marge_droite}" y2="{y_pos}" stroke="#ddd" stroke-width="0.5" />\n'
+                # Label de graduation
+                svg += f'<text x="{marge_gauche - 10}" y="{y_pos + 4}" text-anchor="end" font-size="10">{int(current_val)}</text>\n'
+            current_val += pas
 
-        if len(points) > 1:
-            svg += f'<polyline points="{" ".join(points)}" fill="none" stroke="{couleur_ligne}" stroke-width="2" />\n'
+        # === TRACER LES SÉRIES ===
+        for idx, (nom_serie, valeurs) in enumerate(series.items()):
+            couleur = couleurs[idx]
+            points = []
+            for i, montant in enumerate(valeurs):
+                x = marge_gauche + (i / (len(dates) - 1 if len(dates) > 1 else 1)) * largeur_graph
+                y = marge_haut + hauteur_graph - (montant / max_montant) * hauteur_graph
+                points.append(f"{x},{y}")
+                svg += f'<circle cx="{x}" cy="{y}" r="3" fill="{couleur}" />\n'
 
-        # Labels des dates (X)
+            if len(points) > 1:
+                svg += f'<polyline points="{" ".join(points)}" fill="none" stroke="{couleur}" stroke-width="2" />\n'
+
+        # === LABELS DES DATES (X) ===
         for i, dt in enumerate(dates):
-            if i % max(1, len(dates)//10) == 0: # Pour éviter la surcharge
+            if i % max(1, len(dates)//10) == 0:
                 x = marge_gauche + (i / (len(dates) - 1 if len(dates) > 1 else 1)) * largeur_graph
                 svg += f'<text x="{x}" y="{marge_haut + hauteur_graph + 20}" text-anchor="middle" font-size="10">{dt.strftime("%d.%m")}</text>\n'
 
-        # Labels des montants (Y)
-        svg += f'<text x="{marge_gauche - 10}" y="{marge_haut + 10}" text-anchor="end" font-size="10">{max_montant:.2f}</text>\n'
-        svg += f'<text x="{marge_gauche - 10}" y="{marge_haut + hauteur_graph}" text-anchor="end" font-size="10">0</text>\n'
+        # === LÉGENDE ===
+        if n_series > 1 or list(series.keys())[0] != 'Tous les comptes':
+            for idx, nom_serie in enumerate(series.keys()):
+                y_leg = marge_haut + idx * 20
+                svg += f'<rect x="{largeur_svg - 120}" y="{y_leg}" width="15" height="10" fill="{couleurs[idx]}" />\n'
+                svg += f'<text x="{largeur_svg - 100}" y="{y_leg + 8}" font-size="12">{nom_serie}</text>\n'
 
         svg += '</svg>'
         return svg
