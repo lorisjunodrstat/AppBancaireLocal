@@ -9,6 +9,7 @@ import pymysql
 from pymysql import Error
 from decimal import Decimal
 from datetime import datetime, date, timedelta
+from database import Error
 import calendar
 import csv
 import os
@@ -971,6 +972,273 @@ class ComptePrincipal:
         except Error as e:
             logging.error(f"Erreur SQL: {e}")
             return []
+
+    def _get_daily_balances(self, compte_id: int, date_debut: date, date_fin: date, 
+                           type_transaction: str = 'total') -> Dict[date, Decimal]:
+        """
+        Calcule le solde quotidien d'un compte pour une période donnée.
+        type_transaction: 'recette', 'depense', 'total'
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Récupérer le solde initial à la date_debut
+                cursor.execute("""
+                    SELECT solde_initial FROM comptes_principaux WHERE id = %s
+                """, (compte_id,))
+                result = cursor.fetchone()
+                solde_initial = Decimal(str(result[0])) if result and result[0] else Decimal('0')
+
+                # Récupérer les transactions dans la période
+                query = """
+                    SELECT date_ecriture, montant, type_ecriture
+                    FROM ecritures_comptables
+                    WHERE compte_bancaire_id = %s 
+                      AND date_ecriture BETWEEN %s AND %s
+                      AND synchronise = TRUE
+                    ORDER BY date_ecriture
+                """
+                cursor.execute(query, (compte_id, date_debut, date_fin))
+                transactions = cursor.fetchall()
+
+                # Créer un dictionnaire pour les soldes quotidiens
+                soldes_quotidiens = {}
+                solde_courant = solde_initial
+
+                # On suppose que le solde initial s'applique à la date de début
+                soldes_quotidiens[date_debut] = solde_courant
+
+                # Traiter les transactions
+                for row in transactions:
+                    date_trans, montant, type_ecriture = row['date_ecriture'], Decimal(str(row['montant'])), row['type_ecriture']
+                    
+                    if type_transaction == 'total':
+                        if type_ecriture == 'recette':
+                            solde_courant += montant
+                        elif type_ecriture == 'depense':
+                            solde_courant -= montant
+                    elif type_ecriture == type_transaction: # 'recette' ou 'depense'
+                        if type_ecriture == 'recette':
+                            solde_courant += montant
+                        elif type_ecriture == 'depense':
+                            solde_courant -= montant
+                    else:
+                        # Pour 'recette' demandé, ignorer 'depense' et vice-versa
+                        continue
+                    
+                    # Mettre à jour le solde pour cette date
+                    if date_trans in soldes_quotidiens:
+                        soldes_quotidiens[date_trans] = solde_courant
+                    else:
+                        soldes_quotidiens[date_trans] = solde_courant
+
+                # Remplir les dates manquantes avec le dernier solde connu
+                current_date = date_debut
+                while current_date <= date_fin:
+                    if current_date not in soldes_quotidiens:
+                        # Trouver le solde le plus récent connu avant cette date
+                        latest_date_before = None
+                        for d in sorted(soldes_quotidiens.keys()):
+                            if d <= current_date:
+                                latest_date_before = d
+                            else:
+                                break
+                        if latest_date_before:
+                            soldes_quotidiens[current_date] = soldes_quotidiens[latest_date_before]
+                        else:
+                             # Si aucune date antérieure n'est trouvée, utiliser le solde initial
+                            soldes_quotidiens[current_date] = solde_initial
+                    current_date = current_date + timedelta(days=1)
+
+                return soldes_quotidiens
+
+        except Error as e:
+            logging.error(f"Erreur lors du calcul des soldes quotidiens pour le compte {compte_id}: {e}")
+            return {}
+
+    def compare_comptes_soldes(self, compte_id_1: int, compte_id_2: int, 
+                               date_debut: date, date_fin: date,
+                               type_1: str, type_2: str,
+                               couleur_1_recette: str = "#0000FF", couleur_1_depense: str = "#FF0000",
+                               couleur_2_recette: str = "#00FF00", couleur_2_depense: str = "#FF00FF") -> str:
+        """
+        Génère un graphique SVG comparant l'évolution des soldes de deux comptes.
+        """
+        from datetime import timedelta
+        import math
+
+        # Récupérer les soldes quotidiens pour chaque compte et type
+        soldes_1 = self._get_daily_balances(compte_id_1, date_debut, date_fin, type_1)
+        soldes_2 = self._get_daily_balances(compte_id_2, date_debut, date_fin, type_2)
+
+        # Trier les dates pour l'axe Y (axe des ordonnées)
+        toutes_dates = sorted(set(soldes_1.keys()) | set(soldes_2.keys()))
+        if not toutes_dates:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+
+        # Déterminer les valeurs max pour l'échelle de l'axe X
+        all_values = list(soldes_1.values()) + list(soldes_2.values())
+        if not all_values:
+             return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+        max_val = max(abs(v) for v in all_values)
+        if max_val == 0: max_val = 1 # Éviter la division par zéro
+
+        # Dimensions du graphique
+        largeur_svg, hauteur_svg = 800, 400
+        marge_gauche, marge_droite = 50, 50
+        marge_haut, marge_bas = 30, 30
+        largeur_graph = largeur_svg - marge_gauche - marge_droite
+        hauteur_graph = hauteur_svg - marge_haut - marge_bas
+
+        # Echelle pour les valeurs (axe X)
+        echelle_x = largeur_graph / (2 * max_val) # 2 * max_val pour couvrir -max à +max
+
+        # Echelle pour les dates (axe Y)
+        # On inverse l'axe Y : la date la plus ancienne (0) est en bas, la plus récente (len-1) en haut
+        nb_dates = len(toutes_dates)
+        if nb_dates <= 1:
+            pas_y = 0
+        else:
+            pas_y = hauteur_graph / (nb_dates - 1) if nb_dates > 1 else hauteur_graph
+
+        # Générer le SVG
+        svg_content = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+        
+        # Ligne centrale (valeur 0)
+        x_zero = marge_gauche + largeur_graph / 2
+        svg_content += f'<line x1="{x_zero}" y1="{marge_haut}" x2="{x_zero}" y2="{marge_haut + hauteur_graph}" stroke="#000" stroke-dasharray="4" />\n'
+
+        # Dessiner les points pour chaque date
+        for i, dt in enumerate(toutes_dates):
+            y_pos = marge_haut + hauteur_graph - (i * pas_y) # Inverser l'axe Y
+            
+            # Valeurs pour les deux comptes à cette date
+            val_1 = soldes_1.get(dt, Decimal('0'))
+            val_2 = soldes_2.get(dt, Decimal('0'))
+
+            # Calculer les positions X
+            x_1 = marge_gauche + (largeur_graph / 2) + float(val_1) * echelle_x
+            x_2 = marge_gauche + (largeur_graph / 2) + float(val_2) * echelle_x
+
+            # Choisir la couleur en fonction du type
+            color_1 = couleur_1_recette if type_1 == 'recette' else couleur_1_depense
+            color_2 = couleur_2_recette if type_2 == 'recette' else couleur_2_depense
+
+            # Dessiner les points
+            svg_content += f'<circle cx="{x_1}" cy="{y_pos}" r="3" fill="{color_1}" />\n'
+            svg_content += f'<circle cx="{x_2}" cy="{y_pos}" r="3" fill="{color_2}" />\n'
+            
+            # Optionnel : Lier les points des deux comptes pour la même date
+            svg_content += f'<line x1="{x_1}" y1="{y_pos}" x2="{x_2}" y2="{y_pos}" stroke="#ccc" stroke-dasharray="2" />\n'
+
+        # Ajouter les labels des dates sur l'axe Y
+        for i, dt in enumerate(toutes_dates):
+            y_pos = marge_haut + hauteur_graph - (i * pas_y)
+            svg_content += f'<text x="{marge_gauche - 10}" y="{y_pos + 4}" text-anchor="end" font-size="10">{dt.strftime("%d.%m")}</text>\n'
+
+        # Ajouter une légende simple
+        svg_content += f'<rect x="{largeur_svg - 120}" y="{10}" width="10" height="10" fill="{color_1}" />\n'
+        svg_content += f'<text x="{largeur_svg - 105}" y="20" font-size="12">Compte 1</text>\n'
+        svg_content += f'<rect x="{largeur_svg - 120}" y="{25}" width="10" height="10" fill="{color_2}" />\n'
+        svg_content += f'<text x="{largeur_svg - 105}" y="35" font-size="12">Compte 2</text>\n'
+
+        svg_content += '</svg>'
+
+        return svg_content
+
+    def compare_comptes_soldes_barres(self, compte_id_1: int, compte_id_2: int, 
+                                    date_debut: date, date_fin: date,
+                                    type_1: str, type_2: str,
+                                    couleur_1: str = "#0000FF", couleur_2: str = "#00FF00") -> str:
+        """
+        Génère un graphique en BARRES SVG comparant l'évolution des soldes de deux comptes.
+        """
+        from datetime import timedelta
+
+        # Récupérer les soldes quotidiens pour chaque compte et type
+        soldes_1 = self._get_daily_balances(compte_id_1, date_debut, date_fin, type_1)
+        soldes_2 = self._get_daily_balances(compte_id_2, date_debut, date_fin, type_2)
+
+        # Trier les dates
+        toutes_dates = sorted(set(soldes_1.keys()) | set(soldes_2.keys()))
+        if not toutes_dates:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+
+        # Obtenir les valeurs
+        valeurs_1 = [soldes_1.get(dt, Decimal('0')) for dt in toutes_dates]
+        valeurs_2 = [soldes_2.get(dt, Decimal('0')) for dt in toutes_dates]
+
+        # Calculer les valeurs absolues pour l'échelle Y
+        toutes_valeurs = valeurs_1 + valeurs_2
+        if not toutes_valeurs:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+        
+        max_val = max(abs(float(v)) for v in toutes_valeurs)
+        if max_val == 0:
+            max_val = 1  # Éviter la division par zéro
+
+        # --- Paramètres du graphique ---
+        largeur_svg, hauteur_svg = 900, 500
+        marge_gauche, marge_droite = 80, 40
+        marge_haut, marge_bas = 40, 80
+        largeur_graph = largeur_svg - marge_gauche - marge_droite
+        hauteur_graph = hauteur_svg - marge_haut - marge_bas
+
+        # Échelle pour les valeurs (axe Y)
+        echelle_y = hauteur_graph / (2 * max_val)  # Pour couvrir -max à +max
+
+        # Échelle pour les dates (axe X)
+        nb_dates = len(toutes_dates)
+        if nb_dates <= 1:
+            largeur_barre = largeur_graph * 0.8
+            espacement = 0
+        else:
+            largeur_barre = largeur_graph / nb_dates * 0.4  # 40% de la place pour la barre
+            espacement = largeur_graph / nb_dates - largeur_barre
+
+        svg_content = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+        
+        # Ligne centrale (valeur 0 sur l'axe Y)
+        y_zero = marge_haut + hauteur_graph / 2
+        svg_content += f'<line x1="{marge_gauche}" y1="{y_zero}" x2="{marge_gauche + largeur_graph}" y2="{y_zero}" stroke="#000" stroke-dasharray="4" />\n'
+
+        # Dessiner les barres pour chaque date
+        for i, (dt, val_1, val_2) in enumerate(zip(toutes_dates, valeurs_1, valeurs_2)):
+            # Position X centrale pour ce groupe de barres
+            x_centre = marge_gauche + (i * (largeur_barre + espacement)) + (largeur_barre + espacement) / 2
+            
+            # Barre Compte 1
+            hauteur_1 = abs(float(val_1)) * echelle_y
+            if val_1 >= 0:
+                y_1 = y_zero - hauteur_1
+            else:
+                y_1 = y_zero
+                hauteur_1 = abs(hauteur_1) # Assure que la hauteur est positive
+            svg_content += f'<rect x="{x_centre - largeur_barre}" y="{y_1}" width="{largeur_barre/2}" height="{hauteur_1}" fill="{couleur_1}" />\n'
+
+            # Barre Compte 2
+            hauteur_2 = abs(float(val_2)) * echelle_y
+            if val_2 >= 0:
+                y_2 = y_zero - hauteur_2
+            else:
+                y_2 = y_zero
+                hauteur_2 = abs(hauteur_2)
+            svg_content += f'<rect x="{x_centre - largeur_barre/2}" y="{y_2}" width="{largeur_barre/2}" height="{hauteur_2}" fill="{couleur_2}" />\n'
+
+        # Ajouter les labels des dates sur l'axe X
+        for i, dt in enumerate(toutes_dates):
+            x_centre = marge_gauche + (i * (largeur_barre + espacement)) + (largeur_barre + espacement) / 2
+            # Rotation pour les labels longs
+            svg_content += f'<text x="{x_centre}" y="{marge_haut + hauteur_graph + 20}" text-anchor="middle" font-size="10" transform="rotate(45, {x_centre}, {marge_haut + hauteur_graph + 20})">{dt.strftime("%d.%m")}</text>\n'
+
+        # Ajouter une légende simple
+        svg_content += f'<rect x="{marge_gauche}" y="{marge_haut - 25}" width="15" height="10" fill="{couleur_1}" />\n'
+        svg_content += f'<text x="{marge_gauche + 20}" y="{marge_haut - 15}" font-size="12">Compte 1 ({type_1})</text>\n'
+        svg_content += f'<rect x="{marge_gauche + 150}" y="{marge_haut - 25}" width="15" height="10" fill="{couleur_2}" />\n'
+        svg_content += f'<text x="{marge_gauche + 170}" y="{marge_haut - 15}" font-size="12">Compte 2 ({type_2})</text>\n'
+
+        svg_content += '</svg>'
+        return svg_content
+
 
 class ComptePrincipalRapport:
     def __init__(self, db):
@@ -5316,6 +5584,81 @@ class EcritureComptable:
             logging.error(f"Erreur génération compte de résultat: {e}")
             return {}
         
+    def get_ecritures_by_categorie_period(self, user_id: int, type_categorie: str = None, 
+                                        categorie_id: int = None, date_from: str = None, 
+                                        date_to: str = None, statut: str = 'validée') -> Tuple[List[Dict], float, str]:
+        """
+        Récupère les écritures par catégorie et période avec calcul du total et génération du titre
+        
+        Returns:
+            Tuple: (ecritures, total, titre)
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Construire la requête avec une jointure LEFT pour les contacts
+                query = """
+                    SELECT 
+                        e.date_ecriture,
+                        e.description,
+                        e.reference,
+                        e.montant,
+                        e.statut,
+                        e.id_contact,
+                        c.nom as categorie_nom,
+                        c.numero as categorie_numero,
+                        ct.nom as contact_nom
+                    FROM ecritures_comptables e
+                    JOIN categories_comptables c ON e.categorie_id = c.id
+                    LEFT JOIN contacts ct ON e.id_contact = ct.id_contact
+                    WHERE e.utilisateur_id = %s
+                    AND e.date_ecriture BETWEEN %s AND %s
+                    AND e.statut = %s
+                """
+                params = [user_id, date_from, date_to, statut]
+                
+                if type_categorie == 'produit':
+                    query += " AND c.type_compte = 'Revenus'"
+                elif type_categorie == 'charge':
+                    query += " AND c.type_compte = 'Charge'"
+                
+                if categorie_id and categorie_id != 'all':
+                    query += " AND e.categorie_id = %s"
+                    params.append(int(categorie_id))
+                
+                query += " ORDER BY e.date_ecriture DESC"
+                cursor.execute(query, tuple(params))
+                ecritures = cursor.fetchall()
+                
+                # Calculer le total
+                total = sum(float(e['montant']) for e in ecritures) if ecritures else 0
+                
+                # Générer le titre
+                titre = self._generate_titre_detail(cursor, type_categorie, categorie_id, ecritures, date_from[:4])
+                
+                return ecritures, total, titre
+                
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération des écritures par catégorie: {e}")
+            return [], 0, ""
+
+    def _generate_titre_detail(self, cursor, type_categorie: str, categorie_id: str, 
+                            ecritures: List[Dict], annee: str) -> str:
+        """Génère le titre pour la page de détail"""
+        if categorie_id == 'all':
+            return f"Tous les {type_categorie}s - {annee}"
+        else:
+            # Récupérer le nom de la catégorie depuis la première écriture ou depuis la base
+            if ecritures:
+                categorie_nom = ecritures[0]['categorie_nom']
+                categorie_numero = ecritures[0]['categorie_numero']
+            else:
+                # Si pas d'écritures, récupérer le nom de la catégorie directement
+                cursor.execute("SELECT nom, numero FROM categories_comptables WHERE id = %s", (int(categorie_id),))
+                categorie = cursor.fetchone()
+                categorie_nom = categorie['nom'] if categorie else "Catégorie inconnue"
+                categorie_numero = categorie['numero'] if categorie else "Numéro inconnu"
+            return f"{categorie_numero} : {categorie_nom} - {annee}"
+
     def update_statut(self, ecriture_id: int, user_id: int, statut: str) -> bool:
         """Met à jour uniquement le statut d'une écriture"""
         try:

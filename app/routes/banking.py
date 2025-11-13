@@ -8,6 +8,7 @@ from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, Tra
 from io import StringIO
 import os
 import csv as csv_mod
+
 import io
 import traceback
 import random
@@ -543,6 +544,90 @@ def banking_compte_detail(compte_id):
                         pf=pf,
                         categories_par_transaction=categories_par_transaction,
                         toutes_categories=toutes_categories)  # 🔥 NOUVEAU : Passer les catégories
+
+# --- Dans votre blueprint 'bp' ---
+from datetime import date
+
+@bp.route('/banking/comparer_soldes', methods=['GET', 'POST'])
+@login_required
+def banking_comparer_soldes():
+    """Affiche la page de sélection pour la comparaison des soldes et génère le graphique."""
+    user_id = current_user.id
+    comptes = g.models.compte_model.get_by_user_id(user_id)
+    logging.info(f'banking 557 Comptes récupérés pour la comparaison des soldes: {len(comptes)} pour l\'utilisateur {user_id}')
+    # Initialisation des variables pour le template
+    svg_code = None
+    form_data = {
+        'compte_id_1': '',
+        'compte_id_2': '',
+        'type_1': 'total',
+        'type_2': 'total',
+        'date_debut': '',
+        'date_fin': '',
+        'couleur_1_recette': '#0000FF',
+        'couleur_1_depense': '#FF0000',
+        'couleur_2_recette': '#00FF00',
+        'couleur_2_depense': '#FF00FF'
+    }
+
+    if request.method == 'POST':
+        # Récupérer les données du formulaire
+        form_data = {
+            'compte_id_1': request.form.get('compte_id_1', ''),
+            'compte_id_2': request.form.get('compte_id_2', ''),
+            'type_1': request.form.get('type_1', 'total'),
+            'type_2': request.form.get('type_2', 'total'),
+            'date_debut': request.form.get('date_debut', ''),
+            'date_fin': request.form.get('date_fin', ''),
+            'couleur_1_recette': request.form.get('couleur_1_recette', '#0000FF'),
+            'couleur_1_depense': '#FF0000', # Fixé car on n'utilise qu'une couleur par compte-type
+            'couleur_2_recette': request.form.get('couleur_2_recette', '#00FF00'),
+            'couleur_2_depense': '#FF00FF',  # Fixé car on n'utilise qu'une couleur par compte-type
+        }
+        logging
+
+        # Validation de base
+        if not all([form_data['compte_id_1'], form_data['compte_id_2'], form_data['date_debut'], form_data['date_fin']]):
+            flash('Veuillez remplir tous les champs obligatoires.', 'error')
+        else:
+            try:
+                compte_id_1 = int(form_data['compte_id_1'])
+                compte_id_2 = int(form_data['compte_id_2'])
+                date_debut = date.fromisoformat(form_data['date_debut'])
+                date_fin = date.fromisoformat(form_data['date_fin'])
+
+                if date_debut > date_fin:
+                    raise ValueError("La date de début ne peut pas être postérieure à la date de fin.")
+
+                # Vérifier que les comptes appartiennent à l'utilisateur
+                compte_1 = g.models.compte_model.get_by_id(compte_id_1)
+                compte_2 = g.models.compte_model.get_by_id(compte_id_2)
+                if not compte_1 or not compte_2 or compte_1['utilisateur_id'] != user_id or compte_2['utilisateur_id'] != user_id:
+                    raise ValueError("Un ou plusieurs comptes sont invalides ou non autorisés.")
+
+                # Générer le graphique SVG en barres
+                svg_code = g.models.compte_model.compare_comptes_soldes_barres(
+                    compte_id_1, compte_id_2,
+                    date_debut, date_fin,
+                    form_data['type_1'], form_data['type_2'],
+                    form_data['couleur_1_recette'], form_data['couleur_2_recette'] # On passe les couleurs des recettes
+                )
+
+            except (ValueError, Exception) as e:
+                logging.error(f"Erreur lors de la génération du graphique: {e}")
+                flash(f"Erreur: {str(e)}", 'error')
+
+    # Pré-remplir les dates si elles ne viennent pas du formulaire
+    if not form_data['date_fin']:
+        form_data['date_fin'] = date.today().isoformat()
+    if not form_data['date_debut']:
+        form_data['date_debut'] = (date.today() - timedelta(days=30)).isoformat()
+
+    return render_template('banking/comparer_soldes.html',
+                         comptes=comptes,
+                         form_data=form_data,
+                         svg_code=svg_code)
+
 
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required
@@ -2858,7 +2943,7 @@ def import_plan_comptable_csv():
         if file and file.filename.endswith('.csv'):
             # Lire le fichier CSV
             stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-            csv_input = csv.reader(stream)
+            csv_input = csv_mod.reader(stream)
             # Sauter l'en-tête
             next(csv_input)
             connection = g.models.g.db_manager.get_connection()
@@ -4281,93 +4366,38 @@ def compte_de_resultat():
         flash(f"Erreur lors de la génération du compte de résultat: {str(e)}", "danger")
         return redirect(url_for('banking.banking_dashboard'))
 
-@bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
+bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
 @login_required
 def detail_ecritures_categorie(type, categorie_id):
     """Affiche le détail des écritures d'une catégorie"""
     try:
         annee = request.args.get('annee', datetime.now().year)
-        logging.debug(f"DEBUG: Affichage des écritures pour l'année {annee}")
         date_from = f"{annee}-01-01"
-        logging.debug(f"DEBUG: date_from = {date_from}")
         date_to = f"{annee}-12-31"
-        logging.debug(f"DEBUG: date_to = {date_to}")
-        connection = g.models.ecriture_comptable_model.db.get_connection()
-        if not connection:
-            flash("Erreur de connexion à la base de données", "danger")
-            return redirect(url_for('banking.compte_de_resultat'))
-        try:
-            cursor = connection.cursor(dictionary=True)
-            # Construire la requête avec une jointure LEFT pour les contacts
-            query = """
-                SELECT 
-                    e.date_ecriture,
-                    e.description,
-                    e.reference,
-                    e.montant,
-                    e.statut,
-                    e.id_contact,
-                    c.nom as categorie_nom,
-                    c.numero as categorie_numero,
-                    ct.nom as contact_nom
-                FROM ecritures_comptables e
-                JOIN categories_comptables c ON e.categorie_id = c.id
-                LEFT JOIN contacts ct ON e.id_contact = ct.id_contact
-                WHERE e.utilisateur_id = %s
-                AND e.date_ecriture BETWEEN %s AND %s
-                AND e.statut = 'validée'
-            """
-            params = [current_user.id, date_from, date_to]
-            if type == 'produit':
-                query += " AND c.type_compte = 'Revenus'"
-            elif type == 'charge':
-                query += " AND c.type_compte = 'Charge'"
-            
-            if categorie_id != 'all':
-                query += " AND e.categorie_id = %s"
-                params.append(int(categorie_id))
-            query += " ORDER BY e.date_ecriture DESC"
-            cursor.execute(query, tuple(params))
-            ecritures = cursor.fetchall()
-            logging.info(f"INFO: {len(ecritures)} écritures récupérées pour le détail : {ecritures}")
-            # Calculer le total
-            total = sum(float(e['montant']) for e in ecritures)
-            # Titre de la page
-            if categorie_id == 'all':
-                titre = f"Tous les {type}s - {annee}"
-            else:
-                # Récupérer le nom de la catégorie depuis la première écriture ou depuis la base
-                if ecritures:
-                    categorie_nom = ecritures[0]['categorie_nom']
-                    categorie_numero = ecritures[0]['categorie_numero']  # Récupérer aussi le numéro depuis les écritures
-                else:
-                    # Si pas d'écritures, récupérer le nom de la catégorie directement
-                    cursor.execute("SELECT nom, numero FROM categories_comptables WHERE id = %s", (int(categorie_id),))  # Correction ici
-                    categorie = cursor.fetchone()
-                    categorie_nom = categorie['nom'] if categorie else "Catégorie inconnue"
-                    categorie_numero = categorie['numero'] if categorie else "Numéro inconnu"
-                titre = f"{categorie_numero} : {categorie_nom} - {annee}"
-            cursor.close()
-            connection.close()
-            return render_template('comptabilite/detail_ecritures.html',
-                                ecritures=ecritures,
-                                total=total,
-                                titre=titre,
-                                annee=annee,
-                                type=type)
         
-        except Exception as e:
-            print(f"Erreur lors du chargement des détails: {e}")
-            flash(f"Erreur lors du chargement des détails: {str(e)}", "danger")
-            return redirect(url_for('banking.compte_de_resultat'))
-        finally:
-            if connection:
-                connection.close()
+        # Utiliser la méthode de la classe EcritureComptable
+        ecritures, total, titre = g.models.ecriture_comptable_model.get_ecritures_by_categorie_period(
+            user_id=current_user.id,
+            type_categorie=type,
+            categorie_id=categorie_id,
+            date_from=date_from,
+            date_to=date_to,
+            statut='validée'
+        )
+        
+        logging.info(f"INFO: {len(ecritures)} écritures récupérées pour le détail")
+        
+        return render_template('comptabilite/detail_ecritures.html',
+                            ecritures=ecritures,
+                            total=total,
+                            titre=titre,
+                            annee=annee,
+                            type=type)
     
     except Exception as e:
+        logging.error(f"Erreur lors du chargement des détails: {e}")
         flash(f"Erreur lors du chargement des détails: {str(e)}", "danger")
         return redirect(url_for('banking.compte_de_resultat'))
-
 @bp.route('/comptabilite/ecritures/compte-resultat')
 @login_required
 def get_ecritures_compte_resultat():
