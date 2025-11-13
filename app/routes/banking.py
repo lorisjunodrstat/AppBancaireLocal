@@ -696,6 +696,62 @@ def banking_compte_top_echanges(compte_id):
                          direction=direction,
                          limite=limite)
 
+@bp.route('/banking/compte/<int:compte_id>/evolution_echanges', methods=['GET', 'POST'])
+@login_required
+def banking_compte_evolution_echanges(compte_id):
+    """Affiche l'évolution des transactions avec des comptes spécifiques."""
+    user_id = current_user.id
+    compte_source = g.models.compte_model.get_by_id(compte_id)
+    if not compte_source or compte_source['utilisateur_id'] != user_id:
+        flash('Compte non trouvé ou non autorisé', 'error')
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Récupérer la liste des comptes avec lesquels il a échangé (pour le sélecteur)
+    top_comptes = g.models.transaction_financiere_model.get_top_comptes_echanges(
+        compte_id, user_id, 
+        (date.today() - timedelta(days=365)).isoformat(), 
+        date.today().isoformat(), 
+        'tous', 
+        20
+    )
+    comptes_cibles_possibles = top_comptes
+
+    # Valeurs par défaut
+    date_debut = (date.today() - timedelta(days=90)).isoformat()
+    date_fin = date.today().isoformat()
+    comptes_cibles_ids = []
+    type_graphique = 'lignes'
+    couleur = '#4e79a7'
+
+    svg_code = None
+    if request.method == 'POST':
+        date_debut = request.form.get('date_debut', date_debut)
+        date_fin = request.form.get('date_fin', date_fin)
+        comptes_cibles_ids = request.form.getlist('comptes_cibles')
+        type_graphique = request.form.get('type_graphique', 'lignes')
+        couleur = request.form.get('couleur', '#4e79a7')
+
+        if comptes_cibles_ids:
+            # Récupérer les données
+            donnees = g.models.transaction_financiere_model.get_transactions_avec_comptes(
+                compte_id, user_id, comptes_cibles_ids, date_debut, date_fin
+            )
+            # Générer le graphique
+            if type_graphique == 'barres':
+                svg_code = g.models.transaction_financiere_model.generer_graphique_echanges_temporel_barres(donnees, couleur)
+            else:
+                svg_code = g.models.transaction_financiere_model.generer_graphique_echanges_temporel_lignes(donnees, couleur)
+
+    return render_template('banking/compte_evolution_echanges.html',
+                         compte_source=compte_source,
+                         comptes_cibles_possibles=comptes_cibles_possibles,
+                         svg_code=svg_code,
+                         date_debut=date_debut,
+                         date_fin=date_fin,
+                         comptes_cibles_ids=comptes_cibles_ids,
+                         type_graphique=type_graphique,
+                         couleur=couleur)
+
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required
 def create_periode_favorite(compte_id):
