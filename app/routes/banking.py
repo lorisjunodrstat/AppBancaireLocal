@@ -545,16 +545,24 @@ def banking_compte_detail(compte_id):
                         categories_par_transaction=categories_par_transaction,
                         toutes_categories=toutes_categories)  # 🔥 NOUVEAU : Passer les catégories
 
-# --- Dans votre blueprint 'bp' ---
-from datetime import date
 
 @bp.route('/banking/comparer_soldes', methods=['GET', 'POST'])
 @login_required
 def banking_comparer_soldes():
+    logging.info("Début de la route banking_comparer_soldes")
     """Affiche la page de sélection pour la comparaison des soldes et génère le graphique."""
     user_id = current_user.id
-    comptes = g.models.compte_model.get_by_user_id(user_id)
-    logging.info(f'banking 557 Comptes récupérés pour la comparaison des soldes: {len(comptes)} pour l\'utilisateur {user_id}')
+    logging.info(f"Utilisateur connecté: {user_id}")
+
+    try:
+        logging.info("Récupération des comptes de l'utilisateur...")
+        comptes = g.models.compte_model.get_by_user_id(user_id)
+        logging.info(f'banking 557 Comptes récupérés pour la comparaison des soldes: {len(comptes)} pour l\'utilisateur {user_id}')
+    except Exception as e:
+        logging.error(f"Erreur lors de la récupération des comptes: {e}")
+        flash("Erreur lors du chargement des comptes.", 'error')
+        return render_template('banking/comparer_soldes.html', comptes=[], form_data={}, svg_code=None)
+
     # Initialisation des variables pour le template
     svg_code = None
     form_data = {
@@ -569,8 +577,10 @@ def banking_comparer_soldes():
         'couleur_2_recette': '#00FF00',
         'couleur_2_depense': '#FF00FF'
     }
+    logging.info("Variables initiales définies.")
 
     if request.method == 'POST':
+        logging.info("Requête POST reçue.")
         # Récupérer les données du formulaire
         form_data = {
             'compte_id_1': request.form.get('compte_id_1', ''),
@@ -584,50 +594,67 @@ def banking_comparer_soldes():
             'couleur_2_recette': request.form.get('couleur_2_recette', '#00FF00'),
             'couleur_2_depense': '#FF00FF',  # Fixé car on n'utilise qu'une couleur par compte-type
         }
-        logging
+        logging.info(f"Données du formulaire récupérées: {form_data}")
 
         # Validation de base
         if not all([form_data['compte_id_1'], form_data['compte_id_2'], form_data['date_debut'], form_data['date_fin']]):
+            logging.warning("Formulaire incomplet.")
             flash('Veuillez remplir tous les champs obligatoires.', 'error')
         else:
+            logging.info("Formulaire complet, début du traitement...")
             try:
+                logging.info("Conversion des IDs et des dates...")
                 compte_id_1 = int(form_data['compte_id_1'])
                 compte_id_2 = int(form_data['compte_id_2'])
                 date_debut = date.fromisoformat(form_data['date_debut'])
                 date_fin = date.fromisoformat(form_data['date_fin'])
+                logging.info(f"IDs et dates convertis. C1: {compte_id_1}, C2: {compte_id_2}, Du: {date_debut}, Au: {date_fin}")
 
                 if date_debut > date_fin:
+                    logging.error("Erreur: La date de début est postérieure à la date de fin.")
                     raise ValueError("La date de début ne peut pas être postérieure à la date de fin.")
 
                 # Vérifier que les comptes appartiennent à l'utilisateur
+                logging.info("Vérification de l'appartenance des comptes...")
                 compte_1 = g.models.compte_model.get_by_id(compte_id_1)
                 compte_2 = g.models.compte_model.get_by_id(compte_id_2)
                 if not compte_1 or not compte_2 or compte_1['utilisateur_id'] != user_id or compte_2['utilisateur_id'] != user_id:
+                    logging.error("Erreur: Un ou plusieurs comptes sont invalides ou non autorisés.")
                     raise ValueError("Un ou plusieurs comptes sont invalides ou non autorisés.")
 
                 # Générer le graphique SVG en barres
+                logging.info("Appel de la méthode compare_comptes_soldes_barres...")
                 svg_code = g.models.transaction_financiere_model.compare_comptes_soldes_barres(
                     compte_id_1, compte_id_2,
                     date_debut, date_fin,
                     form_data['type_1'], form_data['type_2'],
                     form_data['couleur_1_recette'], form_data['couleur_2_recette'] # On passe les couleurs des recettes
                 )
+                logging.info("Graphique SVG généré avec succès.")
 
             except (ValueError, Exception) as e:
-                logging.error(f"Erreur lors de la génération du graphique: {e}")
+                logging.error(f"Erreur lors de la génération du graphique: {e}", exc_info=True) # exc_info=True pour avoir la stack trace
                 flash(f"Erreur: {str(e)}", 'error')
 
     # Pré-remplir les dates si elles ne viennent pas du formulaire
     if not form_data['date_fin']:
         form_data['date_fin'] = date.today().isoformat()
+        logging.info(f"Date de fin par défaut: {form_data['date_fin']}")
     if not form_data['date_debut']:
         form_data['date_debut'] = (date.today() - timedelta(days=30)).isoformat()
+        logging.info(f"Date de début par défaut: {form_data['date_debut']}")
 
-    return render_template('banking/comparer_soldes.html',
-                        comptes=comptes,
-                        form_data=form_data,
-                        svg_code=svg_code)
-
+    logging.info("Rendu du template comparer_soldes.html.")
+    try:
+        return render_template('banking/comparer_soldes.html',
+                            comptes=comptes,
+                            form_data=form_data,
+                            svg_code=svg_code)
+    except Exception as e:
+        logging.error(f"Erreur lors du rendu du template: {e}", exc_info=True)
+        # Retourner une page d'erreur simple ou un message
+        flash("Une erreur est survenue lors de l'affichage de la page.", 'error')
+        return render_template('banking/comparer_soldes.html', comptes=[], form_data={}, svg_code=None)
 
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required
