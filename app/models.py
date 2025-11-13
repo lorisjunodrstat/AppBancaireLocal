@@ -3923,7 +3923,7 @@ class TransactionFinanciere:
                 logging.error(f"Erreur dans _get_daily_balances (compte {compte_id}): {e}")
                 return {}
 
-    def compare_comptes_soldes_barres(self, compte_id_1: int, compte_id_2: int, 
+    def compare_comptes_soldes_barres_horizontales(self, compte_id_1: int, compte_id_2: int, 
                                     date_debut: date, date_fin: date,
                                     type_1: str, type_2: str,
                                     couleur_1: str = "#0000FF", couleur_2: str = "#00FF00") -> str:
@@ -4017,7 +4017,7 @@ class TransactionFinanciere:
         svg_content += '</svg>'
         return svg_content
 
-    def compare_comptes_soldes(self, compte_id_1: int, compte_id_2: int, 
+    def compare_comptes_soldes_horizontales(self, compte_id_1: int, compte_id_2: int, 
                                date_debut: date, date_fin: date,
                                type_1: str, type_2: str,
                                couleur_1_recette: str = "#0000FF", couleur_1_depense: str = "#FF0000",
@@ -4106,6 +4106,100 @@ class TransactionFinanciere:
 
         return svg_content
 
+    def compare_comptes_soldes_barres(self, compte_id_1: int, compte_id_2: int,
+                                    date_debut: date, date_fin: date,
+                                    type_1: str, type_2: str,
+                                    couleur_1: str = "#0000FF", couleur_2: str = "#00FF00") -> str:
+        """
+        Génère un graphique en BARRES SVG comparant l'évolution des soldes de deux comptes.
+        Axe X horizontal : valeurs des soldes (compte 1 à gauche, compte 2 à droite, axe Y au centre)
+        Axe Y vertical descendant : dates (sur le côté gauche)
+        """
+        from datetime import timedelta
+
+        # Récupérer les soldes quotidiens pour chaque compte et type
+        soldes_1 = self._get_daily_balances(compte_id_1, date_debut, date_fin, type_1)
+        soldes_2 = self._get_daily_balances(compte_id_2, date_debut, date_fin, type_2)
+
+        # Trier les dates
+        toutes_dates = sorted(set(soldes_1.keys()) | set(soldes_2.keys()))
+        if not toutes_dates:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+
+        # Obtenir les valeurs
+        valeurs_1 = [soldes_1.get(dt, Decimal('0')) for dt in toutes_dates]
+        valeurs_2 = [soldes_2.get(dt, Decimal('0')) for dt in toutes_dates]
+
+        # Calculer les valeurs absolues pour l'échelle X
+        toutes_valeurs = valeurs_1 + valeurs_2
+        if not toutes_valeurs:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+
+        max_val = max(abs(float(v)) for v in toutes_valeurs)
+        if max_val == 0:
+            max_val = 1  # Éviter la division par zéro
+
+        # --- Paramètres du graphique ---
+        largeur_svg, hauteur_svg = 900, 500
+        marge_gauche, marge_droite = 120, 40  # Augmenter la marge gauche pour les labels de dates
+        marge_haut, marge_bas = 40, 40
+        largeur_graph = largeur_svg - marge_gauche - marge_droite
+        hauteur_graph = hauteur_svg - marge_haut - marge_bas
+
+        # Échelle pour les valeurs (axe X)
+        echelle_x = largeur_graph / (2 * max_val)  # Pour couvrir -max à +max
+
+        # Échelle pour les dates (axe Y)
+        nb_dates = len(toutes_dates)
+        if nb_dates <= 1:
+            hauteur_barre = hauteur_graph * 0.8
+            espacement = 0
+        else:
+            hauteur_barre = hauteur_graph / nb_dates * 0.8  # 80% de la place pour la barre
+            espacement = hauteur_graph / nb_dates - hauteur_barre
+
+        svg_content = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+
+        # Ligne centrale (valeur 0 sur l'axe X)
+        x_zero = marge_gauche + largeur_graph / 2
+        svg_content += f'<line x1="{x_zero}" y1="{marge_haut}" x2="{x_zero}" y2="{marge_haut + hauteur_graph}" stroke="#000" stroke-dasharray="4" />\n'
+
+        # Dessiner les barres pour chaque date
+        for i, (dt, val_1, val_2) in enumerate(zip(toutes_dates, valeurs_1, valeurs_2)):
+            # Position Y centrale pour ce groupe de barres
+            y_centre = marge_haut + (i * (hauteur_barre + espacement)) + (hauteur_barre + espacement) / 2
+
+            # Barre Compte 1 (à gauche de l'axe Y)
+            largeur_1 = abs(float(val_1)) * echelle_x
+            if val_1 >= 0:
+                x_1 = x_zero # Commence à l'axe Y
+                largeur_1 = -largeur_1 # Barre vers la gauche
+            else:
+                x_1 = x_zero + float(val_1) * echelle_x # Commence à la position négative
+            svg_content += f'<rect x="{x_1 + largeur_1}" y="{y_centre - hauteur_barre/2}" width="{abs(largeur_1)}" height="{hauteur_barre}" fill="{couleur_1}" />\n'
+
+            # Barre Compte 2 (à droite de l'axe Y)
+            largeur_2 = abs(float(val_2)) * echelle_x
+            if val_2 >= 0:
+                x_2 = x_zero # Commence à l'axe Y
+            else:
+                x_2 = x_zero + float(val_2) * echelle_x # Commence à la position négative
+                largeur_2 = -largeur_2 # Barre vers la gauche
+            svg_content += f'<rect x="{x_2}" y="{y_centre - hauteur_barre/2}" width="{abs(largeur_2)}" height="{hauteur_barre}" fill="{couleur_2}" />\n'
+
+        # Ajouter les labels des dates sur l'axe Y (à gauche)
+        for i, dt in enumerate(toutes_dates):
+            y_centre = marge_haut + (i * (hauteur_barre + espacement)) + (hauteur_barre + espacement) / 2
+            svg_content += f'<text x="{marge_gauche - 10}" y="{y_centre}" text-anchor="end" dominant-baseline="middle" font-size="10">{dt.strftime("%d.%m")}</text>\n'
+
+        # Ajouter une légende simple
+        svg_content += f'<rect x="{marge_gauche}" y="{marge_haut - 25}" width="15" height="10" fill="{couleur_1}" />\n'
+        svg_content += f'<text x="{marge_gauche + 20}" y="{marge_haut - 15}" font-size="12">Compte 1 ({type_1})</text>\n'
+        svg_content += f'<rect x="{marge_gauche + 150}" y="{marge_haut - 25}" width="15" height="10" fill="{couleur_2}" />\n'
+        svg_content += f'<text x="{marge_gauche + 170}" y="{marge_haut - 15}" font-size="12">Compte 2 ({type_2})</text>\n'
+
+        svg_content += '</svg>'
+        return svg_content
 
 
 class CategorieTransaction:
