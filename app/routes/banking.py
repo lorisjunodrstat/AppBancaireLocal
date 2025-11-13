@@ -4024,20 +4024,47 @@ def edit_ecriture(ecriture_id):
                         # CORRECTION: Utiliser 'contacts' au lieu de 'Contacts'
                         contacts=contacts)
 
+#@bp.route('/comptabilite/ecritures/<int:ecriture_id>/delete', methods=['POST'])
+#@login_required
+#def delete_ecriture(ecriture_id):
+#    """Supprime une écriture comptable"""
+#   ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
+#    if not ecriture or ecriture['utilisateur_id'] != current_user.id:
+#        flash('Écriture introuvable ou non autorisée', 'danger')
+#        return redirect(url_for('banking.liste_ecritures'))  
+#    if g.models.ecriture_comptable_model.delete(ecriture_id):
+#        flash('Écriture supprimée avec succès', 'success')
+#    else:
+#        flash('Erreur lors de la suppression', 'danger')    
+#    return redirect(url_for('banking.liste_ecritures'))
+
+# Route pour la suppression normale (soft delete)
 @bp.route('/comptabilite/ecritures/<int:ecriture_id>/delete', methods=['POST'])
 @login_required
 def delete_ecriture(ecriture_id):
-    """Supprime une écriture comptable"""
-    ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
-    if not ecriture or ecriture['utilisateur_id'] != current_user.id:
-        flash('Écriture introuvable ou non autorisée', 'danger')
-        return redirect(url_for('banking.liste_ecritures'))  
-    if g.models.ecriture_comptable_model.delete(ecriture_id):
-        flash('Écriture supprimée avec succès', 'success')
+    """Supprime une écriture comptable (soft delete)"""
+    success, message = g.models.ecriture_comptable_model.delete_soft(ecriture_id, current_user.id, soft_delete=True)
+    
+    if success:
+        flash(message, 'success')
     else:
-        flash('Erreur lors de la suppression', 'danger')    
+        flash(message, 'danger')
+    
     return redirect(url_for('banking.liste_ecritures'))
 
+# Route pour la suppression définitive (hard delete)
+@bp.route('/comptabilite/ecritures/<int:ecriture_id>/delete/hard', methods=['POST'])
+@login_required
+def hard_delete_ecriture(ecriture_id):
+    """Supprime définitivement une écriture comptable"""
+    success, message = g.models.ecriture_comptable_model.delete_hard(ecriture_id, current_user.id)
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'danger')
+    
+    return redirect(url_for('banking.liste_ecritures'))
 # Ajouter une route pour lier une transaction à une écriture
 @bp.route('/banking/link_transaction_to_ecritures', methods=['POST'])
 @login_required

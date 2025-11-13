@@ -257,6 +257,28 @@
                                     {{ transaction.date_transaction.strftime('%d.%m.%Y') }}
                                 </div>
                             </div>
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <label for="contact_multiple{{ transaction.id }}" class="form-label">Contact principal</label>
+                                    <select id="contact_multiple{{ transaction.id }}" name="contact_id" class="form-select">
+                                        <option value="">Aucun contact</option>
+                                        {% for contact in contacts %}
+                                        <option value="{{ contact.id_contact }}" {% if contact_lie and contact_lie.contact_id==contact.id_contact
+                                            %}selected{% endif %}>
+                                            {{ contact.nom }} {% if contact.email %}({{ contact.email }}){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">
+                                        {% if contact_lie %}
+                                        <i class="bi bi-info-circle text-primary"></i> Contact lié au compte détecté : <strong>{{ contact_lie.nom
+                                            }}</strong>
+                                        {% else %}
+                                        <i class="bi bi-info-circle text-muted"></i> Aucun contact lié à ce compte
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
