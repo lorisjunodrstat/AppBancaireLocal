@@ -4329,6 +4329,7 @@ def detail_ecritures_categorie(type, categorie_id):
             query += " ORDER BY e.date_ecriture DESC"
             cursor.execute(query, tuple(params))
             ecritures = cursor.fetchall()
+            logging.info(f"INFO: {len(ecritures)} écritures récupérées pour le détail : {ecritures}")
             # Calculer le total
             total = sum(float(e['montant']) for e in ecritures)
             # Titre de la page
