@@ -4279,7 +4279,7 @@ def compte_de_resultat():
                             annees_disponibles=annees_disponibles)  
     except Exception as e:
         flash(f"Erreur lors de la génération du compte de résultat: {str(e)}", "danger")
-        return redirect(url_for('banking.dashboard'))
+        return redirect(url_for('banking.banking_dashboard'))
 
 @bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
 @login_required

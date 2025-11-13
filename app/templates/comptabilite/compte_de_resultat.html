@@ -129,7 +129,7 @@
                                 <td>{{ charge.categorie_nom }}</td>
                                 <td class="text-end">{{ "%.2f"|format(charge.montant) }}</td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('detail_ecritures_categorie', 
+                                    <a href="{{ url_for('banking.detail_ecritures_categorie', 
                                         annee=annee_selectionnee, 
                                         type='charge', 
                                         categorie_id=charge.categorie_id) }}" class="btn btn-sm btn-outline-info">
@@ -145,7 +145,7 @@
                             <tr class="table-danger">
                                 <td colspan="2" class="fw-bold">TOTAL CHARGES</td>
                                 <td class="text-end fw-bold">
-                                    <a href="{{ url_for('detail_ecritures_categorie', 
+                                    <a href="{{ url_for('banking.detail_ecritures_categorie', 
                                         annee=annee_selectionnee, 
                                         type='charge', 
                                         categorie_id='all') }}" class="text-decoration-none text-dark">
