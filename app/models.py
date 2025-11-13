@@ -3839,179 +3839,90 @@ class TransactionFinanciere:
             return []
 
     def _get_daily_balances(self, compte_id: int, date_debut: date, date_fin: date,
-                        type_transaction: str = 'total') -> Dict[date, Decimal]:
-        """
-        Retourne les soldes ou flux quotidiens d'un compte principal.
-        type_transaction:
-        - 'total'   → solde journalier (solde_final après chaque jour)
-        - 'recette' → total des recettes quotidiennes
-        - 'depense' → total des dépenses quotidiennes
-        """
-        try:
-            with self.db.get_cursor() as cursor:
-                # 1. Récupérer le solde initial
-                cursor.execute("SELECT solde_initial FROM comptes_principaux WHERE id = %s", (compte_id,))
-                row = cursor.fetchone()
-                solde_initial = Decimal(str(row['solde_initial'])) if row and row['solde_initial'] is not None else Decimal('0')
+                            type_transaction: str = 'total') -> Dict[date, Decimal]:
+            """
+            Retourne les soldes ou flux quotidiens d'un compte principal.
+            type_transaction:
+            - 'total'   → solde journalier (solde_final après chaque jour)
+            - 'recette' → total des recettes quotidiennes
+            - 'depense' → total des dépenses quotidiennes
+            """
+            try:
+                with self.db.get_cursor() as cursor:
+                    # 1. Récupérer le solde initial
+                    cursor.execute("SELECT solde_initial FROM comptes_principaux WHERE id = %s", (compte_id,))
+                    row = cursor.fetchone()
+                    solde_initial = Decimal(str(row['solde_initial'])) if row and row['solde_initial'] is not None else Decimal('0')
 
-                # 2. Récupérer TOUTES les transactions du compte dans la période
-                cursor.execute("""
-                    SELECT date_transaction, montant, type_transaction
-                    FROM transactions
-                    WHERE compte_principal_id = %s
-                    AND date_transaction >= %s
-                    AND date_transaction <= %s
-                    ORDER BY date_transaction ASC
-                """, (compte_id, date_debut, date_fin))
-                txns = cursor.fetchall()
+                    # 2. Récupérer TOUTES les transactions du compte dans la période
+                    cursor.execute("""
+                        SELECT date_transaction, montant, type_transaction
+                        FROM transactions
+                        WHERE compte_principal_id = %s
+                        AND date_transaction >= %s
+                        AND date_transaction <= %s
+                        ORDER BY date_transaction ASC
+                    """, (compte_id, date_debut, date_fin))
+                    txns = cursor.fetchall()
 
-                # 3. Préparer structure par date
-                recettes_par_jour = {}
-                depenses_par_jour = {}
-                solde_par_jour = {}
+                    # 3. Préparer structure par date
+                    recettes_par_jour = {}
+                    depenses_par_jour = {}
+                    solde_par_jour = {}
 
-                # Initialiser le solde courant
-                solde_courant = solde_initial
+                    # Initialiser le solde courant
+                    solde_courant = solde_initial
 
-                # Si on demande 'total', le solde_initial s'applique à date_debut
-                if type_transaction == 'total':
-                    solde_par_jour[date_debut] = solde_initial
-
-                # 4. Parcourir les transactions
-                for tx in txns:
-                    tx_date = tx['date_transaction'].date()
-                    montant = Decimal(str(tx['montant']))
-                    tx_type = tx['type_transaction']
-
-                    # Classifier la transaction
-                    if tx_type in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
-                        # → Recette
-                        recettes_par_jour[tx_date] = recettes_par_jour.get(tx_date, Decimal('0')) + montant
-                        solde_courant += montant
-                    elif tx_type in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']:
-                        # → Dépense
-                        depenses_par_jour[tx_date] = depenses_par_jour.get(tx_date, Decimal('0')) + montant
-                        solde_courant -= montant
-                    else:
-                        logging.warning(f"Type de transaction inconnu : {tx_type}")
-                        continue
-
-                    # Enregistrer le solde à cette date
+                    # Si on demande 'total', le solde_initial s'applique à date_debut
                     if type_transaction == 'total':
-                        solde_par_jour[tx_date] = solde_courant
+                        solde_par_jour[date_debut] = solde_initial
 
-                # 5. Remplir les jours manquants (report de solde ou zéro pour flux)
-                current = date_debut
-                result = {}
-                last_solde = solde_initial
+                    # 4. Parcourir les transactions
+                    for tx in txns:
+                        tx_date = tx['date_transaction'].date()
+                        montant = Decimal(str(tx['montant']))
+                        tx_type = tx['type_transaction']
 
-                while current <= date_fin:
-                    if type_transaction == 'total':
-                        if current in solde_par_jour:
-                            last_solde = solde_par_jour[current]
-                        result[current] = last_solde
-                    elif type_transaction == 'recette':
-                        result[current] = recettes_par_jour.get(current, Decimal('0'))
-                    elif type_transaction == 'depense':
-                        result[current] = depenses_par_jour.get(current, Decimal('0'))
-                    else:
-                        result[current] = Decimal('0')
-                    current += timedelta(days=1)
+                        # Classifier la transaction
+                        if tx_type in ['depot', 'transfert_entrant', 'recredit_annulation', 'transfert_sous_vers_compte']:
+                            # → Recette
+                            recettes_par_jour[tx_date] = recettes_par_jour.get(tx_date, Decimal('0')) + montant
+                            solde_courant += montant
+                        elif tx_type in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']:
+                            # → Dépense
+                            depenses_par_jour[tx_date] = depenses_par_jour.get(tx_date, Decimal('0')) + montant
+                            solde_courant -= montant
+                        else:
+                            logging.warning(f"Type de transaction inconnu : {tx_type}")
+                            continue
 
-                return result
+                        # Enregistrer le solde à cette date
+                        if type_transaction == 'total':
+                            solde_par_jour[tx_date] = solde_courant
 
-        except Exception as e:
-            logging.error(f"Erreur dans _get_daily_balances (compte {compte_id}): {e}")
-            return {}
+                    # 5. Remplir les jours manquants (report de solde ou zéro pour flux)
+                    current = date_debut
+                    result = {}
+                    last_solde = solde_initial
 
-    def compare_comptes_soldes(self, compte_id_1: int, compte_id_2: int, 
-                               date_debut: date, date_fin: date,
-                               type_1: str, type_2: str,
-                               couleur_1_recette: str = "#0000FF", couleur_1_depense: str = "#FF0000",
-                               couleur_2_recette: str = "#00FF00", couleur_2_depense: str = "#FF00FF") -> str:
-        """
-        Génère un graphique SVG comparant l'évolution des soldes de deux comptes.
-        """
-     
+                    while current <= date_fin:
+                        if type_transaction == 'total':
+                            if current in solde_par_jour:
+                                last_solde = solde_par_jour[current]
+                            result[current] = last_solde
+                        elif type_transaction == 'recette':
+                            result[current] = recettes_par_jour.get(current, Decimal('0'))
+                        elif type_transaction == 'depense':
+                            result[current] = depenses_par_jour.get(current, Decimal('0'))
+                        else:
+                            result[current] = Decimal('0')
+                        current += timedelta(days=1)
 
-        # Récupérer les soldes quotidiens pour chaque compte et type
-        soldes_1 = self._get_daily_balances(compte_id_1, date_debut, date_fin, type_1)
-        soldes_2 = self._get_daily_balances(compte_id_2, date_debut, date_fin, type_2)
+                    return result
 
-        # Trier les dates pour l'axe Y (axe des ordonnées)
-        toutes_dates = sorted(set(soldes_1.keys()) | set(soldes_2.keys()))
-        if not toutes_dates:
-            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
-
-        # Déterminer les valeurs max pour l'échelle de l'axe X
-        all_values = list(soldes_1.values()) + list(soldes_2.values())
-        if not all_values:
-             return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
-        max_val = max(abs(v) for v in all_values)
-        if max_val == 0: max_val = 1 # Éviter la division par zéro
-
-        # Dimensions du graphique
-        largeur_svg, hauteur_svg = 800, 400
-        marge_gauche, marge_droite = 50, 50
-        marge_haut, marge_bas = 30, 30
-        largeur_graph = largeur_svg - marge_gauche - marge_droite
-        hauteur_graph = hauteur_svg - marge_haut - marge_bas
-
-        # Echelle pour les valeurs (axe X)
-        echelle_x = largeur_graph / (2 * max_val) # 2 * max_val pour couvrir -max à +max
-
-        # Echelle pour les dates (axe Y)
-        # On inverse l'axe Y : la date la plus ancienne (0) est en bas, la plus récente (len-1) en haut
-        nb_dates = len(toutes_dates)
-        if nb_dates <= 1:
-            pas_y = 0
-        else:
-            pas_y = hauteur_graph / (nb_dates - 1) if nb_dates > 1 else hauteur_graph
-
-        # Générer le SVG
-        svg_content = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
-        
-        # Ligne centrale (valeur 0)
-        x_zero = marge_gauche + largeur_graph / 2
-        svg_content += f'<line x1="{x_zero}" y1="{marge_haut}" x2="{x_zero}" y2="{marge_haut + hauteur_graph}" stroke="#000" stroke-dasharray="4" />\n'
-
-        # Dessiner les points pour chaque date
-        for i, dt in enumerate(toutes_dates):
-            y_pos = marge_haut + hauteur_graph - (i * pas_y) # Inverser l'axe Y
-            
-            # Valeurs pour les deux comptes à cette date
-            val_1 = soldes_1.get(dt, Decimal('0'))
-            val_2 = soldes_2.get(dt, Decimal('0'))
-
-            # Calculer les positions X
-            x_1 = marge_gauche + (largeur_graph / 2) + float(val_1) * echelle_x
-            x_2 = marge_gauche + (largeur_graph / 2) + float(val_2) * echelle_x
-
-            # Choisir la couleur en fonction du type
-            color_1 = couleur_1_recette if type_1 == 'recette' else couleur_1_depense
-            color_2 = couleur_2_recette if type_2 == 'recette' else couleur_2_depense
-
-            # Dessiner les points
-            svg_content += f'<circle cx="{x_1}" cy="{y_pos}" r="3" fill="{color_1}" />\n'
-            svg_content += f'<circle cx="{x_2}" cy="{y_pos}" r="3" fill="{color_2}" />\n'
-            
-            # Optionnel : Lier les points des deux comptes pour la même date
-            svg_content += f'<line x1="{x_1}" y1="{y_pos}" x2="{x_2}" y2="{y_pos}" stroke="#ccc" stroke-dasharray="2" />\n'
-
-        # Ajouter les labels des dates sur l'axe Y
-        for i, dt in enumerate(toutes_dates):
-            y_pos = marge_haut + hauteur_graph - (i * pas_y)
-            svg_content += f'<text x="{marge_gauche - 10}" y="{y_pos + 4}" text-anchor="end" font-size="10">{dt.strftime("%d.%m")}</text>\n'
-
-        # Ajouter une légende simple
-        svg_content += f'<rect x="{largeur_svg - 120}" y="{10}" width="10" height="10" fill="{color_1}" />\n'
-        svg_content += f'<text x="{largeur_svg - 105}" y="20" font-size="12">Compte 1</text>\n'
-        svg_content += f'<rect x="{largeur_svg - 120}" y="{25}" width="10" height="10" fill="{color_2}" />\n'
-        svg_content += f'<text x="{largeur_svg - 105}" y="35" font-size="12">Compte 2</text>\n'
-
-        svg_content += '</svg>'
-
-        return svg_content
+            except Exception as e:
+                logging.error(f"Erreur dans _get_daily_balances (compte {compte_id}): {e}")
+                return {}
 
     def compare_comptes_soldes_barres(self, compte_id_1: int, compte_id_2: int, 
                                     date_debut: date, date_fin: date,
@@ -4105,6 +4016,95 @@ class TransactionFinanciere:
         svg_content += f'<text x="{marge_gauche + 170}" y="{marge_haut - 15}" font-size="12">Compte 2 ({type_2})</text>\n'
 
         svg_content += '</svg>'
+        return svg_content
+
+    def compare_comptes_soldes(self, compte_id_1: int, compte_id_2: int, 
+                               date_debut: date, date_fin: date,
+                               type_1: str, type_2: str,
+                               couleur_1_recette: str = "#0000FF", couleur_1_depense: str = "#FF0000",
+                               couleur_2_recette: str = "#00FF00", couleur_2_depense: str = "#FF00FF") -> str:
+        """
+        Génère un graphique SVG comparant l'évolution des soldes de deux comptes.
+        """
+     
+
+        # Récupérer les soldes quotidiens pour chaque compte et type
+        soldes_1 = self._get_daily_balances(compte_id_1, date_debut, date_fin, type_1)
+        soldes_2 = self._get_daily_balances(compte_id_2, date_debut, date_fin, type_2)
+
+        # Trier les dates pour l'axe Y (axe des ordonnées)
+        toutes_dates = sorted(set(soldes_1.keys()) | set(soldes_2.keys()))
+        if not toutes_dates:
+            return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+
+        # Déterminer les valeurs max pour l'échelle de l'axe X
+        all_values = list(soldes_1.values()) + list(soldes_2.values())
+        if not all_values:
+             return "<svg width='800' height='400'><text x='10' y='20'>Aucune donnée pour les dates sélectionnées.</text></svg>"
+        max_val = max(abs(v) for v in all_values)
+        if max_val == 0: max_val = 1 # Éviter la division par zéro
+
+        # Dimensions du graphique
+        largeur_svg, hauteur_svg = 800, 400
+        marge_gauche, marge_droite = 50, 50
+        marge_haut, marge_bas = 30, 30
+        largeur_graph = largeur_svg - marge_gauche - marge_droite
+        hauteur_graph = hauteur_svg - marge_haut - marge_bas
+
+        # Echelle pour les valeurs (axe X)
+        echelle_x = largeur_graph / (2 * max_val) # 2 * max_val pour couvrir -max à +max
+
+        # Echelle pour les dates (axe Y)
+        # On inverse l'axe Y : la date la plus ancienne (0) est en bas, la plus récente (len-1) en haut
+        nb_dates = len(toutes_dates)
+        if nb_dates <= 1:
+            pas_y = 0
+        else:
+            pas_y = hauteur_graph / (nb_dates - 1) if nb_dates > 1 else hauteur_graph
+
+        # Générer le SVG
+        svg_content = f'<svg width="{largeur_svg}" height="{hauteur_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+        
+        # Ligne centrale (valeur 0)
+        x_zero = marge_gauche + largeur_graph / 2
+        svg_content += f'<line x1="{x_zero}" y1="{marge_haut}" x2="{x_zero}" y2="{marge_haut + hauteur_graph}" stroke="#000" stroke-dasharray="4" />\n'
+
+        # Dessiner les points pour chaque date
+        for i, dt in enumerate(toutes_dates):
+            y_pos = marge_haut + hauteur_graph - (i * pas_y) # Inverser l'axe Y
+            
+            # Valeurs pour les deux comptes à cette date
+            val_1 = soldes_1.get(dt, Decimal('0'))
+            val_2 = soldes_2.get(dt, Decimal('0'))
+
+            # Calculer les positions X
+            x_1 = marge_gauche + (largeur_graph / 2) + float(val_1) * echelle_x
+            x_2 = marge_gauche + (largeur_graph / 2) + float(val_2) * echelle_x
+
+            # Choisir la couleur en fonction du type
+            color_1 = couleur_1_recette if type_1 == 'recette' else couleur_1_depense
+            color_2 = couleur_2_recette if type_2 == 'recette' else couleur_2_depense
+
+            # Dessiner les points
+            svg_content += f'<circle cx="{x_1}" cy="{y_pos}" r="3" fill="{color_1}" />\n'
+            svg_content += f'<circle cx="{x_2}" cy="{y_pos}" r="3" fill="{color_2}" />\n'
+            
+            # Optionnel : Lier les points des deux comptes pour la même date
+            svg_content += f'<line x1="{x_1}" y1="{y_pos}" x2="{x_2}" y2="{y_pos}" stroke="#ccc" stroke-dasharray="2" />\n'
+
+        # Ajouter les labels des dates sur l'axe Y
+        for i, dt in enumerate(toutes_dates):
+            y_pos = marge_haut + hauteur_graph - (i * pas_y)
+            svg_content += f'<text x="{marge_gauche - 10}" y="{y_pos + 4}" text-anchor="end" font-size="10">{dt.strftime("%d.%m")}</text>\n'
+
+        # Ajouter une légende simple
+        svg_content += f'<rect x="{largeur_svg - 120}" y="{10}" width="10" height="10" fill="{color_1}" />\n'
+        svg_content += f'<text x="{largeur_svg - 105}" y="20" font-size="12">Compte 1</text>\n'
+        svg_content += f'<rect x="{largeur_svg - 120}" y="{25}" width="10" height="10" fill="{color_2}" />\n'
+        svg_content += f'<text x="{largeur_svg - 105}" y="35" font-size="12">Compte 2</text>\n'
+
+        svg_content += '</svg>'
+
         return svg_content
 
 
