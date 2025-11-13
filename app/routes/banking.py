@@ -3906,6 +3906,7 @@ def nouvelle_ecriture_multiple():
     
     # GET request processing (reste inchangé)
     # ...   
+
 @bp.route('/comptabilite/creer_ecritures_multiple_auto/<int:transaction_id>', methods=['POST'])
 @login_required
 def creer_ecritures_multiple_auto(transaction_id):
@@ -4278,7 +4279,7 @@ def compte_de_resultat():
                             annees_disponibles=annees_disponibles)  
     except Exception as e:
         flash(f"Erreur lors de la génération du compte de résultat: {str(e)}", "danger")
-        return redirect(url_for('banking.index'))
+        return redirect(url_for('banking.dashboard'))
 
 @bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
 @login_required
