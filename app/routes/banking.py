@@ -606,7 +606,7 @@ def banking_comparer_soldes():
                     raise ValueError("Un ou plusieurs comptes sont invalides ou non autorisés.")
 
                 # Générer le graphique SVG en barres
-                svg_code = g.models.compte_model.compare_comptes_soldes_barres(
+                svg_code = g.models.transaction_financiere_model.compare_comptes_soldes_barres(
                     compte_id_1, compte_id_2,
                     date_debut, date_fin,
                     form_data['type_1'], form_data['type_2'],
@@ -624,9 +624,9 @@ def banking_comparer_soldes():
         form_data['date_debut'] = (date.today() - timedelta(days=30)).isoformat()
 
     return render_template('banking/comparer_soldes.html',
-                         comptes=comptes,
-                         form_data=form_data,
-                         svg_code=svg_code)
+                        comptes=comptes,
+                        form_data=form_data,
+                        svg_code=svg_code)
 
 
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
