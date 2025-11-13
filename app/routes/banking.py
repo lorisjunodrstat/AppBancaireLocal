@@ -656,6 +656,46 @@ def banking_comparer_soldes():
         flash("Une erreur est survenue lors de l'affichage de la page.", 'error')
         return render_template('banking/comparer_soldes.html', comptes=[], form_data={}, svg_code=None)
 
+@bp.route('/banking/compte/<int:compte_id>/top_echanges', methods=['GET', 'POST'])
+@login_required
+def banking_compte_top_echanges(compte_id):
+    """Affiche les top comptes avec lesquels le compte a échangé de l'argent."""
+    user_id = current_user.id
+    compte = g.models.compte_model.get_by_id(compte_id)
+    if not compte or compte['utilisateur_id'] != user_id:
+        flash('Compte non trouvé ou non autorisé', 'error')
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Valeurs par défaut
+    date_debut = (date.today() - timedelta(days=90)).isoformat()
+    date_fin = date.today().isoformat()
+    direction = 'tous'
+    limite = 10
+
+    svg_code = None
+    if request.method == 'POST':
+        date_debut = request.form.get('date_debut', date_debut)
+        date_fin = request.form.get('date_fin', date_fin)
+        direction = request.form.get('direction', 'tous')
+        limite = int(request.form.get('limite', 10))
+
+    # Récupérer les données
+    donnees = g.models.transaction_financiere_model.get_top_comptes_echanges(
+        compte_id, user_id, date_debut, date_fin, direction, limite
+    )
+
+    # Générer le graphique
+    if donnees:
+        svg_code = g.models.transaction_financiere_model.generer_graphique_top_comptes_echanges(donnees)
+
+    return render_template('banking/compte_top_echanges.html',
+                         compte=compte,
+                         svg_code=svg_code,
+                         date_debut=date_debut,
+                         date_fin=date_fin,
+                         direction=direction,
+                         limite=limite)
+
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required
 def create_periode_favorite(compte_id):
