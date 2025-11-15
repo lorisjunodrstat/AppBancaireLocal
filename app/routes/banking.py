@@ -4452,7 +4452,7 @@ def nouvelle_ecriture_from_transactions():
     # Récupérer les transactions avec les mêmes filtres
     transactions = g.models.transaction_financiere_model.get_transactions_sans_ecritures(
         current_user.id, 
-        compte_id=compte_id,
+        compte_principal_id=compte_id,
         date_from=date_from,
         date_to=date_to
     )
