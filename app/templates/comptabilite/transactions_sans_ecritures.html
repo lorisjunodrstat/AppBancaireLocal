@@ -55,7 +55,7 @@
                         fois</small>
                 </div>
                 <div>
-                    <a href="{{ url_for('banking.nouvelle_ecriture_from_transactions', compte_id=compte_selectionne, date_from=date_from, date_to=date_to) }}"
+                    <a href="{{ url_for('banking.nouvelle_ecriture_from_selected', compte_id=compte_selectionne, date_from=date_from, date_to=date_to) }}"
                         class="btn btn-primary">
                         <i class="bi bi-layers"></i> Créer des écritures groupées
                     </a>
