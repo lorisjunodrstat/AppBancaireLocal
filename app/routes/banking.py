@@ -1211,7 +1211,7 @@ def depot():
     user_id = current_user.id
     comptes = g.models.compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
-    all_comptes = g.models.compte_model.get_all_accounts(g.db_manager)
+    all_comptes = g.models.compte_model.get_all_accounts()
     
     if request.method == 'POST':
         # Récupération des données du formulaire
