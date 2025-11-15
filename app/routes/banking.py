@@ -3923,7 +3923,7 @@ def nouvelle_ecriture_from_selected():
 
         # Stocker les IDs en session pour les récupérer après
         session['selected_transaction_ids'] = selected_transaction_ids
-        return redirect(url_for('banking.creer_ecritures_groupées'))
+        return redirect(url_for('banking.nouvelle_ecriture_from_selected'))
     
     # Récupérer les transactions sélectionnées depuis la session
     transaction_ids = session.get('selected_transaction_ids', [])
