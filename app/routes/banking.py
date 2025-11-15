@@ -4382,7 +4382,7 @@ def nouvelle_ecriture_from_transactions():
             if not transaction_ids:
                 flash("Aucune transaction à traiter", "warning")
                 return redirect(url_for('banking.transactions_sans_ecritures'))
-            
+            logging.info(f'voici les transactions : {transaction_ids}')
             succes_count = 0
             errors = []
             
@@ -4456,6 +4456,8 @@ def nouvelle_ecriture_from_transactions():
         date_from=date_from,
         date_to=date_to
     )
+    logging.info(f'Filtrage des transactions pour compte_id={compte_id}, date_from={date_from}, date_to={date_to}')
+    logging.info(f' route nouvelle_ecriture_from_transaction Transactions récupérées avant filtrage: {transactions}')
     if compte_id and compte_id != '':
         transactions = [t for t in transactions if t.get('compte_bancaire_id') == int(compte_id)]
     
@@ -4464,7 +4466,7 @@ def nouvelle_ecriture_from_transactions():
         return redirect(url_for('banking.transactions_sans_ecritures'))
     
     # Récupérer les données pour les formulaires
-    comptes = g.models.compte_bancaire_model.get_all(current_user.id)
+    comptes = g.models.compte_model.get_all(current_user.id)
     categories = g.models.categorie_model.get_all(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
     
