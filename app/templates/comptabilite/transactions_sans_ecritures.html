@@ -106,7 +106,23 @@
             </form>
         </div>
     </div>
-
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('banking.nouvelle_ecriture_from_transactions') }}" id="form-selection">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">Sélectionnez les transactions à comptabiliser</h6>
+                        <small class="text-muted">Cochez les transactions que vous souhaitez comptabiliser ensemble</small>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary" id="btn-creer-groupé">
+                            <i class="bi bi-layers"></i> Créer les écritures pour la sélection
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
     <!-- Résultats -->
     {% if not compte_selectionne %}
     <div class="text-center text-muted py-4">
@@ -129,6 +145,9 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <td>
+                                <input type="checkbox" class="transaction-checkbox" name="transaction_ids" value="{{ transaction.id }}">
+                            </td>
                             <th>Date</th>
                             <th>Type</th>
                             <th>Destinataire</th>
