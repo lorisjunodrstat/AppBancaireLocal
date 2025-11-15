@@ -104,18 +104,16 @@
 
     <!-- Formulaire pour sélectionner les transactions -->
     {% if compte_selectionne %}
-    <div class="card mb-3">
-        <div class="card-body">
-            <!-- 🔥 MODIFICATION : Pointe vers la route existante -->
-            <form method="POST" action="{{ url_for('banking.nouvelle_ecriture_from_selected') }}">
-                <!-- Transmettre les filtres actuels dans le formulaire POST -->
-                {% if compte_selectionne %}<input type="hidden" name="compte_id" value="{{ compte_selectionne }}">{%
-                endif %}
-                {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
-                {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
-                {% if statut_comptable_selectionne %}<input type="hidden" name="statut_comptable"
-                    value="{{ statut_comptable_selectionne }}">{% endif %}
+    <form method="POST" action="{{ url_for('banking.nouvelle_ecriture_from_selected') }}">
+        <!-- Transmettre les filtres actuels dans le formulaire POST -->
+        {% if compte_selectionne %}<input type="hidden" name="compte_id" value="{{ compte_selectionne }}">{% endif %}
+        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+        {% if statut_comptable_selectionne %}<input type="hidden" name="statut_comptable"
+            value="{{ statut_comptable_selectionne }}">{% endif %}
 
+        <div class="card mb-3">
+            <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="mb-0">Sélectionnez les transactions à comptabiliser</h6>
@@ -130,9 +128,9 @@
                         </button>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
-    </div>
+    </form>
     {% endif %}
 
     <!-- Résultats -->
@@ -147,89 +145,107 @@
         <p class="mt-2">Aucune transaction sans écriture trouvée pour ce compte</p>
     </div>
     {% else %}
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Transactions sans écritures</h5>
-            <span class="badge bg-primary">{{ transactions|length }} transaction(s)</span>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th class="checkbox-column">
-                                <!-- 🔥 Désactivé car pas de JS pour le gérer -->
-                                <input type="checkbox" id="select-all" name="select_all" value="1" disabled>
-                                <label for="select-all" class="form-label visually-hidden">Tout sélectionner</label>
-                            </th>
-                            <th>Date</th>
-                            <th>Type</th>
-                            <th>Destinataire</th>
-                            <th>Description</th>
-                            <th class="text-end">Montant</th>
-                            <th>Statut comptable</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for transaction in transactions %}
-                        <tr>
-                            <!-- 🔥 Case à cocher pour chaque transaction -->
-                            <td class="checkbox-column">
-                                <input type="checkbox" name="selected_transaction_ids" value="{{ transaction.id }}">
-                            </td>
-                            <td>{{ transaction.date_transaction.strftime('%d.%m.%Y') }}</td>
-                            <td>
-                                <span
-                                    class="badge {% if transaction.type_transaction in ['depot', 'transfert_entrant'] %}bg-success{% else %}bg-danger{% endif %}">
-                                    {{ transaction.type_transaction|replace('_', ' ')|title }}
-                                </span>
-                            </td>
-                            <td>{{ transaction.compte_destination_nom or '-' }}</td>
-                            <td>{{ transaction.description or '-' }}</td>
-                            <td class="text-end fw-bold">{{ "%.2f"|format(transaction.montant) }} CHF</td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <form
-                                        action="{{ url_for('banking.update_statut_comptable', transaction_id=transaction.id) }}"
-                                        method="post" class="d-inline">
-                                        <input type="hidden" name="statut_comptable" value="a_comptabiliser">
-                                        <button type="submit"
-                                            class="btn btn-sm {% if transaction.statut_comptable == 'a_comptabiliser' %}btn-warning{% else %}btn-outline-warning{% endif %}">
-                                            À comptabiliser
-                                        </button>
-                                    </form>
-                                    <form
-                                        action="{{ url_for('banking.update_statut_comptable', transaction_id=transaction.id) }}"
-                                        method="post" class="d-inline">
-                                        <input type="hidden" name="statut_comptable" value="ne_pas_comptabiliser">
-                                        <button type="submit"
-                                            class="btn btn-sm {% if transaction.statut_comptable == 'ne_pas_comptabiliser' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
-                                            Ne pas comptabiliser
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                            <td>
-                                <!-- Bouton pour ouvrir le modal d'écriture simple -->
-                                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
-                                    data-bs-target="#modalEcritureSimple{{ transaction.id }}">
-                                    <i class="bi bi-plus-circle"></i> Créer écriture
-                                </button>
+    <!-- Le formulaire entoure désormais le tableau -->
+    <form method="POST" action="{{ url_for('banking.nouvelle_ecriture_from_selected') }}">
+        <!-- Transmettre les filtres actuels dans le formulaire POST -->
+        {% if compte_selectionne %}<input type="hidden" name="compte_id" value="{{ compte_selectionne }}">{% endif %}
+        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+        {% if statut_comptable_selectionne %}<input type="hidden" name="statut_comptable"
+            value="{{ statut_comptable_selectionne }}">{% endif %}
 
-                                <!-- Bouton pour ouvrir le modal d'écritures multiples -->
-                                <button type="button" class="btn btn-outline-info btn-sm mt-1" data-bs-toggle="modal"
-                                    data-bs-target="#modalEcrituresMultiples{{ transaction.id }}">
-                                    <i class="bi bi-layers"></i> Écritures multiples
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Transactions sans écritures</h5>
+                <span class="badge bg-primary">{{ transactions|length }} transaction(s)</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th class="checkbox-column">
+                                    <!-- 🔥 Désactivé car pas de JS pour le gérer -->
+                                    <input type="checkbox" id="select-all" name="select_all" value="1" disabled>
+                                    <label for="select-all" class="form-label visually-hidden">Tout sélectionner</label>
+                                </th>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Destinataire</th>
+                                <th>Description</th>
+                                <th class="text-end">Montant</th>
+                                <th>Statut comptable</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr>
+                                <!-- 🔥 Case à cocher pour chaque transaction -->
+                                <td class="checkbox-column">
+                                    <input type="checkbox" name="selected_transaction_ids" value="{{ transaction.id }}">
+                                </td>
+                                <td>{{ transaction.date_transaction.strftime('%d.%m.%Y') }}</td>
+                                <td>
+                                    <span
+                                        class="badge {% if transaction.type_transaction in ['depot', 'transfert_entrant'] %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ transaction.type_transaction|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                                <td>{{ transaction.compte_destination_nom or '-' }}</td>
+                                <td>{{ transaction.description or '-' }}</td>
+                                <td class="text-end fw-bold">{{ "%.2f"|format(transaction.montant) }} CHF</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <form
+                                            action="{{ url_for('banking.update_statut_comptable', transaction_id=transaction.id) }}"
+                                            method="post" class="d-inline">
+                                            <input type="hidden" name="statut_comptable" value="a_comptabiliser">
+                                            <button type="submit"
+                                                class="btn btn-sm {% if transaction.statut_comptable == 'a_comptabiliser' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                                                À comptabiliser
+                                            </button>
+                                        </form>
+                                        <form
+                                            action="{{ url_for('banking.update_statut_comptable', transaction_id=transaction.id) }}"
+                                            method="post" class="d-inline">
+                                            <input type="hidden" name="statut_comptable" value="ne_pas_comptabiliser">
+                                            <button type="submit"
+                                                class="btn btn-sm {% if transaction.statut_comptable == 'ne_pas_comptabiliser' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                                                Ne pas comptabiliser
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                                <td>
+                                    <!-- Bouton pour ouvrir le modal d'écriture simple -->
+                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#modalEcritureSimple{{ transaction.id }}">
+                                        <i class="bi bi-plus-circle"></i> Créer écriture
+                                    </button>
+
+                                    <!-- Bouton pour ouvrir le modal d'écritures multiples -->
+                                    <button type="button" class="btn btn-outline-info btn-sm mt-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEcrituresMultiples{{ transaction.id }}">
+                                        <i class="bi bi-layers"></i> Écritures multiples
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
+        <!-- Bouton de soumission en bas du tableau -->
+        <div class="d-grid gap-2 col-6 mx-auto mt-3">
+            <button type="submit" class="btn btn-primary {% if not transactions %}btn-submit-disabled{% endif %}" {% if
+                not transactions %}disabled{% endif %}>
+                <i class="bi bi-layers"></i> Créer les écritures pour la sélection
+            </button>
+        </div>
+    </form>
     {% endif %}
 </div>
 
