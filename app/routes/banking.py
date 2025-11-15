@@ -4467,7 +4467,7 @@ def nouvelle_ecriture_from_transactions():
     
     # Récupérer les données pour les formulaires
     comptes = g.models.compte_model.get_all_accounts(current_user.id)
-    categories = g.models.categorie_model.get_all(current_user.id)
+    categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
     
     return render_template('comptabilite/creer_ecritures_groupées.html',
