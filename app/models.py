@@ -945,14 +945,14 @@ class ComptePrincipal:
             return Decimal('0')
     
     @classmethod
-    def get_all_accounts(cls, db):
+    def get_all_accounts(self) -> List[Dict]:
         # Cette méthode de classe n'est pas cohérente avec les autres méthodes d'instance.
         # Il est préférable de la rendre une méthode d'instance si possible.
         # Si vous devez la garder en l'état, voici la correction.
         comptes = []
         try:
             # Correction de l'utilisation de db
-            with db.get_cursor() as cursor:
+            with self.db.get_cursor() as cursor:
                 query = """
                 SELECT 
                     c.id, c.utilisateur_id, c.banque_id, c.nom_compte, c.numero_compte,
