@@ -4513,14 +4513,30 @@ class TransactionFinanciere:
         svg_content += '</svg>'
         return svg_content
 
-    def get_transactions_avec_comptes(self, compte_principal_id: int, user_id: int, 
-                                comptes_cibles_ids: List[int],
-                                date_debut: str, date_fin: str) -> List[Dict]:
+    def _trouver_pas_gravitation(self, max_val: float) -> int:
+        """Détermine un pas de graduation lisible pour l'axe Y."""
+        if max_val >= 5000:
+            return 1000
+        elif max_val >= 1000:
+            return 500
+        elif max_val >= 500:
+            return 100
+        elif max_val >= 100:
+            return 50
+        elif max_val >= 50:
+            return 25
+        elif max_val >= 20:
+            return 10
+        elif max_val >= 10:
+            return 5
+        else:
+            return 1
+
+    def get_transactions_avec_comptes(self, compte_principal_id: int, user_id: int,
+                                    comptes_cibles_ids: List[int],
+                                    date_debut: str, date_fin: str) -> List[Dict]:
         """
         Récupère la liste des transactions entre un compte principal et une liste de comptes cibles.
-        
-        Returns:
-            List[Dict]: Liste de dictionnaires avec clés 'date_transaction', 'montant', 'compte_cible_id', 'nom_compte_cible', 'type_transaction'
         """
         try:
             with self.db.get_cursor() as cursor:
@@ -4552,9 +4568,9 @@ class TransactionFinanciere:
                     FROM transactions t
                     JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id
                     WHERE t.compte_principal_id = %s
-                    AND t.type_transaction = 'transfert_sortant'
-                    AND t.date_transaction BETWEEN %s AND %s
-                    AND cp_dest.id IN ({placeholders})
+                      AND t.type_transaction = 'transfert_sortant'
+                      AND t.date_transaction BETWEEN %s AND %s
+                      AND cp_dest.id IN ({placeholders})
                 )
                 UNION ALL
                 (
@@ -4568,9 +4584,9 @@ class TransactionFinanciere:
                     FROM transactions t
                     JOIN comptes_principaux cp_src ON t.compte_source_id = cp_src.id
                     WHERE t.compte_principal_id = %s
-                    AND t.type_transaction = 'transfert_entrant'
-                    AND t.date_transaction BETWEEN %s AND %s
-                    AND cp_src.id IN ({placeholders})
+                      AND t.type_transaction = 'transfert_entrant'
+                      AND t.date_transaction BETWEEN %s AND %s
+                      AND cp_src.id IN ({placeholders})
                 )
                 ORDER BY date_transaction ASC
                 """
@@ -4584,7 +4600,6 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur dans get_transactions_avec_comptes: {e}")
             return []
-
 
     def _structurer_donnees_pour_graphique(self, donnees_brutes: List[Dict], cumuler: bool = False) -> Dict:
         """
@@ -4626,28 +4641,9 @@ class TransactionFinanciere:
                 'dates': dates_uniques,
                 'series': series
             }
-    
-    def _trouver_pas_gravitation(self, max_val: float) -> int:
-        """Détermine un pas de graduation lisible pour l'axe Y."""
-        if max_val >= 5000:
-            return 1000
-        elif max_val >= 1000:
-            return 500
-        elif max_val >= 500:
-            return 100
-        elif max_val >= 100:
-            return 50
-        elif max_val >= 50:
-            return 25
-        elif max_val >= 20:
-            return 10
-        elif max_val >= 10:
-            return 5
-        else:
-            return 1
-    
-    def generer_graphique_echanges_temporel_lignes(self, donnees_structurees: Dict, 
-                                              couleurs: List[str] = None) -> str:
+
+    def generer_graphique_echanges_temporel_lignes(self, donnees_structurees: Dict,
+                                                  couleurs: List[str] = None) -> str:
         """
         Génère un graphique en lignes SVG avec axes Y améliorés.
         """
@@ -4729,8 +4725,8 @@ class TransactionFinanciere:
         svg += '</svg>'
         return svg
 
-    def generer_graphique_echanges_temporel_barres(self, donnees_structurees: Dict, 
-                                                couleurs: List[str] = None) -> str:
+    def generer_graphique_echanges_temporel_barres(self, donnees_structurees: Dict,
+                                                  couleurs: List[str] = None) -> str:
         """
         Génère un graphique en barres SVG avec axes Y améliorés.
         """
@@ -4813,7 +4809,7 @@ class TransactionFinanciere:
 
         svg += '</svg>'
         return svg
-    
+
 class CategorieTransaction:
     """Classe pour gérer les catégories de transactions"""
 
