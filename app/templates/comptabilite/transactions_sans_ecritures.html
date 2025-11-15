@@ -145,9 +145,9 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <td>
-                                <input type="checkbox" class="transaction-checkbox" name="transaction_ids" value="{{ transaction.id }}">
-                            </td>
+                            <th width="50">
+                                <input type="checkbox" id="select-all">
+                            </th>
                             <th>Date</th>
                             <th>Type</th>
                             <th>Destinataire</th>
@@ -160,6 +160,9 @@
                     <tbody>
                         {% for transaction in transactions %}
                         <tr>
+                            <td>
+                                <input type="checkbox" class="transaction-checkbox" name="transaction_ids" value="{{ transaction.id }}">
+                            </td>
                             <td>{{ transaction.date_transaction.strftime('%d.%m.%Y') }}</td>
                             <td>
                                 <span
