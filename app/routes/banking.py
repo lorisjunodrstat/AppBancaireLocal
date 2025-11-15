@@ -4429,16 +4429,16 @@ def nouvelle_ecriture_from_transactions():
                 flash(f"{succes_count} écriture(s) créée(s) avec succès pour {len(transaction_ids)} transaction(s)", "success")
                 # 🔥 NOUVEAU : Retour à la page des transactions sans écritures
                 return redirect(url_for('banking.transactions_sans_ecritures',
-                                       compte_id=request.args.get('compte_id'),
-                                       date_from=request.args.get('date_from'), 
-                                       date_to=request.args.get('date_to')))
+                                    compte_id=request.args.get('compte_id'),
+                                    date_from=request.args.get('date_from'), 
+                                    date_to=request.args.get('date_to')))
             else:
                 flash("Aucune écriture n'a pu être créée", "error")
                 # 🔥 NOUVEAU : Reste sur la même page pour correction
                 return redirect(url_for('banking.nouvelle_ecriture_from_transactions',
-                                       compte_id=request.args.get('compte_id'),
-                                       date_from=request.args.get('date_from'),
-                                       date_to=request.args.get('date_to')))
+                                    compte_id=request.args.get('compte_id'),
+                                    date_from=request.args.get('date_from'),
+                                    date_to=request.args.get('date_to')))
             
         except Exception as e:
             flash(f"Erreur lors de la création des écritures: {str(e)}", "error")
@@ -4452,10 +4452,11 @@ def nouvelle_ecriture_from_transactions():
     # Récupérer les transactions avec les mêmes filtres
     transactions = g.models.transaction_financiere_model.get_transactions_sans_ecritures(
         current_user.id, 
-        compte_principal_id=compte_id,
         date_from=date_from,
         date_to=date_to
     )
+    f compte_id and compte_id != '':
+        transactions = [t for t in transactions if t.get('compte_bancaire_id') == int(compte_id)]
     
     if not transactions:
         flash("Aucune transaction à comptabiliser avec les filtres actuels", "warning")
