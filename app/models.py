@@ -944,7 +944,6 @@ class ComptePrincipal:
             logging.error(f"839Erreur lors du calcul du solde avec écritures: {e}")
             return Decimal('0')
     
-    @classmethod
     def get_all_accounts(self) -> List[Dict]:
         # Cette méthode de classe n'est pas cohérente avec les autres méthodes d'instance.
         # Il est préférable de la rendre une méthode d'instance si possible.

@@ -1211,7 +1211,7 @@ def depot():
     user_id = current_user.id
     comptes = g.models.compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
-    all_comptes = g.models.compte_model.get_all_accounts(g.db_manager)
+    all_comptes = g.models.compte_model.get_all_accounts()
     
     if request.method == 'POST':
         # Récupération des données du formulaire
@@ -1270,7 +1270,7 @@ def retrait():
     user_id = current_user.id
     comptes = g.models.compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
-    all_comptes = g.models.compte_model.get_all_accounts(g.db_manager)
+    all_comptes = g.models.compte_model.get_all_accounts()
     
     if request.method == 'POST':
         # Récupération des données du formulaire
@@ -1320,7 +1320,7 @@ def banking_transfert():
         compte['id'] = int(compte['id'])
     
     # Récupérer TOUS les comptes pour le transfert global
-    all_comptes_global = g.models.compte_model.get_all_accounts(g.db_manager)
+    all_comptes_global = g.models.compte_model.get_all_accounts()
     
     # Sous-comptes de l'utilisateur
     sous_comptes = []
@@ -1333,7 +1333,7 @@ def banking_transfert():
     # Comptes externes (autres utilisateurs) pour transfert "externe"
     all_comptes = [c for c in all_comptes_global if c['utilisateur_id'] != user_id]
 
-    #all_comptes = [c for c in g.models.compte_model.get_all_accounts(g.db_manager) if c['utilisateur_id'] != user_id]
+    #all_comptes = [c for c in g.models.compte_model.get_all_accounts() if c['utilisateur_id'] != user_id]
     
     if request.method == "POST":
         step = request.form.get('step')
@@ -2056,7 +2056,7 @@ def import_csv_upload():
 
     # Récupérer les comptes de l'utilisateur
     user_id = current_user.id
-    comptes = g.models.compte_model.get_all_accounts(g.db_manager)
+    comptes = g.models.compte_model.get_all_accounts()
     sous_comptes = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
     comptes_possibles = []
@@ -2483,7 +2483,7 @@ def import_csv_upload_temp():
         rows.append(row_dict)
 
     user_id = current_user.id
-    comptes = g.models.compte_model.get_all_accounts(g.db_manager)
+    comptes = g.models.compte_model.get_all_accounts()
     sous_comptes = g.models.sous_compte_model.get_all_sous_comptes_by_user_id(user_id)
 
     comptes_possibles = []
@@ -4466,7 +4466,7 @@ def nouvelle_ecriture_from_transactions():
         return redirect(url_for('banking.transactions_sans_ecritures'))
     
     # Récupérer les données pour les formulaires
-    comptes = g.models.compte_model.get_all_accounts(g.db_manager)
+    comptes = g.models.compte_model.get_all_accounts()
     categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
     
