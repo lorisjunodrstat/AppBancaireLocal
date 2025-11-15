@@ -29,6 +29,20 @@
     .row.g-3.mb-3.p-3.border.rounded:hover {
         background-color: #f8f9fa;
     }
+
+    /* Style pour la colonne des cases à cocher */
+    .checkbox-column {
+        width: 50px;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    /* Bouton désactivé par défaut (sans JS) */
+    .btn-submit-disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
 </style>
 {% endblock %}
 
@@ -42,25 +56,6 @@
                 Vous avez encore <strong>{{ total_a_comptabiliser_len }}</strong> pour <strong>{{ total_a_comptabiliser
                     }} CHF</strong> à comptabiliser.
             </p>
-        </div>
-    </div>
-
-    <!-- Bouton création groupée -->
-    <div class="card mb-3">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="mb-0">Création d'écritures en lot</h6>
-                    <small class="text-muted">Sélectionnez plusieurs transactions pour créer les écritures en une
-                        fois</small>
-                </div>
-                <div>
-                    <a href="{{ url_for('banking.nouvelle_ecriture_from_selected', compte_id=compte_selectionne, date_from=date_from, date_to=date_to) }}"
-                        class="btn btn-primary">
-                        <i class="bi bi-layers"></i> Créer des écritures groupées
-                    </a>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -106,16 +101,30 @@
             </form>
         </div>
     </div>
+
+    <!-- Formulaire pour sélectionner les transactions -->
+    {% if compte_selectionne %}
     <div class="card mb-3">
         <div class="card-body">
-            <form method="GET" action="{{ url_for('banking.nouvelle_ecriture_from_transactions') }}" id="form-selection">
+            <form method="POST" action="{{ url_for('banking.creer_ecritures_depuis_selection') }}">
+                <!-- Transmettre les filtres actuels dans le formulaire POST -->
+                {% if compte_selectionne %}<input type="hidden" name="compte_id" value="{{ compte_selectionne }}">{%
+                endif %}
+                {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+                {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+                {% if statut_comptable_selectionne %}<input type="hidden" name="statut_comptable"
+                    value="{{ statut_comptable_selectionne }}">{% endif %}
+
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="mb-0">Sélectionnez les transactions à comptabiliser</h6>
-                        <small class="text-muted">Cochez les transactions que vous souhaitez comptabiliser ensemble</small>
+                        <small class="text-muted">Cochez les transactions que vous souhaitez transformer en
+                            écritures</small>
                     </div>
                     <div>
-                        <button type="submit" class="btn btn-primary" id="btn-creer-groupé">
+                        <button type="submit"
+                            class="btn btn-primary {% if not transactions %}btn-submit-disabled{% endif %}" {% if not
+                            transactions %}disabled{% endif %}>
                             <i class="bi bi-layers"></i> Créer les écritures pour la sélection
                         </button>
                     </div>
@@ -123,6 +132,8 @@
             </form>
         </div>
     </div>
+    {% endif %}
+
     <!-- Résultats -->
     {% if not compte_selectionne %}
     <div class="text-center text-muted py-4">
@@ -145,8 +156,9 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th width="50">
-                                <input type="checkbox" id="select-all">
+                            <th class="checkbox-column">
+                                <input type="checkbox" id="select-all" name="select_all" value="1" disabled>
+                                <label for="select-all" class="form-label visually-hidden">Tout sélectionner</label>
                             </th>
                             <th>Date</th>
                             <th>Type</th>
@@ -160,8 +172,8 @@
                     <tbody>
                         {% for transaction in transactions %}
                         <tr>
-                            <td>
-                                <input type="checkbox" class="transaction-checkbox" name="transaction_ids" value="{{ transaction.id }}">
+                            <td class="checkbox-column">
+                                <input type="checkbox" name="selected_transaction_ids" value="{{ transaction.id }}">
                             </td>
                             <td>{{ transaction.date_transaction.strftime('%d.%m.%Y') }}</td>
                             <td>
@@ -424,7 +436,5 @@
     </div>
 </div>
 {% endfor %}
-
-<!-- CSS pour améliorer l'apparence -->
 
 {% endblock %}
