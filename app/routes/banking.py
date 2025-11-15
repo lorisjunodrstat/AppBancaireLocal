@@ -3948,7 +3948,7 @@ def nouvelle_ecriture_from_selected():
         return redirect(url_for('banking.transactions_sans_ecritures'))
     
     # Récupérer les données pour les formulaires
-    comptes = g.models.compte_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
+    comptes = g.models.compte_model.get_all_accounts(current_user.id)(current_user.id) # Vérifiez que cette fonction est correcte
     categories = g.models.categorie_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
     contacts = g.models.contact_model.get_all(current_user.id)
     
@@ -4137,7 +4137,7 @@ def nouvelle_ecriture():
             flash(f'Erreur: {str(e)}', 'danger')
     
     elif request.method == 'GET':
-        comptes = g.models.compte_model.get_all(current_user.id)
+        comptes = g.models.compte_model.get_all_accounts(current_user.id)
         categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
         contacts = g.models.contact_model.get_all(current_user.id)
         transactions_sans_ecritures = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_utilisateur(current_user.id)
@@ -4224,7 +4224,7 @@ def nouvelle_ecriture_multiple():
     
     # GET request processing (reste inchangé)
     elif request.method == 'GET':
-        comptes = g.models.compte_model.get_all(current_user.id)
+        comptes = g.models.compte_model.get_all_accounts(current_user.id)
         categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
         contacts = g.models.contact_model.get_all(current_user.id)
         return render_template('comptabilite/nouvelle_ecriture_multiple.html',
