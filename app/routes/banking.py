@@ -4314,6 +4314,145 @@ def nouvelle_ecriture_from_transactions():
     
     if request.method == 'POST':
         try:
+            # Récupérer les listes des champs du formulaire
+            transaction_ids = request.form.getlist('transaction_ids[]')
+            dates = request.form.getlist('date_ecriture[]')
+            types = request.form.getlist('type_ecriture[]')
+            comptes_ids = request.form.getlist('compte_bancaire_id[]')
+            categories_ids = request.form.getlist('categorie_id[]')
+            montants = request.form.getlist('montant[]')
+            tva_taux = request.form.getlist('tva_taux[]')
+            descriptions = request.form.getlist('description[]')
+            references = request.form.getlist('reference[]')
+            statuts = request.form.getlist('statut[]')
+            contacts_ids = request.form.getlist('id_contact[]') # Peut contenir des chaînes vides
+            
+            if not transaction_ids:
+                flash("Aucune transaction à traiter", "warning")
+                return redirect(url_for('banking.transactions_sans_ecritures'))
+            
+            logging.info(f'Transactions à traiter : {transaction_ids}')
+            success_count = 0  # 🔥 Correction : Nom de variable
+            errors = []
+            
+            # Itérer sur l'index pour accéder à chaque liste
+            for i in range(len(transaction_ids)):
+                try:
+                    # Vérifier les champs obligatoires pour l'écriture i
+                    if not all([dates[i], types[i], comptes_ids[i], categories_ids[i], montants[i]]):
+                        errors.append(f"Transaction {i+1}: Champs obligatoires manquants")
+                        continue
+                    
+                    # Récupérer l'ID du contact, en gérant les chaînes vides
+                    contact_id_val = None
+                    if i < len(contacts_ids) and contacts_ids[i]: # 🔥 Gestion des chaînes vides
+                        contact_id_val = int(contacts_ids[i])
+                    
+                    data = {
+                        'date_ecriture': dates[i],
+                        'compte_bancaire_id': int(comptes_ids[i]),
+                        'categorie_id': int(categories_ids[i]),
+                        'montant': Decimal(str(montants[i])),
+                        'description': descriptions[i] if i < len(descriptions) else '',
+                        'id_contact': contact_id_val, # 🔥 Utiliser la valeur traitée
+                        'reference': references[i] if i < len(references) else '',
+                        'type_ecriture': types[i],
+                        'tva_taux': Decimal(str(tva_taux[i])) if i < len(tva_taux) and tva_taux[i] else None,
+                        'utilisateur_id': current_user.id,
+                        'statut': statuts[i] if i < len(statuts) else 'pending'
+                    }
+                    
+                    if data['tva_taux']:
+                        data['tva_montant'] = data['montant'] * data['tva_taux'] / 100
+
+                    # Appel au modèle pour créer l'écriture
+                    if g.models.ecriture_comptable_model.create(data):
+                        # 🔥 ATTENTION : La méthode pour récupérer l'ID inséré peut varier selon votre modèle.
+                        # Vérifiez que `g.models.ecriture_comptable_model.last_insert_id` existe et fonctionne comme prévu.
+                        # Si ce n'est pas le cas, vous devrez peut-être récupérer l'ID d'une autre manière ou supposer qu'elle n'est pas nécessaire immédiatement.
+                        # Supposons ici que le modèle gère correctement `last_insert_id` après `create`.
+                        ecriture_id = g.models.ecriture_comptable_model.last_insert_id
+                        # Lier l'écriture à la transaction
+                        # 🔥 Correction : Utiliser `transaction_ids[i]` au lieu de `transaction_ids[i]` (variable externe)
+                        g.models.transaction_financiere_model.link_to_ecriture(int(transaction_ids[i]), ecriture_id)
+                        success_count += 1 # 🔥 Correction : Nom de variable
+                    else:
+                        errors.append(f"Transaction {i+1}: Erreur lors de l'enregistrement dans le modèle")
+                        
+                except (ValueError, IndexError) as ve: # Gestion des erreurs de conversion et d'index
+                    logging.error(f"Erreur conversion/index pour la transaction {i+1} (ID {transaction_ids[i]}): {ve}")
+                    errors.append(f"Transaction {i+1} (ID {transaction_ids[i]}): Données invalides - {ve}")
+                    continue # Passer à la transaction suivante
+                except Exception as e: # Gestion des autres erreurs
+                    logging.error(f"Erreur inattendue pour la transaction {i+1} (ID {transaction_ids[i]}): {e}")
+                    errors.append(f"Transaction {i+1} (ID {transaction_ids[i]}): Erreur interne - {e}")
+                    continue # Passer à la transaction suivante
+            
+            # Gestion des messages de retour
+            if errors:
+                for error in errors:
+                    flash(error, "error") # Utilisez "error" pour les erreurs critiques
+            
+            if success_count > 0:
+                flash(f"{success_count} écriture(s) créée(s) avec succès pour {len(transaction_ids)} transaction(s)", "success")
+                # 🔥 REDIRECTION CORRIGEE : Utiliser la bonne route pour revenir à la liste filtrée
+                return redirect(url_for('banking.transactions_sans_ecritures',
+                                    compte_id=request.args.get('compte_id'),
+                                    date_from=request.args.get('date_from'), 
+                                    date_to=request.args.get('date_to')))
+            else:
+                # Si aucune écriture n'a été créée avec succès, mais qu'il y avait des transactions à traiter
+                flash("Aucune écriture n'a pu être créée", "error")
+                # Retourner vers la page des transactions sans écritures pour réessayer
+                return redirect(url_for('banking.transactions_sans_ecritures',
+                                    compte_id=request.args.get('compte_id'),
+                                    date_from=request.args.get('date_from'),
+                                    date_to=request.args.get('date_to')))
+            
+        except Exception as e:
+            logging.error(f"Erreur générale lors de la création des écritures: {e}")
+            flash(f"Erreur critique lors de la création des écritures: {str(e)}", "error")
+            return redirect(url_for('banking.transactions_sans_ecritures'))
+    
+    # PARTIE GET - Afficher le formulaire pour TOUTES les transactions filtrées
+    compte_id = request.args.get('compte_id', type=int) # 🔥 Correction : type=int
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    # Récupérer les transactions avec les mêmes filtres
+    transactions = g.models.transaction_financiere_model.get_transactions_sans_ecritures(
+        current_user.id, 
+        date_from=date_from,
+        date_to=date_to
+    )
+    logging.info(f'Filtrage des transactions pour compte_id={compte_id}, date_from={date_from}, date_to={date_to}')
+    logging.info(f'Transactions récupérées avant filtrage: {len(transactions)}') # 🔥 Info plus claire
+    if compte_id is not None: # 🔥 Correction : Tester None explicitement
+        transactions = [t for t in transactions if t.get('compte_bancaire_id') == compte_id]
+    
+    if not transactions:
+        flash("Aucune transaction à comptabiliser avec les filtres actuels", "warning")
+        return redirect(url_for('banking.transactions_sans_ecritures'))
+    
+    # Récupérer les données pour les formulaires
+    # Assurez-vous que ces fonctions existent et retournent les bonnes données
+    comptes = g.models.compte_model.get_all_accounts() # Vérifiez cette fonction
+    categories = g.models.categorie_comptable_model.get_all_categories(current_user.id) # Vérifiez cette fonction
+    contacts = g.models.contact_model.get_all(current_user.id) # Vérifiez cette fonction
+    
+    return render_template('comptabilite/creer_ecritures_groupées.html',
+                         transactions=transactions,
+                         comptes=comptes,
+                         categories=categories,
+                         contacts=contacts,
+                         compte_id=compte_id, # 🔥 Passer les filtres au template
+                         date_from=date_from,
+                         date_to=date_to,
+                         today=datetime.now().strftime('%Y-%m-%d'))
+    """Crée des écritures pour TOUTES les transactions filtrées"""
+    
+    if request.method == 'POST':
+        try:
             # Récupérer les IDs des transactions depuis les champs cachés
             transaction_ids = request.form.getlist('transaction_ids[]')
             dates = request.form.getlist('date_ecriture[]')
