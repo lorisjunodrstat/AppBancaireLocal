@@ -1,14 +1,66 @@
 {% extends "base.html" %}
+{% block head_css %}
+<style>
+    .modal-lg {
+        max-width: 800px;
+    }
+
+    .border.rounded {
+        border-color: #dee2e6 !important;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+
+    .btn-group .btn {
+        margin-right: 2px;
+    }
+
+    .btn-group .btn:last-child {
+        margin-right: 0;
+    }
+
+    /* Style pour les lignes d'écritures multiples */
+    .row.g-3.mb-3.p-3.border.rounded {
+        transition: background-color 0.2s ease;
+    }
+
+    .row.g-3.mb-3.p-3.border.rounded:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <h2>Transactions sans écritures comptables</h2>
-    <div class=row mb-4>
+    <div class="row mb-4">
         <div class="col">
             <p class="text-muted">
                 Gérez les transactions bancaires qui n'ont pas encore été associées à des écritures comptables.
-                Vous avez encore <strong>{{ total_a_comptabiliser_len }}</strong> pour <strong>{{ total_a_comptabiliser }} CHF</strong> à comptabiliser.
+                Vous avez encore <strong>{{ total_a_comptabiliser_len }}</strong> pour <strong>{{ total_a_comptabiliser
+                    }} CHF</strong> à comptabiliser.
             </p>
+        </div>
+    </div>
+
+    <!-- Bouton création groupée -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">Création d'écritures en lot</h6>
+                    <small class="text-muted">Sélectionnez plusieurs transactions pour créer les écritures en une
+                        fois</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('banking.nouvelle_ecriture_from_transactions', compte_id=compte_selectionne, date_from=date_from, date_to=date_to) }}"
+                        class="btn btn-primary">
+                        <i class="bi bi-layers"></i> Créer des écritures groupées
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -79,7 +131,7 @@
                         <tr>
                             <th>Date</th>
                             <th>Type</th>
-                            <th>destinataire</th>
+                            <th>Destinataire</th>
                             <th>Description</th>
                             <th class="text-end">Montant</th>
                             <th>Statut comptable</th>
@@ -96,8 +148,8 @@
                                     {{ transaction.type_transaction|replace('_', ' ')|title }}
                                 </span>
                             </td>
-                            <td>{{ transaction.compte_destination_nom }}</td>
-                            <td>{{ transaction.description  or '-' }}</td>
+                            <td>{{ transaction.compte_destination_nom or '-' }}</td>
+                            <td>{{ transaction.description or '-' }}</td>
                             <td class="text-end fw-bold">{{ "%.2f"|format(transaction.montant) }} CHF</td>
                             <td>
                                 <div class="btn-group" role="group">
@@ -178,21 +230,27 @@
                             </p>
                         </div>
                     </div>
+
+                    <!-- Récupérer le contact lié au compte -->
+                    {% set contact_lie =
+                    g.models.contact_compte_model.get_contact_by_compte(transaction.compte_bancaire_id, current_user.id)
+                    %}
+
                     <div class="mb-3">
                         <label for="contact_simple{{ transaction.id }}" class="form-label">Contact</label>
                         <select id="contact_simple{{ transaction.id }}" name="contact_id" class="form-select">
                             <option value="">Aucun contact</option>
                             {% for contact in contacts %}
-                            <option value="{{ contact.id_contact }}" {% if contact_lie and contact_lie.contact_id==contact.id_contact
-                                %}selected{% endif %}>
+                            <option value="{{ contact.id_contact }}" {% if contact_lie and
+                                contact_lie.contact_id==contact.id_contact %}selected{% endif %}>
                                 {{ contact.nom }} {% if contact.email %}({{ contact.email }}){% endif %}
                             </option>
                             {% endfor %}
                         </select>
                         <div class="form-text">
                             {% if contact_lie %}
-                            <i class="bi bi-info-circle text-primary"></i> Contact lié au compte détecté : <strong>{{ contact_lie.nom
-                                }}</strong>
+                            <i class="bi bi-info-circle text-primary"></i> Contact lié au compte détecté : <strong>{{
+                                contact_lie.nom }}</strong>
                             {% else %}
                             <i class="bi bi-info-circle text-muted"></i> Aucun contact lié à ce compte
                             {% endif %}
@@ -257,22 +315,30 @@
                                     {{ transaction.date_transaction.strftime('%d.%m.%Y') }}
                                 </div>
                             </div>
+
+                            <!-- Récupérer le contact lié au compte -->
+                            {% set contact_lie =
+                            g.models.contact_compte_model.get_contact_by_compte(transaction.compte_bancaire_id,
+                            current_user.id) %}
+
                             <div class="row mt-3">
                                 <div class="col-md-12">
-                                    <label for="contact_multiple{{ transaction.id }}" class="form-label">Contact principal</label>
-                                    <select id="contact_multiple{{ transaction.id }}" name="contact_id" class="form-select">
+                                    <label for="contact_multiple{{ transaction.id }}" class="form-label">Contact
+                                        principal</label>
+                                    <select id="contact_multiple{{ transaction.id }}" name="contact_id"
+                                        class="form-select">
                                         <option value="">Aucun contact</option>
                                         {% for contact in contacts %}
-                                        <option value="{{ contact.id_contact }}" {% if contact_lie and contact_lie.contact_id==contact.id_contact
-                                            %}selected{% endif %}>
+                                        <option value="{{ contact.id_contact }}" {% if contact_lie and
+                                            contact_lie.contact_id==contact.id_contact %}selected{% endif %}>
                                             {{ contact.nom }} {% if contact.email %}({{ contact.email }}){% endif %}
                                         </option>
                                         {% endfor %}
                                     </select>
                                     <div class="form-text">
                                         {% if contact_lie %}
-                                        <i class="bi bi-info-circle text-primary"></i> Contact lié au compte détecté : <strong>{{ contact_lie.nom
-                                            }}</strong>
+                                        <i class="bi bi-info-circle text-primary"></i> Contact lié au compte détecté :
+                                        <strong>{{ contact_lie.nom }}</strong>
                                         {% else %}
                                         <i class="bi bi-info-circle text-muted"></i> Aucun contact lié à ce compte
                                         {% endif %}
@@ -338,34 +404,5 @@
 {% endfor %}
 
 <!-- CSS pour améliorer l'apparence -->
-<style>
-    .modal-lg {
-        max-width: 800px;
-    }
 
-    .border.rounded {
-        border-color: #dee2e6 !important;
-    }
-
-    .bg-light {
-        background-color: #f8f9fa !important;
-    }
-
-    .btn-group .btn {
-        margin-right: 2px;
-    }
-
-    .btn-group .btn:last-child {
-        margin-right: 0;
-    }
-
-    /* Style pour les lignes d'écritures multiples */
-    .row.g-3.mb-3.p-3.border.rounded {
-        transition: background-color 0.2s ease;
-    }
-
-    .row.g-3.mb-3.p-3.border.rounded:hover {
-        background-color: #f8f9fa;
-    }
-</style>
 {% endblock %}
