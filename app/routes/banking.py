@@ -3948,7 +3948,7 @@ def nouvelle_ecriture_from_selected():
         return redirect(url_for('banking.transactions_sans_ecritures'))
     
     # Récupérer les données pour les formulaires
-    comptes = g.models.compte_bancaire_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
+    comptes = g.models.compte_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
     categories = g.models.categorie_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
     contacts = g.models.contact_model.get_all(current_user.id)
     
