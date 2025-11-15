@@ -3927,6 +3927,7 @@ def nouvelle_ecriture_from_selected():
     
     # Récupérer les transactions sélectionnées depuis la session
     transaction_ids = session.get('selected_transaction_ids', [])
+    logging.info(f"Transactions récupérées de la session get pour création d'écritures: {transaction_ids}")
     if not transaction_ids:
         flash("Aucune transaction sélectionnée", "warning")
         # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
