@@ -4360,7 +4360,7 @@ def creer_ecritures_multiple_auto(transaction_id):
 #
 @bp.route('/comptabilite/ecritures/nouvelle/from_transactions', methods=['GET', 'POST'])
 @login_required
-def nouvelle_ecriture_from_transactions2():
+def nouvelle_ecriture_from_transactions():
     """Crée des écritures pour TOUTES les transactions filtrées"""
     
     if request.method == 'POST':
