@@ -3902,6 +3902,63 @@ def transactions_sans_ecritures():
         contacts=contacts
     )
 
+
+@bp.route('/comptabilite/ecritures/nouvelle/from_selected', methods=['GET', 'POST'])
+@login_required
+def nouvelle_ecriture_from_selected():
+    """Affiche le formulaire de création d'écritures pour transactions sélectionnées"""
+    
+    if request.method == 'POST':
+        # 🔥 CHANGEMENT : Lire 'selected_transaction_ids' au lieu de 'selected_transactions'
+        selected_transaction_ids = request.form.getlist('selected_transaction_ids')
+        logging.info(f"Transactions sélectionnées pour création d'écritures: {selected_transaction_ids}")   
+        if not selected_transaction_ids:
+            flash("Aucune transaction sélectionnée", "warning")
+            # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
+            return redirect(url_for('banking.transactions_sans_ecritures',
+                                    compte_id=request.form.get('compte_id'),
+                                    date_from=request.form.get('date_from'),
+                                    date_to=request.form.get('date_to'),
+                                    statut_comptable=request.form.get('statut_comptable')))
+
+        # Stocker les IDs en session pour les récupérer après
+        session['selected_transaction_ids'] = selected_transaction_ids
+        return redirect(url_for('banking.creer_ecritures_groupées'))
+    
+    # Récupérer les transactions sélectionnées depuis la session
+    transaction_ids = session.get('selected_transaction_ids', [])
+    if not transaction_ids:
+        flash("Aucune transaction sélectionnée", "warning")
+        # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
+        return redirect(url_for('banking.transactions_sans_ecritures'))
+    
+    # Récupérer les transactions
+    transactions = []
+    for transaction_id in transaction_ids:
+        transaction = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
+            int(transaction_id), current_user.id
+        )
+        if transaction:
+            transactions.append(transaction)
+    
+    if not transactions:
+        flash("Aucune transaction valide sélectionnée", "warning")
+        # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
+        return redirect(url_for('banking.transactions_sans_ecritures'))
+    
+    # Récupérer les données pour les formulaires
+    comptes = g.models.compte_bancaire_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
+    categories = g.models.categorie_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
+    contacts = g.models.contact_model.get_all(current_user.id)
+    
+    return render_template('comptabilite/creer_ecritures_groupées.html',
+                        transactions=transactions,
+                        comptes=comptes,
+                        categories=categories,
+                        contacts=contacts,
+                        today=datetime.now().strftime('%Y-%m-%d'))
+
+
 @bp.route('/comptabilite/update_statut_comptable/<int:transaction_id>', methods=['POST'])
 @login_required
 def update_statut_comptable(transaction_id):
@@ -4370,59 +4427,7 @@ def nouvelle_ecriture_from_transactions():
                          date_to=date_to,
                          today=datetime.now().strftime('%Y-%m-%d'))
 
-@bp.route('/comptabilite/ecritures/nouvelle/from_selected', methods=['GET', 'POST'])
-@login_required
-def nouvelle_ecriture_from_selected():
-    """Affiche le formulaire de création d'écritures pour transactions sélectionnées"""
-    
-    if request.method == 'POST':
-        # 🔥 CHANGEMENT : Lire 'selected_transaction_ids' au lieu de 'selected_transactions'
-        selected_transaction_ids = request.form.getlist('selected_transaction_ids')
-        if not selected_transaction_ids:
-            flash("Aucune transaction sélectionnée", "warning")
-            # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
-            return redirect(url_for('banking.transactions_sans_ecritures',
-                                    compte_id=request.form.get('compte_id'),
-                                    date_from=request.form.get('date_from'),
-                                    date_to=request.form.get('date_to'),
-                                    statut_comptable=request.form.get('statut_comptable')))
 
-        # Stocker les IDs en session pour les récupérer après
-        session['selected_transaction_ids'] = selected_transaction_ids
-        return redirect(url_for('banking.creer_ecritures_groupées'))
-    
-    # Récupérer les transactions sélectionnées depuis la session
-    transaction_ids = session.get('selected_transaction_ids', [])
-    if not transaction_ids:
-        flash("Aucune transaction sélectionnée", "warning")
-        # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
-        return redirect(url_for('banking.transactions_sans_ecritures'))
-    
-    # Récupérer les transactions
-    transactions = []
-    for transaction_id in transaction_ids:
-        transaction = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
-            int(transaction_id), current_user.id
-        )
-        if transaction:
-            transactions.append(transaction)
-    
-    if not transactions:
-        flash("Aucune transaction valide sélectionnée", "warning")
-        # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
-        return redirect(url_for('banking.transactions_sans_ecritures'))
-    
-    # Récupérer les données pour les formulaires
-    comptes = g.models.compte_bancaire_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
-    categories = g.models.categorie_model.get_all(current_user.id) # Vérifiez que cette fonction est correcte
-    contacts = g.models.contact_model.get_all(current_user.id)
-    
-    return render_template('comptabilite/creer_ecritures_groupées.html',
-                        transactions=transactions,
-                        comptes=comptes,
-                        categories=categories,
-                        contacts=contacts,
-                        today=datetime.now().strftime('%Y-%m-%d'))
 @bp.route('/comptabilite/ecritures/<int:ecriture_id>/statut', methods=['POST'])
 @login_required
 def modifier_statut_ecriture(ecriture_id):
