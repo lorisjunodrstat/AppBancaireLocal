@@ -1211,7 +1211,7 @@ def depot():
     user_id = current_user.id
     comptes = g.models.compte_model.get_by_user_id(user_id)
     print(f'Voici les comptes de l\'utilisateur {user_id} : {comptes}')
-    all_comptes = g.models.compte_model.get_all_accounts()
+    all_comptes = g.models.compte_model.get_all_accounts(g.db_manager)
     
     if request.method == 'POST':
         # Récupération des données du formulaire
@@ -4466,7 +4466,7 @@ def nouvelle_ecriture_from_transactions():
         return redirect(url_for('banking.transactions_sans_ecritures'))
     
     # Récupérer les données pour les formulaires
-    comptes = g.models.compte_model.get_all_accounts(current_user.id)
+    comptes = g.models.compte_model.get_all_accounts(g.db_manager)
     categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
     
