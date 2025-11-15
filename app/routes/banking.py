@@ -3901,6 +3901,7 @@ def transactions_sans_ecritures():
         total_a_comptabiliser_len=total_a_comptabiliser_len, 
         contacts=contacts
     )
+
 @bp.route('/comptabilite/update_statut_comptable/<int:transaction_id>', methods=['POST'])
 @login_required
 def update_statut_comptable(transaction_id):
@@ -4455,7 +4456,7 @@ def nouvelle_ecriture_from_transactions():
         date_from=date_from,
         date_to=date_to
     )
-    f compte_id and compte_id != '':
+    if compte_id and compte_id != '':
         transactions = [t for t in transactions if t.get('compte_bancaire_id') == int(compte_id)]
     
     if not transactions:
