@@ -50,10 +50,10 @@
                                 </span>
                             </td>
                             <td>
-                                <a href="{{ url_for('banking.detail_ecritures_categorie',
-                                                  type=type,
-                                                  categorie_id=categorie_id) }}?annee={{ annee }}&show_link_modal=1&ecriture_id={{ ecriture.id }}"
-                                    class="btn btn-sm btn-outline-primary">
+                                <a href="{{ url_for(request.endpoint, 
+                                                  show_link_modal=1, 
+                                                  ecriture_id=ecriture.id,
+                                                  **request.args) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-link"></i> Lier
                                 </a>
                             </td>
