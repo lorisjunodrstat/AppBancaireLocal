@@ -79,10 +79,10 @@
                                 <td>{{ produit.categorie_nom }}</td>
                                 <td class="text-end">{{ "%.2f"|format(produit.montant) }}</td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('banking.detail_ecritures_categorie', 
-                                        annee=annee_selectionnee, 
-                                        type='produit', 
-                                        categorie_id=produit.categorie_id) }}" class="btn btn-sm btn-outline-info">
+                                    <a href="{{ url_for('banking.detail_ecritures_categorie',
+                                                                            type='produit',
+                                                                            categorie_id=produit.categorie_id) }}?annee={{ annee_selectionnee }}"
+                                        class="btn btn-sm btn-outline-info">
                                         <i class="fas fa-eye"></i> Détail
                                     </a>
                                 </td>
@@ -95,10 +95,10 @@
                             <tr class="table-success">
                                 <td colspan="2" class="fw-bold">TOTAL PRODUITS</td>
                                 <td class="text-end fw-bold">
-                                    <a href="{{ url_for('banking.detail_ecritures_categorie', 
-                                        annee=annee_selectionnee, 
-                                        type='produit', 
-                                        categorie_id='all') }}" class="text-decoration-none text-dark">
+                                    <a href="{{ url_for('banking.detail_ecritures_categorie',
+                                                                            type='produit',
+                                                                            categorie_id='all') }}?annee={{ annee_selectionnee }}"
+                                        class="text-decoration-none text-dark">
                                         {{ "%.2f"|format(stats.total_produits) }}
                                     </a>
                                 </td>
@@ -130,10 +130,10 @@
                                 <td class="text-end">{{ "%.2f"|format(charge.montant) }}</td>
                                 <td class="text-end">
                                     <a href="{{ url_for('banking.detail_ecritures_categorie', 
-                                        annee=annee_selectionnee, 
-                                        type='charge', 
-                                        categorie_id=charge.categorie_id) }}" class="btn btn-sm btn-outline-info">
-                                        <i class="fas fa-eye"></i> Détail
+                                                                            annee=annee_selectionnee, 
+                                                                            type='charge', 
+                                                                            categorie_id='all') }}" class="text-decoration-none text-dark">
+                                        {{ "%.2f"|format(stats.total_charges) }}
                                     </a>
                                 </td>
                             </tr>
@@ -145,10 +145,10 @@
                             <tr class="table-danger">
                                 <td colspan="2" class="fw-bold">TOTAL CHARGES</td>
                                 <td class="text-end fw-bold">
-                                    <a href="{{ url_for('banking.detail_ecritures_categorie', 
-                                        annee=annee_selectionnee, 
-                                        type='charge', 
-                                        categorie_id='all') }}" class="text-decoration-none text-dark">
+                                    <a href="{{ url_for('banking.detail_ecritures_categorie',
+                                                                            type='charge',
+                                                                            categorie_id='all') }}?annee={{ annee_selectionnee }}"
+                                        class="text-decoration-none text-dark">
                                         {{ "%.2f"|format(stats.total_charges) }}
                                     </a>
                                 </td>
