@@ -4818,7 +4818,7 @@ def compte_de_resultat():
         flash(f"Erreur lors de la génération du compte de résultat: {str(e)}", "danger")
         return redirect(url_for('banking.banking_dashboard'))
 
-bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
+@bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
 @login_required
 def detail_ecritures_categorie(type, categorie_id):
     """Affiche le détail des écritures d'une catégorie"""
