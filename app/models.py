@@ -6323,9 +6323,9 @@ class EcritureComptable:
                 params = [user_id, date_from, date_to, statut]
                 
                 if type_categorie == 'produit':
-                    query += " AND c.type_compte = 'Revenus'"
+                    query += " AND c.type_compte = 'Revenus' OR c.type_compte = 'Actif'"
                 elif type_categorie == 'charge':
-                    query += " AND c.type_compte = 'Charge'"
+                    query += " AND c.type_compte = 'Charge' OR c.type_compte = 'Passif'"
                 
                 if categorie_id and categorie_id != 'all':
                     query += " AND e.categorie_id = %s"
@@ -7402,6 +7402,7 @@ class ContactCompte:
         except Exception as e:
             logging.error(f"Erreur récupération contact par compte : {e}")
             return None
+
 class Rapport:
     def __init__(self, db):
         self.db = db
