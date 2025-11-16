@@ -6124,7 +6124,9 @@ def synthese_hebdomadaire():
         semaine = datetime.now().isocalendar()[1]
     else:
         semaine = int(semaine)
-
+    data_list = g.models.synthese_hebdo_model.calculate_for_week_by_contrat(user_id, annee, semaine)
+    for data in data_list:
+        g.models.synthese_hebdo_model.create_or_update_batch([data])
     # Données de la semaine sélectionnée
     synthese_list = g.models.synthese_hebdo_model.get_by_user_and_week(
         user_id=user_id, annee=annee, semaine=semaine
@@ -6166,6 +6168,7 @@ def generer_syntheses_hebdomadaires():
     
     flash(f"Synthèses hebdomadaires générées pour l'année {annee}.", "success")
     return redirect(url_for('banking.synthese_heures', annee=annee))
+
 @bp.route('/synthese-heures')
 @login_required
 def synthese_heures():
@@ -6198,6 +6201,7 @@ def synthese_heures():
                         annee=annee,
                         employeurs=employeurs,
                         now=datetime.now())
+
 @bp.route('/synthese-mensuelle/generer', methods=['POST'])
 @login_required
 def generer_syntheses_mensuelles():
