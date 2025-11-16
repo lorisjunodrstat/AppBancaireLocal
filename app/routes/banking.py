@@ -680,14 +680,14 @@ def banking_compte_top_echanges(compte_id):
     date_debut = (date.today() - timedelta(days=90)).isoformat()
     date_fin = date.today().isoformat()
     direction = 'tous'
-    limite = 10
+    limite = 40
 
     svg_code = None
     if request.method == 'POST':
         date_debut = request.form.get('date_debut', date_debut)
         date_fin = request.form.get('date_fin', date_fin)
         direction = request.form.get('direction', 'tous')
-        limite = int(request.form.get('limite', 10))
+        limite = int(request.form.get('limite', 40))
 
     # Récupérer les données
     donnees = g.models.transaction_financiere_model.get_top_comptes_echanges(
