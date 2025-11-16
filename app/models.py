@@ -4353,7 +4353,7 @@ class TransactionFinanciere:
     def get_top_comptes_echanges(self, compte_principal_id: int, user_id: int, 
                            date_debut: str, date_fin: str, 
                            direction: str = 'tous', 
-                           limite: int = 30) -> List[Dict]:
+                           limite: int = 50) -> List[Dict]:
         """
         Récupère les comptes avec lesquels un compte a le plus échangé de l'argent.
         
@@ -4460,7 +4460,9 @@ class TransactionFinanciere:
                     params = [compte_principal_id, date_debut, date_fin, limite]
 
                 cursor.execute(query, params)
+                logging.debug(f"Requête get_top_comptes_echanges exécutée avec params: {params}")
                 resultats = cursor.fetchall()
+                logging.debug(f"{len(resultats)} Résultats obtenus: {resultats}")
                 return [dict(row) for row in resultats]
 
         except Exception as e:
