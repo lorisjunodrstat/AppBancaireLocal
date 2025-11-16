@@ -729,11 +729,11 @@ def banking_compte_evolution_echanges(compte_id):
     # Valeurs par défaut
     all_comptes = g.models.compte_model.get_all_accounts()
     comptes_cibles_possibles = [
-    {k: v for k, v in compte.items() if k in ['id', 'nom_compte']} # Garder uniquement les clés nécessaires
+        {k: v for k, v in compte.items() if k in ['id', 'nom_compte']} # Garder uniquement les clés nécessaires
         for compte in all_comptes
             if compte['utilisateur_id'] == user_id and compte['id'] != compte_id # Exclure le compte source
             ]
-        logging.info(f"banking XXX Comptes cibles {len(comptes_cibles_possibles)} possibles pour le compte {compte_id} (tous les comptes actifs de l'utilisateur sauf le compte source) : {comptes_cibles_possibles} ")
+    logging.info(f"banking XXX Comptes cibles {len(comptes_cibles_possibles)} possibles pour le compte {compte_id} (tous les comptes actifs de l'utilisateur sauf le compte source) : {comptes_cibles_possibles} ")
     date_debut = (date.today() - timedelta(days=90)).isoformat()
     date_fin = date.today().isoformat()
     comptes_cibles_ids = []
