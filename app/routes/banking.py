@@ -774,7 +774,7 @@ def banking_compte_evolution_echanges(compte_id):
                     # On va associer les couleurs dans l'ordre de sélection
                     # On récupère les couleurs envoyées via le formulaire
                     # On suppose que les couleurs sont envoyées dans l'ordre des IDs sélectionnés
-                    couleur_envoyee = request.form.get(f'couleur_compte_{next((c["compte_id"] for c in top_comptes if c["nom_compte"] == nom_serie), "unknown")}', None)
+                    couleur_envoyee = request.form.get(f'couleur_compte_{next((c["compte_id"] for c in all_comptes if c["nom_compte"] == nom_serie), "unknown")}', None)
                     if couleur_envoyee:
                         couleurs_a_utiliser.append(couleur_envoyee)
                     else:
@@ -793,6 +793,7 @@ def banking_compte_evolution_echanges(compte_id):
 
     return render_template('banking/compte_evolution_echanges.html',
                         compte_source=compte_source,
+                        all_comptes=all_comptes,
                         comptes_cibles_possibles=comptes_cibles_possibles,
                         svg_code=svg_code,
                         date_debut=date_debut,
