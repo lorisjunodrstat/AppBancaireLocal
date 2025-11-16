@@ -716,17 +716,24 @@ def banking_compte_evolution_echanges(compte_id):
         return redirect(url_for('banking.banking_dashboard'))
 
     # Récupérer la liste des comptes avec lesquels il a échangé
-    top_comptes = g.models.transaction_financiere_model.get_top_comptes_echanges(
-        compte_id, user_id,
-        (date.today() - timedelta(days=365)).isoformat(),
-        date.today().isoformat(),
-        'tous',
-        100
-    )
-    logging.info(f"banking 726 Comptes cibles {len(top_comptes)} possibles pour le compte {compte_id} : {top_comptes} ")
-    comptes_cibles_possibles = top_comptes
-    logging.info(f"banking 728 {len(comptes_cibles_possibles)} Comptes cibles possibles pour le compte {compte_id} : {comptes_cibles_possibles}")
+    ##top_comptes = g.models.transaction_financiere_model.get_top_comptes_echanges(
+    #    compte_id, user_id,
+    #    (date.today() - timedelta(days=365)).isoformat(),
+    #    date.today().isoformat(),
+    #    'tous',
+    #    100
+    #)
+    #logging.info(f"banking 726 Comptes cibles {len(top_comptes)} possibles pour le compte {compte_id} : {top_comptes} poir")
+    #comptes_cibles_possibles = top_comptes
+    #logging.info(f"banking 728 {len(comptes_cibles_possibles)} Comptes cibles possibles pour le compte {compte_id} : {comptes_cibles_possibles}")
     # Valeurs par défaut
+    all_comptes = g.models.compte_model.get_all_accounts()
+    comptes_cibles_possibles = [
+    {k: v for k, v in compte.items() if k in ['id', 'nom_compte']} # Garder uniquement les clés nécessaires
+        for compte in all_comptes
+            if compte['utilisateur_id'] == user_id and compte['id'] != compte_id # Exclure le compte source
+            ]
+        logging.info(f"banking XXX Comptes cibles {len(comptes_cibles_possibles)} possibles pour le compte {compte_id} (tous les comptes actifs de l'utilisateur sauf le compte source) : {comptes_cibles_possibles} ")
     date_debut = (date.today() - timedelta(days=90)).isoformat()
     date_fin = date.today().isoformat()
     comptes_cibles_ids = []
