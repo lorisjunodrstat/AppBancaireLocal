@@ -4456,6 +4456,7 @@ class TransactionFinanciere:
                     params = [compte_principal_id, date_debut, date_fin,
                             compte_principal_id, date_debut, date_fin,
                             limite]
+                    logging.info(f'models 4459 voici les params : {params}')
                 if direction in ['envoye', 'recu']:
                     params = [compte_principal_id, date_debut, date_fin, limite]
 
