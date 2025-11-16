@@ -4129,7 +4129,7 @@ def nouvelle_ecriture():
                 flash('Écriture enregistrée avec succès', 'success')
                 transaction_id = request.form.get('transaction_id')
                 if transaction_id:
-                    g.models.transaction_financiere_model.link_to_ecriture(transaction_id, g.models.ecriture_comptable_model.last_insert_id)
+                    g.models.ecriture_comptable_model.link_ecriture_to_transaction(transaction_id, g.models.ecriture_comptable_model.last_insert_id)
                 return redirect(url_for('banking.liste_ecritures'))
             else:
                 flash('Erreur lors de l\'enregistrement', 'danger')
@@ -4287,7 +4287,7 @@ def creer_ecritures_multiple_auto(transaction_id):
                     data['tva_montant'] = data['montant'] * data['tva_taux'] / 100
                 if g.models.ecriture_comptable_model.create(data):
                     ecriture_id = g.models.ecriture_comptable_model.last_insert_id
-                    g.models.transaction_financiere_model.link_to_ecriture(transaction_id, ecriture_id)
+                    g.models.ecriture_comptable_model.link_ecriture_to_transaction(transaction_id, ecriture_id)
                     success_count += 1
             
             except Exception as e:
@@ -4405,7 +4405,7 @@ def nouvelle_ecriture_from_transactions():
                     if g.models.ecriture_comptable_model.create(data):
                         ecriture_id = g.models.ecriture_comptable_model.last_insert_id
                         # Lier l'écriture à la transaction
-                        g.models.transaction_financiere_model.link_to_ecriture(int(transaction_ids[i]), ecriture_id) # Convertir en int
+                        g.models.ecriture_comptable_model.link_ecriture_to_transaction(int(transaction_ids[i]), ecriture_id) # Convertir en int
                         success_count += 1
                     else:
                         errors.append(f"Transaction {i+1}: Erreur lors de l'enregistrement dans le modèle")
