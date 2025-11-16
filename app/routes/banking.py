@@ -723,8 +723,9 @@ def banking_compte_evolution_echanges(compte_id):
         'tous',
         100
     )
+    logging.info(f"Comptes cibles {len(top_comptes)} possibles pour le compte {compte_id} : {top_comptes} ")
     comptes_cibles_possibles = top_comptes
-
+    logging.info(f"banking 678 {len(comptes_cibles_possibles)} Comptes cibles possibles pour le compte {compte_id} : {comptes_cibles_possibles}")
     # Valeurs par défaut
     date_debut = (date.today() - timedelta(days=90)).isoformat()
     date_fin = date.today().isoformat()
