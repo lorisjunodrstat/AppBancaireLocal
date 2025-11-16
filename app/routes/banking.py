@@ -721,7 +721,7 @@ def banking_compte_evolution_echanges(compte_id):
         (date.today() - timedelta(days=365)).isoformat(),
         date.today().isoformat(),
         'tous',
-        50
+        100
     )
     comptes_cibles_possibles = top_comptes
 
@@ -784,15 +784,15 @@ def banking_compte_evolution_echanges(compte_id):
                 )
 
     return render_template('banking/compte_evolution_echanges.html',
-                         compte_source=compte_source,
-                         comptes_cibles_possibles=comptes_cibles_possibles,
-                         svg_code=svg_code,
-                         date_debut=date_debut,
-                         date_fin=date_fin,
-                         comptes_cibles_ids=comptes_cibles_ids,
-                         type_graphique=type_graphique,
-                         couleur=couleur,
-                         cumuler=cumuler)
+                        compte_source=compte_source,
+                        comptes_cibles_possibles=comptes_cibles_possibles,
+                        svg_code=svg_code,
+                        date_debut=date_debut,
+                        date_fin=date_fin,
+                        comptes_cibles_ids=comptes_cibles_ids,
+                        type_graphique=type_graphique,
+                        couleur=couleur,
+                        cumuler=cumuler)
 
 @bp.route("/compte/<int:compte_id>/set_periode_favorite", methods=["POST"])
 @login_required

@@ -4353,7 +4353,7 @@ class TransactionFinanciere:
     def get_top_comptes_echanges(self, compte_principal_id: int, user_id: int, 
                            date_debut: str, date_fin: str, 
                            direction: str = 'tous', 
-                           limite: int = 10) -> List[Dict]:
+                           limite: int = 30) -> List[Dict]:
         """
         Récupère les comptes avec lesquels un compte a le plus échangé de l'argent.
         
