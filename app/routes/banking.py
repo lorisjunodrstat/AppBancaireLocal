@@ -4016,6 +4016,8 @@ def nouvelle_ecriture_from_selected():
         categories_ids = request.form.getlist('categorie_id[]')
         montants = request.form.getlist('montant[]')
         tva_taux = request.form.getlist('tva_taux[]')
+        # 🔥 RÉCUPÉRER LE MONTANT HTVA CALCULÉ PAR LE SERVEUR (ou pas, on le calcule)
+        # montants_htva = request.form.getlist('montant_htva[]') # Ce champ est readonly ou hidden
         descriptions = request.form.getlist('description[]')
         references = request.form.getlist('reference[]')
         statuts = request.form.getlist('statut[]')
@@ -4035,29 +4037,38 @@ def nouvelle_ecriture_from_selected():
                     errors.append(f"Transaction {i+1}: Tous les champs obligatoires doivent être remplis")
                     continue
 
+                montant_ttc = Decimal(str(montants[i]))
+                taux_tva = Decimal(str(tva_taux[i])) if tva_taux[i] and tva_taux[i] != '' else Decimal('0')
+
+                # 🔥 CALCUL DU MONTANT HTVA CÔTÉ SERVEUR
+                if taux_tva > 0:
+                    montant_htva_calcule = montant_ttc / (1 + taux_tva / Decimal('100'))
+                else:
+                    montant_htva_calcule = montant_ttc # Si pas de TVA, HTVA = TTC
+
                 data = {
                     'date_ecriture': dates[i],
                     'compte_bancaire_id': int(comptes_ids[i]),
                     'categorie_id': int(categories_ids[i]),
-                    'montant': Decimal(str(montants[i])),
-                    'montant_htva': Decimal(str(montants[i])),  # Par défaut égal au montant
+                    'montant': montant_ttc,
+                    # 🔥 UTILISER LE MONTANT HTVA CALCULÉ CÔTÉ SERVEUR
+                    'montant_htva': montant_htva_calcule,
                     'description': descriptions[i] if i < len(descriptions) and descriptions[i] else '',
                     'id_contact': int(contacts_ids[i]) if i < len(contacts_ids) and contacts_ids[i] else None,
                     'reference': references[i] if i < len(references) and references[i] else '',
                     'type_ecriture': types_ecriture[i],
-                    'tva_taux': Decimal(str(tva_taux[i])) if i < len(tva_taux) and tva_taux[i] else None,
+                    'tva_taux': taux_tva,
                     'utilisateur_id': current_user.id,
                     'statut': statuts[i] if i < len(statuts) and statuts[i] else 'pending',
                     'devise': 'CHF',
                     'type_ecriture_comptable': 'principale'
                 }
 
-                # 🔥 CORRECTION : Calcul TVA cohérent
-                if data['tva_taux']:
-                    data['montant_htva'] = data['montant'] / (1 + data['tva_taux'] / 100)
+                # 🔥 CORRECTION : Calcul TVA cohérent (déjà fait ci-dessus)
+                if data['tva_taux'] > 0:
                     data['tva_montant'] = data['montant'] - data['montant_htva']
                 else:
-                    data['tva_montant'] = 0
+                    data['tva_montant'] = Decimal('0')
 
                 if g.models.ecriture_comptable_model.create(data):
                     succes_count += 1
