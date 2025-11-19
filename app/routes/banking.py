@@ -3033,7 +3033,7 @@ def comptabilite_dashboard():
     resultat_net = total_recettes - total_depenses
 
     # Nombre de transactions à comptabiliser
-    comptes = g.models.compte_model.get_all_accounts_by_user_id(current_user.id)
+    comptes = g.models.compte_model.get_by_user_id(current_user.id)
     transactions_a_comptabiliser = []
     for compte in comptes:
         txs = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_compte(
