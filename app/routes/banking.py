@@ -3033,9 +3033,13 @@ def comptabilite_dashboard():
     resultat_net = total_recettes - total_depenses
 
     # Nombre de transactions à comptabiliser
-    transactions_a_comptabiliser = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_utilisateur(
-        current_user.id, statut_comptable='a_comptabiliser'
-    )
+    comptes = g.models.compte_model.get_all_accounts_by_user_id(current_user.id)
+    transactions_a_comptabiliser = []
+    for compte in comptes:
+        txs = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_compte(
+            current_user.id, compte_id=compte['id'], statut_comptable='a_comptabiliser'
+        )
+        transactions_a_comptabiliser.extend(txs)
     nb_a_comptabiliser = len(transactions_a_comptabiliser)
 
     # Préparer les données pour le template
