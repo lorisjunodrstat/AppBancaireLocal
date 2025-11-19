@@ -3323,6 +3323,17 @@ def liste_ecritures():
     categorie_id = request.args.get('categorie_id')
     id_contact = request.args.get('id_contact')
     statut = request.args.get('statut', 'tous')
+    type_ecriture = request.args.get('type_ecriture')
+    types_ecriture_disponibles = [
+        {'value': 'tous', 'label': 'Tous les types'},
+        {'value': 'recette', 'label': 'Recettes'},
+        {'value': 'depense', 'label': 'Dépenses'}
+    ]   
+    type_ecriture_comptable_disponibles = [
+        {'value': 'tous', 'label': 'Tous les types'},
+        {'value': 'principale', 'label': 'Écritures principales'},
+        {'value': 'complementaire', 'label': 'Écritures complémentaires'}
+    ]
     
     # Statuts pour le template
     statuts_disponibles = [
@@ -3346,7 +3357,14 @@ def liste_ecritures():
     
     # Utiliser la nouvelle méthode de filtrage
     ecritures = g.models.ecriture_comptable_model.get_with_filters(**filtres)
-    print(f"Ecritures récupérées avec filtres {filtres}: {ecritures}")
+    ecritures_avec_secondaires = []
+    for ecriture in ecritures:
+        ecriture_dict = dict(ecriture)
+        if ecriture.get('type_ecriture_comptable') == 'principale' or not ecriture.get('ecriture_principale_id'):
+            secondaires = g.models.ecriture_comptable_model.get_ecritures_complementaires(ecriture['id'], current_user.id)
+            ecriture_dict['ecritures_secondaires'] = secondaires
+        ecritures_avec_secondaires.append(ecriture_dict)
+    print(f"Ecritures récupérées avec filtres {filtres}: {ecritures_avec_secondaires}")
     # Récupérer les données supplémentaires
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
@@ -3387,11 +3405,15 @@ def liste_ecritures():
                 transaction_detail = None
 
     return render_template('comptabilite/ecritures.html',
-        ecritures=ecritures,
+        ecritures=ecritures_avec_secondaires,
         comptes=comptes,
         categories=categories,  # Nouveau
         compte_selectionne=compte_id,
         statuts_disponibles=statuts_disponibles,
+        types_ecriture_disponibles=types_ecriture_disponibles,
+        type_ecriture_selectionne=type_ecriture,
+        type_ecriture_comptable_disponibles=type_ecriture_comptable_disponibles,
+        type_ecriture_comptable_selectionne=type_ecriture_comptable,
         statut_selectionne=statut,
         contacts=contacts,
         contact_selectionne=id_contact,
@@ -3416,6 +3438,13 @@ def liste_ecritures_par_contact(contact_id):
         return redirect(url_for('banking.liste_contacts_comptables'))
     
     ecritures = g.models.ecriture_comptable_model.get_by_contact_id(contact_id, utilisateur_id=current_user.id)
+    ecritures_avec_secondaires = []
+    for ecriture in ecritures:
+        ecriture_dict = dict(ecriture)
+        if ecriture.get('type_ecriture_comptable') == 'principale' or not ecriture.get('ecriture_principale_id'):
+            secondaires = g.models.ecriture_comptable_model.get_ecritures_complementaires(ecriture['id'], current_user.id)
+            ecriture_dict['ecritures_secondaires'] = secondaires
+        ecritures_avec_secondaires.append(ecriture_dict)
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
 
     # Modal de liaison
@@ -3458,7 +3487,7 @@ def liste_ecritures_par_contact(contact_id):
                 transaction_detail = None
 
     return render_template('comptabilite/ecritures_par_contact.html',
-        ecritures=ecritures,
+        ecritures=ecritures_avec_secondaires,
         contact=contact,
         comptes=comptes,
         show_link_modal=show_link_modal,
@@ -3644,6 +3673,8 @@ def creer_categorie():
         try:
             nom = request.form.get('nom', '').strip()
             type_categorie = request.form.get('type_categorie', 'Dépense')
+            categorie_complementaire_id = request.form.get('categorie_complementaire_id', None)
+            type_ecriture_complementaire = request.form.get('type_ecriture_complementaire', None)
             description = request.form.get('description', '').strip()
             couleur = request.form.get('couleur', '')
             icone = request.form.get('icone', '')
@@ -3667,7 +3698,7 @@ def creer_categorie():
                 return render_template('categories/creer_categorie.html')
 
             success, message = g.models.categorie_transaction_model.creer_categorie(
-                current_user.id, nom, type_categorie, description, couleur, icone, budget_mensuel
+                current_user.id, nom, type_categorie, categorie_complementaire_id, type_ecriture_complementaire, description, couleur, icone, budget_mensuel
             )
             
             if success:
@@ -3696,6 +3727,8 @@ def modifier_categorie(categorie_id):
         try:
             nom = request.form.get('nom', '').strip()
             description = request.form.get('description', '').strip()
+            categorie_complementaire_id = request.form.get('categorie_complementaire_id', None)
+            type_ecriture_complementaire = request.form.get('type_ecriture_complementaire', None)
             couleur = request.form.get('couleur', '')
             icone = request.form.get('icone', '')
             budget_mensuel = request.form.get('budget_mensuel', 0)
@@ -3705,6 +3738,10 @@ def modifier_categorie(categorie_id):
                 updates['nom'] = nom
             if description != categorie.get('description', ''):
                 updates['description'] = description
+            if categorie_complementaire_id != str(categorie.get('categorie_complementaire_id', '')):
+                updates['categorie_complementaire_id'] = categorie_complementaire_id
+            if type_ecriture_complementaire != categorie.get('type_ecriture_complementaire', ''):
+                updates['type_ecriture_complementaire'] = type_ecriture_complementaire
             if couleur and couleur != categorie.get('couleur', ''):
                 updates['couleur'] = couleur
             if icone != categorie.get('icone', ''):
@@ -3864,7 +3901,7 @@ def transactions_sans_ecritures():
             statut_comptable=statut_comptable
         )
     
-    # 🔥 NOUVEAU : Pour chaque transaction, récupérer le contact lié au compte
+    # Pour chaque transaction, récupérer le contact lié au compte
     transactions_avec_contacts = []
     for transaction in transactions:
         contact_lie = None
@@ -3874,7 +3911,7 @@ def transactions_sans_ecritures():
                 current_user.id
             )
         # Ajouter le contact_lie à la transaction
-        transaction_dict = dict(transaction)  # Convertir en dict si nécessaire
+        transaction_dict = dict(transaction)
         transaction_dict['contact_lie'] = contact_lie
         transactions_avec_contacts.append(transaction_dict)
     
@@ -3893,12 +3930,20 @@ def transactions_sans_ecritures():
     total_a_comptabiliser = sum(tx['montant'] for tx in total_transactions if tx['statut_comptable'] == 'a_comptabiliser')
     total_a_comptabiliser_len = len([tx for tx in total_transactions if tx['statut_comptable'] == 'a_comptabiliser'])
     
-    # CORRECTION : Utilisez get_all_categories() au lieu de get_all()
+    # Récupérer les catégories et celles avec complémentaires
     categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
+    categories_avec_complementaires = g.models.categorie_comptable_model.get_categories_avec_complementaires(current_user.id)
+    
+    # 🔥 NOUVEAU : Créer un set des IDs de catégories qui ont des écritures secondaires
+    categories_avec_complementaires_ids = set()
+    for cat in categories_avec_complementaires:
+        if cat.get('categorie_complementaire_id'):
+            categories_avec_complementaires_ids.add(cat['id'])
+    
     contacts = g.models.contact_model.get_all(current_user.id)
     
     return render_template('comptabilite/transactions_sans_ecritures.html',
-        transactions=transactions_avec_contacts,  # 🔥 Utiliser la nouvelle liste avec contacts
+        transactions=transactions_avec_contacts,
         comptes=comptes,
         compte_selectionne=compte_id,
         statuts_comptables=statuts_comptables,
@@ -3906,11 +3951,11 @@ def transactions_sans_ecritures():
         date_from=date_from,
         date_to=date_to,
         categories=categories,
+        categories_avec_complementaires_ids=categories_avec_complementaires_ids,  # 🔥 NOUVEAU
         total_a_comptabiliser=total_a_comptabiliser,
         total_a_comptabiliser_len=total_a_comptabiliser_len, 
         contacts=contacts
     )
-
 
 @bp.route('/comptabilite/ecritures/nouvelle/from_selected', methods=['GET', 'POST'])
 @login_required
@@ -3918,21 +3963,128 @@ def nouvelle_ecriture_from_selected():
     """Affiche le formulaire de création d'écritures pour transactions sélectionnées"""
     
     if request.method == 'POST':
-        # 🔥 CHANGEMENT : Lire 'selected_transaction_ids' au lieu de 'selected_transactions'
-        selected_transaction_ids = request.form.getlist('selected_transaction_ids')
-        logging.info(f"Transactions sélectionnées pour création d'écritures: {selected_transaction_ids}")   
+        # Traitement des écritures sélectionnées
+        selected_transaction_ids = request.form.getlist('transaction_ids[]')
+        dates = request.form.getlist('date_ecriture[]')
+        types_ecriture = request.form.getlist('type_ecriture[]')
+        comptes_ids = request.form.getlist('compte_bancaire_id[]')
+        categories_ids = request.form.getlist('categorie_id[]')
+        montants = request.form.getlist('montant[]')
+        tva_taux = request.form.getlist('tva_taux[]')
+        descriptions = request.form.getlist('description[]')
+        references = request.form.getlist('reference[]')
+        statuts = request.form.getlist('statut[]')
+        contacts_ids = request.form.getlist('id_contact[]')
+        
         if not selected_transaction_ids:
             flash("Aucune transaction sélectionnée", "warning")
-            # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
-            return redirect(url_for('banking.transactions_sans_ecritures',
-                                    compte_id=request.form.get('compte_id'),
-                                    date_from=request.form.get('date_from'),
-                                    date_to=request.form.get('date_to'),
-                                    statut_comptable=request.form.get('statut_comptable')))
+            return redirect(url_for('banking.transactions_sans_ecritures'))
 
-        # Stocker les IDs en session pour les récupérer après
-        session['selected_transaction_ids'] = selected_transaction_ids
-        return redirect(url_for('banking.nouvelle_ecriture_from_selected'))
+        succes_count = 0
+        secondary_count = 0
+        errors = []
+
+        for i in range(len(selected_transaction_ids)):
+            try:
+                if not all([dates[i], types_ecriture[i], comptes_ids[i], categories_ids[i], montants[i]]):
+                    errors.append(f"Transaction {i+1}: Tous les champs obligatoires doivent être remplis")
+                    continue
+
+                data = {
+                    'date_ecriture': dates[i],
+                    'compte_bancaire_id': int(comptes_ids[i]),
+                    'categorie_id': int(categories_ids[i]),
+                    'montant': Decimal(str(montants[i])),
+                    'montant_htva': Decimal(str(montants[i])),  # Par défaut égal au montant
+                    'description': descriptions[i] if i < len(descriptions) and descriptions[i] else '',
+                    'id_contact': int(contacts_ids[i]) if i < len(contacts_ids) and contacts_ids[i] else None,
+                    'reference': references[i] if i < len(references) and references[i] else '',
+                    'type_ecriture': types_ecriture[i],
+                    'tva_taux': Decimal(str(tva_taux[i])) if i < len(tva_taux) and tva_taux[i] else None,
+                    'utilisateur_id': current_user.id,
+                    'statut': statuts[i] if i < len(statuts) and statuts[i] else 'pending',
+                    'devise': 'CHF',
+                    'type_ecriture_comptable': 'principale'
+                }
+
+                # 🔥 CORRECTION : Calcul TVA cohérent
+                if data['tva_taux']:
+                    data['montant_htva'] = data['montant'] / (1 + data['tva_taux'] / 100)
+                    data['tva_montant'] = data['montant'] - data['montant_htva']
+                else:
+                    data['tva_montant'] = 0
+
+                if g.models.ecriture_comptable_model.create(data):
+                    succes_count += 1
+                    ecriture_id = g.models.ecriture_comptable_model.last_insert_id
+                    
+                    # 🔥 COMPTAGE DES ÉCRITURES SECONDAIRES
+                    secondaires = g.models.ecriture_comptable_model.get_ecritures_complementaires(ecriture_id, current_user.id)
+                    secondary_count += len(secondaires)
+                    
+                    # Lier l'écriture à la transaction
+                    transaction_id = int(selected_transaction_ids[i])
+                    g.models.ecriture_comptable_model.link_ecriture_to_transaction(transaction_id, ecriture_id, current_user.id)
+                else:
+                    errors.append(f"Transaction {i+1}: Erreur lors de l'enregistrement")
+                    
+            except Exception as e:
+                errors.append(f"Transaction {i+1}: Erreur - {str(e)}")
+                continue
+
+        # Gestion des messages
+        for error in errors:
+            flash(error, "warning")
+                
+        if succes_count > 0:
+            message = f"{succes_count} écriture(s) créée(s) avec succès"
+            if secondary_count > 0:
+                message += f" ({secondary_count} écriture(s) secondaire(s) générée(s) automatiquement)"
+            flash(message, "success")
+        else:
+            flash("Aucune écriture n'a pu être créée", "error")
+            
+        return redirect(url_for('banking.liste_ecritures'))
+    
+    # GET - Afficher le formulaire
+    # Récupérer les transactions sélectionnées depuis la session
+    transaction_ids = session.get('selected_transaction_ids', [])
+    if not transaction_ids:
+        flash("Aucune transaction sélectionnée", "warning")
+        return redirect(url_for('banking.transactions_sans_ecritures'))
+    
+    # Récupérer les transactions
+    transactions = []
+    for transaction_id in transaction_ids:
+        transaction = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
+            int(transaction_id), current_user.id
+        )
+        if transaction:
+            transactions.append(transaction)
+    
+    if not transactions:
+        flash("Aucune transaction valide sélectionnée", "warning")
+        return redirect(url_for('banking.transactions_sans_ecritures'))
+    
+    # Récupérer les données pour les formulaires
+    comptes = g.models.compte_model.get_all_accounts()
+    categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
+    contacts = g.models.contact_model.get_all(current_user.id)
+    
+    # 🔥 NOUVEAU : Récupérer les catégories avec écritures secondaires
+    categories_avec_complementaires = g.models.categorie_comptable_model.get_categories_avec_complementaires(current_user.id)
+    categories_avec_complementaires_ids = set()
+    for cat in categories_avec_complementaires:
+        if cat.get('categorie_complementaire_id'):
+            categories_avec_complementaires_ids.add(cat['id'])
+    
+    return render_template('comptabilite/creer_ecritures_groupées.html',
+                        transactions=transactions,
+                        comptes=comptes,
+                        categories=categories,
+                        categories_avec_complementaires_ids=categories_avec_complementaires_ids,
+                        contacts=contacts,
+                        today=datetime.now().strftime('%Y-%m-%d'))
     
     # Récupérer les transactions sélectionnées depuis la session
     transaction_ids = session.get('selected_transaction_ids', [])
@@ -4101,6 +4253,7 @@ def month_french_filter(value):
 @bp.route('/comptabilite/ecritures/nouvelle', methods=['GET', 'POST'])
 @login_required
 def nouvelle_ecriture():
+
     if request.method == 'POST':
         try:
             # 🔥 NOUVEAU : Récupérer le contact lié au compte si pas de contact spécifié
@@ -4122,20 +4275,36 @@ def nouvelle_ecriture():
                 'compte_bancaire_id': compte_bancaire_id,
                 'categorie_id': int(request.form['categorie_id']),
                 'montant': Decimal(request.form['montant']),
+                'montant_htva':Decimal(request.form.get('montant_htva', request.form['montant'])),
                 'description': request.form.get('description', ''),
                 'id_contact': id_contact,  # 🔥 Utilise le contact du formulaire ou celui lié au compte
                 'reference': request.form.get('reference', ''),
                 'type_ecriture': request.form['type_ecriture'],
                 'tva_taux': Decimal(request.form['tva_taux']) if request.form.get('tva_taux') else None,
                 'utilisateur_id': current_user.id,
-                'statut': request.form.get('statut', 'pending')
+                'statut': request.form.get('statut', 'pending'),
+                'devise': request.form.get('devise', 'CHF'),
+                'type_ecriture_comptable' : 'principale'
             }
             
             if data['tva_taux']:
-                data['tva_montant'] = data['montant'] * data['tva_taux'] / 100
+                if 'montant_htva' in request.form and request.form['montant_htva']:
+                    data['montant_htva'] = Decimal(request.form['montant_htva'])
+                    data['tva_montant'] = data['montant'] - data['montant_htva']
+                else:
+                    data['montant_htva'] = data['montant'] / ( + data['tva_taux'] /100)
+                    data['tva_montant'] = data['montant'] - data['montant_htva']
+            else:
+                data['montant_htva'] = data['montant']
+                data['tva_montant'] = 0
                 
             if g.models.ecriture_comptable_model.create(data):
                 flash('Écriture enregistrée avec succès', 'success')
+                ecriture_id = g.models.ecriture_comptable_model.last_insert_id
+                secondaires = g.models.ecriture_comptable_model.get_ecritures_complementaires(ecriture_id, current_user.id)
+                if secondaires:
+                    flash(f'{len(secondaires)} écriture(s) secondaires créée(s) automatiquement', 'info')
+
                 transaction_id = request.form.get('transaction_id')
                 if transaction_id:
                     g.models.ecriture_comptable_model.link_ecriture_to_transaction(transaction_id, g.models.ecriture_comptable_model.last_insert_id, current_user.id)
@@ -4150,9 +4319,11 @@ def nouvelle_ecriture():
         categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
         contacts = g.models.contact_model.get_all(current_user.id)
         transactions_sans_ecritures = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_utilisateur(current_user.id)
+        categories_avec_complementaires = g.models.categorie_comptable_model.get_categories_avec_complementaires(current_user.id)
         return render_template('comptabilite/nouvelle_ecriture.html',
             comptes=comptes,
             categories=categories,
+            categories_avec_complementaires=categories_avec_complementaires,
             contacts=contacts,
             transactions_sans_ecritures=transactions_sans_ecritures,
             today=datetime.now().strftime('%Y-%m-%d'))
@@ -4175,9 +4346,12 @@ def nouvelle_ecriture_multiple():
         id_contact_principal = int(request.form['id_contact']) if request.form.get('id_contact') else None
         
         succes_count = 0
+        secondary_count = 0
+        errors = []
         for i in range(len(dates)):
             try:
                 if not all([dates[i], types[i], comptes_ids[i], categories_ids[i], montants[i]]):
+                    errors.append(f"écritures {i + 1} : Tous les champs obligatoires doivent être remplis.")
                     flash(f"Écriture {i+1}: Tous les champs obligatoires doivent être remplis", "warning")
                     continue
                 
@@ -4202,21 +4376,35 @@ def nouvelle_ecriture_multiple():
                     'compte_bancaire_id': compte_id,
                     'categorie_id': int(categories_ids[i]),
                     'montant': Decimal(str(montant)),
+                    'montant_htva': Decimal(str(request.form.getlist('montant_htva[]')[i]))
+                    if i < len(request.form.getlist('montant_htva[]')) and request.form.getlist('montant_htva[]')[i] else Decimal(str(montant)), 
                     'description': descriptions[i] if i < len(descriptions) else '',
                     'id_contact': id_contact_ligne,  # 🔥 Contact principal ou lié au compte
                     'reference': references[i] if i < len(references) else '',
                     'type_ecriture': types[i],
                     'tva_taux': Decimal(str(taux_tva)) if taux_tva else None,
                     'utilisateur_id': current_user.id,
-                    'statut': statut
+                    'statut': statut,
+                    'devise': 'CHF',
+                    'type_ecriture_comptable' : 'principale'
                 }
                 
                 if data['tva_taux']:
-                    data['tva_montant'] = data['montant'] * data['tva_taux'] / 100
+                    if data['montant_htva'] != data['montant']:
+                        data['tva_montant'] = data['montant'] - data['montant_htva']
+                    else:
+                        data['montant_htva'] = data['montant'] / (1 + data['tva_taux'] / 100)
+                        data['tva_montant'] = data['montant'] - data['montant_htva']
+                else:
+                    data['tva_montant'] = 0
 
                 if g.models.ecriture_comptable_model.create(data):
                     succes_count += 1
+                    ecriture_id = g.models.ecriture_comptable_model.last_insert_id
+                    secondaires = g.models.ecriture_comptable_model.get_ecritures_complementaires[ecriture_id, current_user.id]
+                    secondary_count += len(secondaires)
                 else:
+                    errors.append(f"Ecriture {i + 1} : Erreur lors de l'enregistrement.")
                     flash(f"Écriture {i+1}: Erreur lors de l'enregistrement", "error")
             except ValueError as e:
                 flash(f"Écriture {i+1}: Erreur de format - {str(e)}", "error")
@@ -4224,9 +4412,14 @@ def nouvelle_ecriture_multiple():
             except Exception as e:
                 flash(f"Écriture {i+1}: Erreur inattendue - {str(e)}", "error")
                 continue
+
+        for error in errors:
+            flash(error, "warning")
                 
         if succes_count > 0:
             flash(f"{succes_count} écriture(s) enregistrée(s) avec succès!", "success")
+            if secondary_count > 0:
+                message += f"({secondary_count} écrtures(s) secondaires créée(s))"
         else:
             flash("Aucune écriture n'a pu être enregistrée", "warning")
         return redirect(url_for('banking.liste_ecritures'))
@@ -4236,9 +4429,12 @@ def nouvelle_ecriture_multiple():
         comptes = g.models.compte_model.get_all_accounts()
         categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
         contacts = g.models.contact_model.get_all(current_user.id)
+        categories_avec_conplementaires = g.models.categorie_comptable_model.get_categories_avec_complementaires(current_user.id)
+
         return render_template('comptabilite/nouvelle_ecriture_multiple.html',
             comptes=comptes,
             categories=categories,
+            categories_avec_conplementaires=categories_avec_conplementaires,
             contacts=contacts,
             today=datetime.now().strftime('%Y-%m-%d'))
 
@@ -4261,7 +4457,7 @@ def creer_ecritures_multiple_auto(transaction_id):
             flash("Cette transaction a déjà des écritures associées", "warning")
             return redirect(url_for('banking.transactions_sans_ecritures'))
         
-        # Le reste du code reste identique...
+
         categories_ids = request.form.getlist('categorie_id[]')
         montants = request.form.getlist('montant[]')
         tva_taux = request.form.getlist('tva_taux[]')
@@ -4284,6 +4480,7 @@ def creer_ecritures_multiple_auto(transaction_id):
                     'compte_bancaire_id': transaction['compte_principal_id'],
                     'categorie_id': int(categories_ids[i]),
                     'montant': Decimal(str(montants[i])),
+                    'montant_htva': Decimal(str(montants[i])),
                     'description': descriptions[i] if i < len(descriptions) and descriptions[i] else transaction['description'],
                     'id_contact': transaction.get('id_contact'),
                     'reference': transaction.get('reference', ''),
@@ -4291,9 +4488,16 @@ def creer_ecritures_multiple_auto(transaction_id):
                     'tva_taux': Decimal(str(tva_taux[i])) if i < len(tva_taux) and tva_taux[i] else None,
                     'utilisateur_id': current_user.id,
                     'statut': 'pending'
+                    'devise': 'CHF',
+                    'type_ecriture_comptable' : 'principale'
+
                 }
                 if data['tva_taux']:
                     data['tva_montant'] = data['montant'] * data['tva_taux'] / 100
+                    data['montant_htva'] = data['montant'] - data['tva_montant']
+                else:
+                    data['tva_montant'] = 0
+                    data['montant_htva'] = data['montant']
                 if g.models.ecriture_comptable_model.create(data):
                     ecriture_id = g.models.ecriture_comptable_model.last_insert_id
                     g.models.ecriture_comptable_model.link_ecriture_to_transaction(transaction_id, ecriture_id, current_user.id)
@@ -4315,6 +4519,70 @@ def creer_ecritures_multiple_auto(transaction_id):
                            date_from=request.args.get('date_from'),
                            date_to=request.args.get('date_to')))
 
+# 🔥 NOUVELLES ROUTES POUR LA GESTION DES ÉCRITURES SECONDAIRES
+
+@bp.route('/comptabilite/ecritures/<int:ecriture_id>/secondaires')
+@login_required
+def details_ecriture_secondaires(ecriture_id):
+    """Affiche le détail d'une écriture avec ses écritures secondaires"""
+    ecriture_complete = g.models.ecriture_comptable_model.get_ecriture_avec_secondaires(ecriture_id, current_user.id)
+    
+    if not ecriture_complete:
+        flash('Écriture non trouvée ou non autorisée', 'danger')
+        return redirect(url_for('banking.liste_ecritures'))
+    
+    return render_template('comptabilite/detail_ecriture_secondaires.html',
+        ecriture=ecriture_complete['principale'],
+        ecritures_secondaires=ecriture_complete['secondaires'])
+
+@bp.route('/comptabilite/ecritures/secondaire/<int:ecriture_secondaire_id>')
+@login_required
+def detail_ecriture_secondaire(ecriture_secondaire_id):
+    """Affiche le détail d'une écriture secondaire"""
+    ecriture_secondaire = g.models.ecriture_comptable_model.get_by_id(ecriture_secondaire_id)
+    ecriture_principale = None
+    
+    if ecriture_secondaire and ecriture_secondaire['utilisateur_id'] == current_user.id:
+        if ecriture_secondaire.get('ecriture_principale_id'):
+            ecriture_principale = g.models.ecriture_comptable_model.get_ecriture_principale(
+                ecriture_secondaire_id, current_user.id
+            )
+    
+    if not ecriture_secondaire or ecriture_secondaire['utilisateur_id'] != current_user.id:
+        flash('Écriture non trouvée ou non autorisée', 'danger')
+        return redirect(url_for('banking.liste_ecritures'))
+    
+    return render_template('comptabilite/detail_ecriture_secondaire.html',
+        ecriture_secondaire=ecriture_secondaire,
+        ecriture_principale=ecriture_principale)
+
+@bp.route('/api/ecritures/<int:categorie_id>/info-complementaire')
+@login_required
+def api_info_categorie_complementaire(categorie_id):
+    """API pour récupérer les informations de catégorie complémentaire (AJAX)"""
+    try:
+        # Récupérer les catégories complémentaires configurées
+        categories_complementaires = g.models.categorie_comptable_model.get_categories_avec_complementaires(current_user.id)
+        
+        categorie_info = None
+        for cat in categories_complementaires:
+            if cat['id'] == categorie_id and cat.get('categorie_complementaire_id'):
+                categorie_info = {
+                    'a_complement': True,
+                    'type_complement': cat.get('type_complement', 'tva'),
+                    'taux': float(cat.get('taux', 0)),
+                    'categorie_complementaire_nom': cat.get('comp_nom', ''),
+                    'categorie_complementaire_numero': cat.get('comp_numero', '')
+                }
+                break
+        
+        return jsonify({
+            'success': True,
+            'categorie_info': categorie_info or {'a_complement': False}
+        })
+    except Exception as e:
+        logging.error(f"Erreur API info catégorie complémentaire: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @bp.route('/comptabilite/ecritures/nouvelle/from_transactions', methods=['GET', 'POST'])
 @login_required
@@ -4498,7 +4766,7 @@ def modifier_statut_ecriture(ecriture_id):
         flash('Écriture non trouvée', 'danger')
         return redirect(url_for('banking.liste_ecritures'))
     nouveau_statut = request.form.get('statut')
-    if nouveau_statut not in ['pending', 'validée', 'rejetée']:
+    if nouveau_statut not in ['pending', 'validée', 'rejetée', 'supprimée']:
         flash('Statut invalide', 'danger')
         return redirect(url_for('banking.liste_ecritures'))
     if g.models.ecriture_comptable_model.update_statut(ecriture_id, current_user.id, nouveau_statut):
@@ -4512,9 +4780,13 @@ def modifier_statut_ecriture(ecriture_id):
 def edit_ecriture(ecriture_id):
     """Modifie une écriture comptable existante"""
     ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
+
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture introuvable ou non autorisée', 'danger')
         return redirect(url_for('banking.liste_ecritures'))
+    ecritures_secondaires = []
+    if ecriture.get('type_ecriture_comptable') == 'principale' or not ecriture.get('ecriture_principale_id'):
+        ecritures_secondaires = g.models.ecriture_comptable_model.get_ecritures_complementaires(ecriture_id, current_user.id)
     show_modal = request.args.get('show_modal') == 'liaison'
     contact = None
     comptes_lies = []
@@ -4533,16 +4805,27 @@ def edit_ecriture(ecriture_id):
             'compte_bancaire_id': int(request.form['compte_bancaire_id']),
             'categorie_id': int(request.form['categorie_id']),
             'montant': Decimal(request.form['montant']),
+            'montant_htva': Decimal(request.form.get('montant_htva', request.form['montant'])),
             'description': request.form.get('description', ''),
             'id_contact': id_contact,  # Utiliser la valeur convertie
             'reference': request.form.get('reference', ''),
             'type_ecriture': request.form['type_ecriture'],
+            'type_ecriture_comptable': request.form.get('type_ecriture_comptable', ''),
             'tva_taux': Decimal(request.form['tva_taux']) if request.form.get('tva_taux') else None,
             'utilisateur_id': current_user.id,
-            'statut': request.form.get('statut', 'pending')
+            'statut': request.form.get('statut', 'pending'),
+            'devise': 'CHF'
         } 
             if data['tva_taux']:
-                data['tva_montant'] = data['montant'] * data['tva_taux'] / 100   
+                if data['montant_htva'] != data['montant']:
+                    data['tva_montant'] = data['montant'] - data['montant_htva']
+                else:
+                    data['montant_htva'] = data['montant'] / (1 + data['tva_taux'] / 100)
+                    data['tva_montant'] = data['montant'] - data['montant_htva']
+            else:
+                data['tva_montant'] = 0
+                data['montant_htva'] = data['montant']
+
             if g.models.ecriture_comptable_model.update(ecriture_id, data):
                 flash('Écriture mise à jour avec succès', 'success')
                 return redirect(url_for('banking.liste_ecritures'))
@@ -4551,7 +4834,8 @@ def edit_ecriture(ecriture_id):
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger')
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
-    categories = g.models.categorie_comptable_model.get_all_categories()
+    categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
+    categories_avec_complementaires = g.models.categorie_comptable_model.get_categories_avec_complementaires(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
     # CORRECTION: Utiliser 'contacts' au lieu de 'Contacts'
     print(contacts)
@@ -4564,6 +4848,7 @@ def edit_ecriture(ecriture_id):
     return render_template('comptabilite/nouvelle_ecriture.html', 
                         comptes=comptes, 
                         categories=categories,
+                        categories_avec_complementaires=categories_avec_complementaires,
                         ecriture=ecriture,
                         statuts_disponibles=statuts_disponibles,
                         transaction_data={},
@@ -4571,21 +4856,6 @@ def edit_ecriture(ecriture_id):
                         # CORRECTION: Utiliser 'contacts' au lieu de 'Contacts'
                         contacts=contacts)
 
-#@bp.route('/comptabilite/ecritures/<int:ecriture_id>/delete', methods=['POST'])
-#@login_required
-#def delete_ecriture(ecriture_id):
-#    """Supprime une écriture comptable"""
-#   ecriture = g.models.ecriture_comptable_model.get_by_id(ecriture_id)
-#    if not ecriture or ecriture['utilisateur_id'] != current_user.id:
-#        flash('Écriture introuvable ou non autorisée', 'danger')
-#        return redirect(url_for('banking.liste_ecritures'))  
-#    if g.models.ecriture_comptable_model.delete(ecriture_id):
-#        flash('Écriture supprimée avec succès', 'success')
-#    else:
-#        flash('Erreur lors de la suppression', 'danger')    
-#    return redirect(url_for('banking.liste_ecritures'))
-
-# Route pour la suppression normale (soft delete)
 @bp.route('/comptabilite/ecritures/<int:ecriture_id>/delete', methods=['POST'])
 @login_required
 def delete_ecriture(ecriture_id):
@@ -4752,7 +5022,7 @@ def supprimer_plan(plan_id):
 
 @bp.route('/test-compte-resultat')
 @login_required
-def test_compte_resultat():
+def test_compte_resultat()
     """Route de test pour debug"""
     print(f"DEBUG: Test route - User: {current_user.id}")
     stats = g.models.ecriture_comptable_model.get_compte_de_resultat(
@@ -4830,7 +5100,7 @@ def compte_de_resultat():
 @bp.route('/comptabilite/ecritures/detail/<string:type>/<categorie_id>')
 @login_required
 def detail_ecritures_categorie(type, categorie_id):
-    """Affiche le détail des écritures d'une catégorie"""
+    """Affiche le détail des écritures d'une catégorie avec leurs écritures secondaires"""
     try:
         annee = request.args.get('annee', datetime.now().year)
         date_from = f"{annee}-01-01"
@@ -4846,20 +5116,39 @@ def detail_ecritures_categorie(type, categorie_id):
             statut='validée'
         )
         
-        logging.info(f"INFO: {len(ecritures)} écritures récupérées pour le détail")
+        # Récupérer les écritures secondaires pour chaque écriture principale
+        ecritures_avec_secondaires = []
+        for ecriture in ecritures:
+            ecriture_dict = dict(ecriture)
+            
+            # Si c'est une écriture principale, récupérer ses écritures secondaires
+            if ecriture_dict.get('type_ecriture_comptable') == 'principale' or not ecriture_dict.get('ecriture_principale_id'):
+                secondaires = g.models.ecriture_comptable_model.get_ecritures_complementaires(
+                    ecriture_dict['id'], 
+                    current_user.id
+                )
+                ecriture_dict['ecritures_secondaires'] = secondaires
+                ecriture_dict['has_secondaires'] = len(secondaires) > 0
+            else:
+                ecriture_dict['ecritures_secondaires'] = []
+                ecriture_dict['has_secondaires'] = False
+            
+            ecritures_avec_secondaires.append(ecriture_dict)
+        
+        logging.info(f"INFO: {len(ecritures_avec_secondaires)} écritures récupérées pour le détail")
         
         return render_template('comptabilite/detail_ecritures.html',
-                            ecritures=ecritures,
+                            ecritures=ecritures_avec_secondaires,
                             total=total,
                             titre=titre,
                             annee=annee,
-                            type=type)
+                            type=type,
+                            categorie_id=categorie_id)
     
     except Exception as e:
         logging.error(f"Erreur lors du chargement des détails: {e}")
         flash(f"Erreur lors du chargement des détails: {str(e)}", "danger")
         return redirect(url_for('banking.compte_de_resultat'))
-
 @bp.route('/comptabilite/ecritures/compte-resultat')
 @login_required
 def get_ecritures_compte_resultat():

@@ -1,0 +1,1712 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2761
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0     \
+class CategorieComptable:\
+    def __init__(self, db):\
+        self.db = db\
+    def create(self, data: Dict) -> bool:\
+        """Cr\'e9e une nouvelle cat\'e9gorie comptable"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                INSERT INTO categories_comptables \
+                (numero, nom, parent_id, type_compte, compte_systeme, compte_associe, type_tva, actif)\
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)\
+                """\
+                values = (\
+                    data['numero'],\
+                    data['nom'],\
+                    data.get('parent_id'),\
+                    data['type_compte'],\
+                    data.get('compte_systeme'),\
+                    data.get('compte_associe'),\
+                    data.get('type_tva'),\
+                    data.get('actif', True)\
+                )\
+                cursor.execute(query, values)\
+                # Le commit est g\'e9r\'e9 par le context manager dans la classe DatabaseManager\
+            return True\
+        except Error as e:\
+            logging.error(f"Erreur lors de la cr\'e9ation de la cat\'e9gorie comptable: \{e\}")\
+            return False\
+    \
+    def modifier_plan(self, plan_id: int, data: Dict, utilisateur_id: int) -> bool:\
+        """Met \'e0 jour un plan comptable"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # V\'e9rifier que le plan existe et appartient \'e0 l'utilisateur\
+                cursor.execute(\
+                    "SELECT id FROM plans_comptables WHERE id = %s AND utilisateur_id = %s",\
+                    (plan_id, utilisateur_id)\
+                )\
+                if not cursor.fetchone():\
+                    return False\
+\
+                query = """\
+                UPDATE plans_comptables\
+                SET nom = %s, description = %s, devise = %s\
+                WHERE id = %s AND utilisateur_id = %s\
+                """\
+                values = (\
+                    data['nom'],\
+                    data.get('description', ''),\
+                    data.get('devise', 'CHF'),\
+                    plan_id,\
+                    utilisateur_id\
+                )\
+                cursor.execute(query, values)\
+                return cursor.rowcount > 0\
+        except Exception as e:\
+            logging.error(f"Erreur mise \'e0 jour plan comptable: \{e\}")\
+            return False\
+    \
+    def update(self, categorie_id: int, data: Dict) -> bool:\
+        """Met \'e0 jour une cat\'e9gorie comptable"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                UPDATE categories_comptables \
+                SET numero = %s, nom = %s, parent_id = %s, type_compte = %s, \
+                    compte_systeme = %s, compte_associe = %s, type_tva = %s, actif = %s\
+                WHERE id = %s\
+                """\
+                values = (\
+                    data['numero'],\
+                    data['nom'],\
+                    data.get('parent_id'),\
+                    data['type_compte'],\
+                    data.get('compte_systeme'),\
+                    data.get('compte_associe'),\
+                    data.get('type_tva'),\
+                    data.get('actif', True),\
+                    categorie_id\
+                )\
+                cursor.execute(query, values)\
+                # Le commit est g\'e9r\'e9 par le context manager\
+            return True\
+        except Error as e:\
+            logging.error(f"Erreur lors de la mise \'e0 jour de la cat\'e9gorie comptable: \{e\}")\
+            return False\
+    \
+    def delete(self, categorie_id: int) -> bool:\
+        """Supprime une cat\'e9gorie comptable (soft delete)"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = "UPDATE categories_comptables SET actif = FALSE WHERE id = %s"\
+                cursor.execute(query, (categorie_id,))\
+                # Le commit est g\'e9r\'e9 par le context manager\
+            return True\
+        except Error as e:\
+            logging.error(f"Erreur lors de la suppression de la cat\'e9gorie comptable: \{e\}")\
+            return False\
+\
+    def get_by_id(self, categorie_id: int) -> Optional[Dict]:\
+        """R\'e9cup\'e8re une cat\'e9gorie par son ID"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = "SELECT * FROM categories_comptables WHERE id = %s"\
+                cursor.execute(query, (categorie_id,))\
+                categorie = cursor.fetchone()\
+            return categorie\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration de la cat\'e9gorie comptable: \{e\}")\
+            return None\
+\
+    def get_all_categories(self, utilisateur_id: int = None) -> List[Dict]:\
+        """R\'e9cup\'e8re toutes les cat\'e9gories avec info sur le parent"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                if utilisateur_id:\
+                    query = """\
+                    SELECT \
+                        c1.id, c1.numero, c1.nom, c1.parent_id, c1.type_compte,\
+                        c1.compte_systeme, c1.compte_associe, c1.type_tva, c1.actif,\
+                        c2.numero as parent_numero, c2.nom as parent_nom\
+                    FROM categories_comptables c1\
+                    LEFT JOIN categories_comptables c2 ON c1.parent_id = c2.id\
+                    WHERE c1.utilisateur_id = %s\
+                    ORDER BY c1.numero\
+                    """\
+                    cursor.execute(query, (utilisateur_id,))\
+                else:\
+                    query = """\
+                    SELECT \
+                        c1.id, c1.numero, c1.nom, c1.parent_id, c1.type_compte,\
+                        c1.compte_systeme, c1.compte_associe, c1.type_tva, c1.actif,\
+                        c2.numero as parent_numero, c2.nom as parent_nom\
+                    FROM categories_comptables c1\
+                    LEFT JOIN categories_comptables c2 ON c1.parent_id = c2.id\
+                    ORDER BY c1.numero\
+                    """\
+                    cursor.execute(query)\
+                return cursor.fetchall()\
+        except Exception as e:\
+            logging.error(f"Erreur get_all_categories: \{e\}")\
+            return []\
+\
+    def get_by_numero(self, numero: str, utilisateur_id: int) -> Optional[Dict]:\
+        """R\'e9cup\'e8re une cat\'e9gorie par son num\'e9ro"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = "SELECT * FROM categories_comptables WHERE numero = %s AND utilisateur_id = %s"\
+                cursor.execute(query, (numero, utilisateur_id))\
+                categorie = cursor.fetchone()\
+            return categorie\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration de la cat\'e9gorie comptable: \{e\}")\
+            return None\
+\
+    def get_by_type(self, type_compte: str, utilisateur_id: int) -> List[Dict]:\
+        """R\'e9cup\'e8re les cat\'e9gories par type de compte"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = "SELECT * FROM categories_comptables WHERE type_compte = %s AND utilisateur_id = %s ORDER BY numero"\
+                cursor.execute(query, (type_compte, utilisateur_id))\
+                categories = cursor.fetchall()\
+            return categories\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des cat\'e9gories comptables: \{e\}")\
+            return []\
+    \
+\
+class EcritureComptable:\
+    """Mod\'e8le pour g\'e9rer les \'e9critures comptables"""\
+    \
+    def __init__(self, db):\
+        self.db = db\
+        logging.info(f"\uc0\u55357 \u56513  Dossier courant (os.getcwd()): \{os.getcwd()\}")\
+        logging.info(f"\uc0\u55357 \u56513  Fichier courant (__file__): \{__file__\}")\
+        self.upload_folder = os.path.join(os.getcwd(), 'ROOT', 'app', 'uploads', 'justificatifs')\
+        self._ensure_upload_folder()\
+    \
+    def _ensure_upload_folder(self):\
+        """Cr\'e9e le dossier d'upload s'il n'existe pas"""\
+        try:\
+            os.makedirs(self.upload_folder, exist_ok=True)\
+            logging.info(f"Dossier d'upload cr\'e9\'e9/sur: \{self.upload_folder\}")\
+        except Exception as e:\
+            logging.error(f"Erreur cr\'e9ation dossier upload: \{e\}")\
+    \
+    def _get_file_path(self, filename):\
+        """G\'e9n\'e8re le chemin complet du fichier"""\
+        return os.path.join(self.upload_folder, filename)\
+    def test_dossier_upload(self):\
+        """Teste l'acc\'e8s au dossier d'upload"""\
+        print(f"=== TEST DOSSIER UPLOAD ===")\
+        print(f"Chemin absolu: \{os.path.abspath(self.upload_folder)\}")\
+        print(f"Dossier existe: \{os.path.exists(self.upload_folder)\}")\
+        \
+        if os.path.exists(self.upload_folder):\
+            print(f"Permissions lecture: \{os.access(self.upload_folder, os.R_OK)\}")\
+            print(f"Permissions \'e9criture: \{os.access(self.upload_folder, os.W_OK)\}")\
+            \
+            # Test d'\'e9criture\
+            test_file = os.path.join(self.upload_folder, 'test.txt')\
+            try:\
+                with open(test_file, 'w') as f:\
+                    f.write('test \'e9criture')\
+                print("\uc0\u10003  Test \'e9criture r\'e9ussi")\
+                \
+                # Lire pour v\'e9rifier\
+                with open(test_file, 'r') as f:\
+                    content = f.read()\
+                print(f"\uc0\u10003  Contenu lu: \{content\}")\
+                \
+                os.remove(test_file)\
+                print("\uc0\u10003  Test suppression r\'e9ussi")\
+                return True\
+            except Exception as e:\
+                print(f"\uc0\u10007  Erreur \'e9criture: \{e\}")\
+                return False\
+        else:\
+            print("\uc0\u10060  Dossier n'existe pas")\
+            return False\
+    \
+    def create(self, data: Dict) -> bool:\
+        """Cr\'e9e une nouvelle \'e9criture comptable"""\
+        # Validation du lien cat\'e9gorie \uc0\u8596  plan comptable du compte\
+        if data.get('id_contact'):\
+            if not self._is_categorie_valid_for_contact(\
+                data['id_contact'],\
+                data['categorie_id'],\
+                data['utilisateur_id']\
+            ):\
+                logging.warning("Cat\'e9gorie non autoris\'e9e pour ce contact.")\
+                return False\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                INSERT INTO ecritures_comptables \
+                (date_ecriture, compte_bancaire_id, categorie_id, montant, montant_htva, devise, \
+                description, reference, type_ecriture, tva_taux, tva_montant, \
+                utilisateur_id, justificatif_url, statut, id_contact)\
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)\
+                """\
+                values = (\
+                    data['date_ecriture'],\
+                    data['compte_bancaire_id'],\
+                    data['categorie_id'],\
+                    data['montant'],\
+                    data['montant_htva'],\
+                    data.get('devise', 'CHF'),\
+                    data.get('description', ''),\
+                    data.get('reference', ''),\
+                    data['type_ecriture'],  # 'depense' ou 'recette'\
+                    data.get('tva_taux'),\
+                    data.get('tva_montant'),\
+                    data['utilisateur_id'],\
+                    data.get('justificatif_url'),\
+                    data.get('statut', 'pending'),  # 'pending', 'valid\'e9e', 'rejet\'e9e'\
+                    data.get('id_contact')  # Ajout du id_contact \'e0 la fin\
+                )\
+                \
+                cursor.execute(query, values)\
+                ecriture_principale_id = cursor.lastrowid\
+                logging.info(f"\'c9criture principale cr\'e9\'e9e avec ID: \{ecriture_principale_id\}")\
+\
+                # R\'e9cup\'e9rer l'ID de la derni\'e8re insertion\
+                # 2. R\'e9cup\'e9rer la cat\'e9gorie compl\'e9mentaire (si elle existe)\
+                cursor.execute("""\
+                    SELECT categorie_complementaire_id\
+                    FROM categories_transactions\
+                    WHERE id = %s AND utilisateur_id = %s AND actif = TRUE\
+                """, (data['categorie_id'], data['utilisateur_id']))\
+                categorie_comp_result = cursor.fetchone()\
+                categorie_complementaire_id = categorie_comp_result['categorie_complementaire_id'] if categorie_comp_result else None\
+\
+                # 3. Si une cat\'e9gorie compl\'e9mentaire est trouv\'e9e, cr\'e9er l'\'e9criture compl\'e9mentaire\
+                if categorie_complementaire_id:\
+                    # Logique pour d\'e9terminer le montant de la compl\'e9mentaire (ex: TVA)\
+                    montant_comp = data.get('tva_montant', 0) # Prendre le montant de la TVA si disponible\
+                    montant_htva_comp = montant_comp # Simplification\
+                    if montant_comp > 0: # Ne cr\'e9er l'\'e9criture que si le montant est > 0\
+                        data_complementaire = \{\
+                            'date_ecriture': data['date_ecriture'],\
+                            'compte_bancaire_id': data['compte_bancaire_id'], # Ajuster si n\'e9cessaire\
+                            'categorie_id': categorie_complementaire_id,\
+                            'montant': montant_comp,\
+                            'montant_htva': montant_htva_comp,\
+                            'devise': data.get('devise', 'CHF'),\
+                            'description': f"\{data.get('description', '')\} (Compl\'e9mentaire)", # Ajuster\
+                            'reference': data.get('reference', ''),\
+                            'type_ecriture': data['type_ecriture'], # G\'e9n\'e9ralement le m\'eame sens que la principale pour la TVA d\'e9ductible\
+                            'tva_taux': None, # G\'e9n\'e9ralement pas de TVA sur la TVA\
+                            'tva_montant': 0,\
+                            'utilisateur_id': data['utilisateur_id'],\
+                            'justificatif_url': data.get('justificatif_url'),\
+                            'statut': data.get('statut', 'pending'),\
+                            'id_contact': data.get('id_contact'),\
+                            'ecriture_principale_id': ecriture_principale_id, # Lier \'e0 la principale\
+                            'type_ecriture_comptable': 'complementaire' # L'\'e9criture est compl\'e9mentaire\
+                        \}\
+                        # On cr\'e9e l'\'e9criture compl\'e9mentaire li\'e9e \'e0 la principale\
+                        self._create_ecriture_liee(cursor, data_complementaire)\
+            return True\
+        except Error as e:\
+            logging.error(f"Erreur lors de la cr\'e9ation de l'\'e9criture comptable: \{e\}")\
+            return False\
+    def _create_ecriture_liee(self, cursor,  Dict):\
+        """M\'e9thode interne pour cr\'e9er une \'e9criture li\'e9e (compl\'e9mentaire) \'e0 une \'e9criture principale."""\
+        try:\
+            query = """\
+            INSERT INTO ecritures_comptables(\
+                date_ecriture, compte_bancaire_id, categorie_id, montant, montant_htva, devise,\
+                description, reference, type_ecriture, tva_taux, tva_montant,\
+                utilisateur_id, justificatif_url, statut, id_contact,\
+                ecriture_principale_id, type_ecriture_comptable -- Ajout des nouvelles colonnes\
+            )\
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)\
+            """\
+            values = (\
+                data['date_ecriture'],\
+                data['compte_bancaire_id'],\
+                data['categorie_id'],\
+                data['montant'],\
+                data['montant_htva'],\
+                data.get('devise', 'CHF'),\
+                data.get('description', ''),\
+                data.get('reference', ''),\
+                data['type_ecriture'],\
+                data.get('tva_taux'),\
+                data.get('tva_montant'),\
+                data['utilisateur_id'],\
+                data.get('justificatif_url'),\
+                data.get('statut', 'pending'),\
+                data.get('id_contact'),\
+                data.get('ecriture_principale_id'), # Lier \'e0 l'\'e9criture principale\
+                data.get('type_ecriture_comptable') # 'complementaire'\
+            )\
+            cursor.execute(query, values)\
+            logging.info(f"\'c9criture compl\'e9mentaire cr\'e9\'e9e avec succ\'e8s, li\'e9e \'e0 l'\'e9criture \{data.get('ecriture_principale_id')\}.")\
+        except Exception as e:\
+            logging.error(f"Erreur lors de la cr\'e9ation de l'\'e9criture li\'e9e: \{e\}")\
+            raise e # Important pour annuler la transaction SQL principale si cette cr\'e9ation \'e9choue\
+\
+    # *** M\'c9THODE POUR R\'c9CUP\'c9RER LES \'c9CRITURES COMPL\'c9MENTAIRES D'UNE \'c9CRITURE PRINCIPALE ***\
+    def get_ecritures_complementaires(self, ecriture_principale_id: int, user_id: int) -> List[Dict]:\
+        """\
+        R\'e9cup\'e8re les \'e9critures compl\'e9mentaires directement li\'e9es \'e0 une \'e9criture principale sp\'e9cifique.\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                cursor.execute("""\
+                    SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                           cb.nom_compte as compte_bancaire_nom\
+                    FROM ecritures_comptables e\
+                    LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                    LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                    WHERE e.ecriture_principale_id = %s AND e.utilisateur_id = %s\
+                    AND e.type_ecriture_comptable = 'complementaire' -- S'assurer que c'est une compl\'e9mentaire\
+                """, (ecriture_principale_id, user_id))\
+                ecritures = cursor.fetchall()\
+                return ecritures\
+        except Exception as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures compl\'e9mentaires: \{e\}")\
+            return []\
+\
+    # *** M\'c9THODE POUR R\'c9CUP\'c9RER L'\'c9CRITURE PRINCIPALE D'UNE \'c9CRITURE COMPL\'c9MENTAIRE ***\
+    def get_ecriture_principale(self, ecriture_complementaire_id: int, user_id: int) -> Optional[Dict]:\
+        """\
+        R\'e9cup\'e8re l'\'e9criture principale li\'e9e \'e0 une \'e9criture compl\'e9mentaire sp\'e9cifique.\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                cursor.execute("""\
+                    SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                           cb.nom_compte as compte_bancaire_nom\
+                    FROM ecritures_comptables e\
+                    LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                    LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                    WHERE e.id = %s AND e.utilisateur_id = %s\
+                    AND e.type_ecriture_comptable = 'principale' -- S'assurer que la cible est une principale\
+                    AND e.id = (SELECT ecriture_principale_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s)\
+                """, (ecriture_complementaire_id, user_id, ecriture_complementaire_id, user_id))\
+                # Une requ\'eate plus simple pour r\'e9cup\'e9rer l'\'e9criture principale via la cl\'e9 \'e9trang\'e8re\
+                # R\'e9cup\'e9rer d'abord la cl\'e9 \'e9trang\'e8re\
+                cursor.execute("""\
+                    SELECT ecriture_principale_id FROM ecritures_comptables\
+                    WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'complementaire'\
+                """, (ecriture_complementaire_id, user_id))\
+                result = cursor.fetchone()\
+                if not result or not result['ecriture_principale_id']:\
+                     return None\
+\
+                ecriture_principale_id = result['ecriture_principale_id']\
+                # Puis r\'e9cup\'e9rer l'\'e9criture principale\
+                cursor.execute("""\
+                    SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                           cb.nom_compte as compte_bancaire_nom\
+                    FROM ecritures_comptables e\
+                    LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                    LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                    WHERE e.id = %s AND e.utilisateur_id = %s\
+                    AND e.type_ecriture_comptable = 'principale'\
+                """, (ecriture_principale_id, user_id))\
+                return cursor.fetchone()\
+        except Exception as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration de l'\'e9criture principale: \{e\}")\
+            return None\
+\
+    # *** M\'c9THODE POUR METTRE \'c0 JOUR UNE \'c9CRITURE PRINCIPALE ET SES COMPL\'c9MENTAIRES ***\
+    def update_principale_et_complementaires(self, ecriture_principale_id: int, user_id: int, **kwargs) -> Tuple[bool, str]:\
+        """\
+        Met \'e0 jour une \'e9criture principale et \'e9ventuellement ses \'e9critures compl\'e9mentaires\
+        en fonction des modifications (par exemple, recalcul de la TVA si le montant change).\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # 1. R\'e9cup\'e9rer l'\'e9criture principale avant modification\
+                cursor.execute("""\
+                    SELECT * FROM ecritures_comptables\
+                    WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'principale'\
+                """, (ecriture_principale_id, user_id))\
+                ecriture_principale_avant = cursor.fetchone()\
+                if not ecriture_principale_avant:\
+                    return False, "\'c9criture principale non trouv\'e9e ou non autoris\'e9e"\
+\
+                # 2. Mettre \'e0 jour l'\'e9criture principale\
+                champs = []\
+                valeurs = []\
+                for champ, valeur in kwargs.items():\
+                    if valeur is not None and champ not in ['id', 'utilisateur_id', 'ecriture_principale_id', 'type_ecriture_comptable']:\
+                        champs.append(f"\{champ\} = %s")\
+                        valeurs.append(valeur)\
+\
+                if not champs:\
+                    return False, "Aucune modification valide sp\'e9cifi\'e9e pour l'\'e9criture principale"\
+\
+                # Ajouter les conditions pour la mise \'e0 jour\
+                valeurs.extend([ecriture_principale_id, user_id])\
+                query_update_principale = f"""\
+                    UPDATE ecritures_comptables\
+                    SET \{', '.join(champs)\}\
+                    WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'principale'\
+                """\
+                cursor.execute(query_update_principale, valeurs)\
+                if cursor.rowcount == 0:\
+                    return False, "Aucune ligne mise \'e0 jour pour l'\'e9criture principale (v\'e9rifiez les permissions ou l'existence)"\
+\
+                # 3. V\'e9rifier si des champs impactant les \'e9critures compl\'e9mentaires ont chang\'e9\
+                montant_change = 'montant' in kwargs and kwargs['montant'] != ecriture_principale_avant['montant']\
+                tva_taux_change = 'tva_taux' in kwargs and kwargs['tva_taux'] != ecriture_principale_avant['tva_taux']\
+\
+                if montant_change or tva_taux_change:\
+                    # 4. R\'e9cup\'e9rer les \'e9critures compl\'e9mentaires\
+                    ecritures_complementaires = self.get_ecritures_complementaires(ecriture_principale_id, user_id)\
+\
+                    # 5. Mettre \'e0 jour chaque \'e9criture compl\'e9mentaire\
+                    for ecriture_comp in ecritures_complementaires:\
+                        # Exemple de logique de mise \'e0 jour : recalculer la TVA si le montant principal change\
+                        # Cela d\'e9pend de votre logique m\'e9tier pr\'e9cise.\
+                        # Ici, on suppose que le montant de la compl\'e9mentaire (TVA) doit \'eatre recalcul\'e9.\
+                        ancien_montant_principal = ecriture_principale_avant['montant']\
+                        ancien_taux_tva = ecriture_principale_avant['tva_taux'] or 0\
+                        nouveau_montant_principal = kwargs.get('montant', ancien_montant_principal)\
+                        nouveau_taux_tva = kwargs.get('tva_taux', ancien_taux_tva) or 0\
+\
+                        # Exemple de recalcul de la TVA\
+                        # ATTENTION : La logique r\'e9elle peut \'eatre plus complexe (TVA sur le prix HT, etc.)\
+                        # Ici, on fait un recalcul simple bas\'e9 sur le nouveau montant et le nouveau taux\
+                        # par rapport \'e0 l'ancien. Il faut affiner selon votre besoin.\
+                        # Ancienne TVA = ancien_montant_principal * (ancien_taux_tva / 100)\
+                        # Nouvelle TVA = nouveau_montant_principal * (nouveau_taux_tva / 100)\
+                        if montant_change or tva_taux_change:\
+                            ancien_montant_tva = ecriture_comp['montant'] # Ancien montant de la compl\'e9mentaire (TVA)\
+                            ancienne_base = ancien_montant_principal\
+                            nouveau_montant_tva = (nouveau_montant_principal * nouveau_taux_tva) / 100.0\
+                            # Si ancien_taux_tva est 0, on ne peut pas recalculer proprement, on garde l'ancien montant_tva ou on le met \'e0 0.\
+                            # Une logique plus robuste est n\'e9cessaire ici.\
+                            # Pour l'exemple, on met \'e0 jour avec le nouveau calcul si les deux changent ou si le taux change.\
+                            # Si seul le montant change et que le taux est inchang\'e9, on recalcule proportionnellement.\
+                            if tva_taux_change:\
+                                # Recalcul complet\
+                                nouveau_montant_tva_calc = (nouveau_montant_principal * nouveau_taux_tva) / 100.0\
+                            elif montant_change and ancien_taux_tva != 0:\
+                                # Recalcul proportionnel si le taux n'a pas chang\'e9\
+                                nouveau_montant_tva_calc = (ancien_montant_tva / ancienne_base) * nouveau_montant_principal\
+                            else:\
+                                # Aucun changement de taux, montant chang\'e9 mais taux \'e0 0, donc TVA devrait rester \'e0 0\
+                                nouveau_montant_tva_calc = 0.0\
+\
+                            cursor.execute("""\
+                                UPDATE ecritures_comptables\
+                                SET montant = %s, montant_htva = %s -- Mettre \'e0 jour le montant de la compl\'e9mentaire\
+                                WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'complementaire'\
+                            """, (nouveau_montant_tva_calc, nouveau_montant_tva_calc, ecriture_comp['id'], user_id))\
+                            logging.info(f"\'c9criture compl\'e9mentaire \{ecriture_comp['id']\} mise \'e0 jour en fonction de la modification de la principale \{ecriture_principale_id\}.")\
+\
+                return True, "\'c9criture principale mise \'e0 jour, compl\'e9mentaires recalcul\'e9es si n\'e9cessaire."\
+        except Exception as e:\
+            logging.error(f"Erreur lors de la mise \'e0 jour de l'\'e9criture (principale ou compl\'e9mentaire): \{e\}")\
+            return False, f"Erreur: \{str(e)\}"\
+        \
+    def update(self, ecriture_id: int, data: Dict) -> bool:\
+        # Validation du lien cat\'e9gorie \uc0\u8596  plan comptable du compte\
+        try:\
+            if data.get('id_contact'):\
+                if not self._is_categorie_valid_for_contact(\
+                    data['id_contact'],\
+                    data['categorie_id'],\
+                    data['utilisateur_id']\
+                ):\
+                    logging.warning("Cat\'e9gorie non autoris\'e9e pour ce contact.")\
+                    return False\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                UPDATE ecritures_comptables \
+                SET date_ecriture = %s, compte_bancaire_id = %s, categorie_id = %s, \
+                    montant = %s, montant_htva = %s, devise = %s, description = %s, id_contact = %s, reference = %s, \
+                    type_ecriture = %s, tva_taux = %s, tva_montant = %s, \
+                    justificatif_url = %s, statut = %s\
+                WHERE id = %s AND utilisateur_id = %s\
+                """\
+                values = (\
+                    data['date_ecriture'],\
+                    data['compte_bancaire_id'],\
+                    data['categorie_id'],\
+                    data['montant'],\
+                    data['montant_htva'],\
+                    data.get('devise', 'CHF'),\
+                    data.get('description', ''),\
+                    data.get('id_contact'),\
+                    data.get('reference', ''),\
+                    data['type_ecriture'],\
+                    data.get('tva_taux'),\
+                    data.get('tva_montant'),\
+                    data.get('justificatif_url'),\
+                    data.get('statut', 'pending'),\
+                    ecriture_id,\
+                    data['utilisateur_id']\
+                )\
+                \
+                cursor.execute(query, values)\
+                return cursor.rowcount > 0\
+            return True\
+        except Error as e:\
+            logging.error(f"Erreur lors de la mise \'e0 jour de l'\'e9criture comptable: \{e\}")\
+            return False\
+    \
+    def delete_hard(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:\
+        """\
+        Supprime une \'e9criture comptable apr\'e8s avoir d\'e9li\'e9 sa transaction.\
+        \
+        Args:\
+            ecriture_id: ID de l'\'e9criture \'e0 supprimer\
+            user_id: ID de l'utilisateur pour v\'e9rification de propri\'e9t\'e9\
+        \
+        Returns:\
+            Tuple (succ\'e8s, message)\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # 1. V\'e9rifier que l'\'e9criture existe et appartient \'e0 l'utilisateur\
+                cursor.execute(\
+                    "SELECT id, transaction_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",\
+                    (ecriture_id, user_id)\
+                )\
+                ecriture = cursor.fetchone()\
+                \
+                if not ecriture:\
+                    return False, "\'c9criture non trouv\'e9e ou non autoris\'e9e"\
+                \
+                # 2. D\'e9lier la transaction si elle existe\
+                if ecriture['transaction_id']:\
+                    cursor.execute(\
+                        "UPDATE ecritures_comptables SET transaction_id = NULL WHERE id = %s",\
+                        (ecriture_id,)\
+                    )\
+                    logging.info(f"\'c9criture \{ecriture_id\} d\'e9li\'e9e de la transaction \{ecriture['transaction_id']\}")\
+                \
+                # 3. Supprimer l'\'e9criture\
+                cursor.execute(\
+                    "DELETE FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",\
+                    (ecriture_id, user_id)\
+                )\
+                \
+                if cursor.rowcount > 0:\
+                    logging.info(f"\'c9criture \{ecriture_id\} supprim\'e9e avec succ\'e8s")\
+                    return True, "\'c9criture supprim\'e9e avec succ\'e8s"\
+                else:\
+                    return False, "Erreur lors de la suppression de l'\'e9criture"\
+                    \
+        except Exception as e:\
+            logging.error(f"Erreur lors de la suppression de l'\'e9criture \{ecriture_id\}: \{e\}")\
+            return False, f"Erreur lors de la suppression: \{str(e)\}"\
+    \
+    def delete_soft(self, ecriture_id: int, user_id: int, soft_delete: bool = True) -> Tuple[bool, str]:\
+        """\
+        Supprime une \'e9criture comptable (soft delete par d\'e9faut).\
+        \
+        Args:\
+            ecriture_id: ID de l'\'e9criture \'e0 supprimer\
+            user_id: ID de l'utilisateur pour v\'e9rification de propri\'e9t\'e9\
+            soft_delete: Si True, marque comme supprim\'e9e au lieu de supprimer d\'e9finitivement\
+        \
+        Returns:\
+            Tuple (succ\'e8s, message)\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # V\'e9rifier que l'\'e9criture existe et appartient \'e0 l'utilisateur\
+                cursor.execute(\
+                    "SELECT id, transaction_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",\
+                    (ecriture_id, user_id)\
+                )\
+                ecriture = cursor.fetchone()\
+                \
+                if not ecriture:\
+                    return False, "\'c9criture non trouv\'e9e ou non autoris\'e9e"\
+                \
+                # D\'e9lier la transaction si elle existe\
+                if ecriture['transaction_id']:\
+                    cursor.execute(\
+                        "UPDATE ecritures_comptables SET transaction_id = NULL WHERE id = %s",\
+                        (ecriture_id,)\
+                    )\
+                    logging.info(f"\'c9criture \{ecriture_id\} d\'e9li\'e9e de la transaction \{ecriture['transaction_id']\}")\
+                \
+                if soft_delete:\
+                    # SOFT DELETE: marquer comme supprim\'e9e\
+                    cursor.execute("""\
+                        UPDATE ecritures_comptables \
+                        SET statut = 'supprimee', date_suppression = NOW() \
+                        WHERE id = %s AND utilisateur_id = %s\
+                    """, (ecriture_id, user_id))\
+                    \
+                    if cursor.rowcount > 0:\
+                        logging.info(f"\'c9criture \{ecriture_id\} marqu\'e9e comme supprim\'e9e")\
+                        return True, "\'c9criture marqu\'e9e comme supprim\'e9e"\
+                    else:\
+                        return False, "Erreur lors du marquage de l'\'e9criture comme supprim\'e9e"\
+                else:\
+                    # HARD DELETE: suppression d\'e9finitive\
+                    cursor.execute(\
+                        "DELETE FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",\
+                        (ecriture_id, user_id)\
+                    )\
+                    \
+                    if cursor.rowcount > 0:\
+                        logging.info(f"\'c9criture \{ecriture_id\} supprim\'e9e d\'e9finitivement")\
+                        return True, "\'c9criture supprim\'e9e d\'e9finitivement"\
+                    else:\
+                        return False, "Erreur lors de la suppression de l'\'e9criture"\
+                        \
+        except Exception as e:\
+            logging.error(f"Erreur lors de la suppression de l'\'e9criture \{ecriture_id\}: \{e\}")\
+            return False, f"Erreur lors de la suppression: \{str(e)\}"\
+    \
+    def get_by_id(self, ecriture_id: int) -> Optional[Dict]:\
+        """R\'e9cup\'e8re une \'e9criture par son ID"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                cb.nom_compte as compte_bancaire_nom\
+                FROM ecritures_comptables e\
+                LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                WHERE e.id = %s\
+                """\
+                cursor.execute(query, (ecriture_id,))\
+                ecriture = cursor.fetchone()\
+            return ecriture\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration de l'\'e9criture comptable: \{e\}")\
+            return None\
+    \
+    def get_by_compte_bancaire(self, compte_id: int, user_id: int, \
+                            date_from: str = None, date_to: str = None,\
+                            limit: int = 100, statut: str = None) -> List[Dict]:\
+        """R\'e9cup\'e8re les \'e9critures d'un compte bancaire avec filtrage par statut"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom\
+                FROM ecritures_comptables e\
+                LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                WHERE e.compte_bancaire_id = %s AND e.utilisateur_id = %s\
+                """\
+                params = [compte_id, user_id]\
+                \
+                if statut:\
+                    query += " AND e.statut = %s"\
+                    params.append(statut)\
+                \
+                if date_from:\
+                    query += " AND e.date_ecriture >= %s"\
+                    params.append(date_from)\
+                if date_to:\
+                    query += " AND e.date_ecriture <= %s"\
+                    params.append(date_to)\
+                \
+                query += " ORDER BY e.date_ecriture DESC LIMIT %s"\
+                params.append(limit)\
+                \
+                cursor.execute(query, tuple(params))\
+                ecritures = cursor.fetchall()\
+            return ecritures\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures: \{e\}")\
+            return []\
+    \
+    def get_ecritures_non_synchronisees(self, compte_id: int, user_id: int):\
+        return self.get_by_compte_bancaire(\
+            compte_id=compte_id,\
+            user_id=user_id,\
+            date_from=None,\
+            date_to=None,\
+            limit=100\
+        )\
+\
+    def get_by_categorie(self, categorie_id: int, user_id: int,\
+                        date_from: str = None, date_to: str = None,\
+                        statut: str = None) -> List[Dict]:\
+        """R\'e9cup\'e8re les \'e9critures d'une cat\'e9gorie avec filtrage par statut"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT e.*, cb.nom_compte as compte_bancaire_nom\
+                FROM ecritures_comptables e\
+                LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                WHERE e.categorie_id = %s AND e.utilisateur_id = %s\
+                """\
+                params = [categorie_id, user_id]\
+                \
+                if statut:\
+                    query += " AND e.statut = %s"\
+                    params.append(statut)\
+                \
+                if date_from:\
+                    query += " AND e.date_ecriture >= %s"\
+                    params.append(date_from)\
+                if date_to:\
+                    query += " AND e.date_ecriture <= %s"\
+                    params.append(date_to)\
+                \
+                query += " ORDER BY e.date_ecriture DESC"\
+                \
+                cursor.execute(query, tuple(params))\
+                ecritures = cursor.fetchall()\
+            return ecritures\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures par cat\'e9gorie: \{e\}")\
+            return []\
+    \
+    def get_stats_by_categorie(self, user_id: int, date_from: str = None, \
+                          date_to: str = None, statut: str = 'valid\'e9e') -> List[Dict]:\
+        """R\'e9cup\'e8re les statistiques par cat\'e9gorie avec filtrage par statut"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT \
+                    c.id as categorie_id,\
+                    c.numero as categorie_numero,\
+                    c.nom as categorie_nom,\
+                    c.type_compte as categorie_type,\
+                    SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = %s THEN e.montant ELSE 0 END) as total_depenses,\
+                    SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = %s THEN e.montant_htva ELSE 0 END) as total_depenses_htva,\
+                    SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = %s THEN e.montant ELSE 0 END) as total_recettes,\
+                    SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = %s THEN e.montant_htva ELSE 0 END) as total_recettes_htva,\
+                    COUNT(e.id) as nb_ecritures\
+                FROM categories_comptables c\
+                LEFT JOIN ecritures_comptables e ON c.id = e.categorie_id AND e.utilisateur_id = %s\
+                """\
+                params = [statut, statut, user_id]\
+                \
+                if date_from:\
+                    query += " AND e.date_ecriture >= %s"\
+                    params.append(date_from)\
+                if date_to:\
+                    query += " AND e.date_ecriture <= %s"\
+                    params.append(date_to)\
+                \
+                query += """\
+                WHERE c.actif = TRUE\
+                GROUP BY c.id, c.numero, c.nom, c.type_compte\
+                ORDER BY c.numero\
+                """\
+                \
+                cursor.execute(query, tuple(params))\
+                stats = cursor.fetchall()\
+            return stats\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des statistiques par cat\'e9gorie: \{e\}")\
+            return []\
+    \
+    def get_compte_de_resultat(self, user_id: int, date_from: str, date_to: str) -> Dict:\
+        """G\'e9n\'e8re les donn\'e9es pour le compte de r\'e9sultat"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # 1. PRODUITS\
+                cursor.execute("""\
+                    SELECT \
+                        c.numero, \
+                        c.nom as categorie_nom,\
+                        c.id as categorie_id,\
+                        COUNT(e.id) as nombre_ecritures,\
+                        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'valid\'e9e' THEN e.montant ELSE 0 END) as montant\
+                        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'valid\'e9e' THEN e.montant_htva ELSE 0 END) as montant_htva\
+                    FROM ecritures_comptables e\
+                    JOIN categories_comptables c ON e.categorie_id = c.id\
+                    WHERE e.utilisateur_id = %s \
+                    AND e.date_ecriture BETWEEN %s AND %s\
+                    AND c.type_compte = 'Actif' OR c.type_compte = 'revenus'\
+                    GROUP BY c.id, c.numero, c.nom\
+                    ORDER BY c.numero\
+                """, (user_id, date_from, date_to))\
+                produits = cursor.fetchall()\
+                \
+                # 2. CHARGES\
+                cursor.execute("""\
+                    SELECT \
+                        c.numero, \
+                        c.nom as categorie_nom,\
+                        c.id as categorie_id,\
+                        COUNT(e.id) as nombre_ecritures,\
+                        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'valid\'e9e' THEN e.montant ELSE 0 END) as montant\
+                        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'valid\'e9e' THEN e.montant_htva ELSE 0 END) as montant_htva\
+                    FROM ecritures_comptables e\
+                    JOIN categories_comptables c ON e.categorie_id = c.id\
+                    WHERE e.utilisateur_id = %s \
+                    AND e.date_ecriture BETWEEN %s AND %s\
+                    AND c.type_compte = 'Charge' OR c.type_compte = 'Passif'\
+                    GROUP BY c.id, c.numero, c.nom\
+                    ORDER BY c.numero\
+                """, (user_id, date_from, date_to))\
+                charges = cursor.fetchall()\
+                \
+            # 3. CALCUL DES TOTAUX\
+            total_produits = sum(p['montant'] or 0 for p in produits)\
+            totral_produits_htva = sum(p['montant_htva'] or 0 for p in produits)\
+            total_charges = sum(c['montant'] or 0 for c in charges)\
+            total_charges_htva = sum(c['montant_htva'] or 0 for c in charges)\
+            resultat = total_produits - total_charges\
+            \
+            return \{\
+                'produits': produits,\
+                'charges': charges,\
+                'total_produits': total_produits,\
+                'total_produits_htva': totral_produits_htva,\
+                'total_charges': total_charges,\
+                'total_charges_htva': total_charges_htva,\
+                'resultat': resultat,\
+                'date_from': date_from,\
+                'date_to': date_to\
+            \}\
+        except Exception as e:\
+            logging.error(f"Erreur g\'e9n\'e9ration compte de r\'e9sultat: \{e\}")\
+            return \{\}\
+        \
+    def get_ecritures_by_categorie_period(self, user_id: int, type_categorie: str = None, \
+                                        categorie_id: int = None, date_from: str = None, \
+                                        date_to: str = None, statut: str = 'valid\'e9e') -> Tuple[List[Dict], float, str]:\
+        """\
+        R\'e9cup\'e8re les \'e9critures par cat\'e9gorie et p\'e9riode avec calcul du total et g\'e9n\'e9ration du titre\
+        \
+        Returns:\
+            Tuple: (ecritures, total, titre)\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # Construire la requ\'eate avec une jointure LEFT pour les contacts\
+                query = """\
+                    SELECT \
+                        e.date_ecriture,\
+                        e.description,\
+                        e.reference,\
+                        e.montant,\
+                        e.statut,\
+                        e.id_contact,\
+                        c.nom as categorie_nom,\
+                        c.numero as categorie_numero,\
+                        ct.nom as contact_nom\
+                    FROM ecritures_comptables e\
+                    JOIN categories_comptables c ON e.categorie_id = c.id\
+                    LEFT JOIN contacts ct ON e.id_contact = ct.id_contact\
+                    WHERE e.utilisateur_id = %s\
+                    AND e.date_ecriture BETWEEN %s AND %s\
+                    AND e.statut = %s\
+                """\
+                params = [user_id, date_from, date_to, statut]\
+                \
+                if type_categorie == 'produit':\
+                    query += " AND c.type_compte = 'Revenus' OR c.type_compte = 'Actif'"\
+                elif type_categorie == 'charge':\
+                    query += " AND c.type_compte = 'Charge' OR c.type_compte = 'Passif'"\
+                \
+                if categorie_id and categorie_id != 'all':\
+                    query += " AND e.categorie_id = %s"\
+                    params.append(int(categorie_id))\
+                \
+                query += " ORDER BY e.date_ecriture DESC"\
+                cursor.execute(query, tuple(params))\
+                ecritures = cursor.fetchall()\
+                \
+                # Calculer le total\
+                total = sum(float(e['montant']) for e in ecritures) if ecritures else 0\
+                \
+                # G\'e9n\'e9rer le titre\
+                titre = self._generate_titre_detail(cursor, type_categorie, categorie_id, ecritures, date_from[:4])\
+                \
+                return ecritures, total, titre\
+                \
+        except Exception as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures par cat\'e9gorie: \{e\}")\
+            return [], 0, ""\
+\
+    def _generate_titre_detail(self, cursor, type_categorie: str, categorie_id: str, \
+                            ecritures: List[Dict], annee: str) -> str:\
+        """G\'e9n\'e8re le titre pour la page de d\'e9tail"""\
+        if categorie_id == 'all':\
+            return f"Tous les \{type_categorie\}s - \{annee\}"\
+        else:\
+            # R\'e9cup\'e9rer le nom de la cat\'e9gorie depuis la premi\'e8re \'e9criture ou depuis la base\
+            if ecritures:\
+                categorie_nom = ecritures[0]['categorie_nom']\
+                categorie_numero = ecritures[0]['categorie_numero']\
+            else:\
+                # Si pas d'\'e9critures, r\'e9cup\'e9rer le nom de la cat\'e9gorie directement\
+                cursor.execute("SELECT nom, numero FROM categories_comptables WHERE id = %s", (int(categorie_id),))\
+                categorie = cursor.fetchone()\
+                categorie_nom = categorie['nom'] if categorie else "Cat\'e9gorie inconnue"\
+                categorie_numero = categorie['numero'] if categorie else "Num\'e9ro inconnu"\
+            return f"\{categorie_numero\} : \{categorie_nom\} - \{annee\}"\
+\
+    def update_statut(self, ecriture_id: int, user_id: int, statut: str) -> bool:\
+        """Met \'e0 jour uniquement le statut d'une \'e9criture"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = "UPDATE ecritures_comptables SET statut = %s WHERE id = %s AND utilisateur_id = %s"\
+                cursor.execute(query, (statut, ecriture_id, user_id))\
+            return True\
+        except Error as e:\
+            logging.error(f"Erreur lors de la mise \'e0 jour du statut: \{e\}")\
+            return False\
+\
+    def get_by_statut(self, user_id: int, statut: str, date_from: str = None, \
+                  date_to: str = None, limit: int = 100) -> List[Dict]:\
+        """R\'e9cup\'e8re les \'e9critures par statut avec filtres optionnels"""\
+        ecritures = []\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                    cb.nom_compte as compte_bancaire_nom\
+                FROM ecritures_comptables e\
+                LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                WHERE e.utilisateur_id = %s AND e.statut = %s\
+                """\
+                \
+                params = [user_id, statut]\
+                \
+                if date_from:\
+                    query += " AND e.date_ecriture >= %s"\
+                    params.append(date_from)\
+                if date_to:\
+                    query += " AND e.date_ecriture <= %s"\
+                    params.append(date_to)\
+                \
+                query += " ORDER BY e.date_ecriture DESC LIMIT %s"\
+                params.append(limit)\
+                \
+                cursor.execute(query, tuple(params))\
+                ecritures = cursor.fetchall()\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures par statut: \{e\}")\
+        \
+        return ecritures\
+\
+    def get_statistiques_par_statut(self, user_id: int) -> Dict:\
+        """Retourne les statistiques regroup\'e9es par statut"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # Statistiques par statut\
+                query = """\
+                SELECT \
+                    statut,\
+                    COUNT(*) as nb_ecritures,\
+                    SUM(CASE WHEN type_ecriture = 'depense' THEN montant ELSE 0 END) as total_depenses,\
+                    SUM(CASE WHEN type_ecriture = 'depense' THEN montant_htva ELSE 0 END) as total_depenses_htva,\
+                    SUM(CASE WHEN type_ecriture = 'recette' THEN montant ELSE 0 END) as total_recettes,\
+                    SUM(CASE WHEN type_ecriture = 'recette' THEN montant_htva ELSE 0 END) as total_recettes_htva,\
+                    AVG(CASE WHEN type_ecriture = 'depense' THEN montant ELSE NULL END) as moyenne_depenses,\
+                    AVG(CASE WHEN type_ecriture = 'depense' THEN montant_htva ELSE NULL END) as moyenne_depenses_htva,\
+                    AVG(CASE WHEN type_ecriture = 'recette' THEN montant ELSE NULL END) as moyenne_recettes\
+                    AVG(CASE WHEN type_ecriture = 'recette' THEN montant_htva ELSE NULL END) as moyenne_recettes_htva\
+                FROM ecritures_comptables \
+                WHERE utilisateur_id = %s\
+                GROUP BY statut\
+                ORDER BY statut\
+                """\
+                cursor.execute(query, (user_id,))\
+                stats_par_statut = cursor.fetchall()\
+                \
+                # Derni\'e8res \'e9critures par statut\
+                cursor.execute("""\
+                SELECT statut, COUNT(*) as nb_ecritures_30j\
+                FROM ecritures_comptables \
+                WHERE utilisateur_id = %s \
+                AND date_ecriture >= DATE_SUB(NOW(), INTERVAL 30 DAY)\
+                GROUP BY statut\
+                """, (user_id,))\
+                stats_recentes = cursor.fetchall()\
+                \
+            return \{\
+                'statistiques_par_statut': stats_par_statut,\
+                'statistiques_recentes': stats_recentes\
+            \}\
+            \
+        except Error as e:\
+            logging.error(f"Erreur lors du calcul des statistiques par statut: \{e\}")\
+            return \{\}\
+\
+    def get_alertes_statut(self, user_id: int) -> List[Dict]:\
+        """Retourne les alertes concernant les statuts"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # \'c9critures en attente depuis plus de 7 jours\
+                query = """\
+                SELECT \
+                    COUNT(*) as nb_ecritures_attente,\
+                    MIN(date_ecriture) as plus_ancienne_attente,\
+                    DATEDIFF(NOW(), MIN(date_ecriture)) as jours_attente\
+                FROM ecritures_comptables \
+                WHERE utilisateur_id = %s \
+                AND statut = 'pending'\
+                AND date_ecriture <= DATE_SUB(NOW(), INTERVAL 7 DAY)\
+                """\
+                cursor.execute(query, (user_id,))\
+                alertes = cursor.fetchall()\
+                \
+                # \'c9critures rejet\'e9es r\'e9centes\
+                cursor.execute("""\
+                SELECT COUNT(*) as nb_ecritures_rejetees_7j\
+                FROM ecritures_comptables \
+                WHERE utilisateur_id = %s \
+                AND statut = 'rejet\'e9e'\
+                AND date_ecriture >= DATE_SUB(NOW(), INTERVAL 7 DAY)\
+                """, (user_id,))\
+                rejetees_recentes = cursor.fetchone()\
+                \
+            resultat = []\
+            if alertes and alertes[0]['nb_ecritures_attente'] > 0:\
+                resultat.append(\{\
+                    'type': 'attente_longue',\
+                    'message': f"\{alertes[0]['nb_ecritures_attente']\} \'e9criture(s) en attente depuis plus de 7 jours",\
+                    'niveau': 'warning'\
+                \})\
+            \
+            if rejetees_recentes and rejetees_recentes['nb_ecritures_rejetees_7j'] > 0:\
+                resultat.append(\{\
+                    'type': 'rejet_recent',\
+                    'message': f"\{rejetees_recentes['nb_ecritures_rejetees_7j']\} \'e9criture(s) rejet\'e9e(s) cette semaine",\
+                    'niveau': 'danger'\
+                \})\
+            \
+            return resultat\
+            \
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des alertes: \{e\}")\
+            return []\
+    \
+    def get_indicateurs_performance(self, user_id: int, statut: str = 'valid\'e9e') -> Dict:\
+        """Retourne des indicateurs de performance financi\'e8re"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # Taux de validation\
+                cursor.execute("""\
+                SELECT \
+                    COUNT(*) as total_ecritures,\
+                    SUM(CASE WHEN statut = 'valid\'e9e' THEN 1 ELSE 0 END) as ecritures_validees,\
+                    SUM(CASE WHEN statut = 'pending' THEN 1 ELSE 0 END) as ecritures_attente,\
+                    SUM(CASE WHEN statut = 'rejet\'e9e' THEN 1 ELSE 0 END) as ecritures_rejetees,\
+                    ROUND((SUM(CASE WHEN statut = 'valid\'e9e' THEN 1 ELSE 0 END) / COUNT(*) * 100), 2) as taux_validation\
+                FROM ecritures_comptables \
+                WHERE utilisateur_id = %s\
+                """, (user_id,))\
+                taux_validation = cursor.fetchone()\
+                \
+                # Temps moyen de traitement\
+                cursor.execute("""\
+                SELECT \
+                    AVG(DATEDIFF(date_validation, date_ecriture)) as temps_traitement_moyen\
+                FROM ecritures_comptables \
+                WHERE utilisateur_id = %s \
+                AND statut = 'valid\'e9e'\
+                AND date_validation IS NOT NULL\
+                """, (user_id,))\
+                temps_traitement = cursor.fetchone()\
+                \
+            return \{\
+                'taux_validation': taux_validation,\
+                'temps_traitement_moyen': temps_traitement['temps_traitement_moyen'] if temps_traitement else 0,\
+                'statut_reference': statut\
+            \}\
+            \
+        except Error as e:\
+            logging.error(f"Erreur lors du calcul des indicateurs de performance: \{e\}")\
+            return \{\}\
+\
+    def get_annees_disponibles(self, user_id):\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                    SELECT DISTINCT YEAR(date_ecriture) AS annee\
+                    FROM ecritures_comptables\
+                    WHERE utilisateur_id = %s\
+                    ORDER BY annee DESC\
+                """\
+                cursor.execute(query, (user_id,))\
+                annees = [row['annee'] for row in cursor.fetchall()]\
+                return annees\
+        except Exception as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des ann\'e9es disponibles : \{e\}")\
+            return []\
+\
+    def get_all(self, user_id: int, date_from: str = None, date_to: str = None, limit: int = 100) -> List[Dict]:\
+        """R\'e9cup\'e8re toutes les \'e9critures avec filtres optionnels"""\
+        ecritures = []\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                    cb.nom_compte as compte_bancaire_nom\
+                FROM ecritures_comptables e\
+                LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                WHERE e.utilisateur_id = %s\
+                """\
+                params = [user_id]\
+                \
+                if date_from:\
+                    query += " AND e.date_ecriture >= %s"\
+                    params.append(date_from)\
+                if date_to:\
+                    query += " AND e.date_ecriture <= %s"\
+                    params.append(date_to)\
+                \
+                query += " ORDER BY e.date_ecriture DESC LIMIT %s"\
+                params.append(limit)\
+                \
+                cursor.execute(query, tuple(params))\
+                ecritures = cursor.fetchall()\
+\
+                return ecritures\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures: \{e\}")\
+            return []\
+    \
+    def get_with_filters(self, user_id: int, date_from: str = None, date_to: str = None, \
+                        statut: str = None, id_contact: int = None, compte_id: int = None, \
+                        categorie_id: int = None, limit: int = 100) -> List[Dict]:\
+        """R\'e9cup\'e8re les \'e9critures avec tous les filtres combin\'e9s"""\
+        ecritures = []\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                    cb.nom_compte as compte_bancaire_nom\
+                FROM ecritures_comptables e\
+                LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                WHERE e.utilisateur_id = %s\
+                """\
+                params = [user_id]\
+                \
+                if date_from:\
+                    query += " AND e.date_ecriture >= %s"\
+                    params.append(date_from)\
+                if date_to:\
+                    query += " AND e.date_ecriture <= %s"\
+                    params.append(date_to)\
+                if statut:\
+                    query += " AND e.statut = %s"\
+                    params.append(statut)\
+                if id_contact:\
+                    query += " AND e.id_contact = %s"\
+                    params.append(id_contact)\
+                if compte_id:\
+                    query += " AND e.compte_bancaire_id = %s"\
+                    params.append(compte_id)\
+                if categorie_id:\
+                    query += " AND e.categorie_id = %s"\
+                    params.append(categorie_id)\
+                \
+                query += " ORDER BY e.date_ecriture DESC LIMIT %s"\
+                params.append(limit)\
+                \
+                cursor.execute(query, tuple(params))\
+                ecritures = cursor.fetchall()\
+\
+                return ecritures\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures avec filtres: \{e\}")\
+            return []\
+    \
+    def get_by_user_period(self, user_id, date_from, date_to):\
+        """R\'e9cup\'e8re toutes les \'e9critures pour une p\'e9riode donn\'e9e"""\
+        ecritures =[]\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                    cb.nom_compte as compte_bancaire_nom\
+                FROM ecritures_comptables e\
+                LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                WHERE e.utilisateur_id = %s AND e.date_ecriture BETWEEN %s AND %s\
+                ORDER BY e.date_ecriture DESC\
+                """\
+                params = [user_id, date_from, date_to]\
+                cursor.execute(query, tuple(params))\
+                ecritures = cursor.fetchall()\
+                return ecritures\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures par p\'e9riode: \{e\}")\
+            return []\
+\
+    def get_by_contact_id(self, contact_id: int, utilisateur_id: int) -> List[Dict]:\
+        """R\'e9cup\'e8re toutes les \'e9critures li\'e9es \'e0 un contact"""\
+        ecritures = []\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT ec.*, cp.nom_compte \
+                FROM ecritures_comptables ec\
+                LEFT JOIN comptes_principaux cp ON ec.compte_bancaire_id = cp.id\
+                WHERE ec.id_contact = %s AND ec.utilisateur_id = %s \
+                ORDER BY ec.date_ecriture DESC\
+                """\
+                cursor.execute(query, (contact_id, utilisateur_id))\
+                ecritures = cursor.fetchall()\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures: \{e\}")  \
+        return ecritures\
+\
+    def get_synthese_statuts(self, user_id: int, date_from: str, date_to: str) -> Dict:\
+        """Retourne une synth\'e8se des \'e9critures par statut"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT \
+                    statut,\
+                    COUNT(*) as nombre,\
+                    SUM(CASE WHEN type_ecriture = 'depense' THEN montant ELSE 0 END) as total_depenses,\
+                    SUM(CASE WHEN type_ecriture = 'depense' THEN montant_htva ELSE 0 END) as total_depenses_htva,\
+                    SUM(CASE WHEN type_ecriture = 'recette' THEN montant ELSE 0 END) as total_recettes,\
+                    SUM(CASE WHEN type_ecriture = 'recette' THEN montant_htva ELSE 0 END) as total_recettes_htva\
+                FROM ecritures_comptables \
+                WHERE utilisateur_id = %s AND date_ecriture BETWEEN %s AND %s\
+                GROUP BY statut\
+                """  \
+                cursor.execute(query, (user_id, date_from, date_to))\
+                synthese = cursor.fetchall()\
+                return \{\
+                    'synthese_statuts': synthese,\
+                    'date_debut': date_from,\
+                    'date_fin': date_to\
+                \}\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration de la synth\'e8se des statuts: \{e\}")\
+            return \{\}\
+    \
+    def get_by_contact(self, contact_id: int, user_id: int) -> List[Dict]:\
+        """R\'e9cup\'e8re les \'e9critures associ\'e9es \'e0 un contact sp\'e9cifique"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                query = """\
+                SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,\
+                    cb.nom_compte as compte_bancaire_nom\
+                FROM ecritures_comptables e\
+                LEFT JOIN categories_comptables c ON e.categorie_id = c.id\
+                LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id\
+                WHERE e.utilisateur_id = %s AND e.id_contact = %s\
+                ORDER BY e.date_ecriture DESC\
+                """\
+                cursor.execute(query, (user_id, contact_id))\
+                ecritures = cursor.fetchall()\
+                return ecritures\
+        except Error as e:\
+            logging.error(f"Erreur lors de la r\'e9cup\'e9ration des \'e9critures par contact: \{e\}")\
+            return []\
+\
+    def link_to_transaction(self, ecriture_id: int, transaction_id: int, user_id: int) -> bool:\
+        """Lie une \'e9criture comptable \'e0 une transaction bancaire"""\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # V\'e9rifier que l'\'e9criture appartient \'e0 l'utilisateur\
+                cursor.execute(\
+                    "SELECT id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",\
+                    (ecriture_id, user_id)\
+                )\
+                if not cursor.fetchone():\
+                    return False\
+\
+                # V\'e9rifier que la transaction existe et appartient \'e0 l'utilisateur\
+                cursor.execute("""\
+                    SELECT t.id\
+                    FROM transactions t\
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id\
+                    WHERE t.id = %s AND (cp.utilisateur_id = %s OR t.utilisateur_id = %s)\
+                """, (transaction_id, user_id, user_id))\
+                if not cursor.fetchone():\
+                    return False\
+\
+                # Lier l'\'e9criture \'e0 la transaction\
+                cursor.execute(\
+                    "UPDATE ecritures_comptables SET transaction_id = %s WHERE id = %s",\
+                    (transaction_id, ecriture_id)\
+                )\
+                return cursor.rowcount > 0\
+        except Exception as e:\
+            logging.error(f"Erreur lien \'e9criture-transaction : \{e\}")\
+            return False\
+\
+    def get_ecritures_by_transaction(self, transaction_id: int, user_id: int) -> List[Dict]:\
+        with self.db.get_cursor() as cursor:\
+            cursor.execute("""\
+                SELECT e.*\
+                FROM ecritures_comptables e\
+                WHERE e.transaction_id = %s AND e.utilisateur_id = %s\
+                ORDER BY e.date_ecriture\
+            """, (transaction_id, user_id))\
+            return cursor.fetchall()\
+        \
+    def get_total_ecritures_for_transaction(self, transaction_id: int, user_id: int) -> Decimal:\
+        with self.db.get_cursor() as cursor:\
+            cursor.execute("""\
+                SELECT SUM(montant) as total\
+                FROM ecritures_comptables\
+                WHERE transaction_id = %s AND utilisateur_id = %s\
+            """, (transaction_id, user_id))\
+            row = cursor.fetchone()\
+            return Decimal(str(row['total'])) if row and row['total'] else Decimal('0')\
+\
+    def unlink_from_transaction(self, ecriture_id: int, user_id: int) -> bool:\
+        """\
+        Supprime le lien entre une \'e9criture comptable et sa transaction associ\'e9e.\
+        Ne supprime ni l'\'e9criture, ni la transaction.\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # V\'e9rifier que l'\'e9criture appartient \'e0 l'utilisateur\
+                cursor.execute(\
+                    "SELECT id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",\
+                    (ecriture_id, user_id)\
+                )\
+                if not cursor.fetchone():\
+                    return False\
+\
+                cursor.execute(\
+                    "UPDATE ecritures_comptables SET transaction_id = NULL WHERE id = %s",\
+                    (ecriture_id,)\
+                )\
+                return cursor.rowcount > 0\
+        except Exception as e:\
+            logging.error(f"Erreur lors du d\'e9lien de l'\'e9criture \{ecriture_id\}: \{e\}")\
+            return False\
+        \
+    def link_ecriture_to_transaction(self, ecriture_id: int, transaction_id: int, user_id: int) -> bool:\
+        """\
+        Lie (ou relie \'e0 nouveau) une \'e9criture \'e0 une transaction.\
+        Remplace tout lien existant.\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # 1. V\'e9rifier que l'\'e9criture existe et appartient \'e0 l'utilisateur\
+                cursor.execute(\
+                    "SELECT id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",\
+                    (ecriture_id, user_id)\
+                )\
+                if not cursor.fetchone():\
+                    return False\
+\
+                # 2. V\'e9rifier que la transaction existe et appartient \'e0 l'utilisateur\
+                cursor.execute("""\
+                    SELECT t.id\
+                    FROM transactions t\
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id\
+                    WHERE t.id = %s AND (\
+                        cp.utilisateur_id = %s \
+                        OR t.utilisateur_id = %s\
+                    )\
+                """, (transaction_id, user_id, user_id))\
+                if not cursor.fetchone():\
+                    return False\
+\
+                # 3. Mettre \'e0 jour le lien\
+                cursor.execute(\
+                    "UPDATE ecritures_comptables SET transaction_id = %s WHERE id = %s",\
+                    (transaction_id, ecriture_id)\
+                )\
+                return cursor.rowcount > 0\
+        except Exception as e:\
+            logging.error(f"Erreur lors du lien \'e9criture \{ecriture_id\} \uc0\u8594  transaction \{transaction_id\}: \{e\}")\
+            return False\
+\
+    def unlink_all_ecritures_from_transaction(self, transaction_id: int, user_id: int) -> int:\
+        """\
+        Supprime tous les liens entre une transaction et les \'e9critures de l'utilisateur.\
+        Retourne le nombre d'\'e9critures mises \'e0 jour.\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # S'assurer que la transaction appartient \'e0 l'utilisateur\
+                cursor.execute("""\
+                    SELECT t.id\
+                    FROM transactions t\
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id\
+                    WHERE t.id = %s AND (\
+                        cp.utilisateur_id = %s \
+                        OR t.utilisateur_id = %s\
+                    )\
+                """, (transaction_id, user_id, user_id))\
+                if not cursor.fetchone():\
+                    return 0\
+\
+                cursor.execute(\
+                    "UPDATE ecritures_comptables SET transaction_id = NULL WHERE transaction_id = %s AND utilisateur_id = %s",\
+                    (transaction_id, user_id)\
+                )\
+                return cursor.rowcount\
+        except Exception as e:\
+            logging.error(f"Erreur lors du d\'e9lien de toutes les \'e9critures de la transaction \{transaction_id\}: \{e\}")\
+            return 0\
+\
+    def _is_categorie_valid_for_contact(self, contact_id: int, categorie_id: int, utilisateur_id: int) -> bool:\
+        if not contact_id:\
+            return True\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                # R\'e9cup\'e9rer tous les plans du contact\
+                cursor.execute("""\
+                    SELECT plan_id FROM contact_plans\
+                    WHERE contact_id = %s\
+                """, (contact_id,))\
+                plans = cursor.fetchall()\
+                if not plans:\
+                    return True  # pas de plan \uc0\u8594  tout autoris\'e9\
+                plan_ids = [p['plan_id'] for p in plans]\
+                # V\'e9rifier si la cat\'e9gorie est dans l\'92un de ces plans\
+                placeholders = ','.join(['%s'] * len(plan_ids))\
+                cursor.execute(f"""\
+                    SELECT 1 FROM plan_categorie\
+                    WHERE plan_id IN (\{placeholders\}) AND categorie_id = %s\
+                """, plan_ids + [categorie_id])\
+                return cursor.fetchone() is not None\
+        except Exception as e:\
+            logging.error(f"Erreur validation cat\'e9gorie pour contact \{contact_id\}: \{e\}")\
+            return False\
+\
+    ## Gestion fichiers \
+    \
+    \
+    def _get_file_path(self, filename):\
+        """G\'e9n\'e8re le chemin complet du fichier"""\
+        return os.path.join(self.upload_folder, filename)\
+    \
+    def _generate_filename(self, ecriture_id, original_filename, user_id):\
+        """\
+        G\'e9n\'e8re un nom de fichier unique et significatif\
+        Format: YYYYMMDD_HHMMSS_ecritureID_userID_contact_extension\
+        """\
+        # R\'e9cup\'e9rer les infos de l'\'e9criture pour le nom\
+        ecriture = self.get_by_id(ecriture_id)\
+        date_part = datetime.now().strftime("%Y%m%d_%H%M%S")\
+        \
+        # Partie contact\
+        contact_part = ""\
+        if ecriture and ecriture.get('id_contact'):\
+            contact_part = f"_contact\{ecriture['id_contact']\}"\
+        \
+        # Extension du fichier\
+        file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''\
+        \
+        # Nom final\
+        filename = f"\{date_part\}_ecriture\{ecriture_id\}_user\{user_id\}\{contact_part\}.\{file_extension\}"\
+        \
+        return filename\
+    \
+    def _allowed_file(self, filename):\
+        """V\'e9rifie si le type de fichier est autoris\'e9"""\
+        allowed_extensions = \{'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'\}\
+        return '.' in filename and \\\
+               filename.rsplit('.', 1)[1].lower() in allowed_extensions\
+    \
+    def ajouter_fichier(self, ecriture_id: int, user_id: int, fichier) -> Tuple[bool, str]:\
+        """Ajoute un fichier joint \'e0 une \'e9criture comptable (stockage filesystem)."""\
+        try:\
+            # V\'e9rifications de base\
+            if not fichier or fichier.filename == '':\
+                return False, "Aucun fichier s\'e9lectionn\'e9"\
+            \
+            logging.info(f"Tentative d'upload - Fichier: \{fichier.filename\}, Taille: \{fichier.content_length\}")\
+            \
+            # V\'e9rifier le dossier d'upload\
+            logging.info(f"Chemin upload folder: \{self.upload_folder\}")\
+            logging.info(f"Dossier existe: \{os.path.exists(self.upload_folder)\}")\
+            \
+            if not os.path.exists(self.upload_folder):\
+                try:\
+                    os.makedirs(self.upload_folder, exist_ok=True)\
+                    logging.info(f"Dossier cr\'e9\'e9: \{self.upload_folder\}")\
+                except Exception as e:\
+                    logging.error(f"Erreur cr\'e9ation dossier: \{e\}")\
+                    return False, f"Erreur cr\'e9ation dossier: \{str(e)\}"\
+            \
+            # V\'e9rifier les permissions\
+            if not os.access(self.upload_folder, os.W_OK):\
+                logging.error(f"Pas de permission d'\'e9criture dans: \{self.upload_folder\}")\
+                return False, "Pas de permission d'\'e9criture"\
+\
+            if not self._allowed_file(fichier.filename):\
+                return False, "Type de fichier non autoris\'e9"\
+            \
+            # Lire le fichier\
+            fichier_data = fichier.read()\
+            logging.info(f"Fichier lu - Taille donn\'e9es: \{len(fichier_data)\} bytes")\
+            \
+            if len(fichier_data) == 0:\
+                return False, "Fichier vide"\
+            \
+            max_size = 10 * 1024 * 1024\
+            if len(fichier_data) > max_size:\
+                return False, "Fichier trop volumineux (max 10MB)"\
+            \
+            with self.db.get_cursor() as cursor:\
+                # V\'e9rifier que l'\'e9criture appartient \'e0 l'utilisateur\
+                cursor.execute(\
+                    "SELECT id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",\
+                    (ecriture_id, user_id)\
+                )\
+                if not cursor.fetchone():\
+                    return False, "\'c9criture non trouv\'e9e ou non autoris\'e9e"\
+                \
+                # G\'e9n\'e9rer un nom de fichier unique\
+                nouveau_nom = self._generate_filename(ecriture_id, fichier.filename, user_id)\
+                file_path = self._get_file_path(nouveau_nom)\
+                \
+                logging.info(f"Chemin complet du fichier: \{file_path\}")\
+                logging.info(f"Nom g\'e9n\'e9r\'e9: \{nouveau_nom\}")\
+                \
+                # Sauvegarder le fichier sur le filesystem\
+                try:\
+                    with open(file_path, 'wb') as f:\
+                        f.write(fichier_data)\
+                    logging.info(f"Fichier sauvegard\'e9 avec succ\'e8s: \{file_path\}")\
+                    \
+                    # V\'e9rifier que le fichier a bien \'e9t\'e9 \'e9crit\
+                    if os.path.exists(file_path):\
+                        file_size = os.path.getsize(file_path)\
+                        logging.info(f"Fichier v\'e9rifi\'e9 - Taille sur disk: \{file_size\} bytes")\
+                    else:\
+                        logging.error("Fichier non trouv\'e9 apr\'e8s \'e9criture!")\
+                        return False, "Erreur lors de l'\'e9criture du fichier"\
+                        \
+                except Exception as e:\
+                    logging.error(f"Erreur \'e9criture fichier: \{e\}")\
+                    return False, f"Erreur \'e9criture fichier: \{str(e)\}"\
+\
+                # Mettre \'e0 jour la base de donn\'e9es\
+                cursor.execute("""\
+                    UPDATE ecritures_comptables \
+                    SET nom_fichier = %s, justificatif_url = %s, type_mime = %s, taille_fichier = %s\
+                    WHERE id = %s AND utilisateur_id = %s\
+                """, (\
+                    fichier.filename,\
+                    nouveau_nom,\
+                    fichier.content_type,\
+                    len(fichier_data),\
+                    ecriture_id,\
+                    user_id\
+                ))\
+                \
+                logging.info(f"Base de donn\'e9es mise \'e0 jour pour \'e9criture \{ecriture_id\}")\
+                return True, "Fichier joint ajout\'e9 avec succ\'e8s"\
+                \
+        except Exception as e:\
+            logging.error(f"Erreur ajout fichier \'e9criture \{ecriture_id\}: \{e\}")\
+            return False, f"Erreur lors de l'ajout du fichier: \{str(e)\}"\
+        \
+    def get_fichier(self, ecriture_id: int, user_id: int) -> Optional[Dict]:\
+        """\
+        R\'e9cup\'e8re les informations du fichier joint d'une \'e9criture.\
+        """\
+        try:\
+            with self.db.get_cursor() as cursor:\
+                cursor.execute("""\
+                    SELECT nom_fichier, justificatif_url, type_mime, taille_fichier, fichier_joint\
+                    FROM ecritures_comptables \
+                    WHERE id = %s AND utilisateur_id = %s AND (justificatif_url IS NOT NULL OR fichier_joint IS NOT NULL)\
+                """, (ecriture_id, user_id))\
+                \
+                result = cursor.fetchone()\
+                if result['justificatif_url']:\
+                    file_path = self._get_file_path(result['justificatif_url'])\
+                \
+                    \
+                    # V\'e9rifier que le fichier existe physiquement\
+                    if os.path.exists(file_path):\
+                        return \{\
+                            'nom_original': result['nom_fichier'],\
+                            'chemin_physique': result['justificatif_url'],\
+                            'type_mime': result['type_mime'],\
+                            'taille': result['taille_fichier'],\
+                            'chemin_complet': file_path,\
+                            'stockage': 'filesystem'\
+                        \}\
+                    else:\
+                        logging.warning(f"Fichier manquant sur le disk: \{file_path\}")\
+                        return None\
+                elif result['fichier_joint']:\
+                    return \{\
+                    'nom_original': result['nom_fichier'],\
+                    'contenu_blob': result['fichier_joint'],\
+                    'type_mime': result['type_mime'],\
+                    'taille': result['taille_fichier'],\
+                    'stockage': 'blob'\
+                \}\
+                return None\
+        except Exception as e:\
+            logging.error(f"Erreur r\'e9cup\'e9ration fichier \'e9criture \{ecriture_id\}: \{e\}")\
+            return None\
+    \
+    def supprimer_fichier(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:\
+        """\
+        Supprime le fichier joint d'une \'e9criture (physiquement et en base).\
+        """\
+        try:\
+            logging.info(f"\uc0\u55357 \u56525  D\'e9but suppression fichier - \'c9criture: \{ecriture_id\}, User: \{user_id\}")\
+            \
+            with self.db.get_cursor() as cursor:\
+                # R\'e9cup\'e9rer les infos du fichier avant suppression\
+                cursor.execute("""\
+                    SELECT nom_fichier, justificatif_url, fichier_joint \
+                    FROM ecritures_comptables \
+                    WHERE id = %s AND utilisateur_id = %s\
+                """, (ecriture_id, user_id))\
+                \
+                result = cursor.fetchone()\
+                if not result:\
+                    logging.error(f"\uc0\u10060  \'c9criture \{ecriture_id\} non trouv\'e9e pour l'utilisateur \{user_id\}")\
+                    return False, "\'c9criture non trouv\'e9e ou non autoris\'e9e"\
+                \
+                fichier_supprime = False\
+                message_suppression = ""\
+                \
+                # Supprimer le fichier physique s'il existe (justificatif_url)\
+                if result['justificatif_url']:\
+                    file_path = self._get_file_path(result['justificatif_url'])\
+                    if os.path.exists(file_path):\
+                        try:\
+                            os.remove(file_path)\
+                            fichier_supprime = True\
+                            message_suppression = f"Fichier physique supprim\'e9: \{file_path\}"\
+                            logging.info(f"\uc0\u10003  \{message_suppression\}")\
+                        except Exception as e:\
+                            logging.error(f"\uc0\u10060  Erreur suppression fichier physique: \{e\}")\
+                            return False, f"Erreur suppression fichier: \{str(e)\}"\
+                    else:\
+                        logging.warning(f"\uc0\u9888 \u65039  Fichier physique non trouv\'e9: \{file_path\}")\
+                \
+                # Mettre \'e0 jour la base de donn\'e9es\
+                cursor.execute("""\
+                    UPDATE ecritures_comptables \
+                    SET nom_fichier = NULL, \
+                        justificatif_url = NULL, \
+                        type_mime = NULL, \
+                        taille_fichier = NULL,\
+                        fichier_joint = NULL\
+                    WHERE id = %s AND utilisateur_id = %s\
+                """, (ecriture_id, user_id))\
+                \
+                if cursor.rowcount > 0:\
+                    if fichier_supprime:\
+                        message = f"Fichier '\{result['nom_fichier']\}' supprim\'e9 avec succ\'e8s"\
+                    else:\
+                        message = f"Informations fichier supprim\'e9es (fichier physique non trouv\'e9)"\
+                    \
+                    logging.info(f"\uc0\u10003  Suppression r\'e9ussie: \{message\}")\
+                    return True, message\
+                else:\
+                    logging.error(f"\uc0\u10060  Aucune ligne mise \'e0 jour dans la base")\
+                    return False, "Erreur lors de la suppression en base de donn\'e9es"\
+                    \
+        except Exception as e:\
+            logging.error(f"\uc0\u10060  Erreur suppression fichier \'e9criture \{ecriture_id\}: \{e\}")\
+            logging.error(f"\uc0\u10060  Traceback: \{traceback.format_exc()\}")\
+            return False, f"Erreur lors de la suppression: \{str(e)\}"\
+        \
+        def get_chemin_fichier_physique(self, ecriture_id: int, user_id: int) -> Optional[str]:\
+            """\
+            Retourne le chemin physique du fichier pour le t\'e9l\'e9chargement.\
+            """\
+            fichier_info = self.get_fichier(ecriture_id, user_id)\
+            return fichier_info['chemin_complet'] if fichier_info else None\
+    }

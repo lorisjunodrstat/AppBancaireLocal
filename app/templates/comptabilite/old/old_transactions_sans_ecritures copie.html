@@ -37,15 +37,11 @@
         vertical-align: middle;
     }
 
-    /* Indicateur de catégorie avec écritures secondaires */
-    .categorie-secondaire {
-        border-left: 3px solid #0d6efd;
-        padding-left: 8px;
-    }
-
-    .badge-secondaire {
-        font-size: 0.6em;
-        margin-left: 4px;
+    /* Bouton désactivé par défaut (sans JS) */
+    .btn-submit-disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
     }
 </style>
 {% endblock %}
@@ -58,7 +54,7 @@
             <p class="text-muted">
                 Gérez les transactions bancaires qui n'ont pas encore été associées à des écritures comptables.
                 Vous avez encore <strong>{{ total_a_comptabiliser_len }}</strong> pour <strong>{{ total_a_comptabiliser
-                    }} CHF</strong> à comptabiliser.
+                    }} CHF</strong> à comptabiliser. test
             </p>
         </div>
     </div>
@@ -125,7 +121,9 @@
                             écritures</small>
                     </div>
                     <div>
-                        <button type="submit" class="btn btn-primary" {% if not transactions %}disabled{% endif %}>
+                        <button type="submit"
+                            class="btn btn-primary {% if not transactions %}btn-submit-disabled{% endif %}" {% if not
+                            transactions %}disabled{% endif %}>
                             <i class="bi bi-layers"></i> Créer les écritures pour la sélection
                         </button>
                     </div>
@@ -167,7 +165,8 @@
                         <thead>
                             <tr>
                                 <th class="checkbox-column">
-                                    <input type="checkbox" id="select-all" name="select_all" value="1">
+                                    <!-- 🔥 Désactivé car pas de JS pour le gérer -->
+                                    <input type="checkbox" id="select-all" name="select_all" value="1" disabled>
                                     <label for="select-all" class="form-label visually-hidden">Tout sélectionner</label>
                                 </th>
                                 <th>Date</th>
@@ -182,7 +181,7 @@
                         <tbody>
                             {% for transaction in transactions %}
                             <tr>
-                                <!-- Case à cocher pour chaque transaction -->
+                                <!-- 🔥 Case à cocher pour chaque transaction -->
                                 <td class="checkbox-column">
                                     <input type="checkbox" name="selected_transaction_ids" value="{{ transaction.id }}">
                                 </td>
@@ -241,7 +240,8 @@
         </div>
         <!-- Bouton de soumission en bas du tableau -->
         <div class="d-grid gap-2 col-6 mx-auto mt-3">
-            <button type="submit" class="btn btn-primary" {% if not transactions %}disabled{% endif %}>
+            <button type="submit" class="btn btn-primary {% if not transactions %}btn-submit-disabled{% endif %}" {% if
+                not transactions %}disabled{% endif %}>
                 <i class="bi bi-layers"></i> Créer les écritures pour la sélection
             </button>
         </div>
@@ -317,28 +317,9 @@
                             required>
                             <option value="">Choisir une catégorie...</option>
                             {% for categorie in categories %}
-                            <option value="{{ categorie.id }}"
-                                class="{% if categorie.id in categories_avec_complementaires_ids %}categorie-secondaire{% endif %}">
-                                {{ categorie.numero }} - {{ categorie.nom }}
-                                {% if categorie.id in categories_avec_complementaires_ids %}
-                                <span class="badge bg-info badge-secondaire">avec écritures secondaires</span>
-                                {% endif %}
-                            </option>
+                            <option value="{{ categorie.id }}">{{ categorie.numero }} - {{ categorie.nom }}</option>
                             {% endfor %}
                         </select>
-                        <div class="form-text">
-                            <i class="bi bi-info-circle"></i>
-                            Certaines catégories peuvent générer des écritures secondaires automatiquement (TVA, taxes,
-                            etc.)
-                        </div>
-                    </div>
-
-                    <!-- 🔥 NOUVEAU : Section pour les écritures secondaires -->
-                    <div class="alert alert-warning">
-                        <i class="bi bi-lightbulb"></i>
-                        <strong>Écritures secondaires :</strong> Si la catégorie sélectionnée est configurée avec des
-                        complémentaires,
-                        des écritures secondaires seront créées automatiquement (TVA, taxes, etc.).
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -365,14 +346,6 @@
                         <i class="bi bi-info-circle"></i>
                         Répartissez le montant de la transaction en plusieurs écritures.
                         Les écritures seront créées avec le statut "En attente".
-                    </div>
-
-                    <!-- 🔥 NOUVEAU : Information sur les écritures secondaires -->
-                    <div class="alert alert-warning">
-                        <i class="bi bi-lightbulb"></i>
-                        <strong>Écritures secondaires :</strong> Si une catégorie est configurée avec des
-                        complémentaires,
-                        des écritures secondaires seront créées automatiquement pour chaque écriture principale.
                     </div>
 
                     <!-- Informations de la transaction -->
@@ -430,9 +403,8 @@
 
                     <!-- Écritures multiples - 3 lignes fixes -->
                     <div class="card">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <div class="card-header bg-light">
                             <h6 class="mb-0">Écritures comptables (maximum 3)</h6>
-                            <span class="badge bg-info">Écritures secondaires automatiques</span>
                         </div>
                         <div class="card-body">
                             {% for i in range(3) %}
@@ -442,20 +414,10 @@
                                     <select name="categorie_id[]" class="form-select">
                                         <option value="">Choisir une catégorie...</option>
                                         {% for categorie in categories %}
-                                        <option value="{{ categorie.id }}"
-                                            class="{% if categorie.id in categories_avec_complementaires_ids %}categorie-secondaire{% endif %}">
-                                            {{ categorie.numero }} - {{ categorie.nom }}
-                                            {% if categorie.id in categories_avec_complementaires_ids %}
-                                            <span class="badge bg-info badge-secondaire">secondaires</span>
-                                            {% endif %}
+                                        <option value="{{ categorie.id }}">{{ categorie.numero }} - {{ categorie.nom }}
                                         </option>
                                         {% endfor %}
                                     </select>
-                                    {% if i == 0 %}
-                                    <div class="form-text">
-                                        Les catégories marquées créent des écritures secondaires automatiquement
-                                    </div>
-                                    {% endif %}
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Montant (CHF)</label>

@@ -1,0 +1,172 @@
+{% extends "base.html" %} <!-- Étend le layout de base -->
+
+{% block head_css %}
+<style>
+    .kpi-card {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .kpi-value {
+        font-size: 2em;
+        font-weight: bold;
+    }
+
+    .positive {
+        color: green;
+    }
+
+    .negative {
+        color: red;
+    }
+</style>
+{% endblock %}
+{% block title %}Tableau de Bord Comptabilité{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Tableau de Bord Comptabilité</h1>
+
+    <!-- Sélecteur d'Année -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <form method="get" action="{{ url_for('banking.comptabilite_dashboard') }}">
+                <div class="input-group">
+                    <label class="input-group-text" for="annee_select">Année</label>
+                    <select name="annee" id="annee_select" class="form-select">
+                        {% for annee in annees_disponibles %}
+                            <option value="{{ annee }}" {% if annee == annee_selectionnee %}selected{% endif %}>
+                                {{ annee }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-outline-secondary" type="submit">Afficher</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Indicateurs Clés (KPIs) -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-light kpi-card">
+                <div class="card-body">
+                    <h5 class="card-title">Résultat Net</h5>
+                    <p class="kpi-value {% if resultat_net >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ "%.2f"|format(resultat_net) }} CHF
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-light kpi-card">
+                <div class="card-body">
+                    <h5 class="card-title">Total Recettes</h5>
+                    <p class="kpi-value positive">{{ "%.2f"|format(total_recettes) }} CHF</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-light kpi-card">
+                <div class="card-body">
+                    <h5 class="card-title">Total Dépenses</h5>
+                    <p class="kpi-value negative">{{ "%.2f"|format(total_depenses) }} CHF</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Rapides -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h3>Actions Rapides</h3>
+            <div class="row">
+                <div class="col-sm-6 col-md-3 mb-2">
+                    <a href="{{ url_for('banking.transactions_sans_ecritures') }}" class="btn btn-primary w-100">
+                        Comptabiliser Transactions ({{ nb_a_comptabiliser }})
+                    </a>
+                </div>
+                <div class="col-sm-6 col-md-3 mb-2">
+                    <a href="{{ url_for('banking.nouvelle_ecriture') }}" class="btn btn-success w-100">
+                        Nouvelle Écriture
+                    </a>
+                </div>
+                <div class="col-sm-6 col-md-3 mb-2">
+                    <a href="{{ url_for('banking.gestion_categories') }}" class="btn btn-info w-100">
+                        Gérer Catégories
+                    </a>
+                </div>
+                <div class="col-sm-6 col-md-3 mb-2">
+                    <a href="{{ url_for('banking.compte_de_resultat') }}" class="btn btn-warning w-100">
+                        Compte de Résultat
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Complète -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h3>Toutes les Fonctionnalités</h3>
+            <div class="list-group">
+                <a href="{{ url_for('banking.liste_ecritures') }}" class="list-group-item list-group-item-action">
+                    Journal Comptable
+                </a>
+                <a href="{{ url_for('banking.liste_categories_comptables') }}" class="list-group-item list-group-item-action">
+                    Plan Comptable
+                </a>
+                <a href="{{ url_for('banking.liste_contacts_comptables') }}" class="list-group-item list-group-item-action">
+                    Contacts Comptables
+                </a>
+                <a href="{{ url_for('banking.statistiques_comptables') }}" class="list-group-item list-group-item-action">
+                    Statistiques
+                </a>
+                <a href="{{ url_for('banking.compte_de_resultat') }}" class="list-group-item list-group-item-action">
+                    Compte de Résultat Détail
+                </a>
+                <a href="{{ url_for('liste_plans') }}" class="list-group-item list-group-item-action">
+                    Plans Comptables Personnalisés
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste Récente (Exemple : Dernières Écritures) -->
+    <div class="row">
+        <div class="col-md-12">
+            <h3>Dernières Écritures Créées</h3>
+            {% if dernieres_ecritures %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Catégorie</th>
+                            <th>Montant</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ecriture in dernieres_ecritures %}
+                        <tr>
+                            <td>{{ ecriture.date_ecriture.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ ecriture.description }}</td>
+                            <td>{{ ecriture.categorie_nom }}</td>
+                            <td class="{{ 'positive' if ecriture.type_ecriture == 'recette' else 'negative' }}">
+                                {% if ecriture.type_ecriture == 'recette' %}+{% else %}-{% endif %}{{ "%.2f"|format(ecriture.montant) }} CHF
+                            </td>
+                            <td><span class="badge bg-{{ 'success' if ecriture.statut == 'validée' else 'warning' }}">{{ ecriture.statut }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Aucune écriture trouvée pour cette période.</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

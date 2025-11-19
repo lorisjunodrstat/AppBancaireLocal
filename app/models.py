@@ -3467,6 +3467,7 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur vérification propriété transaction: {e}")
             return False
+    
     def get_contacts_avec_transactions(self, user_id: int) -> List[Dict]:
         with self.db.get_cursor() as cursor:
             cursor.execute("""
@@ -3625,6 +3626,7 @@ class TransactionFinanciere:
         """Met à jour le statut comptable d'une transaction"""
         try:
             with self.db.get_cursor() as cursor:
+                ecritures_secondaires = self.get_ecritures_complementaires(ecriture_id, user_id)
                 # Vérifier que l'utilisateur peut accéder à cette transaction
                 cursor.execute("""
                     SELECT t.id 
@@ -3642,7 +3644,9 @@ class TransactionFinanciere:
                 if not cursor.fetchone():
                     return False, "Transaction non trouvée ou non autorisée"
                 
+
                 # Mettre à jour le statut
+
                 cursor.execute(
                     "UPDATE transactions SET statut_comptable = %s WHERE id = %s",
                     (statut_comptable, transaction_id)
@@ -4823,7 +4827,7 @@ class CategorieTransaction:
         try:
             with self.db.get_cursor() as cursor:
                 query = """
-                    SELECT id, nom, description, couleur, icone, type_categorie, budget_mensuel
+                    SELECT id, nom, description, couleur, icone, type_categorie, budget_mensuel, categorie_complementaire_id, type_ecriture_complementaire
                     FROM categories_transactions
                     WHERE utilisateur_id = %s AND actif = TRUE
                 """
@@ -4841,8 +4845,9 @@ class CategorieTransaction:
             logging.error(f"Erreur récupération catégories: {e}")
             return []
 
-    def creer_categorie(self, user_id: int, nom: str, type_categorie: str = "Dépense", 
-                       description: str = '', couleur: str = None, icone: str = None, budget_mensuel: float = 0.0) -> Tuple[bool, str]:
+    def creer_categorie(self, user_id: int, nom: str, type_categorie: str = "Dépense",
+                        categorie_complementaire_id: int = None, type_ecriture_complementaire: str = None,
+                        description: str = '', couleur: str = None, icone: str = None, budget_mensuel: float = 0.0) -> Tuple[bool, str]:
         """Crée une nouvelle catégorie de transaction pour un utilisateur"""
         try:
             with self.db.get_cursor() as cursor:
@@ -4861,9 +4866,9 @@ class CategorieTransaction:
                 
                 cursor.execute("""
                     INSERT INTO categories_transactions 
-                    (utilisateur_id, nom, description, type_categorie, couleur, icone, budget_mensuel)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (user_id, nom, description, type_categorie, couleur, icone, budget_mensuel))
+                    (utilisateur_id, nom, description, type_categorie, categorie_complementaire_id, type_ecriture_complementaire, couleur, icone, budget_mensuel)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (user_id, nom, description, type_categorie, categorie_complementaire_id, type_ecriture_complementaire, couleur, icone, budget_mensuel))
                 
                 return True, "Catégorie créée avec succès"
         except Exception as e:
@@ -4906,6 +4911,21 @@ class CategorieTransaction:
         except Exception as e:
             logging.error(f"Erreur mise à jour catégorie: {e}")
             return False, f"Erreur: {str(e)}"
+
+    def get_categorie_complementaire(self, categorie_id: int, user_id: int) -> Optional[Dict]:
+        """Récupère la catégorie complémentaire associée à une catégorie donnée"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT ct2.id, ct2.nom, ct2.description, ct2.couleur, ct2.icone, ct2.type_categorie, ct2.budget_mensuel
+                    FROM categories_transactions ct1
+                    JOIN categories_transactions ct2 ON ct1.categorie_complementaire_id = ct2.id
+                    WHERE ct1.id = %s AND ct1.utilisateur_id = %s AND ct2.actif = TRUE
+                """, (categorie_id, user_id))
+                return cursor.fetchone()
+        except Exception as e:
+            logging.error(f"Erreur récupération catégorie complémentaire: {e}")
+            return None
 
     def supprimer_categorie(self, categorie_id: int, user_id: int) -> Tuple[bool, str]:
         """Supprime une catégorie de transaction (soft delete)"""
@@ -5847,6 +5867,50 @@ class CategorieComptable:
             logging.error(f"Erreur lors de la récupération des catégories comptables: {e}")
             return []
     
+    def get_categories_avec_complementaires(self, utilisateur_id: int) -> List[Dict]:
+        """Récupère les catégories avec leurs complémentaires"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT 
+                    c.*,
+                    ct.categorie_complementaire_id,
+                    cc.numero as comp_numero,
+                    cc.nom as comp_nom,
+                    ct.type_complement,
+                    ct.taux
+                FROM categories_comptables c
+                LEFT JOIN categories_transactions ct ON c.id = ct.categorie_id AND ct.utilisateur_id = %s AND ct.actif = TRUE
+                LEFT JOIN categories_comptables cc ON ct.categorie_complementaire_id = cc.id
+                WHERE c.utilisateur_id = %s AND c.actif = TRUE
+                ORDER BY c.numero
+                """
+                cursor.execute(query, (utilisateur_id, utilisateur_id))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur get_categories_avec_complementaires: {e}")
+            return []
+
+    def ajouter_categorie_complementaire(self, categorie_id: int, categorie_complementaire_id: int, 
+                                       utilisateur_id: int, type_complement: str = 'tva', 
+                                       taux: float = 0.0) -> bool:
+        """Ajoute une relation de catégorie complémentaire"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                INSERT INTO categories_transactions 
+                (categorie_id, categorie_complementaire_id, utilisateur_id, type_complement, taux)
+                VALUES (%s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                type_complement = VALUES(type_complement),
+                taux = VALUES(taux),
+                actif = TRUE
+                """
+                cursor.execute(query, (categorie_id, categorie_complementaire_id, utilisateur_id, type_complement, taux))
+                return True
+        except Exception as e:
+            logging.error(f"Erreur ajouter_categorie_complementaire: {e}")
+            return False
 
 class EcritureComptable:
     """Modèle pour gérer les écritures comptables"""
@@ -5857,6 +5921,7 @@ class EcritureComptable:
         logging.info(f"📁 Fichier courant (__file__): {__file__}")
         self.upload_folder = os.path.join(os.getcwd(), 'ROOT', 'app', 'uploads', 'justificatifs')
         self._ensure_upload_folder()
+    
     def _ensure_upload_folder(self):
         """Crée le dossier d'upload s'il n'existe pas"""
         try:
@@ -5915,16 +5980,19 @@ class EcritureComptable:
             with self.db.get_cursor() as cursor:
                 query = """
                 INSERT INTO ecritures_comptables 
-                (date_ecriture, compte_bancaire_id, categorie_id, montant, devise, 
+                (date_ecriture, compte_bancaire_id, categorie_id, montant, montant_htva, devise, 
                 description, reference, type_ecriture, tva_taux, tva_montant, 
-                utilisateur_id, justificatif_url, statut, id_contact)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                utilisateur_id, justificatif_url, statut, id_contact, type_ecriture_comptable)
+                VALUES (%s, %s, %s, %s, %s, %s, 
+                        %s, %s, %s, %s, %s, %s, 
+                        %s, %s, %s, %s)
                 """
                 values = (
                     data['date_ecriture'],
                     data['compte_bancaire_id'],
                     data['categorie_id'],
                     data['montant'],
+                    data['montant_htva'],
                     data.get('devise', 'CHF'),
                     data.get('description', ''),
                     data.get('reference', ''),
@@ -5934,17 +6002,390 @@ class EcritureComptable:
                     data['utilisateur_id'],
                     data.get('justificatif_url'),
                     data.get('statut', 'pending'),  # 'pending', 'validée', 'rejetée'
-                    data.get('id_contact')  # Ajout du id_contact à la fin
+                    data.get('id_contact'),
+                    data.get('type_ecriture_comptable', 'principale')  # Ajout du id_contact à la fin
                 )
                 
                 cursor.execute(query, values)
-                # Récupérer l'ID de la dernière insertion
-                self.last_insert_id = cursor.lastrowid
+                ecriture_principale_id = cursor.lastrowid
+                logging.info(f"Écriture principale créée avec ID: {ecriture_principale_id}")
+                if data.get('type_ecriture_comptable') == 'principale':
+                    self._create_secondary_ecritures(cursor, ecriture_principale_id, data)
+                
             return True
         except Error as e:
             logging.error(f"Erreur lors de la création de l'écriture comptable: {e}")
             return False
     
+    def _create_secondary_ecritures(self, cursor, ecriture_principale_id: int, data: Dict):
+        """Crée les écritures secondaires (TVA, taxes, etc.)"""
+        try:
+            # Récupérer les catégories complémentaires configurées
+            cursor.execute("""
+                SELECT ct.categorie_complementaire_id, ct.type_complement, ct.taux
+                FROM categories_transactions ct
+                WHERE ct.categorie_id = %s AND ct.utilisateur_id = %s AND ct.actif = TRUE
+            """, (data['categorie_id'], data['utilisateur_id']))
+            
+            complementary_categories = cursor.fetchall()
+            logging.info(f"Catégories complémentaires trouvées: {complementary_categories}")
+            
+            if not complementary_categories:
+                logging.info("Aucune catégorie complémentaire configurée.")
+                return
+
+            for comp_cat in complementary_categories:
+                montant_secondaire = self._calculate_secondary_amount(
+                    data, comp_cat['type_complement'], comp_cat['taux']
+                )
+                
+                if abs(montant_secondaire) > 0.01:  # Seuil pour éviter les montants négligeables
+                    self._create_secondary_ecriture(
+                        cursor, ecriture_principale_id, data, comp_cat, montant_secondaire)
+                else:
+                    logging.info(f"Montant secondaire négligeable pour {comp_cat['type_complement']}, pas de création d'écriture.")
+                    
+        except Exception as e:
+            logging.error(f"Erreur création écritures secondaires: {e}")
+            raise
+    def get_categories_avec_complementaires(self, utilisateur_id: int) -> List[Dict]:
+        """Récupère les catégories avec leurs complémentaires configurées"""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT 
+                    c.*,
+                    ct.categorie_complementaire_id,
+                    cc.numero as comp_numero,
+                    cc.nom as comp_nom,
+                    ct.type_complement,
+                    ct.taux
+                FROM categories_comptables c
+                LEFT JOIN categories_transactions ct ON c.id = ct.categorie_id AND ct.utilisateur_id = %s AND ct.actif = TRUE
+                LEFT JOIN categories_comptables cc ON ct.categorie_complementaire_id = cc.id
+                WHERE c.utilisateur_id = %s AND c.actif = TRUE
+                ORDER BY c.numero
+                """
+                cursor.execute(query, (utilisateur_id, utilisateur_id))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Erreur get_categories_avec_complementaires: {e}")
+            return []
+
+    def has_secondary_ecritures(self, ecriture_id: int, user_id: int) -> bool:
+        """Vérifie si une écriture a des écritures secondaires"""
+        try:
+            secondaires = self.get_ecritures_complementaires(ecriture_id, user_id)
+            return len(secondaires) > 0
+        except Exception as e:
+            logging.error(f"Erreur vérification écritures secondaires: {e}")
+            return False
+    
+    def _calculate_secondary_amount(self, data: Dict, type_complement: str, taux: float) -> float:
+        """Calcule le montant pour l'écriture secondaire"""
+        montant_principal = data['montant']
+        montant_htva = data.get('montant_htva', montant_principal)
+        tva_taux = data.get('tva_taux', 0)
+        
+        if type_complement == 'tva':
+            # Logique de calcul TVA
+            if data.get('tva_montant') is not None:
+                return data['tva_montant']
+            elif tva_taux and tva_taux > 0:
+                base_calcul = montant_htva if montant_htva != montant_principal else montant_principal
+                return base_calcul * (tva_taux / 100)
+            else:
+                return 0
+                
+        elif type_complement == 'taxe':
+            # Calcul pour autres taxes
+            return montant_principal * (taux / 100)
+            
+        else:
+            return montant_principal * (taux / 100)
+
+    def _create_secondary_ecriture(self, cursor, ecriture_principale_id: int, data: Dict, 
+                                 comp_cat: Dict, montant_secondaire: float):
+        """Crée une écriture secondaire individuelle"""
+        try:
+            # Déterminer le type d'écriture pour la secondaire
+            type_ecriture_secondaire = self._get_secondary_type(data['type_ecriture'], comp_cat['type_complement'])
+            
+            query = """
+            INSERT INTO ecritures_comptables(
+                date_ecriture, compte_bancaire_id, categorie_id, montant, montant_htva, devise,
+                description, reference, type_ecriture, tva_taux, tva_montant,
+                utilisateur_id, justificatif_url, statut, id_contact,
+                ecriture_principale_id, type_ecriture_comptable
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'complementaire')
+            """
+            
+            values = (
+                data['date_ecriture'],
+                data['compte_bancaire_id'],  # Ou un compte spécifique pour les taxes
+                comp_cat['categorie_complementaire_id'],
+                abs(montant_secondaire),  # Valeur absolue, le sens dépend du type
+                abs(montant_secondaire),
+                data.get('devise', 'CHF'),
+                f"{data.get('description', '')} ({comp_cat['type_complement'].upper()})",
+                data.get('reference', ''),
+                type_ecriture_secondaire,
+                None,  # Pas de TVA sur la TVA
+                0,
+                data['utilisateur_id'],
+                data.get('justificatif_url'),
+                data.get('statut', 'pending'),
+                data.get('id_contact'),
+                ecriture_principale_id
+            )
+            
+            cursor.execute(query, values)
+            logging.info(f"Écriture secondaire créée pour {comp_cat['type_complement']}")
+            
+        except Exception as e:
+            logging.error(f"Erreur création écriture secondaire: {e}")
+            raise
+
+    def _get_secondary_type(self, type_principal: str, type_complement: str) -> str:
+        """Détermine le type d'écriture pour la secondaire"""
+        if type_complement == 'tva':
+            # La TVA est généralement une dette (passif) donc recette pour le compte TVA
+            return 'recette' if type_principal == 'depense' else 'depense'
+        else:
+            return type_principal
+
+    def get_ecriture_avec_secondaires(self, ecriture_id: int, user_id: int) -> Dict:
+        """Récupère une écriture principale avec toutes ses écritures secondaires"""
+        try:
+            with self.db.get_cursor() as cursor:
+                # Récupérer l'écriture principale
+                cursor.execute("""
+                    SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
+                        cb.nom_compte as compte_bancaire_nom
+                    FROM ecritures_comptables e
+                    LEFT JOIN categories_comptables c ON e.categorie_id = c.id
+                    LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id
+                    WHERE e.id = %s AND e.utilisateur_id = %s
+                """, (ecriture_id, user_id))
+                ecriture_principale = cursor.fetchone()
+                
+                if not ecriture_principale:
+                    return None
+                
+                # Récupérer les écritures secondaires
+                ecritures_secondaires = self.get_ecritures_complementaires(ecriture_id, user_id)
+                
+                return {
+                    'principale': ecriture_principale,
+                    'secondaires': ecritures_secondaires
+                }
+        except Exception as e:
+            logging.error(f"Erreur get_ecriture_avec_secondaires: {e}")
+            return None
+
+    def get_solde_tva_par_periode(self, user_id: int, date_debut: str, date_fin: str) -> Dict:
+        """Calcule le solde TVA pour une période donnée"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT 
+                        SUM(CASE WHEN e.type_ecriture = 'recette' THEN e.montant ELSE 0 END) as tva_collectee,
+                        SUM(CASE WHEN e.type_ecriture = 'depense' THEN e.montant ELSE 0 END) as tva_deductible,
+                        (SUM(CASE WHEN e.type_ecriture = 'recette' THEN e.montant ELSE 0 END) - 
+                        SUM(CASE WHEN e.type_ecriture = 'depense' THEN e.montant ELSE 0 END)) as solde_tva
+                    FROM ecritures_comptables e
+                    JOIN categories_comptables c ON e.categorie_id = c.id
+                    WHERE e.utilisateur_id = %s 
+                    AND e.date_ecriture BETWEEN %s AND %s
+                    AND e.statut = 'validée'
+                    AND c.type_compte = 'TVA'  -- Supposant que vous avez une catégorie TVA
+                """, (user_id, date_debut, date_fin))
+                
+                return cursor.fetchone() or {'tva_collectee': 0, 'tva_deductible': 0, 'solde_tva': 0}
+        except Exception as e:
+            logging.error(f"Erreur get_solde_tva_par_periode: {e}")
+            return {'tva_collectee': 0, 'tva_deductible': 0, 'solde_tva': 0}
+        
+    def _create_ecriture_liee(self, cursor, data: Dict):
+        """Méthode interne pour créer une écriture liée"""
+        try:
+            query = """
+            INSERT INTO ecritures_comptables(
+                date_ecriture, compte_bancaire_id, categorie_id, montant, montant_htva, devise,
+                description, reference, type_ecriture, tva_taux, tva_montant,
+                utilisateur_id, justificatif_url, statut, id_contact,
+                ecriture_principale_id, type_ecriture_comptable
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            values = (
+                data['date_ecriture'],
+                data['compte_bancaire_id'],
+                data['categorie_id'],
+                data['montant'],
+                data['montant_htva'],
+                data.get('devise', 'CHF'),
+                data.get('description', ''),
+                data.get('reference', ''),
+                data['type_ecriture'],
+                data.get('tva_taux'),
+                data.get('tva_montant'),
+                data['utilisateur_id'],
+                data.get('justificatif_url'),
+                data.get('statut', 'pending'),
+                data.get('id_contact'),
+                data.get('ecriture_principale_id'),
+                data.get('type_ecriture_comptable', 'complementaire')
+            )
+            cursor.execute(query, values)
+            logging.info(f"Écriture liée créée avec succès")
+        except Exception as e:
+            logging.error(f"Erreur lors de la création de l'écriture liée: {e}")
+            raise
+    
+    # *** MÉTHODE POUR RÉCUPÉRER LES ÉCRITURES COMPLÉMENTAIRES D'UNE ÉCRITURE PRINCIPALE ***
+    def get_ecritures_complementaires(self, ecriture_principale_id: int, user_id: int) -> List[Dict]:
+        """
+        Récupère les écritures complémentaires directement liées à une écriture principale spécifique.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
+                           cb.nom_compte as compte_bancaire_nom
+                    FROM ecritures_comptables e
+                    LEFT JOIN categories_comptables c ON e.categorie_id = c.id
+                    LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id
+                    WHERE e.ecriture_principale_id = %s AND e.utilisateur_id = %s
+                    AND e.type_ecriture_comptable = 'complementaire' -- S'assurer que c'est une complémentaire
+                """, (ecriture_principale_id, user_id))
+                ecritures = cursor.fetchall()
+                return ecritures
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération des écritures complémentaires: {e}")
+            return []
+
+    # *** MÉTHODE POUR RÉCUPÉRER L'ÉCRITURE PRINCIPALE D'UNE ÉCRITURE COMPLÉMENTAIRE ***
+    def get_ecriture_principale(self, ecriture_complementaire_id: int, user_id: int) -> Optional[Dict]:
+        """
+        Récupère l'écriture principale liée à une écriture complémentaire spécifique.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Version simplifiée et optimisée en une seule requête
+                cursor.execute("""
+                    SELECT e.*, c.numero as categorie_numero, c.nom as categorie_nom,
+                        cb.nom_compte as compte_bancaire_nom
+                    FROM ecritures_comptables e
+                    LEFT JOIN categories_comptables c ON e.categorie_id = c.id
+                    LEFT JOIN comptes_principaux cb ON e.compte_bancaire_id = cb.id
+                    WHERE e.id = (
+                        SELECT ecriture_principale_id 
+                        FROM ecritures_comptables 
+                        WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'complementaire'
+                    )
+                    AND e.utilisateur_id = %s
+                """, (ecriture_complementaire_id, user_id, user_id))
+                
+                return cursor.fetchone()
+                
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération de l'écriture principale: {e}")
+            return None
+    # *** MÉTHODE POUR METTRE À JOUR UNE ÉCRITURE PRINCIPALE ET SES COMPLÉMENTAIRES ***
+    def update_principale_et_complementaires(self, ecriture_principale_id: int, user_id: int, **kwargs) -> Tuple[bool, str]:
+        """
+        Met à jour une écriture principale et éventuellement ses écritures complémentaires
+        en fonction des modifications (par exemple, recalcul de la TVA si le montant change).
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # 1. Récupérer l'écriture principale avant modification
+                cursor.execute("""
+                    SELECT * FROM ecritures_comptables
+                    WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'principale'
+                """, (ecriture_principale_id, user_id))
+                ecriture_principale_avant = cursor.fetchone()
+                if not ecriture_principale_avant:
+                    return False, "Écriture principale non trouvée ou non autorisée"
+
+                # 2. Mettre à jour l'écriture principale
+                champs = []
+                valeurs = []
+                for champ, valeur in kwargs.items():
+                    if valeur is not None and champ not in ['id', 'utilisateur_id', 'ecriture_principale_id', 'type_ecriture_comptable']:
+                        champs.append(f"{champ} = %s")
+                        valeurs.append(valeur)
+
+                if not champs:
+                    return False, "Aucune modification valide spécifiée pour l'écriture principale"
+
+                # Ajouter les conditions pour la mise à jour
+                valeurs.extend([ecriture_principale_id, user_id])
+                query_update_principale = f"""
+                    UPDATE ecritures_comptables
+                    SET {', '.join(champs)}
+                    WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'principale'
+                """
+                cursor.execute(query_update_principale, valeurs)
+                if cursor.rowcount == 0:
+                    return False, "Aucune ligne mise à jour pour l'écriture principale (vérifiez les permissions ou l'existence)"
+
+                # 3. Vérifier si des champs impactant les écritures complémentaires ont changé
+                montant_change = 'montant' in kwargs and kwargs['montant'] != ecriture_principale_avant['montant']
+                tva_taux_change = 'tva_taux' in kwargs and kwargs['tva_taux'] != ecriture_principale_avant['tva_taux']
+
+                if montant_change or tva_taux_change:
+                    # 4. Récupérer les écritures complémentaires
+                    ecritures_complementaires = self.get_ecritures_complementaires(ecriture_principale_id, user_id)
+
+                    # 5. Mettre à jour chaque écriture complémentaire
+                    for ecriture_comp in ecritures_complementaires:
+                        # Exemple de logique de mise à jour : recalculer la TVA si le montant principal change
+                        # Cela dépend de votre logique métier précise.
+                        # Ici, on suppose que le montant de la complémentaire (TVA) doit être recalculé.
+                        ancien_montant_principal = ecriture_principale_avant['montant']
+                        ancien_taux_tva = ecriture_principale_avant['tva_taux'] or 0
+                        nouveau_montant_principal = kwargs.get('montant', ancien_montant_principal)
+                        nouveau_taux_tva = kwargs.get('tva_taux', ancien_taux_tva) or 0
+
+                        # Exemple de recalcul de la TVA
+                        # ATTENTION : La logique réelle peut être plus complexe (TVA sur le prix HT, etc.)
+                        # Ici, on fait un recalcul simple basé sur le nouveau montant et le nouveau taux
+                        # par rapport à l'ancien. Il faut affiner selon votre besoin.
+                        # Ancienne TVA = ancien_montant_principal * (ancien_taux_tva / 100)
+                        # Nouvelle TVA = nouveau_montant_principal * (nouveau_taux_tva / 100)
+                        if montant_change or tva_taux_change:
+                            ancien_montant_tva = ecriture_comp['montant'] # Ancien montant de la complémentaire (TVA)
+                            ancienne_base = ancien_montant_principal
+                            nouveau_montant_tva = (nouveau_montant_principal * nouveau_taux_tva) / 100.0
+                            # Si ancien_taux_tva est 0, on ne peut pas recalculer proprement, on garde l'ancien montant_tva ou on le met à 0.
+                            # Une logique plus robuste est nécessaire ici.
+                            # Pour l'exemple, on met à jour avec le nouveau calcul si les deux changent ou si le taux change.
+                            # Si seul le montant change et que le taux est inchangé, on recalcule proportionnellement.
+                            if tva_taux_change:
+                                # Recalcul complet
+                                nouveau_montant_tva_calc = (nouveau_montant_principal * nouveau_taux_tva) / 100.0
+                            elif montant_change and ancien_taux_tva != 0:
+                                # Recalcul proportionnel si le taux n'a pas changé
+                                nouveau_montant_tva_calc = (ancien_montant_tva / ancienne_base) * nouveau_montant_principal
+                            else:
+                                # Aucun changement de taux, montant changé mais taux à 0, donc TVA devrait rester à 0
+                                nouveau_montant_tva_calc = 0.0
+
+                            cursor.execute("""
+                                UPDATE ecritures_comptables
+                                SET montant = %s, montant_htva = %s -- Mettre à jour le montant de la complémentaire
+                                WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'complementaire'
+                            """, (nouveau_montant_tva_calc, nouveau_montant_tva_calc, ecriture_comp['id'], user_id))
+                            logging.info(f"Écriture complémentaire {ecriture_comp['id']} mise à jour en fonction de la modification de la principale {ecriture_principale_id}.")
+
+                return True, "Écriture principale mise à jour, complémentaires recalculées si nécessaire."
+        except Exception as e:
+            logging.error(f"Erreur lors de la mise à jour de l'écriture (principale ou complémentaire): {e}")
+            return False, f"Erreur: {str(e)}"
+        
     def update(self, ecriture_id: int, data: Dict) -> bool:
         # Validation du lien catégorie ↔ plan comptable du compte
         try:
@@ -5960,7 +6401,7 @@ class EcritureComptable:
                 query = """
                 UPDATE ecritures_comptables 
                 SET date_ecriture = %s, compte_bancaire_id = %s, categorie_id = %s, 
-                    montant = %s, devise = %s, description = %s, id_contact = %s, reference = %s, 
+                    montant = %s, montant_htva = %s, devise = %s, description = %s, id_contact = %s, reference = %s, 
                     type_ecriture = %s, tva_taux = %s, tva_montant = %s, 
                     justificatif_url = %s, statut = %s
                 WHERE id = %s AND utilisateur_id = %s
@@ -5970,6 +6411,7 @@ class EcritureComptable:
                     data['compte_bancaire_id'],
                     data['categorie_id'],
                     data['montant'],
+                    data['montant_htva'],
                     data.get('devise', 'CHF'),
                     data.get('description', ''),
                     data.get('id_contact'),
@@ -5993,6 +6435,7 @@ class EcritureComptable:
     def delete_hard(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
         """
         Supprime une écriture comptable après avoir délié sa transaction.
+        Gère également la suppression des écritures secondaires associées.
         
         Args:
             ecriture_id: ID de l'écriture à supprimer
@@ -6005,7 +6448,7 @@ class EcritureComptable:
             with self.db.get_cursor() as cursor:
                 # 1. Vérifier que l'écriture existe et appartient à l'utilisateur
                 cursor.execute(
-                    "SELECT id, transaction_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    "SELECT id, transaction_id, type_ecriture_comptable, ecriture_principale_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
                     (ecriture_id, user_id)
                 )
                 ecriture = cursor.fetchone()
@@ -6021,31 +6464,54 @@ class EcritureComptable:
                     )
                     logging.info(f"Écriture {ecriture_id} déliée de la transaction {ecriture['transaction_id']}")
                 
-                # 3. Supprimer l'écriture
+                # 3. Gestion des écritures secondaires
+                ecritures_secondaires_ids = []
+                
+                if ecriture['type_ecriture_comptable'] == 'principale':
+                    # Si c'est une écriture principale, récupérer ses écritures secondaires
+                    secondaires = self.get_ecritures_complementaires(ecriture_id, user_id)
+                    ecritures_secondaires_ids = [sec['id'] for sec in secondaires]
+                elif ecriture.get('ecriture_principale_id'):
+                    # Si c'est une écriture secondaire, on peut aussi supprimer la principale si souhaité
+                    # Pour l'instant, on ne supprime que la secondaire
+                    pass
+
+                # 4. Supprimer d'abord les écritures secondaires (si elles existent)
+                for sec_id in ecritures_secondaires_ids:
+                    cursor.execute(
+                        "DELETE FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                        (sec_id, user_id)
+                    )
+                    if cursor.rowcount > 0:
+                        logging.info(f"Écriture secondaire {sec_id} supprimée avec succès")
+                
+                # 5. Supprimer l'écriture principale
                 cursor.execute(
                     "DELETE FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
                     (ecriture_id, user_id)
                 )
                 
                 if cursor.rowcount > 0:
-                    logging.info(f"Écriture {ecriture_id} supprimée avec succès")
-                    return True, "Écriture supprimée avec succès"
+                    message = f"Écriture {ecriture_id} supprimée avec succès"
+                    if ecritures_secondaires_ids:
+                        message += f" ainsi que {len(ecritures_secondaires_ids)} écriture(s) secondaire(s)"
+                    logging.info(message)
+                    return True, message
                 else:
                     return False, "Erreur lors de la suppression de l'écriture"
-                    
+                        
         except Exception as e:
             logging.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
-    
+
     def delete_soft(self, ecriture_id: int, user_id: int, soft_delete: bool = True) -> Tuple[bool, str]:
         """
         Supprime une écriture comptable (soft delete par défaut).
-        
+        Gère également le soft delete des écritures secondaires associées.
         Args:
             ecriture_id: ID de l'écriture à supprimer
             user_id: ID de l'utilisateur pour vérification de propriété
             soft_delete: Si True, marque comme supprimée au lieu de supprimer définitivement
-        
         Returns:
             Tuple (succès, message)
         """
@@ -6053,7 +6519,7 @@ class EcritureComptable:
             with self.db.get_cursor() as cursor:
                 # Vérifier que l'écriture existe et appartient à l'utilisateur
                 cursor.execute(
-                    "SELECT id, transaction_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                    "SELECT id, transaction_id, type_ecriture_comptable, ecriture_principale_id FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
                     (ecriture_id, user_id)
                 )
                 ecriture = cursor.fetchone()
@@ -6069,8 +6535,33 @@ class EcritureComptable:
                     )
                     logging.info(f"Écriture {ecriture_id} déliée de la transaction {ecriture['transaction_id']}")
                 
+                # Gestion des écritures secondaires
+                ecritures_secondaires_ids = []
+                
+                if ecriture['type_ecriture_comptable'] == 'principale':
+                    # Si c'est une écriture principale, récupérer ses écritures secondaires
+                    secondaires = self.get_ecritures_complementaires(ecriture_id, user_id)
+                    ecritures_secondaires_ids = [sec['id'] for sec in secondaires]
+                elif ecriture.get('ecriture_principale_id'):
+                    # Si c'est une écriture secondaire, on peut aussi soft delete la principale si souhaité
+                    pass
+
                 if soft_delete:
-                    # SOFT DELETE: marquer comme supprimée
+                    # SOFT DELETE: marquer comme supprimée l'écriture principale et ses secondaires
+                    success_count = 0
+                    
+                    # Marquer les écritures secondaires d'abord
+                    for sec_id in ecritures_secondaires_ids:
+                        cursor.execute("""
+                            UPDATE ecritures_comptables 
+                            SET statut = 'supprimee', date_suppression = NOW() 
+                            WHERE id = %s AND utilisateur_id = %s
+                        """, (sec_id, user_id))
+                        if cursor.rowcount > 0:
+                            success_count += 1
+                            logging.info(f"Écriture secondaire {sec_id} marquée comme supprimée")
+                    
+                    # Marquer l'écriture principale
                     cursor.execute("""
                         UPDATE ecritures_comptables 
                         SET statut = 'supprimee', date_suppression = NOW() 
@@ -6078,27 +6569,47 @@ class EcritureComptable:
                     """, (ecriture_id, user_id))
                     
                     if cursor.rowcount > 0:
+                        success_count += 1
                         logging.info(f"Écriture {ecriture_id} marquée comme supprimée")
-                        return True, "Écriture marquée comme supprimée"
+                    
+                    if success_count > 0:
+                        message = f"Écriture {ecriture_id} marquée comme supprimée"
+                        if ecritures_secondaires_ids:
+                            message += f" ainsi que {len(ecritures_secondaires_ids)} écriture(s) secondaire(s)"
+                        return True, message
                     else:
-                        return False, "Erreur lors du marquage de l'écriture comme supprimée"
+                        return False, "Erreur lors du marquage des écritures comme supprimées"
+                                    
                 else:
                     # HARD DELETE: suppression définitive
+                    # Supprimer d'abord les écritures secondaires
+                    for sec_id in ecritures_secondaires_ids:
+                        cursor.execute(
+                            "DELETE FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
+                            (sec_id, user_id)
+                        )
+                        if cursor.rowcount > 0:
+                            logging.info(f"Écriture secondaire {sec_id} supprimée définitivement")
+                    
+                    # Supprimer l'écriture principale
                     cursor.execute(
                         "DELETE FROM ecritures_comptables WHERE id = %s AND utilisateur_id = %s",
                         (ecriture_id, user_id)
                     )
                     
                     if cursor.rowcount > 0:
-                        logging.info(f"Écriture {ecriture_id} supprimée définitivement")
-                        return True, "Écriture supprimée définitivement"
+                        message = f"Écriture {ecriture_id} supprimée définitivement"
+                        if ecritures_secondaires_ids:
+                            message += f" ainsi que {len(ecritures_secondaires_ids)} écriture(s) secondaire(s)"
+                        logging.info(message)
+                        return True, message
                     else:
                         return False, "Erreur lors de la suppression de l'écriture"
-                        
+
         except Exception as e:
             logging.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
-    
+        
     def get_by_id(self, ecriture_id: int) -> Optional[Dict]:
         """Récupère une écriture par son ID"""
         try:
@@ -6208,7 +6719,9 @@ class EcritureComptable:
                     c.nom as categorie_nom,
                     c.type_compte as categorie_type,
                     SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = %s THEN e.montant ELSE 0 END) as total_depenses,
+                    SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = %s THEN e.montant_htva ELSE 0 END) as total_depenses_htva,
                     SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = %s THEN e.montant ELSE 0 END) as total_recettes,
+                    SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = %s THEN e.montant_htva ELSE 0 END) as total_recettes_htva,
                     COUNT(e.id) as nb_ecritures
                 FROM categories_comptables c
                 LEFT JOIN ecritures_comptables e ON c.id = e.categorie_id AND e.utilisateur_id = %s
@@ -6246,12 +6759,13 @@ class EcritureComptable:
                         c.nom as categorie_nom,
                         c.id as categorie_id,
                         COUNT(e.id) as nombre_ecritures,
-                        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'validée' THEN e.montant ELSE 0 END) as montant
+                        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'validée' THEN e.montant ELSE 0 END) as montant,
+                        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'validée' THEN e.montant_htva ELSE 0 END) as montant_htva
                     FROM ecritures_comptables e
                     JOIN categories_comptables c ON e.categorie_id = c.id
                     WHERE e.utilisateur_id = %s 
                     AND e.date_ecriture BETWEEN %s AND %s
-                    AND c.type_compte = 'Actif' OR c.type_compte = 'revenus'
+                    AND (c.type_compte = 'Actif' OR c.type_compte = 'revenus')
                     GROUP BY c.id, c.numero, c.nom
                     ORDER BY c.numero
                 """, (user_id, date_from, date_to))
@@ -6264,12 +6778,13 @@ class EcritureComptable:
                         c.nom as categorie_nom,
                         c.id as categorie_id,
                         COUNT(e.id) as nombre_ecritures,
-                        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'validée' THEN e.montant ELSE 0 END) as montant
+                        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'validée' THEN e.montant ELSE 0 END) as montant,
+                        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'validée' THEN e.montant_htva ELSE 0 END) as montant_htva
                     FROM ecritures_comptables e
                     JOIN categories_comptables c ON e.categorie_id = c.id
                     WHERE e.utilisateur_id = %s 
                     AND e.date_ecriture BETWEEN %s AND %s
-                    AND c.type_compte = 'Charge' OR c.type_compte = 'Passif'
+                    AND (c.type_compte = 'Charge' OR c.type_compte = 'Passif')
                     GROUP BY c.id, c.numero, c.nom
                     ORDER BY c.numero
                 """, (user_id, date_from, date_to))
@@ -6277,14 +6792,18 @@ class EcritureComptable:
                 
             # 3. CALCUL DES TOTAUX
             total_produits = sum(p['montant'] or 0 for p in produits)
+            total_produits_htva = sum(p['montant_htva'] or 0 for p in produits)
             total_charges = sum(c['montant'] or 0 for c in charges)
+            total_charges_htva = sum(c['montant_htva'] or 0 for c in charges)
             resultat = total_produits - total_charges
             
             return {
                 'produits': produits,
                 'charges': charges,
                 'total_produits': total_produits,
+                'total_produits_htva': total_produits_htva,
                 'total_charges': total_charges,
+                'total_charges_htva': total_charges_htva,
                 'resultat': resultat,
                 'date_from': date_from,
                 'date_to': date_to
@@ -6372,8 +6891,22 @@ class EcritureComptable:
         """Met à jour uniquement le statut d'une écriture"""
         try:
             with self.db.get_cursor() as cursor:
-                query = "UPDATE ecritures_comptables SET statut = %s WHERE id = %s AND utilisateur_id = %s"
-                cursor.execute(query, (statut, ecriture_id, user_id))
+                secondary_ecriture = self.get_ecritures_complementaires(ecriture_id, user_id)
+                if secondary_ecriture:
+                    query = """
+                    UPDATE ecritures_comptables
+                    SET statut = %s
+                    WHERE (id = %s OR ecriture_principale_id = %s)
+                    AND utilisateur_id = %s
+                    """
+                    cursor.execute(query, (statut, ecriture_id, ecriture_id, user_id))
+                else:
+                    # Mettre à jour le statut de l'écriture principale et de ses complémentaires
+                    query = """UPDATE ecritures_comptables 
+                    SET statut = %s
+                    WHERE id = %s 
+                    AND utilisateur_id = %s"""
+                    cursor.execute(query, (statut, ecriture_id, user_id))        
             return True
         except Error as e:
             logging.error(f"Erreur lors de la mise à jour du statut: {e}")
@@ -6423,9 +6956,13 @@ class EcritureComptable:
                     statut,
                     COUNT(*) as nb_ecritures,
                     SUM(CASE WHEN type_ecriture = 'depense' THEN montant ELSE 0 END) as total_depenses,
+                    SUM(CASE WHEN type_ecriture = 'depense' THEN montant_htva ELSE 0 END) as total_depenses_htva,
                     SUM(CASE WHEN type_ecriture = 'recette' THEN montant ELSE 0 END) as total_recettes,
+                    SUM(CASE WHEN type_ecriture = 'recette' THEN montant_htva ELSE 0 END) as total_recettes_htva,
                     AVG(CASE WHEN type_ecriture = 'depense' THEN montant ELSE NULL END) as moyenne_depenses,
-                    AVG(CASE WHEN type_ecriture = 'recette' THEN montant ELSE NULL END) as moyenne_recettes
+                    AVG(CASE WHEN type_ecriture = 'depense' THEN montant_htva ELSE NULL END) as moyenne_depenses_htva,
+                    AVG(CASE WHEN type_ecriture = 'recette' THEN montant ELSE NULL END) as moyenne_recettes,
+                    AVG(CASE WHEN type_ecriture = 'recette' THEN montant_htva ELSE NULL END) as moyenne_recettes_htva
                 FROM ecritures_comptables 
                 WHERE utilisateur_id = %s
                 GROUP BY statut
@@ -6591,7 +7128,8 @@ class EcritureComptable:
     
     def get_with_filters(self, user_id: int, date_from: str = None, date_to: str = None, 
                         statut: str = None, id_contact: int = None, compte_id: int = None, 
-                        categorie_id: int = None, limit: int = 100) -> List[Dict]:
+                        categorie_id: int = None, type_ecriture: str = None, type_ecriture_comptable: str = None,
+                        limit: int = 100) -> List[Dict]:
         """Récupère les écritures avec tous les filtres combinés"""
         ecritures = []
         try:
@@ -6624,6 +7162,13 @@ class EcritureComptable:
                 if categorie_id:
                     query += " AND e.categorie_id = %s"
                     params.append(categorie_id)
+                if type_ecriture:
+                    query += " AND e.type_ecriture = %s"
+                    params.append(type_ecriture)
+                if type_ecriture_comptable:
+                    query += " AND e.type_ecriture_comptable = %s"
+                    params.append(type_ecriture_comptable)
+
                 
                 query += " ORDER BY e.date_ecriture DESC LIMIT %s"
                 params.append(limit)
@@ -6685,7 +7230,9 @@ class EcritureComptable:
                     statut,
                     COUNT(*) as nombre,
                     SUM(CASE WHEN type_ecriture = 'depense' THEN montant ELSE 0 END) as total_depenses,
-                    SUM(CASE WHEN type_ecriture = 'recette' THEN montant ELSE 0 END) as total_recettes
+                    SUM(CASE WHEN type_ecriture = 'depense' THEN montant_htva ELSE 0 END) as total_depenses_htva,
+                    SUM(CASE WHEN type_ecriture = 'recette' THEN montant ELSE 0 END) as total_recettes,
+                    SUM(CASE WHEN type_ecriture = 'recette' THEN montant_htva ELSE 0 END) as total_recettes_htva
                 FROM ecritures_comptables 
                 WHERE utilisateur_id = %s AND date_ecriture BETWEEN %s AND %s
                 GROUP BY statut
@@ -7032,6 +7579,8 @@ class EcritureComptable:
                 """, (ecriture_id, user_id))
                 
                 result = cursor.fetchone()
+                if not result:
+                    return None
                 if result['justificatif_url']:
                     file_path = self._get_file_path(result['justificatif_url'])
                 
@@ -7128,12 +7677,12 @@ class EcritureComptable:
             logging.error(f"❌ Traceback: {traceback.format_exc()}")
             return False, f"Erreur lors de la suppression: {str(e)}"
         
-        def get_chemin_fichier_physique(self, ecriture_id: int, user_id: int) -> Optional[str]:
-            """
-            Retourne le chemin physique du fichier pour le téléchargement.
-            """
-            fichier_info = self.get_fichier(ecriture_id, user_id)
-            return fichier_info['chemin_complet'] if fichier_info else None
+    def get_chemin_fichier_physique(self, ecriture_id: int, user_id: int) -> Optional[str]:
+        """
+        Retourne le chemin physique du fichier pour le téléchargement.
+        """
+        fichier_info = self.get_fichier(ecriture_id, user_id)
+        return fichier_info['chemin_complet'] if fichier_info else None
     
 class ContactPlan:
     def __init__(self, db):
