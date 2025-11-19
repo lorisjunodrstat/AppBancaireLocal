@@ -5873,15 +5873,23 @@ class CategorieComptable:
             with self.db.get_cursor() as cursor:
                 query = """
                 SELECT 
-                    c.*,
-                    ct.categorie_complementaire_id,
+                    c.id,
+                    c.numero,
+                    c.nom,
+                    c.parent_id,
+                    c.type_compte,
+                    c.compte_systeme,
+                    c.compte_associe,
+                    -- 🔥 CORRIGÉ : La colonne categorie_complementaire_id appartient à c (categories_comptables)
+                    c.categorie_complementaire_id,
+                    c.type_ecriture_complementaire,
+                    c.type_tva,
+                    -- On récupère aussi les infos de la catégorie complémentaire si elle existe
                     cc.numero as comp_numero,
-                    cc.nom as comp_nom,
-                    ct.type_complement,
-                    ct.taux
+                    cc.nom as comp_nom
                 FROM categories_comptables c
-                LEFT JOIN categories_transactions ct ON c.id = ct.categorie_id AND ct.utilisateur_id = %s AND ct.actif = TRUE
-                LEFT JOIN categories_comptables cc ON ct.categorie_complementaire_id = cc.id
+                -- 🔥 CORRIGÉ : Jointure avec categories_comptables (cc) pour les infos de la catégorie complémentaire
+                LEFT JOIN categories_comptables cc ON c.categorie_complementaire_id = cc.id
                 WHERE c.utilisateur_id = %s AND c.actif = TRUE
                 ORDER BY c.numero
                 """
