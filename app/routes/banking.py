@@ -3011,7 +3011,43 @@ def banking_supprimer_sous_compte(sous_compte_id):
     else:
         flash('Impossible de supprimer un sous-compte avec un solde positif', 'error')    
     return redirect(url_for('banking.banking_compte_detail', compte_id=compte_id))
+##### Partie comptabilité
 
+
+@bp.route('/comptabilite/dashboard')
+@login_required
+def comptabilite_dashboard():
+    # Récupération de l'année depuis les paramètres, ou année en cours par défaut
+    annee = request.args.get('annee', datetime.now().year, type=int)
+    date_from = f"{annee}-01-01"
+    date_to = f"{annee}-12-31"
+
+    # Calcul des KPIs
+    stats = g.models.ecriture_comptable_model.get_stats_by_categorie(
+        user_id=current_user.id,
+        date_from=date_from,
+        date_to=date_to
+    )
+    total_recettes = sum(s['total_recettes'] or 0 for s in stats)
+    total_depenses = sum(s['total_depenses'] or 0 for s in stats)
+    resultat_net = total_recettes - total_depenses
+
+    # Nombre de transactions à comptabiliser
+    transactions_a_comptabiliser = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_utilisateur(
+        current_user.id, statut_comptable='a_comptabiliser'
+    )
+    nb_a_comptabiliser = len(transactions_a_comptabiliser)
+
+    # Préparer les données pour le template
+    annees_disponibles = g.models.ecriture_comptable_model.get_annees_disponibles(current_user.id)
+
+    return render_template('comptabilite/dashboard.html',
+                        total_recettes=total_recettes,
+                        total_depenses=total_depenses,
+                        resultat_net=resultat_net,
+                        nb_a_comptabiliser=nb_a_comptabiliser,
+                        annee_selectionnee=annee,
+                        annees_disponibles=annees_disponibles)
 @bp.route('/comptabilite/statistiques')
 @login_required
 def statistiques_comptables():
@@ -4086,39 +4122,7 @@ def nouvelle_ecriture_from_selected():
                         contacts=contacts,
                         today=datetime.now().strftime('%Y-%m-%d'))
     
-    # Récupérer les transactions sélectionnées depuis la session
-    transaction_ids = session.get('selected_transaction_ids', [])
-    logging.info(f"Transactions récupérées de la session get pour création d'écritures: {transaction_ids}")
-    if not transaction_ids:
-        flash("Aucune transaction sélectionnée", "warning")
-        # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
-        return redirect(url_for('banking.transactions_sans_ecritures'))
-    
-    # Récupérer les transactions
-    transactions = []
-    for transaction_id in transaction_ids:
-        transaction = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
-            int(transaction_id), current_user.id
-        )
-        if transaction:
-            transactions.append(transaction)
-    
-    if not transactions:
-        flash("Aucune transaction valide sélectionnée", "warning")
-        # 🔥 CHANGEMENT : Retourner vers la page des transactions filtrées
-        return redirect(url_for('banking.transactions_sans_ecritures'))
-    
-    # Récupérer les données pour les formulaires
-    comptes = g.models.compte_model.get_all_accounts() # Vérifiez que cette fonction est correcte
-    categories = g.models.categorie_comptable_model.get_all_categories(current_user.id) # Vérifiez que cette fonction est correcte
-    contacts = g.models.contact_model.get_all(current_user.id)
-    
-    return render_template('comptabilite/creer_ecritures_groupées.html',
-                        transactions=transactions,
-                        comptes=comptes,
-                        categories=categories,
-                        contacts=contacts,
-                        today=datetime.now().strftime('%Y-%m-%d'))
+   
 
 
 @bp.route('/comptabilite/update_statut_comptable/<int:transaction_id>', methods=['POST'])
@@ -4487,7 +4491,7 @@ def creer_ecritures_multiple_auto(transaction_id):
                     'type_ecriture': 'debit' if Decimal(str(montants[i])) < 0 else 'credit',
                     'tva_taux': Decimal(str(tva_taux[i])) if i < len(tva_taux) and tva_taux[i] else None,
                     'utilisateur_id': current_user.id,
-                    'statut': 'pending'
+                    'statut': 'pending',
                     'devise': 'CHF',
                     'type_ecriture_comptable' : 'principale'
 
