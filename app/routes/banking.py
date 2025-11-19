@@ -4211,6 +4211,7 @@ def creer_ecriture_automatique(transaction_id):
             'compte_bancaire_id': transaction['compte_principal_id'],
             'categorie_id': categorie_id,
             'montant': Decimal(str(transaction['montant'])),
+            'montant_htva': Decimal(str(transaction['montant'])),  # Pas de TVA dans ce cas simple
             'devise': 'CHF',
             'description': transaction['description'],
             'type_ecriture': type_ecriture,
@@ -4690,6 +4691,7 @@ def nouvelle_ecriture_from_transactions():
                         'compte_bancaire_id': int(comptes_ids[i]),
                         'categorie_id': int(categories_ids[i]),
                         'montant': Decimal(str(montants[i])),
+                        'montant_htva': Decimal(str(montants[i])), # Par défaut égal au montant
                         'description': descriptions[i] if i < len(descriptions) and descriptions[i] else '',
                         'id_contact': contact_id_val, # Utiliser la valeur traitée
                         'reference': references[i] if i < len(references) and references[i] else '',
