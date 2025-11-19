@@ -326,11 +326,27 @@
                             </option>
                             {% endfor %}
                         </select>
+                
                         <div class="form-text">
                             <i class="bi bi-info-circle"></i>
                             Certaines catégories peuvent générer des écritures secondaires automatiquement (TVA, taxes,
                             etc.)
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tva_simple{{ transaction.id }}" class="form-label">Taux de TVA (%)</label>
+                        <input type="number" step="0.1" class="form-control" id="tva_simple{{ transaction.id }}" name="tva_taux"
+                            value="0.0">
+                        <div class="form-text">
+                            Entrez le taux de TVA applicable. Laissez à 0 si non applicable.
+                        </div>
+                    </div>
+                    <!-- 🔥 NOUVEAU : Section pour les écritures secondaires -->
+                    <div class="alert alert-warning">
+                        <i class="bi bi-lightbulb"></i>
+                        <strong>Écritures secondaires :</strong> Si la catégorie sélectionnée est configurée avec des
+                        complémentaires,
+                        des écritures secondaires seront créées automatiquement (TVA, taxes, etc.).
                     </div>
 
                     <!-- 🔥 NOUVEAU : Section pour les écritures secondaires -->
