@@ -6726,14 +6726,16 @@ class EcritureComptable:
                 FROM categories_comptables c
                 LEFT JOIN ecritures_comptables e ON c.id = e.categorie_id AND e.utilisateur_id = %s
                 """
-                params = [statut, statut, user_id]
+                # Il y a 5 placeholders dans la requête ci-dessus : 4 pour 'statut', 1 pour 'user_id'.
+                # Donc params doit contenir 5 valeurs initiales.
+                params = [statut, statut, statut, statut, user_id] # Valeurs pour les 4 'statut' et 1 'user_id'
                 
                 if date_from:
                     query += " AND e.date_ecriture >= %s"
-                    params.append(date_from)
+                    params.append(date_from) # Valeur 6
                 if date_to:
                     query += " AND e.date_ecriture <= %s"
-                    params.append(date_to)
+                    params.append(date_to) # Valeur 7
                 
                 query += """
                 WHERE c.actif = TRUE
@@ -6741,7 +6743,7 @@ class EcritureComptable:
                 ORDER BY c.numero
                 """
                 
-                cursor.execute(query, tuple(params))
+                cursor.execute(query, tuple(params)) # Le nombre de placeholders et de paramètres correspond maintenant.
                 stats = cursor.fetchall()
             return stats
         except Error as e:
