@@ -3033,11 +3033,17 @@ def comptabilite_dashboard():
     resultat_net = total_recettes - total_depenses
 
     # Nombre de transactions à comptabiliser
-    comptes = g.models.compte_model.get_by_user_id(current_user.id)
+    comptes = g.models.compte_model.get_by_user_id(current_user.id) # Utilise la méthode correcte
     transactions_a_comptabiliser = []
     for compte in comptes:
+        # Appel correct de la méthode avec les arguments nommés pour éviter les ambiguités
         txs = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_compte(
-            current_user.id, compte_id=compte['id'], statut_comptable='a_comptabiliser'
+            compte_id=compte['id'], # Premier argument : compte_id
+            user_id=current_user.id, # Deuxième argument : user_id
+            # Pas besoin de spécifier date_from/date_to ici, on veut pour l'année entière
+            # On peut ajouter date_from et date_to si le filtre par année est important pour cette requête
+            # date_from=date_from, date_to=date_to
+            statut_comptable='a_comptabiliser'
         )
         transactions_a_comptabiliser.extend(txs)
     nb_a_comptabiliser = len(transactions_a_comptabiliser)
