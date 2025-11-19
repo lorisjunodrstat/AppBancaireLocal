@@ -3453,7 +3453,6 @@ def liste_ecritures():
         types_ecriture_disponibles=types_ecriture_disponibles,
         type_ecriture_selectionne=type_ecriture,
         type_ecriture_comptable_disponibles=type_ecriture_comptable_disponibles,
-        type_ecriture_comptable_selectionne=type_ecriture_comptable,
         statut_selectionne=statut,
         contacts=contacts,
         contact_selectionne=id_contact,
