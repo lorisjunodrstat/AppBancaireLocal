@@ -352,6 +352,7 @@ class DatabaseManager:
                     sous_compte_id INT,
                     categorie_id INT NOT NULL,
                     montant DECIMAL(15,2) NOT NULL,
+                    montant_htva DECIMAL(15,2) NOT NULL,
                     devise VARCHAR(3) DEFAULT 'CHF',
                     description TEXT,
                     id_contact INT,
@@ -364,6 +365,7 @@ class DatabaseManager:
                     statut ENUM('pending', 'validée', 'rejetée') DEFAULT 'pending',
                     date_validation TIMESTAMP NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
                     FOREIGN KEY (compte_bancaire_id) REFERENCES comptes_principaux(id),
                     FOREIGN KEY (sous_compte_id) REFERENCES sous_comptes(id),
                     FOREIGN KEY (categorie_id) REFERENCES categories_comptables(id),
@@ -3622,41 +3624,7 @@ class TransactionFinanciere:
             logging.error(f"Erreur récupération transactions sans écritures: {e}")
             return []
 
-    def update_statut_comptable(self, transaction_id: int, user_id: int, statut_comptable: str) -> Tuple[bool, str]:
-        """Met à jour le statut comptable d'une transaction"""
-        try:
-            with self.db.get_cursor() as cursor:
-                ecritures_secondaires = self.get_ecritures_complementaires(ecriture_id, user_id)
-                # Vérifier que l'utilisateur peut accéder à cette transaction
-                cursor.execute("""
-                    SELECT t.id 
-                    FROM transactions t
-                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
-                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
-                    WHERE t.id = %s AND (
-                        cp.utilisateur_id = %s OR 
-                        sc.compte_principal_id IN (
-                            SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
-                        )
-                    )
-                """, (transaction_id, user_id, user_id))
-                
-                if not cursor.fetchone():
-                    return False, "Transaction non trouvée ou non autorisée"
-                
-
-                # Mettre à jour le statut
-
-                cursor.execute(
-                    "UPDATE transactions SET statut_comptable = %s WHERE id = %s",
-                    (statut_comptable, transaction_id)
-                )
-                
-                return True, "Statut comptable mis à jour avec succès"
-                
-        except Exception as e:
-            logging.error(f"Erreur mise à jour statut comptable: {e}")
-            return False, f"Erreur: {str(e)}"
+    
 
     def get_stats_transactions_comptables(self, user_id: int) -> Dict:
         """Retourne les statistiques des transactions par statut comptable"""
@@ -6169,6 +6137,41 @@ class EcritureComptable:
         except Exception as e:
             logging.error(f"Erreur get_ecriture_avec_secondaires: {e}")
             return None
+    def update_statut_comptable(self, transaction_id: int, user_id: int, statut_comptable: str) -> Tuple[bool, str]:
+        """Met à jour le statut comptable d'une transaction"""
+        try:
+            with self.db.get_cursor() as cursor:
+                ecritures_secondaires = self.get_ecritures_complementaires(ecriture_id, user_id)
+                # Vérifier que l'utilisateur peut accéder à cette transaction
+                cursor.execute("""
+                    SELECT t.id 
+                    FROM transactions t
+                    LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
+                    LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
+                    WHERE t.id = %s AND (
+                        cp.utilisateur_id = %s OR 
+                        sc.compte_principal_id IN (
+                            SELECT id FROM comptes_principaux WHERE utilisateur_id = %s
+                        )
+                    )
+                """, (transaction_id, user_id, user_id))
+                
+                if not cursor.fetchone():
+                    return False, "Transaction non trouvée ou non autorisée"
+                
+
+                # Mettre à jour le statut
+
+                cursor.execute(
+                    "UPDATE transactions SET statut_comptable = %s WHERE id = %s",
+                    (statut_comptable, transaction_id)
+                )
+                
+                return True, "Statut comptable mis à jour avec succès"
+                
+        except Exception as e:
+            logging.error(f"Erreur mise à jour statut comptable: {e}")
+            return False, f"Erreur: {str(e)}"
 
     def get_solde_tva_par_periode(self, user_id: int, date_debut: str, date_fin: str) -> Dict:
         """Calcule le solde TVA pour une période donnée"""
