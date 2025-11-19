@@ -5026,7 +5026,7 @@ def supprimer_plan(plan_id):
 
 @bp.route('/test-compte-resultat')
 @login_required
-def test_compte_resultat()
+def test_compte_resultat():
     """Route de test pour debug"""
     print(f"DEBUG: Test route - User: {current_user.id}")
     stats = g.models.ecriture_comptable_model.get_compte_de_resultat(
