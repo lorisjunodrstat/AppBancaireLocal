@@ -5868,7 +5868,7 @@ class CategorieComptable:
             return []
     
     def get_categories_avec_complementaires(self, utilisateur_id: int) -> List[Dict]:
-        """Récupère les catégories avec leurs complémentaires"""
+        """Récupère les catégories comptables avec leurs configurations de complémentaires (TVA, etc.)"""
         try:
             with self.db.get_cursor() as cursor:
                 query = """
@@ -5893,7 +5893,8 @@ class CategorieComptable:
                 WHERE c.utilisateur_id = %s AND c.actif = TRUE
                 ORDER BY c.numero
                 """
-                cursor.execute(query, (utilisateur_id, utilisateur_id))
+                # Il y a 1 seul placeholder '%s' dans la requête corrigée.
+                cursor.execute(query, (utilisateur_id,)) # On passe 1 seul argument.
                 return cursor.fetchall()
         except Exception as e:
             logging.error(f"Erreur get_categories_avec_complementaires: {e}")
@@ -6056,29 +6057,6 @@ class EcritureComptable:
         except Exception as e:
             logging.error(f"Erreur création écritures secondaires: {e}")
             raise
-    def get_categories_avec_complementaires(self, utilisateur_id: int) -> List[Dict]:
-        """Récupère les catégories avec leurs complémentaires configurées"""
-        try:
-            with self.db.get_cursor() as cursor:
-                query = """
-                SELECT 
-                    c.*,
-                    ct.categorie_complementaire_id,
-                    cc.numero as comp_numero,
-                    cc.nom as comp_nom,
-                    ct.type_complement,
-                    ct.taux
-                FROM categories_comptables c
-                LEFT JOIN categories_transactions ct ON c.id = ct.categorie_id AND ct.utilisateur_id = %s AND ct.actif = TRUE
-                LEFT JOIN categories_comptables cc ON ct.categorie_complementaire_id = cc.id
-                WHERE c.utilisateur_id = %s AND c.actif = TRUE
-                ORDER BY c.numero
-                """
-                cursor.execute(query, (utilisateur_id, utilisateur_id))
-                return cursor.fetchall()
-        except Exception as e:
-            logging.error(f"Erreur get_categories_avec_complementaires: {e}")
-            return []
 
     def has_secondary_ecritures(self, ecriture_id: int, user_id: int) -> bool:
         """Vérifie si une écriture a des écritures secondaires"""
