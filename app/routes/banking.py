@@ -4164,7 +4164,7 @@ def update_statut_comptable(transaction_id):
         flash('Statut invalide', 'error')
         return redirect(request.referrer or url_for('banking.transactions_sans_ecritures'))
     
-    success, message = g.models.transaction_financiere_model.update_statut_comptable(
+    success, message = g.models.ecriture_comptable_model.update_statut_comptable(
         transaction_id, current_user.id, nouveau_statut
     )
     
@@ -4266,7 +4266,7 @@ def creer_ecriture_automatique(transaction_id):
 
         if g.models.ecriture_comptable_model.create(ecriture_data):
             # Marquer la transaction comme comptabilisée
-            g.models.transaction_financiere_model.update_statut_comptable(
+            g.models.ecriture_comptable_model.update_statut_comptable(
                 transaction_id, current_user.id, 'comptabilise'
             )
 
@@ -4926,15 +4926,20 @@ def modifier_statut_ecriture(ecriture_id):
     if not ecriture or ecriture['utilisateur_id'] != current_user.id:
         flash('Écriture non trouvée', 'danger')
         return redirect(url_for('banking.liste_ecritures'))
+
     nouveau_statut = request.form.get('statut')
     if nouveau_statut not in ['pending', 'validée', 'rejetée', 'supprimée']:
         flash('Statut invalide', 'danger')
         return redirect(url_for('banking.liste_ecritures'))
+
+    # 🔥 CORRECTION : Appeler la méthode sur le bon modèle
     if g.models.ecriture_comptable_model.update_statut(ecriture_id, current_user.id, nouveau_statut):
         flash(f'Statut modifié en "{nouveau_statut}"', 'success')
     else:
         flash('Erreur lors de la modification du statut', 'danger')
-    return redirect(url_for('banking.liste_ecritures'), contacts=contacts)
+    # 🔥 CORRECTION : Retirer le paramètre incorrect de redirect
+    return redirect(url_for('banking.liste_ecritures')) # Ne pas passer contacts=contacts ici
+
 
 @bp.route('/comptabilite/ecritures/<int:ecriture_id>/edit', methods=['GET', 'POST'])
 @login_required
