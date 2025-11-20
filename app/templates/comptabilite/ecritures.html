@@ -190,8 +190,7 @@
         <div class="d-flex flex-wrap gap-2">
             {% if compte_selectionne %}
             <span class="filter-badge">
-                Compte: {{ comptes|selectattr('id', 'equalto', compte_selectionne|int)|first|default({'nom_compte':
-                'Inconnu'})['nom_compte'] }}
+                Compte: {{ (comptes|selectattr('id', 'equalto', compte_selectionne|int)|first|default({'nom_compte': 'Inconnu'})).nom_compte }}
                 <a href="{{ url_for('banking.liste_ecritures', 
                     date_from=date_from, 
                     date_to=date_to, 
@@ -227,8 +226,7 @@
 
             {% if contact_selectionne %}
             <span class="filter-badge">
-                Contact: {{ contacts|selectattr('id_contact', 'equalto', contact_selectionne|int)|first|default({'nom':
-                'Inconnu'})['nom'] }}
+                Contact: {{ (contacts|selectattr('id_contact', 'equalto', contact_selectionne|int)|first|default({'nom': 'Inconnu'})).nom }}
                 <a href="{{ url_for('banking.liste_ecritures', 
                     compte_id=compte_selectionne, 
                     date_from=date_from, 
@@ -240,8 +238,7 @@
 
             {% if categorie_id %}
             <span class="filter-badge">
-                Catégorie: {{ categories|selectattr('id', 'equalto', categorie_id|int)|first|default({'nom':
-                'Inconnu'})['nom'] }}
+                Catégorie: {{ (categories|selectattr('id', 'equalto', categorie_id|int)|first|default({'nom': 'Inconnu'})).nom }}
                 <a href="{{ url_for('banking.liste_ecritures', 
                     compte_id=compte_selectionne, 
                     date_from=date_from, 
