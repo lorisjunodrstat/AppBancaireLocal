@@ -5973,7 +5973,7 @@ class EcritureComptable:
             print("❌ Dossier n'existe pas")
             return False
     
-    def create(sself, data: Dict) -> bool:
+    def create(self, data: Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
         # Validation du lien catégorie ↔ plan comptable du compte
         if data.get('id_contact'):
