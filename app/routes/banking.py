@@ -3117,18 +3117,20 @@ def nouvelle_categorie():
 @login_required
 def edit_categorie(categorie_id):
     """Modifie une catégorie comptable existante"""
-    #plan_comptable = PlanComptable(g.db_manager)
     categorie = g.models.categorie_comptable_model.get_by_id(categorie_id)
     if not categorie:
         flash('Catégorie introuvable', 'danger')
         return redirect(url_for('banking.liste_categories_comptables'))
+    
     if request.method == 'POST':
         try:
             data = {
                 'numero': request.form['numero'],
                 'nom': request.form['nom'],
                 'type_compte': request.form['type_compte'],
-                'parent_id': request.form.get('groupe') or None
+                'parent_id': request.form.get('groupe') or None,
+                'categorie_complementaire_id': request.form.get('categorie_complementaire') or None,
+                'type_ecriture_complementaire': request.form.get('type_ecriture_complementaire') or None
             }
             if g.models.categorie_comptable_model.update(categorie_id, data):
                 flash('Catégorie mise à jour avec succès', 'success')
@@ -3137,20 +3139,24 @@ def edit_categorie(categorie_id):
                 flash('Erreur lors de la mise à jour', 'danger')
         except Exception as e:
             flash(f'Erreur: {str(e)}', 'danger')
+    
+    # Récupérer toutes les catégories (y compris avec les informations complémentaires)
     categories = g.models.categorie_comptable_model.get_all_categories()
     types_compte = ['Actif', 'Passif', 'Charge', 'Revenus']
     types_tva = ['', 'taux_plein', 'taux_reduit', 'taux_zero', 'exonere']
+    types_ecriture = ['', 'depense', 'recette']  # Valeurs possibles pour le champ enum
+    
     return render_template('comptabilite/edit_categorie.html', 
                         categories=categories,
                         categorie=categorie,
                         types_compte=types_compte,
-                        types_tva=types_tva)
+                        types_tva=types_tva,
+                        types_ecriture=types_ecriture)
 
 @bp.route('/comptabilite/categories/import-csv', methods=['POST'])
 @login_required
 def import_plan_comptable_csv():
     """Importe le plan comptable depuis un fichier CSV"""
-    #plan_comptable = PlanComptable(g.db_manager)
     try:
         # Vérifier si un fichier a été uploadé
         if 'csv_file' not in request.files:
@@ -3174,18 +3180,20 @@ def import_plan_comptable_csv():
             
             # Insérer les nouvelles données
             for row in csv_input:
-                if len(row) >= 7:  # Vérifier qu'il y a assez de colonnes
+                if len(row) >= 9:  # Mise à jour : 9 colonnes au minimum
                     cursor.execute("""
                         INSERT INTO categories_comptables 
-                        (numero, nom, groupe, type_compte, compte_systeme, compte_associe, type_tva, actif)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        (numero, nom, parent_id, type_compte, compte_systeme, compte_associe, type_tva, categorie_complementaire_id, type_ecriture_complementaire, actif)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         row[0], row[1], 
-                        int(row[2]) if row[2] else None, 
+                        int(row[2]) if row[2] else None,  # parent_id (ancien groupe)
                         row[3], 
                         row[4] if row[4] else None, 
                         row[5] if row[5] else None, 
                         row[6] if row[6] else None,
+                        int(row[7]) if row[7] and row[7].strip() != '' else None,  # categorie_complementaire_id
+                        row[8] if row[8] and row[8].strip() != '' else None,       # type_ecriture_complementaire
                         True
                     ))
             connection.commit()
@@ -3361,7 +3369,7 @@ def link_contact_to_compte(contact_id):
 @bp.route('/comptabilite/ecritures')
 @login_required
 def liste_ecritures():
-    """Affiche la liste des écritures comptables avec filtrage par statut"""
+    """Affiche la liste des écritures comptables avec filtrage avancé"""
     # Récupération des paramètres de filtrage
     compte_id = request.args.get('compte_id')
     date_from = request.args.get('date_from')
@@ -3369,24 +3377,28 @@ def liste_ecritures():
     categorie_id = request.args.get('categorie_id')
     id_contact = request.args.get('id_contact')
     statut = request.args.get('statut', 'tous')
-    type_ecriture = request.args.get('type_ecriture')
+    type_ecriture = request.args.get('type_ecriture', 'tous')
+    type_ecriture_comptable = request.args.get('type_ecriture_comptable', 'tous')
+    
+    # Définition des options disponibles
     types_ecriture_disponibles = [
         {'value': 'tous', 'label': 'Tous les types'},
         {'value': 'recette', 'label': 'Recettes'},
         {'value': 'depense', 'label': 'Dépenses'}
-    ]   
+    ]
+    
     type_ecriture_comptable_disponibles = [
         {'value': 'tous', 'label': 'Tous les types'},
         {'value': 'principale', 'label': 'Écritures principales'},
         {'value': 'complementaire', 'label': 'Écritures complémentaires'}
     ]
     
-    # Statuts pour le template
     statuts_disponibles = [
         {'value': 'tous', 'label': 'Tous les statuts'},
         {'value': 'pending', 'label': 'En attente'},
         {'value': 'validée', 'label': 'Validées'},
-        {'value': 'rejetée', 'label': 'Rejetées'}
+        {'value': 'rejetée', 'label': 'Rejetées'},
+        {'value': 'supprimee', 'label': 'Archivées'}
     ]
     
     # Préparer les filtres pour la méthode
@@ -3395,51 +3407,47 @@ def liste_ecritures():
         'date_from': date_from,
         'date_to': date_to,
         'statut': statut if statut != 'tous' else None,
-        'id_contact': int(id_contact) if id_contact else None,
-        'compte_id': int(compte_id) if compte_id else None,
-        'categorie_id': int(categorie_id) if categorie_id else None,
-        'limit': 1000  # Ou la limite que vous souhaitez
+        'id_contact': int(id_contact) if id_contact and id_contact.isdigit() else None,
+        'compte_id': int(compte_id) if compte_id and compte_id.isdigit() else None,
+        'categorie_id': int(categorie_id) if categorie_id and categorie_id.isdigit() else None,
+        'type_ecriture': type_ecriture if type_ecriture != 'tous' else None,
+        'type_ecriture_comptable': type_ecriture_comptable if type_ecriture_comptable != 'tous' else None,
+        'limit': 1000
     }
     
-    # Utiliser la nouvelle méthode de filtrage
+    # Récupérer les écritures avec filtres
     ecritures = g.models.ecriture_comptable_model.get_with_filters(**filtres)
-    ecritures_avec_secondaires = []
-    for ecriture in ecritures:
-        ecriture_dict = dict(ecriture)
-        if ecriture.get('type_ecriture_comptable') == 'principale' or not ecriture.get('ecriture_principale_id'):
-            secondaires = g.models.ecriture_comptable_model.get_ecritures_complementaires(ecriture['id'], current_user.id)
-            ecriture_dict['ecritures_secondaires'] = secondaires
-        ecritures_avec_secondaires.append(ecriture_dict)
-    print(f"Ecritures récupérées avec filtres {filtres}: {ecritures_avec_secondaires}")
+    
     # Récupérer les données supplémentaires
     comptes = g.models.compte_model.get_by_user_id(current_user.id)
     contacts = g.models.contact_model.get_all(current_user.id)
     categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
     contact_map = {c['id_contact']: c['nom'] for c in contacts}
 
-    # Gestion du modal de liaison (identique à votre code original)
+    # Gestion du modal de liaison
     show_link_modal = request.args.get('show_link_modal') == '1'
     ecriture_link = None
     transactions_eligibles = []
 
     if show_link_modal:
         eid = request.args.get('ecriture_id', type=int)
-        ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
-        if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
-            date_tx = ecriture_link['date_ecriture']
-            all_tx = g.models.transaction_financiere_model.get_all_user_transactions(
-                user_id=current_user.id,
-                date_from=date_tx,
-                date_to=date_tx
-            )[0]
-            for tx in all_tx:
-                full_tx = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
-                    tx['id'], current_user.id
-                )
-                if full_tx:
-                    transactions_eligibles.append(full_tx)
+        if eid:
+            ecriture_link = g.models.ecriture_comptable_model.get_by_id(eid)
+            if ecriture_link and ecriture_link['utilisateur_id'] == current_user.id:
+                date_tx = ecriture_link['date_ecriture']
+                all_tx = g.models.transaction_financiere_model.get_all_user_transactions(
+                    user_id=current_user.id,
+                    date_from=date_tx,
+                    date_to=date_tx
+                )[0]
+                for tx in all_tx:
+                    full_tx = g.models.transaction_financiere_model.get_transaction_with_ecritures_total(
+                        tx['id'], current_user.id
+                    )
+                    if full_tx:
+                        transactions_eligibles.append(full_tx)
 
-    # Gestion du modal de détail de transaction (identique)
+    # Gestion du modal de détail de transaction
     show_transaction_modal = request.args.get('show_transaction_modal') == '1'
     transaction_detail = None
 
@@ -3451,20 +3459,21 @@ def liste_ecritures():
                 transaction_detail = None
 
     return render_template('comptabilite/ecritures.html',
-        ecritures=ecritures_avec_secondaires,
+        ecritures=ecritures,
         comptes=comptes,
-        categories=categories,  # Nouveau
+        categories=categories,
         compte_selectionne=compte_id,
         statuts_disponibles=statuts_disponibles,
         types_ecriture_disponibles=types_ecriture_disponibles,
         type_ecriture_selectionne=type_ecriture,
         type_ecriture_comptable_disponibles=type_ecriture_comptable_disponibles,
+        type_ecriture_comptable_selectionne=type_ecriture_comptable,
         statut_selectionne=statut,
         contacts=contacts,
         contact_selectionne=id_contact,
         date_from=date_from,
         date_to=date_to,
-        categorie_id=categorie_id,  # Important pour préserver la sélection
+        categorie_id=categorie_id,
         show_link_modal=show_link_modal,
         ecriture_link=ecriture_link,
         transactions_eligibles=transactions_eligibles,
@@ -3472,6 +3481,60 @@ def liste_ecritures():
         show_transaction_modal=show_transaction_modal,
         transaction_detail=transaction_detail
     )
+
+# Route pour l'export
+@bp.route('/comptabilite/ecritures/export')
+@login_required
+def export_ecritures():
+    """Exporte les écritures selon les filtres actuels"""
+    # Récupérer les mêmes paramètres que la liste
+    compte_id = request.args.get('compte_id')
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    categorie_id = request.args.get('categorie_id')
+    id_contact = request.args.get('id_contact')
+    statut = request.args.get('statut', 'tous')
+    type_ecriture = request.args.get('type_ecriture', 'tous')
+    type_ecriture_comptable = request.args.get('type_ecriture_comptable', 'tous')
+    
+    filtres = {
+        'user_id': current_user.id,
+        'date_from': date_from,
+        'date_to': date_to,
+        'statut': statut if statut != 'tous' else None,
+        'id_contact': int(id_contact) if id_contact and id_contact.isdigit() else None,
+        'compte_id': int(compte_id) if compte_id and compte_id.isdigit() else None,
+        'categorie_id': int(categorie_id) if categorie_id and categorie_id.isdigit() else None,
+        'type_ecriture': type_ecriture if type_ecriture != 'tous' else None,
+        'type_ecriture_comptable': type_ecriture_comptable if type_ecriture_comptable != 'tous' else None,
+        'limit': None  # Pas de limite pour l'export
+    }
+    
+    ecritures = g.models.ecriture_comptable_model.get_with_filters(**filtres)
+    
+    # Générer le fichier Excel
+    import pandas as pd
+    from io import BytesIO
+    from flask import send_file
+    
+    df = pd.DataFrame(ecritures)
+    
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Écritures', index=False)
+    
+    output.seek(0)
+    
+    from datetime import datetime
+    filename = f"ecritures_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
 
 @bp.route('/comptabilite/ecritures/by-contact/<int:contact_id>', methods=['GET'])
 @login_required

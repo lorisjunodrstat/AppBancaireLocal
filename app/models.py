@@ -5788,9 +5788,14 @@ class CategorieComptable:
                     SELECT 
                         c1.id, c1.numero, c1.nom, c1.parent_id, c1.type_compte,
                         c1.compte_systeme, c1.compte_associe, c1.type_tva, c1.actif,
-                        c2.numero as parent_numero, c2.nom as parent_nom
+                        c1.categorie_complementaire_id,
+                        c1.type_ecriture_complementaire,
+                        c2.numero as parent_numero, c2.nom as parent_nom,
+                        c3.numero as categorie_complementaire_numero,
+                        c3.nom as categorie_complementaire_nom
                     FROM categories_comptables c1
                     LEFT JOIN categories_comptables c2 ON c1.parent_id = c2.id
+                    LEFT JOIN categories_comptables c3 ON c1.categorie_complementaire_id = c3.id
                     WHERE c1.utilisateur_id = %s
                     ORDER BY c1.numero
                     """
@@ -5800,9 +5805,14 @@ class CategorieComptable:
                     SELECT 
                         c1.id, c1.numero, c1.nom, c1.parent_id, c1.type_compte,
                         c1.compte_systeme, c1.compte_associe, c1.type_tva, c1.actif,
-                        c2.numero as parent_numero, c2.nom as parent_nom
+                        c1.categorie_complementaire_id,
+                        c1.type_ecriture_complementaire,
+                        c2.numero as parent_numero, c2.nom as parent_nom,
+                        c3.numero as categorie_complementaire_numero,
+                        c3.nom as categorie_complementaire_nom
                     FROM categories_comptables c1
                     LEFT JOIN categories_comptables c2 ON c1.parent_id = c2.id
+                    LEFT JOIN categories_comptables c3 ON c1.categorie_complementaire_id = c3.id
                     ORDER BY c1.numero
                     """
                     cursor.execute(query)
@@ -5889,6 +5899,26 @@ class CategorieComptable:
             logging.error(f"Erreur ajouter_categorie_complementaire: {e}")
             return False
 
+    def has_categorie_complementaire(self, categorie_id: int, utilisateur_id: int) -> bool:
+        """Vérifie si une catégorie a une catégorie complémentaire configurée."""
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT COUNT(*) as count
+                FROM categories_comptables
+                WHERE id = %s
+                AND utilisateur_id = %s
+                AND categorie_complementaire_id IS NOT NULL
+                AND actif = TRUE
+                """
+                cursor.execute(query, (categorie_id, utilisateur_id))
+                result = cursor.fetchone()
+                has_complementaire = result['count'] > 0
+                logging.info(f"Catégorie ID {categorie_id} a une catégorie complémentaire: {has_complementaire}")
+                return has_complementaire
+        except Exception as e:
+            logging.error(f"Erreur dans has_categorie_complementaire: {e}")
+            return False
 class EcritureComptable:
     """Modèle pour gérer les écritures comptables"""
     
@@ -5942,7 +5972,7 @@ class EcritureComptable:
             print("❌ Dossier n'existe pas")
             return False
     
-    def create(self, data: Dict) -> bool:
+    def create(self,  Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
         # Validation du lien catégorie ↔ plan comptable du compte
         if data.get('id_contact'):
@@ -5980,72 +6010,101 @@ class EcritureComptable:
                     data.get('justificatif_url'),
                     data.get('statut', 'pending'),  # 'pending', 'validée', 'rejetée'
                     data.get('id_contact'),
-                    data.get('type_ecriture_comptable', 'principale')  # Ajout du id_contact à la fin
+                    data.get('type_ecriture_comptable', 'principale')  # Toujours 'principale' au départ
                 )
                 
                 cursor.execute(query, values)
                 ecriture_principale_id = cursor.lastrowid
                 logging.info(f"Écriture principale créée avec ID: {ecriture_principale_id}")
-                if data.get('type_ecriture_comptable') == 'principale':
-                    self._create_secondary_ecritures(cursor, ecriture_principale_id, data)
+                
+                # 🔥 Vérifier si la catégorie a une catégorie complémentaire
+                categorie_id = data['categorie_id']
+                utilisateur_id = data['utilisateur_id']
+                
+                if self.categorie_comptable_model:
+                    has_complementaire = self.categorie_comptable_model.has_categorie_complementaire(
+                        categorie_id, utilisateur_id
+                    )
+                    if has_complementaire:
+                        logging.info(f"La catégorie ID {categorie_id} a une catégorie complémentaire. Création d'écritures secondaires.")
+                        self._create_secondary_ecritures(cursor, ecriture_principale_id, data)
+                    else:
+                        logging.info(f"La catégorie ID {categorie_id} n'a pas de catégorie complémentaire. Aucune écriture secondaire.")
                 else:
-                    logging.info("Écriture comptable sans écriture secondaire, pas de création d'écritures complémentaires.")
+                    logging.warning("Modèle CategorieComptable non disponible pour la vérification.")
             return True
         except Error as e:
             logging.error(f"Erreur lors de la création de l'écriture comptable: {e}")
-            return False
-        
-    def _create_secondary_ecritures(self, cursor, ecriture_principale_id: int, data: Dict):
+            return False 
+    
+    def _create_secondary_ecritures(self, cursor, ecriture_principale_id: int,  Dict):
         """Crée les écritures secondaires (TVA, taxes, etc.)"""
         try:
-            with self.db.get_cursor() as cursor:
-                query = """
-                SELECT cc.categorie_complementaire_id, cc.type_ecriture_complementaire, cc.type_tva
-                FROM categories_comptables cc
-                WHERE cc.id = %s AND cc.utilisateur_id = %s AND cc.actif = TRUE
-                AND cc.categorie_complementaire_id IS NOT NULL -- Vérifier qu'une catégorie secondaire est configurée
-                """
-                cursor.execute(query, (data['categorie_id'], data['utilisateur_id']))
+            logging.info(f"Début de la vérification des écritures secondaires pour l'écriture principale ID: {ecriture_principale_id}")
             
-                complementary_config = cursor.fetchone() # On s'attend à une seule configuration par catégorie principale
-                logging.info(f"Configuration catégorie complémentaire trouvée: {complementary_config}")
+            categorie_id = data['categorie_id']
+            utilisateur_id = data['utilisateur_id']
             
-                if not complementary_config:
-                    logging.info("Aucune configuration de catégorie complémentaire trouvée.")
-                    return
+            # 🔥 Récupérer la configuration de la catégorie complémentaire
+            query = """
+            SELECT 
+                cc.categorie_complementaire_id, 
+                cc.type_ecriture_complementaire,
+                cc.type_tva,
+                cc.nom as categorie_nom,
+                cc.numero as categorie_numero,
+                cc_comp.nom as categorie_complementaire_nom,
+                cc_comp.numero as categorie_complementaire_numero
+            FROM categories_comptables cc
+            LEFT JOIN categories_comptables cc_comp ON cc.categorie_complementaire_id = cc_comp.id
+            WHERE cc.id = %s 
+            AND cc.utilisateur_id = %s 
+            AND cc.actif = TRUE
+            AND cc.categorie_complementaire_id IS NOT NULL
+            """
+            
+            cursor.execute(query, (categorie_id, utilisateur_id))
+            result = cursor.fetchone()
+            
+            if not result:
+                logging.info(f"Aucune catégorie complémentaire configurée pour la catégorie ID {categorie_id}.")
+                return
 
-            # 🔥 CHANGEMENT : Utiliser les champs de categories_comptables
-            categorie_complementaire_id = complementary_config['categorie_complementaire_id']
-            type_ecriture_complementaire = complementary_config['type_ecriture_complementaire']
-            type_tva_config = complementary_config['type_tva'] # Peut être utilisé pour déterminer le taux ou le calcul
+            # 🔥 Extraire les données de la configuration
+            categorie_complementaire_id = result['categorie_complementaire_id']
+            type_ecriture_complementaire = result['type_ecriture_complementaire']
+            type_tva_config = result['type_tva']
+            categorie_nom = result['categorie_nom']
+            categorie_numero = result['categorie_numero']
+            categorie_complementaire_nom = result.get('categorie_complementaire_nom', 'N/A')
+            categorie_complementaire_numero = result.get('categorie_complementaire_numero', 'N/A')
 
-            # Pour le calcul, on peut utiliser le tva_taux fourni dans data ou type_tva_config
-            # Supposons que type_tva_config indique le taux (ex: 'taux_plein' -> 7.7, 'taux_reduit' -> 3.7, etc.)
-            # ou qu'il s'agit d'un indicateur pour le calcul dans _calculate_secondary_amount
-            # Ici, on suppose que le taux est dans data['tva_taux'] comme prévu
-            taux_a_utiliser = data.get('tva_taux') # ou mapper type_tva_config si nécessaire
+            logging.info(
+                f"Catégorie '{categorie_numero} - {categorie_nom}' a une catégorie complémentaire "
+                f"'{categorie_complementaire_numero} - {categorie_complementaire_nom}' "
+                f"(ID: {categorie_complementaire_id}) avec type '{type_ecriture_complementaire}'."
+            )
 
-            # On simule un 'comp_cat' avec les infos de la catégorie principale et le type de complément
-            comp_cat_simulated = {
-                'categorie_complementaire_id': categorie_complementaire_id,
-                'type_complement': type_ecriture_complementaire, # Peut être 'tva', 'taxe', etc.
-                'taux': taux_a_utiliser # Utiliser le taux de la principale ou le taux configuré
-            }
-
+            # 🔥 Calculer le montant de l'écriture secondaire
             montant_secondaire = self._calculate_secondary_amount(
-                data, comp_cat_simulated['type_complement'], comp_cat_simulated['taux']
+                data, type_ecriture_complementaire, type_tva_config
             )
 
             if abs(montant_secondaire) > 0.01:  # Seuil pour éviter les montants négligeables
+                comp_cat_simulated = {
+                    'categorie_complementaire_id': categorie_complementaire_id,
+                    'type_complement': type_ecriture_complementaire,
+                    'taux': type_tva_config
+                }
                 self._create_secondary_ecriture(
                     cursor, ecriture_principale_id, data, comp_cat_simulated, montant_secondaire)
+                logging.info(f"Écriture secondaire de {montant_secondaire:.2f} CHF créée pour la catégorie complémentaire ID {categorie_complementaire_id}.")
             else:
-                logging.info(f"Montant secondaire négligeable pour {comp_cat_simulated['type_complement']}, pas de création d'écriture.")
+                logging.info(f"Montant secondaire négligeable ({montant_secondaire:.2f} CHF), pas de création d'écriture.")
 
         except Exception as e:
-            logging.error(f"Erreur création écritures secondaires: {e}")
+            logging.error(f"Erreur lors de la création des écritures secondaires pour écriture ID {ecriture_principale_id}: {e}")
             raise
-
     def has_secondary_ecritures(self, ecriture_id: int, user_id: int) -> bool:
         """Vérifie si une écriture a des écritures secondaires"""
         try:
@@ -6086,12 +6145,17 @@ class EcritureComptable:
         else:
             return type_principal
 
-    def _create_secondary_ecriture(self, cursor, ecriture_principale_id: int, data: Dict, 
-                                 comp_cat: Dict, montant_secondaire: float):
+    def _create_secondary_ecriture(self, cursor, ecriture_principale_id: int, data: Dict, comp_cat: Dict, montant_secondaire: float):
         """Crée une écriture secondaire individuelle"""
         try:
-            # Déterminer le type d'écriture pour la secondaire
+            # 🔥 Déterminer le type d'écriture pour la secondaire
             type_ecriture_secondaire = self._get_secondary_type(data['type_ecriture'], comp_cat['type_complement'])
+            
+            logging.info(
+                f"Création d'une écriture secondaire de type '{type_ecriture_secondaire}' "
+                f"pour la catégorie complémentaire ID {comp_cat['categorie_complementaire_id']}, "
+                f"montant: {montant_secondaire:.2f} CHF."
+            )
             
             query = """
             INSERT INTO ecritures_comptables(
@@ -6123,13 +6187,12 @@ class EcritureComptable:
             )
             
             cursor.execute(query, values)
-            logging.info(f"Écriture secondaire créée pour {comp_cat['type_complement']}")
+            logging.info(f"Écriture secondaire insérée dans la base de données avec succès.")
             
         except Exception as e:
-            logging.error(f"Erreur création écriture secondaire: {e}")
+            logging.error(f"Erreur lors de la création de l'écriture secondaire: {e}")
             raise
-
-    
+        
 
     def get_ecriture_avec_secondaires(self, ecriture_id: int, user_id: int) -> Dict:
         """Récupère une écriture principale avec toutes ses écritures secondaires"""

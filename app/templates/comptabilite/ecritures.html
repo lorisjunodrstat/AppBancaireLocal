@@ -25,17 +25,252 @@
 
     /* Styles pour les badges */
     .badge {
-        font-size: 0.7em;
+        font-size: 0.8em;
+        padding: 0.5em 0.75em;
+    }
+
+    /* Amélioration de la lisibilité des montants */
+    .amount-positive {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .amount-negative {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    /* Amélioration de la structure des lignes */
+    .transaction-details {
+        font-size: 0.85em;
+        color: #6c757d;
+    }
+
+    /* Espacement amélioré */
+    .action-buttons {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .action-buttons .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    /* Filtrage amélioré */
+    .filters-container {
+        background-color: #f8f9fa;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .filter-row {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Tableau amélioré */
+    .table-card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        overflow: hidden;
+    }
+
+    .table-card .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    /* Pagination améliorée */
+    .pagination-container {
+        margin-top: 1rem;
+        text-align: center;
+    }
+
+    /* Résumé des filtres */
+    .active-filters {
+        background-color: #e7f3ff;
+        border-left: 4px solid #007bff;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+
+    .filter-badge {
+        background-color: #007bff;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        margin: 0.125rem;
+        display: inline-block;
+    }
+
+    .filter-badge.remove {
+        background-color: #dc3545;
+        cursor: pointer;
+    }
+
+    /* Amélioration des statuts */
+    .status-badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.25rem;
+        font-weight: 500;
+    }
+
+    .status-pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    .status-validée {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .status-rejetée {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .status-supprimee {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    /* Amélioration des catégories */
+    .category-badge {
+        background-color: #6c757d;
+        color: white;
+        font-weight: 500;
+    }
+
+    .category-secondary {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    /* Amélioration des actions */
+    .action-cell {
+        white-space: nowrap;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Écritures comptables</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Écritures comptables</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('banking.nouvelle_ecriture') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Nouvelle écriture
+            </a>
+            <a href="{{ url_for('banking.export_ecritures') }}" class="btn btn-outline-primary">
+                <i class="bi bi-download"></i> Exporter
+            </a>
+        </div>
+    </div>
+
+    <!-- Résumé des filtres actifs -->
+    {% if compte_selectionne or date_from or date_to or contact_selectionne or categorie_id or statut_selectionne !=
+    'tous' %}
+    <div class="active-filters">
+        <h6 class="mb-2">Filtres actifs :</h6>
+        <div class="d-flex flex-wrap gap-2">
+            {% if compte_selectionne %}
+            <span class="filter-badge">
+                Compte: {{ comptes|selectattr('id', 'equalto', compte_selectionne|int)|first|default({'nom_compte':
+                'Inconnu'})['nom_compte'] }}
+                <a href="{{ url_for('banking.liste_ecritures', 
+                    date_from=date_from, 
+                    date_to=date_to, 
+                    id_contact=contact_selectionne, 
+                    categorie_id=categorie_id, 
+                    statut=statut_selectionne) }}" class="text-white ms-1">&times;</a>
+            </span>
+            {% endif %}
+
+            {% if date_from %}
+            <span class="filter-badge">
+                Du: {{ date_from }}
+                <a href="{{ url_for('banking.liste_ecritures', 
+                    compte_id=compte_selectionne, 
+                    date_to=date_to, 
+                    id_contact=contact_selectionne, 
+                    categorie_id=categorie_id, 
+                    statut=statut_selectionne) }}" class="text-white ms-1">&times;</a>
+            </span>
+            {% endif %}
+
+            {% if date_to %}
+            <span class="filter-badge">
+                Au: {{ date_to }}
+                <a href="{{ url_for('banking.liste_ecritures', 
+                    compte_id=compte_selectionne, 
+                    date_from=date_from, 
+                    id_contact=contact_selectionne, 
+                    categorie_id=categorie_id, 
+                    statut=statut_selectionne) }}" class="text-white ms-1">&times;</a>
+            </span>
+            {% endif %}
+
+            {% if contact_selectionne %}
+            <span class="filter-badge">
+                Contact: {{ contacts|selectattr('id_contact', 'equalto', contact_selectionne|int)|first|default({'nom':
+                'Inconnu'})['nom'] }}
+                <a href="{{ url_for('banking.liste_ecritures', 
+                    compte_id=compte_selectionne, 
+                    date_from=date_from, 
+                    date_to=date_to, 
+                    categorie_id=categorie_id, 
+                    statut=statut_selectionne) }}" class="text-white ms-1">&times;</a>
+            </span>
+            {% endif %}
+
+            {% if categorie_id %}
+            <span class="filter-badge">
+                Catégorie: {{ categories|selectattr('id', 'equalto', categorie_id|int)|first|default({'nom':
+                'Inconnu'})['nom'] }}
+                <a href="{{ url_for('banking.liste_ecritures', 
+                    compte_id=compte_selectionne, 
+                    date_from=date_from, 
+                    date_to=date_to, 
+                    id_contact=contact_selectionne, 
+                    statut=statut_selectionne) }}" class="text-white ms-1">&times;</a>
+            </span>
+            {% endif %}
+
+            {% if statut_selectionne != 'tous' %}
+            <span class="filter-badge">
+                Statut: {{ statut_selectionne }}
+                <a href="{{ url_for('banking.liste_ecritures', 
+                    compte_id=compte_selectionne, 
+                    date_from=date_from, 
+                    date_to=date_to, 
+                    id_contact=contact_selectionne, 
+                    categorie_id=categorie_id) }}" class="text-white ms-1">&times;</a>
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Filtres -->
     <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Filtres de recherche</h5>
+        </div>
         <div class="card-body">
             <form method="get" class="row g-3">
                 <div class="col-md-3">
@@ -49,16 +284,18 @@
                         {% endfor %}
                     </select>
                 </div>
+
                 <div class="col-md-3">
-                    <label for="date_from" class="form-label">Du</label>
+                    <label for="date_from" class="form-label">Date de début</label>
                     <input type="date" id="date_from" name="date_from" class="form-control"
-                        value="{{ request.args.get('date_from', '') }}">
+                        value="{{ date_from or '' }}">
                 </div>
+
                 <div class="col-md-3">
-                    <label for="date_to" class="form-label">Au</label>
-                    <input type="date" id="date_to" name="date_to" class="form-control"
-                        value="{{ request.args.get('date_to', '') }}">
+                    <label for="date_to" class="form-label">Date de fin</label>
+                    <input type="date" id="date_to" name="date_to" class="form-control" value="{{ date_to or '' }}">
                 </div>
+
                 <div class="col-md-3">
                     <label for="id_contact" class="form-label">Contact</label>
                     <select id="id_contact" name="id_contact" class="form-select">
@@ -71,6 +308,7 @@
                         {% endfor %}
                     </select>
                 </div>
+
                 <div class="col-md-3">
                     <label for="categorie_id" class="form-label">Catégorie comptable</label>
                     <select id="categorie_id" name="categorie_id" class="form-select">
@@ -82,37 +320,116 @@
                         {% endfor %}
                     </select>
                 </div>
+
                 <div class="col-md-3">
                     <label for="statut" class="form-label">Statut</label>
                     <select id="statut" name="statut" class="form-select">
-                        {% for statut in statuts_disponibles %}
-                        <option value="{{ statut.value }}" {% if statut.value==statut_selectionne %}selected{% endif %}>
-                            {{ statut.label }}
+                        {% for statut_opt in statuts_disponibles %}
+                        <option value="{{ statut_opt.value }}" {% if statut_opt.value==statut_selectionne %}selected{%
+                            endif %}>
+                            {{ statut_opt.label }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary">Filtrer</button>
-                    <a href="{{ url_for('banking.liste_ecritures') }}"
-                        class="btn btn-outline-secondary ms-2">Réinitialiser</a>
+
+                <div class="col-md-3">
+                    <label for="type_ecriture" class="form-label">Type d'écriture</label>
+                    <select id="type_ecriture" name="type_ecriture" class="form-select">
+                        {% for type_opt in types_ecriture_disponibles %}
+                        <option value="{{ type_opt.value }}" {% if type_opt.value==type_ecriture_selectionne
+                            %}selected{% endif %}>
+                            {{ type_opt.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="type_ecriture_comptable" class="form-label">Type comptable</label>
+                    <select id="type_ecriture_comptable" name="type_ecriture_comptable" class="form-select">
+                        {% for type_comp in type_ecriture_comptable_disponibles %}
+                        <option value="{{ type_comp.value }}" {% if type_comp.value==type_ecriture_comptable_selectionne
+                            %}selected{% endif %}>
+                            {{ type_comp.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-12">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Appliquer les filtres
+                        </button>
+                        <a href="{{ url_for('banking.liste_ecritures') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Réinitialiser
+                        </a>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- Résumé statistique -->
+    {% if ecritures %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center p-3 bg-light rounded">
+                        <h6 class="text-muted">Total écritures</h6>
+                        <h4 class="mb-0">{{ ecritures|length }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                        <h6 class="text-muted">Recettes</h6>
+                        <h4 class="mb-0 amount-positive">
+                            {{ "%.2f"|format(ecritures|selectattr('type_ecriture', 'equalto',
+                            'recette')|sum(attribute='montant') or 0) }} CHF
+                        </h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 bg-danger bg-opacity-10 rounded">
+                        <h6 class="text-muted">Dépenses</h6>
+                        <h4 class="mb-0 amount-negative">
+                            {{ "%.2f"|format(ecritures|selectattr('type_ecriture', 'equalto',
+                            'depense')|sum(attribute='montant') or 0) }} CHF
+                        </h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                        <h6 class="text-muted">Solde</h6>
+                        <h4
+                            class="mb-0 {% if ecritures|sum(attribute='montant', attribute='type_ecriture', start=0) > 0 %}amount-positive{% else %}amount-negative{% endif %}">
+                            {{ "%.2f"|format((ecritures|selectattr('type_ecriture', 'equalto',
+                            'recette')|sum(attribute='montant') or 0) - (ecritures|selectattr('type_ecriture',
+                            'equalto', 'depense')|sum(attribute='montant') or 0)) }} CHF
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Tableau des écritures -->
-    <div class="card">
+    <div class="card table-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Historique des écritures</h5>
-            <a href="{{ url_for('banking.nouvelle_ecriture') }}" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Nouvelle écriture
-            </a>
+            <div class="d-flex gap-2">
+                <span class="text-muted">
+                    {{ ecritures|length }} écriture(s) trouvée(s)
+                </span>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover">
-                    <thead>
+                    <thead class="table-light">
                         <tr>
                             <th>Date</th>
                             <th>Compte</th>
@@ -121,20 +438,28 @@
                             <th>Contact</th>
                             <th class="text-end">Montant</th>
                             <th>Fichier</th>
-                            <th>Actions</th>
                             <th>Statut</th>
                             <th>Liaison</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for ecriture in ecritures %}
                         <tr
                             class="{% if ecriture.type_ecriture == 'recette' %}table-success{% else %}table-danger{% endif %}">
-                            <td>{{ ecriture.date_ecriture.strftime('%d.%m.%Y') }}</td>
-                            <td>{{ ecriture.compte_bancaire_nom }}</td>
                             <td>
-                                <span class="badge bg-secondary">{{ ecriture.categorie_numero }}</span>
-                                {{ ecriture.categorie_nom }}
+                                <strong>{{ ecriture.date_ecriture.strftime('%d.%m.%Y') }}</strong>
+                                <br>
+                                <small class="text-muted">{{ ecriture.date_ecriture.strftime('%H:%M') }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ ecriture.compte_bancaire_nom }}</span>
+                            </td>
+                            <td>
+                                <span class="badge category-badge">{{ ecriture.categorie_numero }}</span>
+                                <div class="mt-1">
+                                    {{ ecriture.categorie_nom }}
+                                </div>
 
                                 <!-- Indicateur d'écritures secondaires -->
                                 {% if ecriture.type_ecriture_comptable == 'principale' %}
@@ -145,77 +470,149 @@
                                 <a href="{{ url_for('banking.details_ecriture_secondaires', ecriture_id=ecriture.id) }}"
                                     class="badge bg-info text-decoration-none ms-1"
                                     title="Voir les {{ secondaires|length }} écriture(s) secondaire(s)">
-                                    +{{ secondaires|length }}
+                                    +{{ secondaires|length }} secondaire(s)
                                 </a>
                                 {% endif %}
                                 {% elif ecriture.type_ecriture_comptable == 'complementaire' %}
-                                <span class="badge bg-warning ms-1" title="Écriture secondaire">Secondaire</span>
+                                <span class="badge category-secondary ms-1">Secondaire</span>
                                 {% endif %}
                             </td>
                             <td>
                                 {{ ecriture.description }}
                                 <!-- Indication du type d'écriture -->
-                                <br>
-                                <small class="text-muted">
-                                    Type: {{ ecriture.type_ecriture }}
+                                <div class="transaction-details mt-1">
+                                    Type:
+                                    <span
+                                        class="badge {% if ecriture.type_ecriture == 'recette' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ ecriture.type_ecriture|upper }}
+                                    </span>
                                     {% if ecriture.type_ecriture_comptable %}
-                                    | {{ ecriture.type_ecriture_comptable }}
+                                    |
+                                    <span class="badge bg-secondary">
+                                        {{ ecriture.type_ecriture_comptable|title }}
+                                    </span>
                                     {% endif %}
-                                </small>
+                                </div>
+
+                                <!-- Détails TVA -->
+                                {% if ecriture.tva_taux and ecriture.tva_taux > 0 %}
+                                <div class="transaction-details mt-1">
+                                    HT: {{ "%.2f"|format(ecriture.montant_htva) }} CHF |
+                                    TVA: {{ "%.2f"|format(ecriture.tva_montant) }} CHF ({{
+                                    "%.1f"|format(ecriture.tva_taux) }}%)
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if ecriture.id_contact and ecriture.id_contact in contact_map %}
                                 {{ contact_map[ecriture.id_contact] }}
                                 {% elif ecriture.id_contact %}
-                                {{ ecriture.id_contact }}
+                                <span class="text-muted">{{ ecriture.id_contact }}</span>
                                 {% else %}
-                                —
+                                <span class="text-muted">—</span>
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                <span class="fw-bold">
+                                <div
+                                    class="fw-bold {% if ecriture.type_ecriture == 'recette' %}amount-positive{% else %}amount-negative{% endif %}">
                                     {{ "%.2f"|format(ecriture.montant) }} {{ ecriture.devise }}
-                                </span>
-                                <!-- Affichage des détails TVA -->
-                                {% if ecriture.tva_taux and ecriture.tva_taux > 0 %}
-                                <br>
-                                <small class="text-muted">
-                                    HT: {{ "%.2f"|format(ecriture.montant_htva) }} |
-                                    TVA: {{ "%.2f"|format(ecriture.tva_montant) }} ({{ "%.1f"|format(ecriture.tva_taux)
-                                    }}%)
-                                </small>
-                                {% endif %}
+                                </div>
                             </td>
 
                             <!-- Colonne Fichier -->
-                            <td>
+                            <td class="text-center">
                                 {% if ecriture.nom_fichier %}
-                                <!-- Icône pour visualiser le fichier -->
-                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
-                                    data-bs-target="#modalFichier{{ ecriture.id }}">
-                                    <i class="bi bi-file-earmark"></i>
-                                </button>
+                                <div class="d-flex flex-column gap-1">
+                                    <!-- Icône pour visualiser le fichier -->
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                                        data-bs-target="#modalFichier{{ ecriture.id }}" title="Visualiser">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </button>
 
-                                <!-- Lien de téléchargement -->
-                                <a href="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}"
-                                    class="btn btn-sm btn-outline-success" title="Télécharger">
-                                    <i class="bi bi-download"></i>
-                                </a>
+                                    <!-- Lien de téléchargement -->
+                                    <a href="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}"
+                                        class="btn btn-sm btn-outline-success" title="Télécharger">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </div>
                                 {% else %}
                                 <!-- Bouton pour ajouter un fichier -->
                                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
-                                    data-bs-target="#modalUpload{{ ecriture.id }}">
+                                    data-bs-target="#modalUpload{{ ecriture.id }}" title="Ajouter un fichier">
                                     <i class="bi bi-upload"></i>
                                 </button>
                                 {% endif %}
                             </td>
 
-                            <!-- Actions -->
+                            <!-- Statut -->
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm status-badge 
+                                    {% if ecriture.statut == 'validée' %}status-validée
+                                    {% elif ecriture.statut == 'rejetée' %}status-rejetée
+                                    {% elif ecriture.statut == 'supprimee' %}status-supprimee
+                                    {% else %}status-pending{% endif %}" data-bs-toggle="modal"
+                                    data-bs-target="#modalStatut{{ ecriture.id }}" {% if ecriture.statut=='supprimee'
+                                    %}disabled{% endif %}>
+                                    {{ ecriture.statut|title }}
+                                </button>
+                            </td>
+
+                            <!-- Liaison Transaction -->
                             <td>
-                                <div class="btn-group">
+                                {% if ecriture.transaction_id %}
+                                <div class="d-flex flex-column gap-1">
+                                    <a href="{{ url_for('banking.liste_ecritures',
+                                            show_transaction_modal=1,
+                                            transaction_id=ecriture.transaction_id,
+                                            compte_id=request.args.get('compte_id'),
+                                            date_from=request.args.get('date_from'),
+                                            date_to=request.args.get('date_to'),
+                                            id_contact=request.args.get('id_contact'),
+                                            statut=request.args.get('statut'),
+                                            categorie_id=request.args.get('categorie_id'),
+                                            type_ecriture=request.args.get('type_ecriture'),
+                                            type_ecriture_comptable=request.args.get('type_ecriture_comptable')) }}"
+                                        class="badge bg-success text-white text-decoration-none"
+                                        title="Voir les détails de la transaction">
+                                        <i class="bi bi-link-45deg"></i> #{{ ecriture.transaction_id }}
+                                    </a>
+
+                                    <!-- Bouton pour délier -->
+                                    <form action="{{ url_for('banking.unlink_ecriture', ecriture_id=ecriture.id) }}"
+                                        method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning btn-sm"
+                                            title="Délier cette écriture">
+                                            <i class="bi bi-unlink"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <div class="d-flex flex-column gap-1">
+                                    <span class="badge bg-secondary">Non liée</span>
+                                    <a href="{{ url_for('banking.liste_ecritures',
+                                            show_link_modal=1,
+                                            ecriture_id=ecriture.id,
+                                            compte_id=request.args.get('compte_id'),
+                                            date_from=request.args.get('date_from'),
+                                            date_to=request.args.get('date_to'),
+                                            id_contact=request.args.get('id_contact'),
+                                            statut=request.args.get('statut'),
+                                            categorie_id=request.args.get('categorie_id'),
+                                            type_ecriture=request.args.get('type_ecriture'),
+                                            type_ecriture_comptable=request.args.get('type_ecriture_comptable')) }}"
+                                        class="btn btn-sm btn-outline-primary btn-sm" title="Lier à une transaction">
+                                        <i class="bi bi-link"></i> Lier
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="action-cell text-center">
+                                <div class="action-buttons justify-content-center">
                                     <!-- Édition -->
                                     <a href="{{ url_for('banking.edit_ecriture', ecriture_id=ecriture.id) }}"
-                                        class="btn btn-sm btn-outline-primary">
+                                        class="btn btn-sm btn-outline-primary" title="Modifier">
                                         <i class="bi bi-pencil"></i>
                                     </a>
 
@@ -223,7 +620,8 @@
                                     <form action="{{ url_for('banking.delete_ecriture', ecriture_id=ecriture.id) }}"
                                         method="post" class="d-inline">
                                         <button type="submit" class="btn btn-sm btn-outline-warning"
-                                            title="Supprimer (soft delete) - Marquer comme supprimée">
+                                            title="Archiver (soft delete)"
+                                            onclick="return confirm('Êtes-vous sûr de vouloir archiver cette écriture ?')">
                                             <i class="bi bi-archive"></i>
                                         </button>
                                     </form>
@@ -233,86 +631,27 @@
                                         action="{{ url_for('banking.hard_delete_ecriture', ecriture_id=ecriture.id) }}"
                                         method="post" class="d-inline">
                                         <button type="submit" class="btn btn-sm btn-outline-danger"
-                                            title="Supprimer définitivement (hard delete)">
+                                            title="Supprimer définitivement"
+                                            onclick="return confirm('Êtes-vous sûr de vouloir supprimer définitivement cette écriture ?')">
                                             <i class="bi bi-trash-fill"></i>
                                         </button>
                                     </form>
                                 </div>
                             </td>
-
-                            <!-- Statut avec Modal -->
-                            <td>
-                                <button type="button" class="btn btn-sm 
-                                    {% if ecriture.statut == 'validée' %}btn-success
-                                    {% elif ecriture.statut == 'rejetée' %}btn-danger
-                                    {% elif ecriture.statut == 'supprimee' %}btn-secondary
-                                    {% else %}btn-warning{% endif %}" data-bs-toggle="modal"
-                                    data-bs-target="#modalStatut{{ ecriture.id }}" {% if ecriture.statut=='supprimee'
-                                    %}disabled{% endif %}>
-
-                                    {% if ecriture.statut == 'validée' %}
-                                    <i class="bi bi-check-circle"></i>
-                                    {% elif ecriture.statut == 'rejetée' %}
-                                    <i class="bi bi-x-circle"></i>
-                                    {% elif ecriture.statut == 'supprimee' %}
-                                    <i class="bi bi-archive"></i>
-                                    {% else %}
-                                    <i class="bi bi-clock"></i>
-                                    {% endif %}
-
-                                    {{ ecriture.statut }}
-                                </button>
-                            </td>
-
-                            <!-- Liaison Transaction -->
-                            <td>
-                                {% if ecriture.transaction_id %}
-                                <div class="d-flex align-items-center">
-                                    <a href="{{ url_for('banking.liste_ecritures',
-                                            show_transaction_modal=1,
-                                            transaction_id=ecriture.transaction_id,
-                                            compte_id=request.args.get('compte_id'),
-                                            date_from=request.args.get('date_from'),
-                                            date_to=request.args.get('date_to'),
-                                            id_contact=request.args.get('id_contact'),
-                                            statut=request.args.get('statut'),
-                                            categorie_id=request.args.get('categorie_id')) }}"
-                                        class="badge bg-success text-white text-decoration-none me-1"
-                                        title="Voir les détails de la transaction">
-                                        <i class="bi bi-link-45deg"></i> #{{ ecriture.transaction_id }}
-                                    </a>
-
-                                    <!-- Bouton pour délier -->
-                                    <form
-                                        action="{{ url_for('banking.unlink_ecriture', ecriture_id=ecriture.id) }}"
-                                        method="post" class="d-inline">
-                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Délier">
-                                            <i class="bi bi-link-45deg"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                                {% else %}
-                                <div class="d-flex align-items-center">
-                                    <span class="badge bg-secondary me-1">Non liée</span>
-                                    <a href="{{ url_for('banking.liste_ecritures',
-                                            show_link_modal=1,
-                                            ecriture_id=ecriture.id,
-                                            compte_id=request.args.get('compte_id'),
-                                            date_from=request.args.get('date_from'),
-                                            date_to=request.args.get('date_to'),
-                                            id_contact=request.args.get('id_contact'),
-                                            statut=request.args.get('statut'),
-                                            categorie_id=request.args.get('categorie_id')) }}"
-                                        class="btn btn-sm btn-outline-primary" title="Lier à une transaction">
-                                        <i class="bi bi-link"></i>
-                                    </a>
-                                </div>
-                                {% endif %}
-                            </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="10" class="text-center">Aucune écriture trouvée</td>
+                            <td colspan="10" class="text-center py-5">
+                                <div class="text-center">
+                                    <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
+                                    <h5 class="text-muted mt-2">Aucune écriture trouvée</h5>
+                                    <p class="text-muted">Aucune écriture comptable ne correspond à vos critères de
+                                        recherche.</p>
+                                    <a href="{{ url_for('banking.nouvelle_ecriture') }}" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle"></i> Créer une nouvelle écriture
+                                    </a>
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -329,15 +668,24 @@
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Changer le statut</h5>
+                <h5 class="modal-title">Changer le statut de l'écriture</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="{{ url_for('banking.modifier_statut_ecriture', ecriture_id=ecriture.id) }}" method="post">
                 <div class="modal-body">
-                    <p class="mb-2"><strong>Écriture:</strong> {{ ecriture.description }}</p>
-                    <p class="mb-2"><strong>Montant:</strong> {{ "%.2f"|format(ecriture.montant) }} {{ ecriture.devise
-                        }}</p>
-                    <p class="mb-3"><strong>Date:</strong> {{ ecriture.date_ecriture.strftime('%d.%m.%Y') }}</p>
+                    <div class="mb-3">
+                        <h6>{{ ecriture.description }}</h6>
+                        <p class="mb-1">
+                            <strong>Montant:</strong>
+                            <span
+                                class="{% if ecriture.type_ecriture == 'recette' %}amount-positive{% else %}amount-negative{% endif %}">
+                                {{ "%.2f"|format(ecriture.montant) }} {{ ecriture.devise }}
+                            </span>
+                        </p>
+                        <p class="mb-0">
+                            <strong>Date:</strong> {{ ecriture.date_ecriture.strftime('%d.%m.%Y') }}
+                        </p>
+                    </div>
 
                     <div class="mb-3">
                         <label class="form-label">Nouveau statut:</label>
@@ -360,10 +708,8 @@
                     current_user.id) %}
                     {% if secondaires %}
                     <div class="alert alert-info">
-                        <small>
-                            <i class="bi bi-info-circle"></i>
-                            Ce changement affectera également {{ secondaires|length }} écriture(s) secondaire(s)
-                        </small>
+                        <i class="bi bi-info-circle"></i>
+                        Ce changement affectera également {{ secondaires|length }} écriture(s) secondaire(s).
                     </div>
                     {% endif %}
                     {% endif %}
@@ -382,20 +728,23 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Ajouter un fichier</h5>
+                <h5 class="modal-title">Ajouter un fichier à l'écriture</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('banking.upload_fichier_ecriture', ecriture_id=ecriture.id) }}" method="post"
                 enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="fichier{{ ecriture.id }}" class="form-label">Fichier (PDF, PNG, JPG - max
-                            10MB)</label>
+                        <label for="fichier{{ ecriture.id }}" class="form-label">Sélectionner un fichier</label>
                         <input type="file" class="form-control" id="fichier{{ ecriture.id }}" name="fichier"
                             accept=".pdf,.png,.jpg,.jpeg" required>
                         <div class="form-text">
                             Formats acceptés: PDF, PNG, JPG, JPEG (max 10MB)
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <p><strong>Écriture:</strong> {{ ecriture.description }}</p>
+                        <p><strong>Montant:</strong> {{ "%.2f"|format(ecriture.montant) }} {{ ecriture.devise }}</p>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -443,22 +792,20 @@
                 {% endif %}
             </div>
             <div class="modal-footer">
-                <!-- Affichage dans le navigateur -->
                 <a href="{{ url_for('banking.view_fichier_ecriture', ecriture_id=ecriture.id) }}"
                     class="btn btn-outline-primary" target="_blank">
-                    <i class="bi bi-eye"></i> Ouvrir
+                    <i class="bi bi-eye"></i> Ouvrir dans un nouvel onglet
                 </a>
 
-                <!-- Téléchargement -->
                 <a href="{{ url_for('banking.download_fichier_ecriture', ecriture_id=ecriture.id) }}"
-                    class="btn btn-success" download>
+                    class="btn btn-success">
                     <i class="bi bi-download"></i> Télécharger
                 </a>
 
-                <!-- Suppression -->
                 <form action="{{ url_for('banking.supprimer_fichier_ecriture', ecriture_id=ecriture.id) }}"
                     method="post" class="d-inline">
-                    <button type="submit" class="btn btn-danger">
+                    <button type="submit" class="btn btn-danger"
+                        onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')">
                         <i class="bi bi-trash"></i> Supprimer
                     </button>
                 </form>
@@ -479,7 +826,5 @@
 {% if show_transaction_modal and transaction_detail %}
 {% include 'comptabilite/_modal_transaction_detail.html' %}
 {% endif %}
-
-<!-- Styles pour améliorer l'affichage -->
 
 {% endblock %}
