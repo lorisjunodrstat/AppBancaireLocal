@@ -5925,6 +5925,7 @@ class EcritureComptable:
     
     def __init__(self, db):
         self.db = db
+        self.categorie_comptable_model = CategorieComptable(self.db)
         logging.info(f"📁 Dossier courant (os.getcwd()): {os.getcwd()}")
         logging.info(f"📁 Fichier courant (__file__): {__file__}")
         self.upload_folder = os.path.join(os.getcwd(), 'ROOT', 'app', 'uploads', 'justificatifs')
@@ -9900,9 +9901,9 @@ class ModelManager:
         self.categorie_transaction_model = CategorieTransaction(self.db)
         self.stats_model = StatistiquesBancaires(self.db)
         self.plan_comptable_model = PlanComptable(self.db)
+        self.categorie_comptable_model = CategorieComptable(self.db)
         self.ecriture_comptable_model = EcritureComptable(self.db)
         self.contact_plan_model = ContactPlan(self.db)
-        self.categorie_comptable_model = CategorieComptable(self.db)
         self.contact_model = Contacts(self.db)
         self.contact_compte_model = ContactCompte(self.db)
         self.contact_plan_model = ContactPlan(self.db)
