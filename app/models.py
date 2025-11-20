@@ -6893,6 +6893,7 @@ class EcritureComptable:
                 # Construire la requête avec une jointure LEFT pour les contacts
                 query = """
                     SELECT 
+                        e.id,
                         e.date_ecriture,
                         e.description,
                         e.reference,
