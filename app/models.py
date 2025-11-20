@@ -6037,7 +6037,7 @@ class EcritureComptable:
             logging.error(f"Erreur lors de la création de l'écriture comptable: {e}")
             return False 
     
-    def _create_secondary_ecritures(self, cursor, ecriture_principale_id: int,  Dict):
+    def _create_secondary_ecritures(self, cursor, ecriture_principale_id: int,  data: Dict):
         """Crée les écritures secondaires (TVA, taxes, etc.)"""
         try:
             logging.info(f"Début de la vérification des écritures secondaires pour l'écriture principale ID: {ecriture_principale_id}")
