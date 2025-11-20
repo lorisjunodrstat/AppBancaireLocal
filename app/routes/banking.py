@@ -8,7 +8,7 @@ from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, Tra
 from io import StringIO
 import os
 import csv as csv_mod
-import pandas as pd
+
 from io import BytesIO
 from flask import send_file
 import io
@@ -3488,7 +3488,7 @@ def liste_ecritures():
 @bp.route('/comptabilite/ecritures/export')
 @login_required
 def export_ecritures():
-    """Exporte les écritures selon les filtres actuels"""
+    """Exporte les écritures selon les filtres actuels en CSV"""
     # Récupérer les mêmes paramètres que la liste
     compte_id = request.args.get('compte_id')
     date_from = request.args.get('date_from')
@@ -3514,26 +3514,34 @@ def export_ecritures():
     
     ecritures = g.models.ecriture_comptable_model.get_with_filters(**filtres)
     
-    # Générer le fichier Excel
-
+    import csv
+    from io import StringIO
     
-    df = pd.DataFrame(ecritures)
+    output = StringIO()
+    writer = csv.writer(output)
     
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='Écritures', index=False)
+    if ecritures:
+        # En-têtes
+        headers = list(ecritures[0].keys()) if isinstance(ecritures[0], dict) else [f"col_{i}" for i in range(len(ecritures[0]))]
+        writer.writerow(headers)
+        
+        # Données
+        for ecriture in ecritures:
+            if isinstance(ecriture, dict):
+                row = [ecriture.get(header, "") for header in headers]
+            else:
+                row = list(ecriture)
+            writer.writerow(row)
     
     output.seek(0)
-    
-    filename = f"ecritures_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"ecritures_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     
     return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        StringIO(output.getvalue()),
+        mimetype='text/csv',
         as_attachment=True,
         download_name=filename
     )
-
 
 @bp.route('/comptabilite/ecritures/by-contact/<int:contact_id>', methods=['GET'])
 @login_required
