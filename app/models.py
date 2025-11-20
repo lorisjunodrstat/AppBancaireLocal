@@ -5988,40 +5988,59 @@ class EcritureComptable:
                 logging.info(f"Écriture principale créée avec ID: {ecriture_principale_id}")
                 if data.get('type_ecriture_comptable') == 'principale':
                     self._create_secondary_ecritures(cursor, ecriture_principale_id, data)
-                
+              
             return True
         except Error as e:
             logging.error(f"Erreur lors de la création de l'écriture comptable: {e}")
             return False
-    
+        
     def _create_secondary_ecritures(self, cursor, ecriture_principale_id: int, data: Dict):
         """Crée les écritures secondaires (TVA, taxes, etc.)"""
         try:
-            # Récupérer les catégories complémentaires configurées
+            # Récupérer la configuration de la catégorie comptable principale
+            # 🔥 CHANGEMENT : Utiliser categories_comptables au lieu de categories_transactions
             cursor.execute("""
-                SELECT ct.categorie_complementaire_id, ct.type_complement, ct.taux
-                FROM categories_transactions ct
-                WHERE ct.categorie_id = %s AND ct.utilisateur_id = %s AND ct.actif = TRUE
+                SELECT cc.categorie_complementaire_id, cc.type_ecriture_complementaire, cc.type_tva
+                FROM categories_comptables cc
+                WHERE cc.id = %s AND cc.utilisateur_id = %s AND cc.actif = TRUE
+                AND cc.categorie_complementaire_id IS NOT NULL -- Vérifier qu'une catégorie secondaire est configurée
             """, (data['categorie_id'], data['utilisateur_id']))
             
-            complementary_categories = cursor.fetchall()
-            logging.info(f"Catégories complémentaires trouvées: {complementary_categories}")
+            complementary_config = cursor.fetchone() # On s'attend à une seule configuration par catégorie principale
+            logging.info(f"Configuration catégorie complémentaire trouvée: {complementary_config}")
             
-            if not complementary_categories:
-                logging.info("Aucune catégorie complémentaire configurée.")
+            if not complementary_config:
+                logging.info("Aucune configuration de catégorie complémentaire trouvée.")
                 return
 
-            for comp_cat in complementary_categories:
-                montant_secondaire = self._calculate_secondary_amount(
-                    data, comp_cat['type_complement'], comp_cat['taux']
-                )
-                
-                if abs(montant_secondaire) > 0.01:  # Seuil pour éviter les montants négligeables
-                    self._create_secondary_ecriture(
-                        cursor, ecriture_principale_id, data, comp_cat, montant_secondaire)
-                else:
-                    logging.info(f"Montant secondaire négligeable pour {comp_cat['type_complement']}, pas de création d'écriture.")
-                    
+            # 🔥 CHANGEMENT : Utiliser les champs de categories_comptables
+            categorie_complementaire_id = complementary_config['categorie_complementaire_id']
+            type_ecriture_complementaire = complementary_config['type_ecriture_complementaire']
+            type_tva_config = complementary_config['type_tva'] # Peut être utilisé pour déterminer le taux ou le calcul
+
+            # Pour le calcul, on peut utiliser le tva_taux fourni dans data ou type_tva_config
+            # Supposons que type_tva_config indique le taux (ex: 'taux_plein' -> 7.7, 'taux_reduit' -> 3.7, etc.)
+            # ou qu'il s'agit d'un indicateur pour le calcul dans _calculate_secondary_amount
+            # Ici, on suppose que le taux est dans data['tva_taux'] comme prévu
+            taux_a_utiliser = data.get('tva_taux') # ou mapper type_tva_config si nécessaire
+
+            # On simule un 'comp_cat' avec les infos de la catégorie principale et le type de complément
+            comp_cat_simulated = {
+                'categorie_complementaire_id': categorie_complementaire_id,
+                'type_complement': type_ecriture_complementaire, # Peut être 'tva', 'taxe', etc.
+                'taux': taux_a_utiliser # Utiliser le taux de la principale ou le taux configuré
+            }
+
+            montant_secondaire = self._calculate_secondary_amount(
+                data, comp_cat_simulated['type_complement'], comp_cat_simulated['taux']
+            )
+
+            if abs(montant_secondaire) > 0.01:  # Seuil pour éviter les montants négligeables
+                self._create_secondary_ecriture(
+                    cursor, ecriture_principale_id, data, comp_cat_simulated, montant_secondaire)
+            else:
+                logging.info(f"Montant secondaire négligeable pour {comp_cat_simulated['type_complement']}, pas de création d'écriture.")
+
         except Exception as e:
             logging.error(f"Erreur création écritures secondaires: {e}")
             raise
@@ -6137,6 +6156,7 @@ class EcritureComptable:
         except Exception as e:
             logging.error(f"Erreur get_ecriture_avec_secondaires: {e}")
             return None
+    
     def update_statut_comptable(self, transaction_id: int, user_id: int, statut_comptable: str) -> Tuple[bool, str]:
         """Met à jour le statut comptable d'une transaction"""
         try:
