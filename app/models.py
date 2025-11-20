@@ -5988,7 +5988,8 @@ class EcritureComptable:
                 logging.info(f"Écriture principale créée avec ID: {ecriture_principale_id}")
                 if data.get('type_ecriture_comptable') == 'principale':
                     self._create_secondary_ecritures(cursor, ecriture_principale_id, data)
-              
+                else:
+                    logging.info("Écriture comptable sans écriture secondaire, pas de création d'écritures complémentaires.")
             return True
         except Error as e:
             logging.error(f"Erreur lors de la création de l'écriture comptable: {e}")
@@ -5997,21 +5998,21 @@ class EcritureComptable:
     def _create_secondary_ecritures(self, cursor, ecriture_principale_id: int, data: Dict):
         """Crée les écritures secondaires (TVA, taxes, etc.)"""
         try:
-            # Récupérer la configuration de la catégorie comptable principale
-            # 🔥 CHANGEMENT : Utiliser categories_comptables au lieu de categories_transactions
-            cursor.execute("""
+            with self.db.get_cursor() as cursor:
+                query = """
                 SELECT cc.categorie_complementaire_id, cc.type_ecriture_complementaire, cc.type_tva
                 FROM categories_comptables cc
                 WHERE cc.id = %s AND cc.utilisateur_id = %s AND cc.actif = TRUE
                 AND cc.categorie_complementaire_id IS NOT NULL -- Vérifier qu'une catégorie secondaire est configurée
-            """, (data['categorie_id'], data['utilisateur_id']))
+                """
+                cursor.execute(query, (data['categorie_id'], data['utilisateur_id']))
             
-            complementary_config = cursor.fetchone() # On s'attend à une seule configuration par catégorie principale
-            logging.info(f"Configuration catégorie complémentaire trouvée: {complementary_config}")
+                complementary_config = cursor.fetchone() # On s'attend à une seule configuration par catégorie principale
+                logging.info(f"Configuration catégorie complémentaire trouvée: {complementary_config}")
             
-            if not complementary_config:
-                logging.info("Aucune configuration de catégorie complémentaire trouvée.")
-                return
+                if not complementary_config:
+                    logging.info("Aucune configuration de catégorie complémentaire trouvée.")
+                    return
 
             # 🔥 CHANGEMENT : Utiliser les champs de categories_comptables
             categorie_complementaire_id = complementary_config['categorie_complementaire_id']
@@ -6077,6 +6078,14 @@ class EcritureComptable:
         else:
             return montant_principal * (taux / 100)
 
+    def _get_secondary_type(self, type_principal: str, type_complement: str) -> str:
+        """Détermine le type d'écriture pour la secondaire"""
+        if type_complement == 'tva':
+            # La TVA est généralement une dette (passif) donc recette pour le compte TVA
+            return 'recette' if type_principal == 'depense' else 'depense'
+        else:
+            return type_principal
+
     def _create_secondary_ecriture(self, cursor, ecriture_principale_id: int, data: Dict, 
                                  comp_cat: Dict, montant_secondaire: float):
         """Crée une écriture secondaire individuelle"""
@@ -6120,13 +6129,7 @@ class EcritureComptable:
             logging.error(f"Erreur création écriture secondaire: {e}")
             raise
 
-    def _get_secondary_type(self, type_principal: str, type_complement: str) -> str:
-        """Détermine le type d'écriture pour la secondaire"""
-        if type_complement == 'tva':
-            # La TVA est généralement une dette (passif) donc recette pour le compte TVA
-            return 'recette' if type_principal == 'depense' else 'depense'
-        else:
-            return type_principal
+    
 
     def get_ecriture_avec_secondaires(self, ecriture_id: int, user_id: int) -> Dict:
         """Récupère une écriture principale avec toutes ses écritures secondaires"""
