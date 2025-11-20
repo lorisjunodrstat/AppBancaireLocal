@@ -368,6 +368,7 @@
     </div>
 
     <!-- Résumé statistique -->
+    <!-- Résumé statistique -->
     {% if ecritures %}
     <div class="card mb-4">
         <div class="card-body">
@@ -382,8 +383,7 @@
                     <div class="text-center p-3 bg-success bg-opacity-10 rounded">
                         <h6 class="text-muted">Recettes</h6>
                         <h4 class="mb-0 amount-positive">
-                            {{ "%.2f"|format(ecritures|selectattr('type_ecriture', 'equalto',
-                            'recette')|sum(attribute='montant') or 0) }} CHF
+                            {{ "%.2f"|format(ecritures|selectattr('type_ecriture', 'equalto', 'recette')|sum(attribute='montant') or 0) }} CHF
                         </h4>
                     </div>
                 </div>
@@ -391,19 +391,16 @@
                     <div class="text-center p-3 bg-danger bg-opacity-10 rounded">
                         <h6 class="text-muted">Dépenses</h6>
                         <h4 class="mb-0 amount-negative">
-                            {{ "%.2f"|format(ecritures|selectattr('type_ecriture', 'equalto',
-                            'depense')|sum(attribute='montant') or 0) }} CHF
+                            {{ "%.2f"|format(ecritures|selectattr('type_ecriture', 'equalto', 'depense')|sum(attribute='montant') or 0) }} CHF
                         </h4>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="text-center p-3 bg-info bg-opacity-10 rounded">
                         <h6 class="text-muted">Solde</h6>
-                        <h4
-                            class="mb-0 {% if ecritures|sum(attribute='montant', attribute='type_ecriture', start=0) > 0 %}amount-positive{% else %}amount-negative{% endif %}">
-                            {{ "%.2f"|format((ecritures|selectattr('type_ecriture', 'equalto',
-                            'recette')|sum(attribute='montant') or 0) - (ecritures|selectattr('type_ecriture',
-                            'equalto', 'depense')|sum(attribute='montant') or 0)) }} CHF
+                        {% set solde = (ecritures|selectattr('type_ecriture', 'equalto', 'recette')|sum(attribute='montant') or 0) - (ecritures|selectattr('type_ecriture', 'equalto', 'depense')|sum(attribute='montant') or 0) %}
+                        <h4 class="mb-0 {% if solde > 0 %}amount-positive{% else %}amount-negative{% endif %}">
+                            {{ "%.2f"|format(solde) }} CHF
                         </h4>
                     </div>
                 </div>
