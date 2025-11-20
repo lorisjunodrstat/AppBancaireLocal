@@ -5919,6 +5919,7 @@ class CategorieComptable:
         except Exception as e:
             logging.error(f"Erreur dans has_categorie_complementaire: {e}")
             return False
+
 class EcritureComptable:
     """Modèle pour gérer les écritures comptables"""
     
@@ -5972,7 +5973,7 @@ class EcritureComptable:
             print("❌ Dossier n'existe pas")
             return False
     
-    def create(self,  Dict) -> bool:
+    def create(sself, data: Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
         # Validation du lien catégorie ↔ plan comptable du compte
         if data.get('id_contact'):
