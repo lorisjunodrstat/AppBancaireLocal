@@ -8,7 +8,9 @@ from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, Tra
 from io import StringIO
 import os
 import csv as csv_mod
-
+import pandas as pd
+from io import BytesIO
+from flask import send_file
 import io
 import traceback
 import random
@@ -3513,9 +3515,7 @@ def export_ecritures():
     ecritures = g.models.ecriture_comptable_model.get_with_filters(**filtres)
     
     # Générer le fichier Excel
-    import pandas as pd
-    from io import BytesIO
-    from flask import send_file
+
     
     df = pd.DataFrame(ecritures)
     
@@ -3525,7 +3525,6 @@ def export_ecritures():
     
     output.seek(0)
     
-    from datetime import datetime
     filename = f"ecritures_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     
     return send_file(
@@ -4460,7 +4459,6 @@ def nouvelle_ecriture():
         comptes = g.models.compte_model.get_all_accounts()
         categories = g.models.categorie_comptable_model.get_all_categories(current_user.id)
         contacts = g.models.contact_model.get_all(current_user.id)
-        transactions_sans_ecritures = g.models.transaction_financiere_model.get_transactions_sans_ecritures_par_utilisateur(current_user.id)
         categories_avec_complementaires = g.models.categorie_comptable_model.get_categories_avec_complementaires(current_user.id)
         return render_template('comptabilite/nouvelle_ecriture.html',
             comptes=comptes,
