@@ -6047,12 +6047,11 @@ class EcritureComptable:
             categorie_id = data['categorie_id']
             utilisateur_id = data['utilisateur_id']
             
-            # 🔥 Récupérer la configuration de la catégorie complémentaire
             query = """
             SELECT 
                 cc.categorie_complementaire_id, 
                 cc.type_ecriture_complementaire,
-                cc.type_tva,
+                cc.type_tva,  -- ❌ Cela peut être NULL
                 cc.nom as categorie_nom,
                 cc.numero as categorie_numero,
                 cc_comp.nom as categorie_complementaire_nom,
@@ -6072,10 +6071,9 @@ class EcritureComptable:
                 logging.info(f"Aucune catégorie complémentaire configurée pour la catégorie ID {categorie_id}.")
                 return
 
-            # 🔥 Extraire les données de la configuration
             categorie_complementaire_id = result['categorie_complementaire_id']
             type_ecriture_complementaire = result['type_ecriture_complementaire']
-            type_tva_config = result['type_tva']
+            type_tva_config = result['type_tva']  # Peut être None
             categorie_nom = result['categorie_nom']
             categorie_numero = result['categorie_numero']
             categorie_complementaire_nom = result.get('categorie_complementaire_nom', 'N/A')
@@ -6087,16 +6085,20 @@ class EcritureComptable:
                 f"(ID: {categorie_complementaire_id}) avec type '{type_ecriture_complementaire}'."
             )
 
-            # 🔥 Calculer le montant de l'écriture secondaire
+            # 🔥 RÉCUPÉRER LE TAUX RÉEL à partir de la configuration ou de data
+            # Selon votre logique, le taux peut venir de type_tva OU de data['tva_taux']
+            taux_reel = type_tva_config if type_tva_config is not None else data.get('tva_taux', 0)
+
+            # ✅ Maintenant on envoie le bon taux
             montant_secondaire = self._calculate_secondary_amount(
-                data, type_ecriture_complementaire, type_tva_config
+                data, type_ecriture_complementaire, taux_reel  # ✅ taux_reel au lieu de type_tva_config
             )
 
-            if abs(montant_secondaire) > 0.01:  # Seuil pour éviter les montants négligeables
+            if abs(montant_secondaire) > 0.01:
                 comp_cat_simulated = {
                     'categorie_complementaire_id': categorie_complementaire_id,
                     'type_complement': type_ecriture_complementaire,
-                    'taux': type_tva_config
+                    'taux': taux_reel  # ✅ aussi ici
                 }
                 self._create_secondary_ecriture(
                     cursor, ecriture_principale_id, data, comp_cat_simulated, montant_secondaire)
@@ -6107,6 +6109,7 @@ class EcritureComptable:
         except Exception as e:
             logging.error(f"Erreur lors de la création des écritures secondaires pour écriture ID {ecriture_principale_id}: {e}")
             raise
+
     def has_secondary_ecritures(self, ecriture_id: int, user_id: int) -> bool:
         """Vérifie si une écriture a des écritures secondaires"""
         try:
