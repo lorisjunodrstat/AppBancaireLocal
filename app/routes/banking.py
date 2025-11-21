@@ -6894,7 +6894,10 @@ def synthese_hebdomadaire():
     user_id = current_user.id
     annee = int(request.args.get('annee', datetime.now().year))
     semaine = request.args.get('semaine')
-    
+    id_contrat_filtre = request.args.get('id_contrat')
+    employeur_filtre = request.args.get('employeur')
+    seuil_h2f_heure = int(request.args.get('seuil_h2f', 18))
+
     # Déterminer la semaine courante si non fournie
     if semaine is None or not semaine.isdigit():
         semaine = datetime.now().isocalendar()[1]
@@ -6907,8 +6910,9 @@ def synthese_hebdomadaire():
         g.models.synthese_hebdo_model.create_or_update_batch([data])
 
     # Données de la semaine sélectionnée
-    synthese_list = g.models.synthese_hebdo_model.get_by_user_and_week(
-        user_id=user_id, annee=annee, semaine=semaine
+    synthese_list = g.models.synthese_hebdo_model.get_by_user_and_filters(
+        user_id=user_id, annee=annee, semaine=semaine,
+        employeur=employeur_filtre, contrat_id=id_contrat_filtre
     )
     
     # Calcul des totaux pour la semaine
@@ -6918,10 +6922,16 @@ def synthese_hebdomadaire():
     # --- NOUVEAU : Calcul des stats h2f pour l'année ---
     seuil_h2f_heure = 18 # Exemple : 18h
     seuil_h2f_minutes = seuil_h2f_heure * 60
-    stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(user_id, None, None, annee, seuil_h2f_minutes)
-    # On récupère la moyenne pour la semaine affichée
-    moyenne_hebdo_h2f = stats_h2f['moyennes_hebdo'].get(semaine, 0.0)
-    moyenne_mobile_h2f = stats_h2f['moyennes_mobiles'].get(semaine, 0.0)
+    if employeur_filtre and id_contrat_filtre:
+        stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(
+            user_id, employeur_filtre, int(id_contrat_filtre), annee, seuil_h2f_minutes)
+        moyenne_hebdo_h2f = stats_h2f['moyennes_hebdo'].get(semaine, 0.0)
+        moyenne_mobile_h2f = stats_h2f['moyennes_mobiles'].get(semaine, 0.0)
+    else:
+        stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(user_id, None, None, annee, seuil_h2f_minutes)
+        # On récupère la moyenne pour la semaine affichée
+        moyenne_hebdo_h2f = stats_h2f['moyennes_hebdo'].get(semaine, 0.0)
+        moyenne_mobile_h2f = stats_h2f['moyennes_mobiles'].get(semaine, 0.0)
 
     # --- NOUVEAU : Préparation des données SVG pour le graphique horaire de la semaine ---
     # Pour simplifier, on suppose que l'employeur et le contrat sont connus ou qu'on veut les combiner.
@@ -6930,31 +6940,42 @@ def synthese_hebdomadaire():
     # Pour cet exemple, on prend le premier contrat trouvé pour la semaine, ou None.
     id_contrat_exemple = synthese_list[0]['id_contrat'] if synthese_list else None
     employeur_exemple = synthese_list[0]['employeur'] if synthese_list else None
+    id_contrat_svg = id_contrat_filtre if id_contrat_filtre else (synthese_list[0]['id_contrat'])
+    employeur_svg = employeur_filtre if employeur_filtre else synthese_list[0]['employeur']
 
     svg_horaire_data = None
     if id_contrat_exemple and employeur_exemple:
         svg_horaire_data = g.models.synthese_hebdo_model.prepare_svg_data_horaire_jour(
-            user_id, employeur_exemple, id_contrat_exemple, annee, semaine
+            user_id, employeur_exemple, id_contrat_exemple, annee, semaine, seuil_h2f_heure
         )
+    elif id_contrat_svg and employeur_svg:
+        svg_horaire_data = g.models.synthese_hebdo_model.prepare_svg_data_horaire_jour(
+            user_id, employeur_svg, id_contrat_svg, annee, semaine, seuil_h2f_heure)
+
     # Si pas de contrat trouvé, svg_horaire_data restera None, gère-le dans ton template.
 
     # Préparer le graphique SVG pour l'année entière (heures totales)
     graphique_svg = g.models.synthese_hebdo_model.prepare_svg_data_hebdo(user_id, annee)
-
+    employeurs_disponibles = g.models.contrat_model.get_all_contrats(user_id)
+    contrats_disponibles 0 g.models.contrat_model.get_all_contrats(user_id)
     return render_template('salaires/synthese_hebdo.html',
                         syntheses=synthese_list,
                         total_heures=round(total_heures, 2),
                         total_simule=round(total_simule, 2),
                         current_annee=annee,
                         current_semaine=semaine,
-                        # --- NOUVEAU : Ajouter les données pour le template ---
+                        selected_contrat = id_contrat_filtre,
+                        selected_employeur = employeur_filtre,
                         stats_h2f=stats_h2f,
                         moyenne_hebdo_h2f=moyenne_hebdo_h2f,
                         moyenne_mobile_h2f=moyenne_mobile_h2f,
                         seuil_h2f_heure=seuil_h2f_heure,
                         svg_horaire_data=svg_horaire_data,
                         graphique_svg=graphique_svg,
-                        now=datetime.now())
+                        now=datetime.now(),
+                        employeurs_disponibles=employeurs_disponibles,
+                        contrats_disponibles=contrats_disponibles)
+
 @bp.route('/synthese-hebdo/generer', methods=['POST'])
 @login_required
 def generer_syntheses_hebdomadaires():

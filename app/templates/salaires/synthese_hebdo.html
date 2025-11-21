@@ -3,6 +3,32 @@
 {% block content %}
 <div class="container mt-4">
     <h1 class="mb-4">Synthèse hebdomadaire – Semaine {{ current_semaine }} ({{ current_annee }})</h1>
+    <!-- Filtres-->
+    <div class="mb-3">
+        <form method="GET" class="form-inline mb-2">
+            <input type="hidden" name="annee" value="{{ current_annee }}"
+            <input type="hidden" name="semaine" value="{{ current_semaine }}">
+            <input type="hidden" name="seuil_h2f" value="{{ seuil_h2f_heure }}">
+            <label name="employeur_filtre" class="mr-2">Employeur :</label>
+            <select name="employeur_filtre" class="form-control form-control-sm d-inline-block w-auto" onchange="this.form.submit()">
+                <option value="">Tous</option>
+                {% for employeur in employeurs_disponibles %}
+                <option value="{{ employeur.id }}" {% if employeur.id == employeur_filtre %}selected{% endif %}>{{ employeur.nom }}</option>
+                {% endfor %}
+            </select>
+            <label name="contrat_filtre" class="mr-2 ml-3">Contrat :</label>
+            <select name="contrat_filtre" class="form-control form-control-sm d-inline-block w-auto" onchange="this.form.submit()">
+                <option value="">Tous</option>
+                {% for contrat in contrats_disponibles %}
+                <option value="{{ contrat.id }}" {% if contrat.id == contrat_filtre %}selected{% endif %}>ID {{ contrat.id }} - {{ contrat.employeur }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm ml-3">Appliquer</button>
+        </form>
+
+        <a href="{{ url_for('banking.synthese_hebdomadaire', annee=current_annee, semaine=current_semaine, seuil_h2f=seuil_h2f_heure) }}"
+            class="btn btn-outline-secondary btn-sm">Réinitialiser les filtres</a>
+    </div>
 
     <!-- Navigation rapide entre semaines -->
     <div class="mb-3">
@@ -19,11 +45,15 @@
                 <h5>Statistiques de fin de journée (h2f) - Seuil > {{ seuil_h2f_heure }}h</h5>
             </div>
             <div class="card-body">
+                {% if selected_employeur and selected_contrat %}
                 <p><strong>Moyenne hebdomadaire (S{{ current_semaine }}):</strong> {{ "%.2f"|format(moyenne_hebdo_h2f) }} jours
                 </p>
                 <p><strong>Moyenne mobile (jusqu'à S{{ current_semaine }}):</strong> {{ "%.2f"|format(moyenne_mobile_h2f) }}
                     jours</p>
                 <!-- Optionnel: Lier vers une page dédiée ou afficher un graphique de la moyenne mobile -->
+                {% else %}
+                <p>Sélectionnez un employeur et un contrat pour voir les statistiques détaillées
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -45,6 +75,15 @@
                         fill="#666">{{ tick.heure }}</text>
                     {% endfor %}
         
+                    <!-- Ligne horaire seuil -->
+                    {% if svg_horaire_data.seuil_y %}
+                    <line x1="{{ svg_horaire_data.margin_x }}" y1="{{ svg_horaire_data.seuil_y }}"
+                        x2="{{ svg_horaire_data.margin_x + svg_horaire_data.plot_width }}" y2="{{ svg_horaire_data.seuil_y }}"
+                        stroke="red" stroke-dasharray="4" stroke-width="2" />
+                    <text x="{{ svg_horaire_data.margin_x - 10 }}" y="{{ svg_horaire_data.seuil_y - 5 }}" font-size="12"
+                        text-anchor="end" fill="red">{{ svg_horaire_data.seuil_heure }}</text>
+                    {% endif %}
+        
                     <!-- Lignes verticales pour les jours -->
                     {% for label in svg_horaire_data.labels_x %}
                     <line x1="{{ label.x }}" y1="{{ svg_horaire_data.margin_y }}" x2="{{ label.x }}"
@@ -56,19 +95,13 @@
         
                     <!-- Rectangles pour les heures de travail -->
                     {% for rect in svg_horaire_data.rectangles %}
-                    <rect x="{{ rect.x }}" y="{{ rect.y }}" width="{{ rect.width }}" height="{{ rect.height }}" fill="
-                                {% if rect.type == 'h1d_to_h2f' %}#3498db
-                                {% elif rect.type == 'h1d_only' %}#e67e22
-                                {% elif rect.type == 'h2f_only' %}#9b59b6
-                                {% else %}#95a5a6
-                                {% endif %}" opacity="0.7" />
+                    <rect x="{{ rect.x }}" y="{{ rect.y }}" width="{{ rect.width }}" height="{{ rect.height }}"
+                        fill="{% if rect.depasse_seuil %}#e74c3c{% else %}#3498db{% endif %}" opacity="0.7" />
                     {% endfor %}
                 </svg>
             </div>
         </div>
         {% endif %}
-    {% if graphique_svg %}
-    <!-- Graphique SVG : évolution sur l'année -->
     <div class="card mb-4">
         <div class="card-header">
             <h5>Évolution des heures hebdomadaires en {{ current_annee }}</h5>
@@ -79,30 +112,29 @@
                 <!-- Grille et axes -->
                 {% for tick in graphique_svg.ticks %}
                 <line x1="{{ graphique_svg.margin_x }}" y1="{{ tick.y_px }}"
-                    x2="{{ graphique_svg.margin_x + graphique_svg.plot_width }}" y2="{{ tick.y_px }}"
-                    stroke="#e0e0e0" />
+                    x2="{{ graphique_svg.margin_x + graphique_svg.plot_width }}" y2="{{ tick.y_px }}" stroke="#e0e0e0" />
                 <text x="{{ graphique_svg.margin_x - 10 }}" y="{{ tick.y_px + 4 }}" font-size="12" text-anchor="end"
                     fill="#666">{{ tick.value }}</text>
                 {% endfor %}
-
+    
                 <!-- Barres : heures réelles -->
                 {% for bar in graphique_svg.colonnes %}
                 <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width }}" height="{{ bar.height }}"
                     fill="{% if loop.index == current_semaine %}#e74c3c{% else %}#3498db{% endif %}" opacity="0.8" />
                 {% endfor %}
-
+    
                 <!-- Ligne : heures simulées (optionnel) -->
                 {% if graphique_svg.ligne_simule %}
                 <polyline points="{{ graphique_svg.ligne_simule | join(' ') }}" fill="none" stroke="#2ecc71"
                     stroke-width="2" />
                 {% endif %}
-
+    
                 <!-- Étiquettes des semaines (toutes les 4 semaines) -->
                 {% for i in range(1, 54) %}
                 {% if i % 4 == 0 or i == current_semaine %}
                 <text x="{{ graphique_svg.margin_x + (i - 0.5) * (graphique_svg.plot_width / 53) }}"
-                    y="{{ graphique_svg.margin_y + graphique_svg.plot_height + 20 }}" font-size="11"
-                    text-anchor="middle" fill="#555">S{{ i }}</text>
+                    y="{{ graphique_svg.margin_y + graphique_svg.plot_height + 20 }}" font-size="11" text-anchor="middle"
+                    fill="#555">S{{ i }}</text>
                 {% endif %}
                 {% endfor %}
             </svg>

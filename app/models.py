@@ -8903,6 +8903,7 @@ class HeureTravail:
             current_app.logger.error(f"Erreur has_hours_for_employeur: {e}")
             return False
 
+    
     def get_h1d_h2f_for_period(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int = None, semaine: int = None) -> List[Dict]:
         """
         Récupère les heures de début (h1d) et de fin (h2f) pour une période donnée.
@@ -9520,6 +9521,7 @@ class Salaire:
 class SyntheseHebdomadaire:
     def __init__(self, db):
         self.db = db
+        self.heure_travail_manager = heure_travail_manager
     # Dans la classe SyntheseHebdomadaire
     def calculate_for_week_by_contrat(self, user_id: int, annee: int, semaine: int) -> list[dict]:
         try:
@@ -9811,7 +9813,8 @@ class SyntheseHebdomadaire:
             'ticks': ticks,
             'annee': annee
         }
-    # Dans SyntheseHebdomadaire
+
+    
     def get_by_user_and_filters(self, user_id: int, annee: int = None, semaine: int = None,
                             employeur: str = None, contrat_id: int = None) -> List[Dict]:
         try:
@@ -9836,6 +9839,7 @@ class SyntheseHebdomadaire:
         except Exception as e:
             logging.error(f"Erreur filtre synthèse hebdo: {e}")
             return []
+    
     def get_employeurs_distincts(self, user_id: int) -> List[str]:
         try:
             with self.db.get_cursor() as cursor:
@@ -9856,14 +9860,13 @@ class SyntheseHebdomadaire:
         seuil_h2f_minutes: seuil en minutes (ex: 18h = 18*60 min). Défaut à 18h.
         Retourne un dictionnaire avec les moyennes hebdomadaires et la moyenne mobile.
         """
-        ht_instance = HeureTravail(self.db) # Instance temporaire pour récupérer les données journalières
         weekly_counts = {} # { semaine: nb_jours_avec_h2f_apres_seuil }
 
         for semaine in range(1, 53): # Semaines de 1 à 52 (ou 53)
-            jours_semaine = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+            jours_semaine = self.heure_travail_manager.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
             count = 0
             for jour in jours_semaine:
-                h2f_minutes = ht_instance.time_to_minutes(jour.get('h2f'))
+                h2f_minutes = self.heure_travail_manager.time_to_minutes(jour.get('h2f'))
                 if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
                     count += 1
             weekly_counts[semaine] = count
@@ -9888,29 +9891,36 @@ class SyntheseHebdomadaire:
             'moyennes_mobiles': moyennes_mobiles,
             'seuil_heure': f"{seuil_h2f_minutes // 60}:{seuil_h2f_minutes % 60:02d}"
         }
+    
 
-    def prepare_svg_data_horaire_jour(self, user_id: int, employeur: str, id_contrat: int, annee: int, semaine: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
+    def prepare_svg_data_horaire_jour(self, user_id: int, employeur: str, id_contrat: int, annee: int, semaine: int, seuil_h2f_heure: int = 18, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         """
         Prépare les données pour un graphique SVG des horaires de début/fin de journée.
         Axe X: Jours de la semaine (Lun, Mar, Mer, Jeu, Ven, Sam, Dim)
-        Axe Y: Heures (6h en haut, 22h en bas)
+        Axe Y: Heures (6h en haut, 24h en bas)
+        seuil_h2f_heure: Heure du seuil à afficher (par défaut 18h).
         """
         ht_instance = HeureTravail(self.db)
         jours_semaine = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6  # 6h du matin
-        heure_fin_affichage = 22   # 22h
-        plage_heures = heure_fin_affichage - heure_debut_affichage # 16h
+        heure_fin_affichage = 24   # 24h (minuit)
+        plage_heures = heure_fin_affichage - heure_debut_affichage # 18h
         minute_debut_affichage = heure_debut_affichage * 60
         minute_fin_affichage = heure_fin_affichage * 60
-        plage_minutes = plage_heures * 60 # 960 minutes
+        plage_minutes = plage_heures * 60 # 1080 minutes
+
+        seuil_h2f_minutes = seuil_h2f_heure * 60 # Convertir le seuil en minutes
 
         # Marges
         margin_x = largeur_svg * 0.1
         margin_y = hauteur_svg * 0.1
         plot_width = largeur_svg * 0.8
         plot_height = hauteur_svg * 0.8
+
+        # Calcul de la position Y de la ligne seuil
+        seuil_y = margin_y + plot_height - ((seuil_h2f_minutes - minute_debut_affichage) / plage_minutes) * plot_height
 
         # Calcul des rectangles pour chaque jour
         rectangles_svg = []
@@ -9928,6 +9938,7 @@ class SyntheseHebdomadaire:
             else:
                 current_app.logger.error(f'Type inattendu pour la date : {type(date_obj_raw)}, valeur : {date_obj_raw}')
                 continue
+
             jour_semaine_numero = date_obj.isocalendar()[2] # 1=Lundi, 7=Dimanche
             if jour_semaine_numero < 1 or jour_semaine_numero > 7:
                 continue # Ignorer les jours en dehors de Lundi-Dimanche si nécessaire
@@ -9953,6 +9964,9 @@ class SyntheseHebdomadaire:
             else:
                 y_h2f = None
 
+            # Vérifier si h2f dépasse le seuil
+            depasse_seuil = (h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes)
+
             if y_h1d is not None and y_h2f is not None:
                 # Dessiner un rectangle entre h1d et h2f
                 y_top = min(y_h1d, y_h2f)
@@ -9964,7 +9978,8 @@ class SyntheseHebdomadaire:
                     'width': largeur_rect,
                     'height': hauteur_rect,
                     'jour': jour_data['date'], # Pour info éventuelle dans le template
-                    'type': 'h1d_to_h2f' # Type pour distinguer dans le template
+                    'type': 'h1d_to_h2f', # Type pour distinguer dans le template
+                    'depasse_seuil': depasse_seuil # Indicateur pour la couleur
                 })
             elif y_h1d is not None: # Si h2f est manquant ou hors plage
                 # Dessiner un point ou une petite barre pour h1d
@@ -9974,24 +9989,26 @@ class SyntheseHebdomadaire:
                     'width': largeur_rect,
                     'height': 4,
                     'jour': jour_data['date'],
-                    'type': 'h1d_only'
+                    'type': 'h1d_only',
+                    'depasse_seuil': False # h1d seul ne dépasse pas le seuil de h2f
                 })
             elif y_h2f is not None: # Si h1d est manquant ou hors plage
                 # Dessiner un point ou une petite barre pour h2f
-                 rectangles_svg.append({
+                rectangles_svg.append({
                     'x': x_rect_debut,
                     'y': y_h2f - 2, # Hauteur arbitraire pour un point
                     'width': largeur_rect,
                     'height': 4,
                     'jour': jour_data['date'],
-                    'type': 'h2f_only'
+                    'type': 'h2f_only',
+                    'depasse_seuil': depasse_seuil # Utiliser la vérification pour h2f
                 })
 
         # Ticks pour l'axe Y (heures)
         ticks_y = []
         for h in range(heure_debut_affichage, heure_fin_affichage + 1):
-             y_tick = margin_y + plot_height - ((h * 60 - minute_debut_affichage) / plage_minutes) * plot_height
-             ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
+            y_tick = margin_y + plot_height - ((h * 60 - minute_debut_affichage) / plage_minutes) * plot_height
+            ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
 
         # Labels pour l'axe X (jours)
         labels_x = []
@@ -10003,6 +10020,8 @@ class SyntheseHebdomadaire:
             'rectangles': rectangles_svg,
             'ticks_y': ticks_y,
             'labels_x': labels_x,
+            'seuil_y': seuil_y, # <-- Ajout de la position Y du seuil
+            'seuil_heure': f"{seuil_h2f_heure:02d}h", # <-- Ajout de l'heure du seuil pour le label
             'largeur_svg': largeur_svg,
             'hauteur_svg': hauteur_svg,
             'margin_x': margin_x,
@@ -10011,442 +10030,9 @@ class SyntheseHebdomadaire:
             'plot_height': plot_height,
             'semaine': semaine,
             'annee': annee
-        }
+        } 
 
-class SyntheseMensuelle:
-    def __init__(self, db):
-        self.db = db
-    # Dans la classe SyntheseMensuelle
-    def calculate_for_month_by_contrat(self, user_id: int, annee: int, mois: int) -> list[dict]:
-        try:
-            with self.db.get_cursor() as cursor:
-                query_contrats = """
-                    SELECT 
-                        h.id_contrat,
-                        c.employeur,
-                        SUM(h.total_h) AS heures_contrat
-                    FROM heures_travail h
-                    JOIN contrats c ON h.id_contrat = c.id
-                    WHERE h.user_id = %s
-                    AND YEAR(h.date) = %s
-                    AND MONTH(h.date) = %s
-                    AND h.total_h IS NOT NULL
-                    AND h.id_contrat IS NOT NULL
-                    GROUP BY h.id_contrat, c.employeur
-                """
-                cursor.execute(query_contrats, (user_id, annee, mois))
-                rows = cursor.fetchall()
 
-                resultats = []
-                for row in rows:
-                    id_contrat = row['id_contrat']
-                    employeur = row['employeur']
-                    heures_c = float(row['heures_contrat'])
-
-                    cursor.execute("SELECT salaire_horaire FROM contrats WHERE id = %s", (id_contrat,))
-                    contrat = cursor.fetchone()
-                    taux = float(contrat['salaire_horaire']) if contrat and contrat['salaire_horaire'] else 0.0
-                    salaire = heures_c * taux
-
-                    resultats.append({
-                        'user_id': user_id,
-                        'annee': annee,
-                        'mois': mois,
-                        'id_contrat': id_contrat,
-                        'employeur': employeur,
-                        'heures_reelles': round(heures_c, 2),
-                        'heures_simulees': 0.0,
-                        'salaire_reel': round(salaire, 2),
-                        'salaire_simule': 0.0,
-                    })
-                return resultats
-        except Exception as e:
-            logging.error(f"Erreur calcul synthèse mensuelle par contrat: {e}")
-            return []
-    def prepare_svg_data_mensuel(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
-        """
-        Prépare les données pour un graphique SVG des salaires mensuels.
-        Retourne un dict compatible avec le template.
-        """
-        # Récupérer toutes les synthèses mensuelles de l'année
-        synthese_list = self.get_by_user_and_year(user_id, annee)
-        
-        # Indexer par mois
-        synthese_par_mois = {s['mois']: s for s in synthese_list}
-        
-        # Initialiser les listes pour les 12 mois
-        salaire_reel_vals = []
-        salaire_simule_vals = []
-        mois_labels = []
-        
-        for mois in range(1, 13):
-            s = synthese_par_mois.get(mois)
-            if s:
-                salaire_reel_vals.append(float(s.get('salaire_reel', 0)))
-                salaire_simule_vals.append(float(s.get('salaire_simule', 0)))
-            else:
-                salaire_reel_vals.append(0.0)
-                salaire_simule_vals.append(0.0)
-            mois_labels.append(f"{mois:02d}/{annee}")
-        
-        # Calcul des bornes
-        all_vals = salaire_reel_vals + salaire_simule_vals
-        min_val = min(all_vals) if all_vals else 0.0
-        max_val = max(all_vals) if all_vals else 100.0
-        if min_val == max_val:
-            max_val = min_val + 100.0 if min_val == 0 else min_val * 1.1
-
-        # Marges et dimensions
-        margin_x = largeur_svg * 0.1
-        margin_y = hauteur_svg * 0.1
-        plot_width = largeur_svg * 0.8
-        plot_height = hauteur_svg * 0.8
-
-        # Fonction utilitaire pour coordonnée Y
-        def y_coord(val):
-            if max_val == min_val:
-                return margin_y + plot_height / 2
-            return margin_y + plot_height - ((val - min_val) / (max_val - min_val)) * plot_height
-
-        # === CALCUL DES TICKS POUR L'AXE Y ===
-        tick_step_minor = 200
-        tick_step_major = 1000
-
-        y_axis_min = math.floor(min_val / tick_step_minor) * tick_step_minor
-        y_axis_max = math.ceil(max_val / tick_step_minor) * tick_step_minor
-        if y_axis_max <= y_axis_min:
-            y_axis_max = y_axis_min + tick_step_major
-        if max_val < tick_step_major:
-            y_axis_max = tick_step_major
-
-        ticks = []
-        y_val = y_axis_min
-        while y_val <= y_axis_max:
-            if y_val >= min_val - 500 and y_val <= max_val + 500:  # plage raisonnable
-                is_major = (y_val % tick_step_major == 0)
-                y_px = y_coord(y_val)
-                ticks.append({
-                    'value': int(y_val),
-                    'y_px': y_px,
-                    'is_major': is_major
-                })
-            y_val += tick_step_minor
-
-        # === PRÉPARATION DES ÉLÉMENTS SVG ===
-        # Colonnes (barres) pour salaire réel
-        colonnes_svg = []
-        bar_width = plot_width / 12 * 0.6
-        for i in range(12):
-            x = margin_x + (i + 0.5) * (plot_width / 12) - bar_width / 2
-            y_top = y_coord(salaire_reel_vals[i])
-            height = plot_height - (y_top - margin_y)
-            if height < 0:
-                height = 0
-                y_top = margin_y + plot_height
-            colonnes_svg.append({
-                'x': x,
-                'y': y_top,
-                'width': bar_width,
-                'height': height
-            })
-
-        # Lignes pour salaire simulé (points)
-        points_simule = [
-            f"{margin_x + (i + 0.5) * (plot_width / 12)},{y_coord(salaire_simule_vals[i])}"
-            for i in range(12)
-        ]
-
-        return {
-            'colonnes': colonnes_svg,
-            'ligne_simule': points_simule,
-            'min_val': min_val,
-            'max_val': max_val,
-            'mois_labels': mois_labels,
-            'largeur_svg': largeur_svg,
-            'hauteur_svg': hauteur_svg,
-            'margin_x': margin_x,
-            'margin_y': margin_y,
-            'plot_width': plot_width,
-            'plot_height': plot_height,
-            'ticks': ticks,
-            'annee': annee
-        }
-
-    def get_by_user_and_year(self, user_id: int, annee: int) -> List[Dict]:
-        try:
-            with self.db.get_cursor() as cursor:
-                query = """
-                    SELECT * FROM synthese_mensuelle 
-                    WHERE user_id = %s AND annee = %s
-                    ORDER BY mois ASC
-                """
-                cursor.execute(query, (user_id, annee))
-                return cursor.fetchall()
-        except Exception as e:
-            logging.error(f"Erreur récupération synthèse annuelle: {e}")
-            return []
-    def get_by_user_and_month(self, user_id: int, annee : int, mois: int) -> List[Dict]:
-        try:
-            with self.db.get_cursor() as cursor:
-                query = """
-                    SELECT * FROM synthese_mensuelle 
-                    WHERE user_id = %s AND annee = %s AND mois = %s
-                    ORDER BY mois ASC
-                """
-                cursor.execute(query, (user_id, annee, mois))
-                return cursor.fetchall()
-        except Exception as e:
-            logging.error(f"Erreur récupération synthèse annuelle: {e}")
-            return []
-    # Dans SyntheseMensuelle
-    def get_by_user_and_filters(self, user_id: int, annee: int = None, mois: int = None, 
-                            employeur: str = None, contrat_id: int = None) -> List[Dict]:
-        try:
-            with self.db.get_cursor() as cursor:
-                query = "SELECT * FROM synthese_mensuelle WHERE user_id = %s"
-                params = [user_id]
-                if annee is not None:
-                    query += " AND annee = %s"
-                    params.append(annee)
-                if mois is not None:
-                    query += " AND mois = %s"
-                    params.append(mois)
-                if employeur:
-                    query += " AND employeur = %s"
-                    params.append(employeur)
-                if contrat_id:
-                    query += " AND id_contrat = %s"
-                    params.append(contrat_id)
-                query += " ORDER BY annee DESC, mois DESC"
-                cursor.execute(query, tuple(params))
-                return cursor.fetchall()
-        except Exception as e:
-            logging.error(f"Erreur filtre synthèse: {e}")
-            return []
-
-    def get_employeurs_distincts(self, user_id: int) -> List[str]:
-        try:
-            with self.db.get_cursor() as cursor:
-                cursor.execute("""
-                    SELECT DISTINCT employeur 
-                    FROM synthese_mensuelle 
-                    WHERE user_id = %s AND employeur IS NOT NULL
-                    ORDER BY employeur
-                """, (user_id,))
-                return [row['employeur'] for row in cursor.fetchall()]
-        except Exception as e:
-            logging.error(f"Erreur employeurs: {e}")
-            return []
-    
-    def create_or_update(self, data: dict) -> bool:
-        try:
-            with self.db.get_cursor(commit=True) as cursor:
-                cursor.execute("""
-                    SELECT id FROM synthese_mensuelle 
-                    WHERE user_id = %s AND annee = %s AND mois = %s AND id_contrat = %s
-                """, (data['user_id'], data['annee'], data['mois'], data['id_contrat']))
-                existing = cursor.fetchone()
-
-                if existing:
-                    query = """
-                        UPDATE synthese_mensuelle SET
-                            employeur = %s,
-                            heures_reelles = %s,
-                            heures_simulees = %s,
-                            salaire_reel = %s,
-                            salaire_simule = %s
-                        WHERE id = %s
-                    """
-                    cursor.execute(query, (
-                        data['employeur'],
-                        data['heures_reelles'],
-                        data['heures_simulees'],
-                        data['salaire_reel'],
-                        data['salaire_simule'],
-                        existing['id']
-                    ))
-                else:
-                    query = """
-                        INSERT INTO synthese_mensuelle 
-                        (user_id, annee, mois, id_contrat, employeur,
-                        heures_reelles, heures_simulees, salaire_reel, salaire_simule)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """
-                    cursor.execute(query, (
-                        data['user_id'],
-                        data['annee'],
-                        data['mois'],
-                        data['id_contrat'],
-                        data['employeur'],
-                        data['heures_reelles'],
-                        data['heures_simulees'],
-                        data['salaire_reel'],
-                        data['salaire_simule']
-                    ))
-            return True
-        except Exception as e:
-            logging.error(f"Erreur synthèse mensuelle: {e}")
-            return False
-    
-    def delete_by_user_and_year(self, user_id: int, annee: int):
-        with self.db.get_cursor(commit=True) as cursor:
-            cursor.execute("DELETE FROM synthese_mensuelle WHERE user_id = %s AND annee = %s", (user_id, annee))
-
-    def get_monthly_total(self, user_id: int, annee: int, mois: int) -> dict:
-        rows = self.get_by_user_and_filters(user_id, annee=annee, mois=mois)
-        total_heures = sum(float(r.get('heures_reelles', 0)) for r in rows)
-        total_salaire = sum(float(r.get('salaire_reel', 0)) for r in rows)
-        return {
-            'heures_reelles': round(total_heures, 2),
-            'salaire_reel': round(total_salaire, 2)
-        }
-
-    def get_by_user(self, user_id: int, limit: int = 6) -> List[Dict]:
-        """
-        Récupère les synthèses mensuelles pour un utilisateur donné.
-        """
-        try:
-            with self.db.get_cursor() as cursor:
-                query = """
-                SELECT * FROM synthese_mensuelle 
-                WHERE user_id = %s 
-                ORDER BY annee DESC, mois DESC
-                LIMIT %s
-                """
-                cursor.execute(query, (user_id, limit))
-                syntheses = cursor.fetchall()
-                return syntheses
-        except Error as e:
-            logging.error(f"Erreur récupération synthèses: {e}")
-            return []
-
-    def calculate_h2f_stats_mensuel(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
-        """
-        Calcule les statistiques sur h2f pour un mois donné.
-        """
-        ht_instance = HeureTravail(self.db)
-        jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
-        count = 0
-        for jour in jours_mois:
-            h2f_minutes = ht_instance.time_to_minutes(jour.get('h2f'))
-            if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
-                count += 1
-
-        moyenne_mensuelle = count / len(jours_mois) if jours_mois else 0.0
-
-        return {
-            'nb_jours_apres_seuil': count,
-            'jours_travailles': len(jours_mois),
-            'moyenne_mensuelle': round(moyenne_mensuelle, 2),
-            'seuil_heure': f"{seuil_h2f_minutes // 60}:{seuil_h2f_minutes % 60:02d}"
-        }
-
-    def prepare_svg_data_horaire_mois(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, largeur_svg: int = 1000, hauteur_svg: int = 400) -> Dict:
-        """
-        Prépare les données pour un graphique SVG des horaires sur un mois.
-        Axe X: Jours du mois (1, 2, 3, ..., 31)
-        Axe Y: Heures (6h en haut, 22h en bas)
-        """
-        ht_instance = HeureTravail(self.db)
-        jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
-
-        # Constantes pour la conversion des heures en pixels
-        heure_debut_affichage = 6
-        heure_fin_affichage = 22
-        minute_debut_affichage = heure_debut_affichage * 60
-        minute_fin_affichage = heure_fin_affichage * 60
-        plage_minutes = (heure_fin_affichage - heure_debut_affichage) * 60
-
-        margin_x = largeur_svg * 0.1
-        margin_y = hauteur_svg * 0.1
-        plot_width = largeur_svg * 0.8
-        plot_height = hauteur_svg * 0.8
-
-        rectangles_svg = []
-        # On suppose que `jours_mois` est trié par date
-        for i, jour_data in enumerate(jours_mois):
-            date_obj = datetime.fromisoformat(jour_data['date'])
-            jour_du_mois = date_obj.day
-
-            h1d_minutes = ht_instance.time_to_minutes(jour_data.get('h1d'))
-            h2f_minutes = ht_instance.time_to_minutes(jour_data.get('h2f'))
-
-            # Coordonnée X basée sur le jour du mois
-            # On suppose que le mois a au maximum 31 jours
-            x_jour_debut = margin_x + (jour_du_mois - 1) * (plot_width / 31)
-            x_jour_fin = margin_x + jour_du_mois * (plot_width / 31)
-            largeur_rect = (x_jour_fin - x_jour_debut) * 0.8
-            x_rect_debut = x_jour_debut + (x_jour_fin - x_jour_debut) * 0.1
-
-            # Coordonnées Y
-            if h1d_minutes != -1 and h1d_minutes >= minute_debut_affichage and h1d_minutes <= minute_fin_affichage:
-                y_h1d = margin_y + plot_height - ((h1d_minutes - minute_debut_affichage) / plage_minutes) * plot_height
-            else:
-                y_h1d = None
-
-            if h2f_minutes != -1 and h2f_minutes >= minute_debut_affichage and h2f_minutes <= minute_fin_affichage:
-                y_h2f = margin_y + plot_height - ((h2f_minutes - minute_debut_affichage) / plage_minutes) * plot_height
-            else:
-                y_h2f = None
-
-            if y_h1d is not None and y_h2f is not None:
-                y_top = min(y_h1d, y_h2f)
-                y_bottom = max(y_h1d, y_h2f)
-                hauteur_rect = y_bottom - y_top
-                rectangles_svg.append({
-                    'x': x_rect_debut,
-                    'y': y_top,
-                    'width': largeur_rect,
-                    'height': hauteur_rect,
-                    'jour': jour_data['date'],
-                    'type': 'h1d_to_h2f'
-                })
-            elif y_h1d is not None:
-                rectangles_svg.append({
-                    'x': x_rect_debut,
-                    'y': y_h1d - 2,
-                    'width': largeur_rect,
-                    'height': 4,
-                    'jour': jour_data['date'],
-                    'type': 'h1d_only'
-                })
-            elif y_h2f is not None:
-                rectangles_svg.append({
-                    'x': x_rect_debut,
-                    'y': y_h2f - 2,
-                    'width': largeur_rect,
-                    'height': 4,
-                    'jour': jour_data['date'],
-                    'type': 'h2f_only'
-                })
-
-        # Ticks Y
-        ticks_y = []
-        for h in range(heure_debut_affichage, heure_fin_affichage + 1):
-             y_tick = margin_y + plot_height - ((h * 60 - minute_debut_affichage) / plage_minutes) * plot_height
-             ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
-
-        # Labels X (jours du mois)
-        labels_x = []
-        # On affiche un label tous les 5 jours pour moins encombrer l'axe
-        for j in range(1, 32):
-            if j % 5 == 0 or j == 1: # Label pour le 1er et tous les 5ème jour
-                x_label = margin_x + (j - 1) * (plot_width / 31)
-                labels_x.append({'jour': str(j), 'x': x_label})
-
-        return {
-            'rectangles': rectangles_svg,
-            'ticks_y': ticks_y,
-            'labels_x': labels_x,
-            'largeur_svg': largeur_svg,
-            'hauteur_svg': hauteur_svg,
-            'margin_x': margin_x,
-            'margin_y': margin_y,
-            'plot_width': plot_width,
-            'plot_height': plot_height,
-            'mois': mois,
-            'annee': annee
-        }
 
 class ParametreUtilisateur:
     """Modèle pour gérer les paramètres utilisateur"""
