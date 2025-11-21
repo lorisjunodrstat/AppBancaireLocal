@@ -9728,7 +9728,7 @@ class SyntheseHebdomadaire:
             logging.error(f'erreur récupération synthpèse: {e}')
             return []
 
-     def get_by_user_and_filters(self, user_id: int, annee: int = None, semaine: int = None,
+    def get_by_user_and_filters(self, user_id: int, annee: int = None, semaine: int = None,
                             employeur: str = None, contrat_id: int = None) -> List[Dict]:
         try:
             with self.db.get_cursor() as cursor:
