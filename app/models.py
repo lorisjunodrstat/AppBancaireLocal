@@ -10445,7 +10445,7 @@ class SyntheseMensuelle:
         ticks_y = []
         for h in range(heure_debut_affichage, heure_fin_affichage + 1):
              y_tick = margin_y + plot_height - ((h * 60 - minute_debut_affichage) / plage_minutes) * plot_height
-            ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
+             ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
 
         # Labels X (jours du mois)
         labels_x = []
