@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Comparaison de Comptes{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Comparaison de Comptes</h1>
+    <h3>{{ titre_periode }} ({{ date_debut.strftime('%d.%m.%Y') }} - {{ date_fin.strftime('%d.%m.%Y') }})</h3>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Filtres</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ url_for('banking.banking_comparaison') }}">
+                <input type="hidden" name="compte1_id" value="{{ compte1_selectionne.id }}">
+                <input type="hidden" name="periode" value="{{ periode }}">
+                <input type="hidden" name="date_ref" value="{{ date_ref.isoformat() }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="compte2_id" class="form-label">Compte 2 à comparer</label>
+                        <select name="compte2_id" id="compte2_id" class="form-select" required>
+                            <option value="">Sélectionnez un compte...</option>
+                            {% for compte in tous_les_comptes %}
+                                <!-- Ne pas inclure le compte 1 dans la liste du compte 2 -->
+                                {% if compte.id != compte1_selectionne.id %}
+                                    <option value="{{ compte.id }}" {% if compte2_selectionne and compte.id == compte2_selectionne.id %}selected{% endif %}>
+                                        {{ compte.nom_compte }} ({{ compte.nom_banque }})
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Comparer</button>
+                <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte1_selectionne.id) }}" class="btn btn-secondary">Retour au Compte 1</a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Résultats de la comparaison -->
+    {% if donnees_comparaison.compte2 %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Comparaison : {{ donnees_comparaison.compte1.nom_compte }} vs {{ donnees_comparaison.compte2.nom_compte }}</h5>
+            </div>
+            <div class="card-body">
+                {% if graphique_svg %}
+                    <div class="text-center">
+                        {{ graphique_svg | safe }}
+                    </div>
+                {% else %}
+                    <p>Aucun graphique disponible pour cette comparaison.</p>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            Sélectionnez un deuxième compte pour lancer la comparaison.
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}
