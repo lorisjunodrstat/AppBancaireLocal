@@ -4987,6 +4987,52 @@ class TransactionFinanciere:
         svg += '</svg>'
         return svg
 
+    def _get_solde_avant_periode(self, compte_id: int, user_id: int, debut_periode: date) -> Decimal:
+        """
+        Retourne le solde juste avant le début de la période, pour un compte principal.
+        Cela correspond au solde_apres de la dernière transaction avant cette date,
+        ou au solde_initial du compte si aucune transaction n'existe avant.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Vérifier que le compte appartient à l'utilisateur
+                cursor.execute(
+                    "SELECT id, solde_initial FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s",
+                    (compte_id, user_id)
+                )
+                if not cursor.fetchone():
+                    logging.warning(f"Tentative d'accès non autorisé ou compte inexistant: compte={compte_id}, user={user_id}")
+                    return Decimal('0')
+
+                # Récupérer la dernière transaction avant la date de début de la période
+                cursor.execute("""
+                    SELECT solde_apres
+                    FROM transactions
+                    WHERE compte_principal_id = %s AND date_transaction < %s
+                    ORDER BY date_transaction DESC, id DESC
+                    LIMIT 1
+                """, (compte_id, debut_periode))
+                result = cursor.fetchone()
+
+                if result and result['solde_apres'] is not None:
+                    # Retourner le solde après la dernière transaction avant la période
+                    return Decimal(str(result['solde_apres']))
+                else:
+                    # Aucune transaction avant la période, retourner le solde initial du compte
+                    cursor.execute(
+                        "SELECT solde_initial FROM comptes_principaux WHERE id = %s",
+                        (compte_id,)
+                    )
+                    initial_result = cursor.fetchone()
+                    if initial_result and initial_result['solde_initial'] is not None:
+                        return Decimal(str(initial_result['solde_initial']))
+                    else:
+                        # Si le solde_initial n'est pas non plus défini, retourner 0
+                        return Decimal('0')
+        except Exception as e:
+            logging.error(f"Erreur dans _get_solde_avant_periode (compte {compte_id}, date {debut_periode}): {e}")
+            return Decimal('0')
+            
 class CategorieTransaction:
     """Classe pour gérer les catégories de transactions"""
 
