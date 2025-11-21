@@ -9521,7 +9521,7 @@ class Salaire:
 class SyntheseHebdomadaire:
     def __init__(self, db):
         self.db = db
-        self.heure_travail_model = heure_travail_model
+        self.heure_travail_model = HeureTravail(self.db)
     # Dans la classe SyntheseHebdomadaire
     def calculate_for_week_by_contrat(self, user_id: int, annee: int, semaine: int) -> list[dict]:
         try:
