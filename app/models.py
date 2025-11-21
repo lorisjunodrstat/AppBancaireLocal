@@ -794,7 +794,7 @@ class ComptePrincipal:
     
     def __init__(self, db):
         self.db = db
-    
+        
     def get_by_user_id(self, user_id: int) -> List[Dict]:
         """Récupère tous les comptes d'un utilisateur"""
         try:
@@ -976,15 +976,14 @@ class ComptePrincipal:
 
 
 class ComptePrincipalRapport:
-    def __init__(self, db, transaction_model: TransactionFinanciere):
+    def __init__(self, db):
         """
         Initialise le générateur de rapports.
         :param db: Instance de connexion à la base de données.
         :param transaction_model: Instance de TransactionFinanciere pour accéder aux méthodes existantes.
         """
         self.db = db
-        self.tx_model = transaction_model
-
+        self.categorie_comptable_model = CategorieComptable(self.db)
     def _get_solde_avant_periode(self, compte_id: int, user_id: int, debut_periode: date) -> Decimal:
         """Retourne le solde juste avant le début de la période."""
         with self.db.get_cursor() as cursor:
@@ -1039,13 +1038,13 @@ class ComptePrincipalRapport:
             raise ValueError("Période doit être 'hebdomadaire', 'mensuel' ou 'annuel'.")
 
         # 2. Récupérer les statistiques de base
-        stats = self.tx_model.get_statistiques_compte('compte_principal', compte_id, user_id,
+        stats = self.categorie_comptable_model.get_statistiques_compte('compte_principal', compte_id, user_id,
                                                       date_debut=debut.strftime('%Y-%m-%d'),
                                                       date_fin=fin.strftime('%Y-%m-%d'))
 
         # 3. Récupérer le solde au début et à la fin de la période
         solde_initial = self._get_solde_avant_periode(compte_id, user_id, debut)
-        solde_final = self.tx_model.get_solde_courant('compte_principal', compte_id, user_id)
+        solde_final = self.categorie_comptable_model.get_solde_courant('compte_principal', compte_id, user_id)
 
         # 4. Récupérer les transactions
         transactions, _ = self.tx_model.get_all_user_transactions(
@@ -1058,7 +1057,7 @@ class ComptePrincipalRapport:
         )
 
         # 5. Catégorisation des transactions
-        categories = self.tx_model.get_categories_par_type('compte_principal', compte_id, user_id,
+        categories = self.categorie_comptable_model.get_categories_par_type('compte_principal', compte_id, user_id,
                                                            date_debut=debut.strftime('%Y-%m-%d'),
                                                            date_fin=fin.strftime('%Y-%m-%d'))
 
@@ -1105,11 +1104,10 @@ class ComptePrincipalRapport:
     
     def _generer_graphique_flux_journalier(self, compte_id: int, user_id: int, debut: date, fin: date) -> str:
         """Génère un graphique SVG en barres des flux quotidiens."""
-        from datetime import timedelta
 
         # Récupérer recettes et dépenses quotidiennes
-        recettes = self.tx_model._get_daily_balances(compte_id, debut, fin, 'recette')
-        depenses = self.tx_model._get_daily_balances(compte_id, debut, fin, 'depense')
+        recettes = self.categorie_comptable_model._get_daily_balances(compte_id, debut, fin, 'recette')
+        depenses = self.categorie_comptable_model._get_daily_balances(compte_id, debut, fin, 'depense')
 
         dates = sorted(set(recettes.keys()) | set(depenses.keys()))
         if not dates:
@@ -5032,7 +5030,7 @@ class TransactionFinanciere:
         except Exception as e:
             logging.error(f"Erreur dans _get_solde_avant_periode (compte {compte_id}, date {debut_periode}): {e}")
             return Decimal('0')
-            
+        
 class CategorieTransaction:
     """Classe pour gérer les catégories de transactions"""
 
