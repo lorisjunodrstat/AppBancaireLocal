@@ -12,6 +12,61 @@
             class="btn btn-outline-secondary">Semaine suivante &raquo;</a>
         <span class="ms-3">Total heures réelles : <strong>{{ total_heures }} h</strong></span>
     </div>
+        <!-- NOUVEAU : Affichage des stats h2f -->
+        {% if stats_h2f %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Statistiques de fin de journée (h2f) - Seuil > {{ seuil_h2f_heure }}h</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Moyenne hebdomadaire (S{{ current_semaine }}):</strong> {{ "%.2f"|format(moyenne_hebdo_h2f) }} jours
+                </p>
+                <p><strong>Moyenne mobile (jusqu'à S{{ current_semaine }}):</strong> {{ "%.2f"|format(moyenne_mobile_h2f) }}
+                    jours</p>
+                <!-- Optionnel: Lier vers une page dédiée ou afficher un graphique de la moyenne mobile -->
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- NOUVEAU : Affichage du graphique horaire -->
+        {% if svg_horaire_data %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Horaire de début/fin de journée - Semaine {{ current_semaine }}</h5>
+            </div>
+            <div class="card-body">
+                <svg width="{{ svg_horaire_data.largeur_svg }}" height="{{ svg_horaire_data.hauteur_svg }}"
+                    style="border: 1px solid #eee; background: #fafafa; border-radius: 4px;">
+                    <!-- Grille et axes -->
+                    {% for tick in svg_horaire_data.ticks_y %}
+                    <line x1="{{ svg_horaire_data.margin_x }}" y1="{{ tick.y }}"
+                        x2="{{ svg_horaire_data.margin_x + svg_horaire_data.plot_width }}" y2="{{ tick.y }}" stroke="#e0e0e0" />
+                    <text x="{{ svg_horaire_data.margin_x - 10 }}" y="{{ tick.y + 4 }}" font-size="12" text-anchor="end"
+                        fill="#666">{{ tick.heure }}</text>
+                    {% endfor %}
+        
+                    <!-- Lignes verticales pour les jours -->
+                    {% for label in svg_horaire_data.labels_x %}
+                    <line x1="{{ label.x }}" y1="{{ svg_horaire_data.margin_y }}" x2="{{ label.x }}"
+                        y2="{{ svg_horaire_data.margin_y + svg_horaire_data.plot_height }}" stroke="#e0e0e0"
+                        stroke-dasharray="4" />
+                    <text x="{{ label.x }}" y="{{ svg_horaire_data.margin_y + svg_horaire_data.plot_height + 20 }}"
+                        font-size="12" text-anchor="middle" fill="#555">{{ label.jour }}</text>
+                    {% endfor %}
+        
+                    <!-- Rectangles pour les heures de travail -->
+                    {% for rect in svg_horaire_data.rectangles %}
+                    <rect x="{{ rect.x }}" y="{{ rect.y }}" width="{{ rect.width }}" height="{{ rect.height }}" fill="
+                                {% if rect.type == 'h1d_to_h2f' %}#3498db
+                                {% elif rect.type == 'h1d_only' %}#e67e22
+                                {% elif rect.type == 'h2f_only' %}#9b59b6
+                                {% else %}#95a5a6
+                                {% endif %}" opacity="0.7" />
+                    {% endfor %}
+                </svg>
+            </div>
+        </div>
+        {% endif %}
     {% if graphique_svg %}
     <!-- Graphique SVG : évolution sur l'année -->
     <div class="card mb-4">

@@ -9927,7 +9927,7 @@ class SyntheseHebdomadaire:
                 date_obj = date_obj_raw
             else:
                 current_app.logger.error(f'Type inattendu pour la date : {type(date_obj_raw)}, valeur : {date_obj_raw}')
-                contunue
+                continue
             jour_semaine_numero = date_obj.isocalendar()[2] # 1=Lundi, 7=Dimanche
             if jour_semaine_numero < 1 or jour_semaine_numero > 7:
                 continue # Ignorer les jours en dehors de Lundi-Dimanche si nécessaire
