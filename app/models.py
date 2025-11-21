@@ -4,6 +4,7 @@
 Modèles de données pour la gestion bancaire
 Classes pour manipuler les banques, comptes et sous-comptes
 """
+import statistics
 from dbutils.pooled_db import PooledDB
 import pymysql
 from pymysql import Error
@@ -975,17 +976,219 @@ class ComptePrincipal:
 
 
 class ComptePrincipalRapport:
-    def __init__(self, db):
+    def __init__(self, db, transaction_model: TransactionFinanciere):
+        """
+        Initialise le générateur de rapports.
+        :param db: Instance de connexion à la base de données.
+        :param transaction_model: Instance de TransactionFinanciere pour accéder aux méthodes existantes.
+        """
         self.db = db
-    def create_rapport_mensuel(self, compte_principal_id:int) ->List[Dict]:
-        """Crée un rapport mensuel d'un compte principal"""
-        #try:
-        #    with self.db.get_cursor() as cursor:
-        #        query = """
-        #        SELECT
-        #            id, nom_compte
-        #        """
-        pass
+        self.tx_model = transaction_model
+
+    def _get_solde_avant_periode(self, compte_id: int, user_id: int, debut_periode: date) -> Decimal:
+        """Retourne le solde juste avant le début de la période."""
+        with self.db.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT solde_apres
+                FROM transactions
+                WHERE compte_principal_id = %s AND date_transaction < %s
+                ORDER BY date_transaction DESC, id DESC
+                LIMIT 1
+            """, (compte_id, debut_periode))
+            result = cursor.fetchone()
+            if result:
+                return Decimal(str(result['solde_apres']))
+            else:
+                # Aucune transaction → solde initial du compte
+                cursor.execute("SELECT solde_initial FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s",
+                               (compte_id, user_id))
+                result = cursor.fetchone()
+                return Decimal(str(result['solde_initial'])) if result else Decimal('0')
+
+    def generer_rapport_periode(self, compte_id: int, user_id: int,
+                                periode: str = 'mensuel',
+                                date_reference: date = None) -> Dict:
+        """
+        Génère un rapport détaillé pour un compte sur une période donnée.
+        :param compte_id: ID du compte principal.
+        :param user_id: ID de l'utilisateur (vérification de propriété).
+        :param periode: 'hebdomadaire', 'mensuel' ou 'annuel'.
+        :param date_reference: Date de référence pour la période (ex: 15/03/2025 → mars 2025).
+        :return: Dictionnaire structuré avec données, graphiques SVG, et métadonnées.
+        """
+        if date_reference is None:
+            date_reference = date.today()
+
+        # 1. Déterminer la plage de dates selon la période
+        if periode == 'hebdomadaire':
+            debut = date_reference - timedelta(days=date_reference.weekday())  # Lundi
+            fin = debut + timedelta(days=6)
+            titre = f"Rapport Hebdomadaire - Semaine du {debut.strftime('%d.%m.%Y')}"
+        elif periode == 'mensuel':
+            debut = date_reference.replace(day=1)
+            if date_reference.month == 12:
+                fin = date(date_reference.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                fin = date(date_reference.year, date_reference.month + 1, 1) - timedelta(days=1)
+            titre = f"Rapport Mensuel - {debut.strftime('%B %Y')}"
+        elif periode == 'annuel':
+            debut = date(date_reference.year, 1, 1)
+            fin = date(date_reference.year, 12, 31)
+            titre = f"Rapport Annuel - {date_reference.year}"
+        else:
+            raise ValueError("Période doit être 'hebdomadaire', 'mensuel' ou 'annuel'.")
+
+        # 2. Récupérer les statistiques de base
+        stats = self.tx_model.get_statistiques_compte('compte_principal', compte_id, user_id,
+                                                      date_debut=debut.strftime('%Y-%m-%d'),
+                                                      date_fin=fin.strftime('%Y-%m-%d'))
+
+        # 3. Récupérer le solde au début et à la fin de la période
+        solde_initial = self._get_solde_avant_periode(compte_id, user_id, debut)
+        solde_final = self.tx_model.get_solde_courant('compte_principal', compte_id, user_id)
+
+        # 4. Récupérer les transactions
+        transactions, _ = self.tx_model.get_all_user_transactions(
+            user_id=user_id,
+            date_from=debut.strftime('%Y-%m-%d'),
+            date_to=fin.strftime('%Y-%m-%d'),
+            compte_source_id=compte_id,
+            compte_dest_id=compte_id,
+            per_page=1000  # Assure la récupération de tout
+        )
+
+        # 5. Catégorisation des transactions
+        categories = self.tx_model.get_categories_par_type('compte_principal', compte_id, user_id,
+                                                           date_debut=debut.strftime('%Y-%m-%d'),
+                                                           date_fin=fin.strftime('%Y-%m-%d'))
+
+        # 6. Génération des graphiques SVG
+        graph_flux = self._generer_graphique_flux_journalier(compte_id, user_id, debut, fin)
+        graph_categories = self._generer_graphique_categories(categories)
+
+        return {
+            "meta": {
+                "compte_id": compte_id,
+                "periode": periode,
+                "date_debut": debut.isoformat(),
+                "date_fin": fin.isoformat(),
+                "titre": titre,
+                "generated_at": datetime.now().isoformat()
+            },
+            "resume": {
+                "solde_initial": float(solde_initial),
+                "solde_final": float(solde_final),
+                "variation": float(solde_final - solde_initial),
+                "total_recettes": stats.get('total_entrees', 0.0),
+                "total_depenses": stats.get('total_sorties', 0.0),
+                "nb_transactions": len(transactions)
+            },
+            "categories": {k: float(v) for k, v in categories.items()},
+            "graphiques": {
+                "flux_journalier_svg": graph_flux,
+                "categories_svg": graph_categories
+            },
+            # Optionnel: inclure les transactions brutes pour export CSV
+            "transactions": [
+                {
+                    "id": t['id'],
+                    "date": t['date_transaction'].isoformat() if t['date_transaction'] else None,
+                    "type": t['type_transaction'],
+                    "montant": float(t['montant']),
+                    "solde_apres": float(t['solde_apres']),
+                    "description": t.get('description', '')
+                }
+                for t in transactions
+            ]
+        }
+
+    
+    def _generer_graphique_flux_journalier(self, compte_id: int, user_id: int, debut: date, fin: date) -> str:
+        """Génère un graphique SVG en barres des flux quotidiens."""
+        from datetime import timedelta
+
+        # Récupérer recettes et dépenses quotidiennes
+        recettes = self.tx_model._get_daily_balances(compte_id, debut, fin, 'recette')
+        depenses = self.tx_model._get_daily_balances(compte_id, debut, fin, 'depense')
+
+        dates = sorted(set(recettes.keys()) | set(depenses.keys()))
+        if not dates:
+            return "<svg width='600' height='300'><text x='10' y='20'>Aucune donnée</text></svg>"
+
+        # Valeurs
+        vals_recette = [float(recettes.get(d, 0)) for d in dates]
+        vals_depense = [float(depenses.get(d, 0)) for d in dates]
+        vals_net = [r - d for r, d in zip(vals_recette, vals_depense)]
+
+        # Échelle
+        max_abs = max(max(vals_recette), max(vals_depense), max(abs(v) for v in vals_net)) or 1
+
+        # Dimensions SVG
+        w, h = 700, 350
+        ml, mr, mt, mb = 60, 40, 40, 60
+        graph_w = w - ml - mr
+        graph_h = h - mt - mb
+
+        # Génération SVG
+        svg = f'<svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">\n'
+        svg += '<style>text { font-family: Arial, sans-serif; font-size: 10px; }</style>\n'
+
+        # Axes
+        y0 = mt + graph_h / 2
+        svg += f'<line x1="{ml}" y1="{y0}" x2="{ml+graph_w}" y2="{y0}" stroke="#000" stroke-dasharray="2"/>\n'
+
+        # Barres
+        nb = len(dates)
+        for i, dt in enumerate(dates):
+            x = ml + (i + 0.5) * (graph_w / nb)
+            rec = vals_recette[i]
+            dep = vals_depense[i]
+
+            # Barre recette (haut)
+            h_rec = (rec / max_abs) * (graph_h / 2)
+            svg += f'<rect x="{x-6}" y="{y0 - h_rec}" width="12" height="{h_rec}" fill="#4CAF50"/>\n'
+            # Barre dépense (bas)
+            h_dep = (dep / max_abs) * (graph_h / 2)
+            svg += f'<rect x="{x-6}" y="{y0}" width="12" height="{h_dep}" fill="#F44336"/>\n'
+
+            # Label date
+            svg += f'<text x="{x}" y="{mt+graph_h+15}" text-anchor="middle" transform="rotate(45,{x},{mt+graph_h+15})">{dt.strftime("%d.%m")}</text>\n'
+
+        # Légende
+        svg += f'<rect x="{ml}" y="{mt-20}" width="12" height="6" fill="#4CAF50"/><text x="{ml+15}" y="{mt-12}">Recettes</text>\n'
+        svg += f'<rect x="{ml+80}" y="{mt-20}" width="12" height="6" fill="#F44336"/><text x="{ml+95}" y="{mt-12}">Dépenses</text>\n'
+
+        svg += '</svg>'
+        return svg
+
+    def _generer_graphique_categories(self, categories: Dict[str, Decimal]) -> str:
+        """Génère un graphique en camembert ou en barres horizontales selon le nombre de catégories."""
+        if not categories:
+            return "<svg width='500' height='300'><text x='10' y='20'>Aucune catégorie</text></svg>"
+
+        # Trier et limiter à 10 catégories principales
+        items = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:10]
+        noms = [item[0] for item in items]
+        montants = [float(item[1]) for item in items]
+        total = sum(montants) or 1
+
+        # Graphique en barres horizontales (plus lisible)
+        h_svg = max(300, len(noms) * 30)
+        w_svg = 600
+        ml, mr, mt, mb = 200, 40, 30, 30
+        graph_w = w_svg - ml - mr
+        graph_h = h_svg - mt - mb
+
+        svg = f'<svg width="{w_svg}" height="{h_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+        for i, (nom, montant) in enumerate(items):
+            y = mt + i * (graph_h / len(items))
+            largeur = (montant / total) * graph_w
+            couleur = f"hsl({360 * i / len(items)}, 60%, 50%)"
+            svg += f'<rect x="{ml}" y="{y}" width="{largeur}" height="{graph_h/len(items)*0.8}" fill="{couleur}"/>\n'
+            svg += f'<text x="{ml-10}" y="{y + graph_h/len(items)*0.4}" text-anchor="end">{nom[:20]}</text>\n'
+            svg += f'<text x="{ml+largeur+10}" y="{y + graph_h/len(items)*0.4}">{montant:.2f}</text>\n'
+        svg += '</svg>'
+        return svg
 
 class SousCompte:
     """Modèle pour les sous-comptes d'épargne"""
@@ -8656,7 +8859,87 @@ class HeureTravail:
             current_app.logger.error(f"Erreur has_hours_for_employeur: {e}")
             return False
 
+    def get_h1d_h2f_for_period(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int = None, semaine: int = None) -> List[Dict]:
+        """
+        Récupère les heures de début (h1d) et de fin (h2f) pour une période donnée.
+        Si 'mois' est spécifié, récupère les données du mois.
+        Si 'semaine' est spécifiée, récupère les données de la semaine.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                if semaine is not None:
+                    query = """
+                    SELECT date, h1d, h2f
+                    FROM heures_travail
+                    WHERE user_id = %s AND employeur = %s AND id_contrat = %s
+                    AND YEAR(date) = %s AND semaine_annee = %s
+                    ORDER BY date
+                    """
+                    params = (user_id, employeur, id_contrat, annee, semaine)
+                elif mois is not None:
+                    query = """
+                    SELECT date, h1d, h2f
+                    FROM heures_travail
+                    WHERE user_id = %s AND employeur = %s AND id_contrat = %s
+                    AND YEAR(date) = %s AND mois = %s
+                    ORDER BY date
+                    """
+                    params = (user_id, employeur, id_contrat, annee, mois)
+                else:
+                    # Si ni mois ni semaine n'est spécifié, on pourrait récupérer l'année entière
+                    # ou lever une erreur. Ici, on lève une erreur.
+                    raise ValueError("Vous devez spécifier soit 'mois', soit 'semaine'.")
+
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
+
+                # Convertir les timedelta en HH:MM pour l'affichage
+                for row in rows:
+                    self._convert_timedelta_fields(row, ['h1d', 'h2f'])
+
+                return rows
+        except Exception as e:
+            current_app.logger.error(f"Erreur get_h1d_h2f_for_period: {e}")
+            return []
+
+    def get_jour_travaille(self, date_str: str, user_id: int, employeur: str, id_contrat: int) -> Optional[Dict]:
+        """
+        Récupère les heures de début (h1d) et de fin (h2f) pour une date spécifique.
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT date, h1d, h2f
+                FROM heures_travail
+                WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s
+                """
+                cursor.execute(query, (date_str, user_id, employeur, id_contrat))
+                jour = cursor.fetchone()
+                if jour:
+                    self._convert_timedelta_fields(jour, ['h1d', 'h2f'])
+                return jour
+        except Exception as e:
+            current_app.logger.error(f"Erreur get_jour_travaille pour {date_str}: {e}")
+            return None
+
+    def time_to_minutes(self, time_str: str) -> int:
+        """
+        Convertit une chaîne 'HH:MM' en minutes depuis minuit.
+        Retourne -1 si la chaîne est vide ou invalide.
+        """
+        if not time_str or time_str == '':
+            return -1
+        try:
+            parts = time_str.split(':')
+            if len(parts) != 2:
+                return -1
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            return hours * 60 + minutes
+        except (ValueError, AttributeError):
+            return -1
         
+
 class Salaire:
     def __init__(self, db, heure_travail_manager=None):
         self.db = db
@@ -9523,6 +9806,160 @@ class SyntheseHebdomadaire:
             logging.error(f"Erreur employeurs: {e}")
             return []
 
+    def calculate_h2f_stats(self, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
+        """
+        Calcule les statistiques sur h2f pour une année donnée.
+        seuil_h2f_minutes: seuil en minutes (ex: 18h = 18*60 min). Défaut à 18h.
+        Retourne un dictionnaire avec les moyennes hebdomadaires et la moyenne mobile.
+        """
+        ht_instance = HeureTravail(self.db) # Instance temporaire pour récupérer les données journalières
+        weekly_counts = {} # { semaine: nb_jours_avec_h2f_apres_seuil }
+
+        for semaine in range(1, 53): # Semaines de 1 à 52 (ou 53)
+            jours_semaine = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+            count = 0
+            for jour in jours_semaine:
+                h2f_minutes = ht_instance.time_to_minutes(jour.get('h2f'))
+                if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
+                    count += 1
+            weekly_counts[semaine] = count
+
+        # Calcul des moyennes hebdomadaires
+        moyennes_hebdo = { semaine: float(count) for semaine, count in weekly_counts.items() }
+
+        # Calcul de la moyenne mobile
+        moyennes_mobiles = {}
+        cumulative_count = 0
+        cumulative_weeks = 0
+        for semaine in range(1, 53):
+            cumulative_count += weekly_counts[semaine]
+            cumulative_weeks += 1
+            if cumulative_weeks > 0:
+                moyennes_mobiles[semaine] = round(cumulative_count / cumulative_weeks, 2)
+            else:
+                moyennes_mobiles[semaine] = 0.0
+
+        return {
+            'moyennes_hebdo': moyennes_hebdo,
+            'moyennes_mobiles': moyennes_mobiles,
+            'seuil_heure': f"{seuil_h2f_minutes // 60}:{seuil_h2f_minutes % 60:02d}"
+        }
+
+    def prepare_svg_data_horaire_jour(self, user_id: int, employeur: str, id_contrat: int, annee: int, semaine: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
+        """
+        Prépare les données pour un graphique SVG des horaires de début/fin de journée.
+        Axe X: Jours de la semaine (Lun, Mar, Mer, Jeu, Ven, Sam, Dim)
+        Axe Y: Heures (6h en haut, 22h en bas)
+        """
+        ht_instance = HeureTravail(self.db)
+        jours_semaine = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+
+        # Constantes pour la conversion des heures en pixels
+        heure_debut_affichage = 6  # 6h du matin
+        heure_fin_affichage = 22   # 22h
+        plage_heures = heure_fin_affichage - heure_debut_affichage # 16h
+        minute_debut_affichage = heure_debut_affichage * 60
+        minute_fin_affichage = heure_fin_affichage * 60
+        plage_minutes = plage_heures * 60 # 960 minutes
+
+        # Marges
+        margin_x = largeur_svg * 0.1
+        margin_y = hauteur_svg * 0.1
+        plot_width = largeur_svg * 0.8
+        plot_height = hauteur_svg * 0.8
+
+        # Calcul des rectangles pour chaque jour
+        rectangles_svg = []
+        jours_labels = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+        # On itère sur les données de la liste `jours_semaine`
+        for i, jour_data in enumerate(jours_semaine):
+            # Utiliser le jour de la semaine de la date pour positionner l'élément
+            date_obj = datetime.fromisoformat(jour_data['date'])
+            jour_semaine_numero = date_obj.isocalendar()[2] # 1=Lundi, 7=Dimanche
+            if jour_semaine_numero < 1 or jour_semaine_numero > 7:
+                continue # Ignorer les jours en dehors de Lundi-Dimanche si nécessaire
+
+            h1d_minutes = ht_instance.time_to_minutes(jour_data.get('h1d'))
+            h2f_minutes = ht_instance.time_to_minutes(jour_data.get('h2f'))
+
+            # Calcul des coordonnées X pour la colonne du jour
+            x_jour_debut = margin_x + (jour_semaine_numero - 1) * (plot_width / 7)
+            x_jour_fin = margin_x + jour_semaine_numero * (plot_width / 7)
+            largeur_rect = (x_jour_fin - x_jour_debut) * 0.8 # Laisser un peu d'espace
+            x_rect_debut = x_jour_debut + (x_jour_fin - x_jour_debut) * 0.1
+
+            # Calcul des coordonnées Y pour h1d (début) et h2f (fin)
+            # La formule est: y = marge_y + hauteur_plot - ((minutes - minute_debut) / plage_minutes) * hauteur_plot
+            if h1d_minutes != -1 and h1d_minutes >= minute_debut_affichage and h1d_minutes <= minute_fin_affichage:
+                y_h1d = margin_y + plot_height - ((h1d_minutes - minute_debut_affichage) / plage_minutes) * plot_height
+            else:
+                y_h1d = None # Ne pas afficher si hors plage ou manquant
+
+            if h2f_minutes != -1 and h2f_minutes >= minute_debut_affichage and h2f_minutes <= minute_fin_affichage:
+                y_h2f = margin_y + plot_height - ((h2f_minutes - minute_debut_affichage) / plage_minutes) * plot_height
+            else:
+                y_h2f = None
+
+            if y_h1d is not None and y_h2f is not None:
+                # Dessiner un rectangle entre h1d et h2f
+                y_top = min(y_h1d, y_h2f)
+                y_bottom = max(y_h1d, y_h2f)
+                hauteur_rect = y_bottom - y_top
+                rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_top,
+                    'width': largeur_rect,
+                    'height': hauteur_rect,
+                    'jour': jour_data['date'], # Pour info éventuelle dans le template
+                    'type': 'h1d_to_h2f' # Type pour distinguer dans le template
+                })
+            elif y_h1d is not None: # Si h2f est manquant ou hors plage
+                # Dessiner un point ou une petite barre pour h1d
+                rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_h1d - 2, # Hauteur arbitraire pour un point
+                    'width': largeur_rect,
+                    'height': 4,
+                    'jour': jour_data['date'],
+                    'type': 'h1d_only'
+                })
+            elif y_h2f is not None: # Si h1d est manquant ou hors plage
+                # Dessiner un point ou une petite barre pour h2f
+                 rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_h2f - 2, # Hauteur arbitraire pour un point
+                    'width': largeur_rect,
+                    'height': 4,
+                    'jour': jour_data['date'],
+                    'type': 'h2f_only'
+                })
+
+        # Ticks pour l'axe Y (heures)
+        ticks_y = []
+        for h in range(heure_debut_affichage, heure_fin_affichage + 1):
+             y_tick = margin_y + plot_height - ((h * 60 - minute_debut_affichage) / plage_minutes) * plot_height
+             ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
+
+        # Labels pour l'axe X (jours)
+        labels_x = []
+        for i in range(7):
+            x_label = margin_x + (i + 0.5) * (plot_width / 7)
+            labels_x.append({'jour': jours_labels[i], 'x': x_label})
+
+        return {
+            'rectangles': rectangles_svg,
+            'ticks_y': ticks_y,
+            'labels_x': labels_x,
+            'largeur_svg': largeur_svg,
+            'hauteur_svg': hauteur_svg,
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'plot_width': plot_width,
+            'plot_height': plot_height,
+            'semaine': semaine,
+            'annee': annee
+        }
+
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
@@ -9829,6 +10266,134 @@ class SyntheseMensuelle:
         except Error as e:
             logging.error(f"Erreur récupération synthèses: {e}")
             return []
+
+    def calculate_h2f_stats_mensuel(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
+        """
+        Calcule les statistiques sur h2f pour un mois donné.
+        """
+        ht_instance = HeureTravail(self.db)
+        jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+        count = 0
+        for jour in jours_mois:
+            h2f_minutes = ht_instance.time_to_minutes(jour.get('h2f'))
+            if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
+                count += 1
+
+        moyenne_mensuelle = count / len(jours_mois) if jours_mois else 0.0
+
+        return {
+            'nb_jours_apres_seuil': count,
+            'jours_travailles': len(jours_mois),
+            'moyenne_mensuelle': round(moyenne_mensuelle, 2),
+            'seuil_heure': f"{seuil_h2f_minutes // 60}:{seuil_h2f_minutes % 60:02d}"
+        }
+
+    def prepare_svg_data_horaire_mois(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, largeur_svg: int = 1000, hauteur_svg: int = 400) -> Dict:
+        """
+        Prépare les données pour un graphique SVG des horaires sur un mois.
+        Axe X: Jours du mois (1, 2, 3, ..., 31)
+        Axe Y: Heures (6h en haut, 22h en bas)
+        """
+        ht_instance = HeureTravail(self.db)
+        jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+
+        # Constantes pour la conversion des heures en pixels
+        heure_debut_affichage = 6
+        heure_fin_affichage = 22
+        minute_debut_affichage = heure_debut_affichage * 60
+        minute_fin_affichage = heure_fin_affichage * 60
+        plage_minutes = (heure_fin_affichage - heure_debut_affichage) * 60
+
+        margin_x = largeur_svg * 0.1
+        margin_y = hauteur_svg * 0.1
+        plot_width = largeur_svg * 0.8
+        plot_height = hauteur_svg * 0.8
+
+        rectangles_svg = []
+        # On suppose que `jours_mois` est trié par date
+        for i, jour_data in enumerate(jours_mois):
+            date_obj = datetime.fromisoformat(jour_data['date'])
+            jour_du_mois = date_obj.day
+
+            h1d_minutes = ht_instance.time_to_minutes(jour_data.get('h1d'))
+            h2f_minutes = ht_instance.time_to_minutes(jour_data.get('h2f'))
+
+            # Coordonnée X basée sur le jour du mois
+            # On suppose que le mois a au maximum 31 jours
+            x_jour_debut = margin_x + (jour_du_mois - 1) * (plot_width / 31)
+            x_jour_fin = margin_x + jour_du_mois * (plot_width / 31)
+            largeur_rect = (x_jour_fin - x_jour_debut) * 0.8
+            x_rect_debut = x_jour_debut + (x_jour_fin - x_jour_debut) * 0.1
+
+            # Coordonnées Y
+            if h1d_minutes != -1 and h1d_minutes >= minute_debut_affichage and h1d_minutes <= minute_fin_affichage:
+                y_h1d = margin_y + plot_height - ((h1d_minutes - minute_debut_affichage) / plage_minutes) * plot_height
+            else:
+                y_h1d = None
+
+            if h2f_minutes != -1 and h2f_minutes >= minute_debut_affichage and h2f_minutes <= minute_fin_affichage:
+                y_h2f = margin_y + plot_height - ((h2f_minutes - minute_debut_affichage) / plage_minutes) * plot_height
+            else:
+                y_h2f = None
+
+            if y_h1d is not None and y_h2f is not None:
+                y_top = min(y_h1d, y_h2f)
+                y_bottom = max(y_h1d, y_h2f)
+                hauteur_rect = y_bottom - y_top
+                rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_top,
+                    'width': largeur_rect,
+                    'height': hauteur_rect,
+                    'jour': jour_data['date'],
+                    'type': 'h1d_to_h2f'
+                })
+            elif y_h1d is not None:
+                rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_h1d - 2,
+                    'width': largeur_rect,
+                    'height': 4,
+                    'jour': jour_data['date'],
+                    'type': 'h1d_only'
+                })
+            elif y_h2f is not None:
+                rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_h2f - 2,
+                    'width': largeur_rect,
+                    'height': 4,
+                    'jour': jour_data['date'],
+                    'type': 'h2f_only'
+                })
+
+        # Ticks Y
+        ticks_y = []
+        for h in range(heure_debut_affichage, heure_fin_affichage + 1):
+             y_tick = margin_y + plot_height - ((h * 60 - minute_debut_affichage) / plage_minutes) * plot_height
+             ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
+
+        # Labels X (jours du mois)
+        labels_x = []
+        # On affiche un label tous les 5 jours pour moins encombrer l'axe
+        for j in range(1, 32):
+            if j % 5 == 0 or j == 1: # Label pour le 1er et tous les 5ème jour
+                x_label = margin_x + (j - 1) * (plot_width / 31)
+                labels_x.append({'jour': str(j), 'x': x_label})
+
+        return {
+            'rectangles': rectangles_svg,
+            'ticks_y': ticks_y,
+            'labels_x': labels_x,
+            'largeur_svg': largeur_svg,
+            'hauteur_svg': hauteur_svg,
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'plot_width': plot_width,
+            'plot_height': plot_height,
+            'mois': mois,
+            'annee': annee
+        }
 
 class ParametreUtilisateur:
     """Modèle pour gérer les paramètres utilisateur"""

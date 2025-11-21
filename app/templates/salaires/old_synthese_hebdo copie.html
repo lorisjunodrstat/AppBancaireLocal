@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Synthèse hebdomadaire – Semaine {{ current_semaine }} ({{ current_annee }})</h1>
+
+    <!-- Navigation rapide entre semaines -->
+    <div class="mb-3">
+        <a href="{{ url_for('banking.synthese_hebdomadaire', annee=current_annee, semaine=current_semaine-1) }}"
+            class="btn btn-outline-secondary">&laquo; Semaine précédente</a>
+        <a href="{{ url_for('banking.synthese_hebdomadaire', annee=current_annee, semaine=current_semaine+1) }}"
+            class="btn btn-outline-secondary">Semaine suivante &raquo;</a>
+        <span class="ms-3">Total heures réelles : <strong>{{ total_heures }} h</strong></span>
+    </div>
+    {% if graphique_svg %}
+    <!-- Graphique SVG : évolution sur l'année -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Évolution des heures hebdomadaires en {{ current_annee }}</h5>
+        </div>
+        <div class="card-body">
+            <svg width="{{ graphique_svg.largeur_svg }}" height="{{ graphique_svg.hauteur_svg }}"
+                style="border: 1px solid #eee; background: #fafafa; border-radius: 4px;">
+                <!-- Grille et axes -->
+                {% for tick in graphique_svg.ticks %}
+                <line x1="{{ graphique_svg.margin_x }}" y1="{{ tick.y_px }}"
+                    x2="{{ graphique_svg.margin_x + graphique_svg.plot_width }}" y2="{{ tick.y_px }}"
+                    stroke="#e0e0e0" />
+                <text x="{{ graphique_svg.margin_x - 10 }}" y="{{ tick.y_px + 4 }}" font-size="12" text-anchor="end"
+                    fill="#666">{{ tick.value }}</text>
+                {% endfor %}
+
+                <!-- Barres : heures réelles -->
+                {% for bar in graphique_svg.colonnes %}
+                <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width }}" height="{{ bar.height }}"
+                    fill="{% if loop.index == current_semaine %}#e74c3c{% else %}#3498db{% endif %}" opacity="0.8" />
+                {% endfor %}
+
+                <!-- Ligne : heures simulées (optionnel) -->
+                {% if graphique_svg.ligne_simule %}
+                <polyline points="{{ graphique_svg.ligne_simule | join(' ') }}" fill="none" stroke="#2ecc71"
+                    stroke-width="2" />
+                {% endif %}
+
+                <!-- Étiquettes des semaines (toutes les 4 semaines) -->
+                {% for i in range(1, 54) %}
+                {% if i % 4 == 0 or i == current_semaine %}
+                <text x="{{ graphique_svg.margin_x + (i - 0.5) * (graphique_svg.plot_width / 53) }}"
+                    y="{{ graphique_svg.margin_y + graphique_svg.plot_height + 20 }}" font-size="11"
+                    text-anchor="middle" fill="#555">S{{ i }}</text>
+                {% endif %}
+                {% endfor %}
+            </svg>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tableau des contrats pour cette semaine -->
+    <div class="table-responsive">
+        <h3 style="font-weight: 100;"">Résumé de la Semaine <span style="font-weight: 400;"> {{ current_semaine }}</span></h3>
+        <table class="table table-striped table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Employeur</th>
+                    <th>Contrat ID</th>
+                    <th class="text-end">Heures réelles</th>
+                    <th class="text-end">Heures simulées</th>
+                    <th class="text-end">Différence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if syntheses %}
+                {% for s in syntheses %}
+                <tr>
+                    <td>{{ s.employeur or '—' }}</td>
+                    <td>{{ s.id_contrat or '—' }}</td>
+                    <td class="text-end">{{ "%.2f"|format(s.heures_reelles) }} h</td>
+                    <td class="text-end">{{ "%.2f"|format(s.heures_simulees) }} h</td>
+                    <td class="text-end">{{ "%.2f"|format(s.difference) }} h</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center fst-italic">Aucune donnée pour cette semaine.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Lien vers la vue complète -->
+    <div class="mt-3">
+        <a href="{{ url_for('banking.synthese_heures', annee=current_annee) }}" class="btn btn-primary">
+            📊 Voir toutes les semaines
+        </a>
+    </div>
+</div>
+{% endblock %}
