@@ -6087,18 +6087,23 @@ class EcritureComptable:
 
             # 🔥 RÉCUPÉRER LE TAUX RÉEL à partir de la configuration ou de data
             # Selon votre logique, le taux peut venir de type_tva OU de data['tva_taux']
-            taux_reel = type_tva_config if type_tva_config is not None else data.get('tva_taux', 0)
-
-            # ✅ Maintenant on envoie le bon taux
-            montant_secondaire = self._calculate_secondary_amount(
-                data, type_ecriture_complementaire, taux_reel  # ✅ taux_reel au lieu de type_tva_config
-            )
+            if type_ecriture_complementaire == 'tva':
+                montant_secondaire = data.get('tva_montant', 0.0)
+                taux_secondaire = data.get('tva_taux', 0.0)  # ✅ On garde le taux de la principale
+            else:
+                # 🔥 RÉCUPÉRER LE TAUX RÉEL à partir de la configuration ou de data
+                taux_reel = type_tva_config if type_tva_config is not None else data.get('tva_taux', 0)
+                taux_secondaire = taux_reel  # ✅ On garde ce taux pour les autres types
+                # ✅ Maintenant on envoie le bon taux
+                montant_secondaire = self._calculate_secondary_amount(
+                    data, type_ecriture_complementaire, taux_reel
+                )
 
             if abs(montant_secondaire) > 0.01:
                 comp_cat_simulated = {
                     'categorie_complementaire_id': categorie_complementaire_id,
                     'type_complement': type_ecriture_complementaire,
-                    'taux': taux_reel  # ✅ aussi ici
+                    'taux': taux_secondaire  # ✅ aussi ici
                 }
                 self._create_secondary_ecriture(
                     cursor, ecriture_principale_id, data, comp_cat_simulated, montant_secondaire)
@@ -6182,7 +6187,7 @@ class EcritureComptable:
                 f"{data.get('description', '')} ({comp_cat['type_complement'].upper()})",
                 data.get('reference', ''),
                 type_ecriture_secondaire,
-                None,  # Pas de TVA sur la TVA
+                comp_cat.get('taux', 0),  # Pas de TVA sur la TVA
                 0,
                 data['utilisateur_id'],
                 data.get('justificatif_url'),

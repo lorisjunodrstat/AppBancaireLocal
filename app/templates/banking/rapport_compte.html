@@ -1,0 +1,195 @@
+{% extends "base.html" %} <!-- Assurez-vous d'étendre le bon template de base -->
+
+{% block title %}Rapport - {{ compte.nom_compte }} - {{ titre_periode }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Rapport de {{ compte.nom_compte }}</h1>
+        <!-- Bouton pour revenir à la page du compte -->
+        <a href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id) }}" class="btn btn-secondary">Retour au Compte</a>
+    </div>
+    <h3>{{ titre_periode }} ({{ date_debut.strftime('%d.%m.%Y') }} - {{ date_fin.strftime('%d.%m.%Y') }})</h3>
+
+    <!-- Filtre de période -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Filtrer la Période</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ url_for('banking.banking_compte_rapport', compte_id=compte.id) }}">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <label for="periode" class="col-form-label">Période</label>
+                    </div>
+                    <div class="col-auto">
+                        <select name="periode" id="periode" class="form-select">
+                            <option value="hebdo" {% if periode == 'hebdo' %}selected{% endif %}>Hebdomadaire</option>
+                            <option value="mensuel" {% if periode == 'mensuel' %}selected{% endif %}>Mensuelle</option>
+                            <option value="annuel" {% if periode == 'annuel' %}selected{% endif %}>Annuelle</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label for="date_ref" class="col-form-label">Date de Référence</label>
+                    </div>
+                    <div class="col-auto">
+                        <input type="date" name="date_ref" id="date_ref" class="form-control" value="{{ date_ref.isoformat() }}">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">Appliquer</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Résumé -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Résumé</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Solde initial:</strong> {{ "%.2f"|format(resume.solde_initial) }} CHF</p>
+            <p><strong>Solde final:</strong> {{ "%.2f"|format(resume.solde_final) }} CHF</p>
+            <p><strong>Variation:</strong> <span class="{% if resume.variation >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "%.2f"|format(resume.variation) }} CHF</span></p>
+            <p><strong>Total des entrées:</strong> {{ "%.2f"|format(resume.total_entrees) }} CHF</p>
+            <p><strong>Total des sorties:</strong> {{ "%.2f"|format(resume.total_sorties) }} CHF</p>
+        </div>
+    </div>
+
+    <!-- Graphique SVG -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Répartition des Flux par Catégorie</h5>
+        </div>
+        <div class="card-body">
+            {{ graphique_svg | safe }}
+        </div>
+    </div>
+
+    <!-- Répartition par Catégories -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Détail des Flux par Catégorie</h5>
+        </div>
+        <div class="card-body">
+            {% if repartition_par_categories %}
+                <ul class="list-group">
+                {% for cat, montant in repartition_par_categories.items() %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ cat }}
+                        <span class="badge bg-primary rounded-pill">{{ "%.2f"|format(montant) }} CHF</span>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>Aucune transaction dans cette période.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Transactions Non Catégorisées -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5>Transactions Non Catégorisées ({{ transactions_non_categorisees|length }})</h5>
+            <!-- Lien vers la modal -->
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalCategoriserTout">
+                Catégoriser Tout
+            </button>
+        </div>
+        <div class="card-body">
+            {% if transactions_non_categorisees %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Montant</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in transactions_non_categorisees %}
+                        <tr>
+                            <td>{{ tx.date_transaction.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ tx.description }}</td>
+                            <td>{{ "%.2f"|format(tx.montant) }} CHF</td>
+                            <td>
+                                <!-- Bouton pour ouvrir la modal de catégorisation pour cette transaction -->
+                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalCategoriser" onclick="document.getElementById('transactionIdInput').value = {{ tx.id }}; document.getElementById('categorieSelect').value = '';">Catégoriser</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">Aucune transaction non catégorisée dans cette période.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Lien vers le comparatif -->
+    <div class="mb-4">
+        <a href="{{ lien_comparatif }}" class="btn btn-info">Voir le Comparatif</a>
+    </div>
+
+</div>
+
+<!-- Modal de Catégorisation (pour une seule transaction) -->
+<div class="modal fade" id="modalCategoriser" tabindex="-1" aria-labelledby="modalCategoriserLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCategoriserLabel">Catégoriser la Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('banking.associer_categorie_transaction') }}" method="post"> <!-- L'action doit pointer vers ton endpoint API existant ou créer un nouveau -->
+                    <input type="hidden" id="transactionIdInput" name="transaction_id" value="">
+                    <div class="mb-3">
+                        <label for="categorieSelect" class="form-label">Sélectionner une Catégorie</label>
+                        <select class="form-select" id="categorieSelect" name="categorie_id" required>
+                            <option value="">Choisir...</option>
+                            {% for cat in liste_categories %}
+                            <option value="{{ cat.id }}">{{ cat.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Associer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Catégorisation (pour toutes les transactions non catégorisées) -->
+<div class="modal fade" id="modalCategoriserTout" tabindex="-1" aria-labelledby="modalCategoriserToutLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCategoriserToutLabel">Catégoriser Toutes les Transactions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir catégoriser toutes les transactions non catégorisées de cette période avec une même catégorie ?</p>
+                <form action="{{ url_for('banking.associer_categorie_transaction_multiple') }}" method="post"> <!-- Endpoint à créer -->
+                    <input type="hidden" name="compte_id" value="{{ compte.id }}">
+                    <input type="hidden" name="date_debut" value="{{ date_debut.isoformat() }}">
+                    <input type="hidden" name="date_fin" value="{{ date_fin.isoformat() }}">
+                    <div class="mb-3">
+                        <label for="categorieSelectTout" class="form-label">Sélectionner une Catégorie</label>
+                        <select class="form-select" id="categorieSelectTout" name="categorie_id" required>
+                            <option value="">Choisir...</option>
+                            {% for cat in liste_categories %}
+                            <option value="{{ cat.id }}">{{ cat.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Catégoriser Tout</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

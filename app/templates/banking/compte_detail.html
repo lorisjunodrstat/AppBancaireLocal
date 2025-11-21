@@ -119,6 +119,9 @@
                             <div class="col-sm-6">
                                 <!-- Dans compte_detail.html -->
                                 <div class="btn-group" role="group">
+                                    <a href="{{ url_for('banking.banking_compte_rapport', compte_id=compte.id) }}" class="btn btn-info btn-sm">
+                                        <i class="fas fa-file-alt"></i> Voir le Rapport
+                                    </a>
                                     <a href="{{ url_for('banking.banking_comparer_soldes', compte_id=compte.id) }}" class="btn btn-info btn-sm">
                                         <i class="fas fa-chart-bar"></i> Comparer deux comptes
                                     </a>
