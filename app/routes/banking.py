@@ -6957,7 +6957,7 @@ def synthese_hebdomadaire():
     # Préparer le graphique SVG pour l'année entière (heures totales)
     graphique_svg = g.models.synthese_hebdo_model.prepare_svg_data_hebdo(user_id, annee)
     employeurs_disponibles = g.models.contrat_model.get_all_contrats(user_id)
-    contrats_disponibles 0 g.models.contrat_model.get_all_contrats(user_id)
+    contrats_disponibles = g.models.contrat_model.get_all_contrats(user_id)
     return render_template('salaires/synthese_hebdo.html',
                         syntheses=synthese_list,
                         total_heures=round(total_heures, 2),
