@@ -699,6 +699,109 @@ def banking_compte_rapport(compte_id):
 
     return render_template("banking/rapport_compte.html", **context)
 
+@bp.route('/banking/comparaison')
+@login_required
+def banking_comparaison():
+    user_id = current_user.id
+    compte_model = g.models.compte_model
+    transaction_model = g.models.transaction_financiere_model
+
+    # Récupérer les paramètres de la requête
+    compte1_id = request.args.get('compte1_id', type=int)
+    periode = request.args.get('periode', 'mensuel') # Valeur par défaut
+    date_ref_str = request.args.get('date_ref') # Date de référence optionnelle
+    date_ref = date.today()
+    if date_ref_str:
+        try:
+            date_ref = datetime.strptime(date_ref_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Format de date invalide.', 'error')
+            # On continuera avec la date par défaut (today)
+
+    # Vérifier que compte1_id est fourni
+    if not compte1_id:
+        flash('Compte 1 non spécifié pour la comparaison.', 'error')
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Récupérer le compte 1
+    compte1 = compte_model.get_by_id(compte1_id)
+    if not compte1 or compte1['utilisateur_id'] != user_id:
+        flash('Compte 1 non trouvé ou non autorisé', 'error')
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Déterminer la plage de dates selon la période (identique à la page rapport)
+    if periode == "hebdo":
+        debut = date_ref - timedelta(days=date_ref.weekday())
+        fin = debut + timedelta(days=6)
+        titre_periode = f"Semaine du {debut.strftime('%d.%m.%Y')}"
+    elif periode == "annuel":
+        debut = date(date_ref.year, 1, 1)
+        fin = date(date_ref.year, 12, 31)
+        titre_periode = f"{date_ref.year}"
+    else: # 'mensuel' par défaut
+        debut = date_ref.replace(day=1)
+        if date_ref.month == 12:
+            fin = date(date_ref.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            fin = date(date_ref.year, date_ref.month + 1, 1) - timedelta(days=1)
+        titre_periode = f"{debut.strftime('%B %Y')}"
+
+    # Récupérer la liste des comptes de l'utilisateur pour le second sélecteur
+    tous_les_comptes = compte_model.get_by_user_id(user_id)
+
+    # Récupérer le compte 2 à partir des arguments GET ou POST (s'il est sélectionné)
+    compte2_id = request.args.get('compte2_id', type=int)
+    compte2 = None
+    donnees_comparaison = {}
+    graphique_svg = None
+    if compte2_id:
+        compte2 = compte_model.get_by_id(compte2_id)
+        if not compte2 or compte2['utilisateur_id'] != user_id:
+            flash('Compte 2 non trouvé ou non autorisé', 'error')
+            compte2 = None # Réinitialiser
+        else:
+            # --- Générer les données de comparaison ---
+            # Ici, tu peux réutiliser les méthodes de `transaction_model` que tu as déjà
+            # Par exemple, `get_solde_courant`, `_get_daily_balances`, etc.
+            # Et la méthode `compare_comptes_soldes_barres` que tu as aussi.
+            # Exemple d'utilisation (à adapter selon tes besoins) :
+            # soldes_compte1 = transaction_model._get_daily_balances(compte1_id, debut, fin, 'total')
+            # soldes_compte2 = transaction_model._get_daily_balances(compte2_id, debut, fin, 'total')
+            # graphique_svg = transaction_model.compare_comptes_soldes_barres(
+            #     compte1_id, compte2_id, debut, fin, 'total', 'total'
+            # )
+
+            # Pour l'instant, on met un SVG vide ou un message
+            graphique_svg = "<svg width='600' height='400'><text x='10' y='20'>Comparaison en cours de développement...</text></svg>"
+
+            # Passer les données au template
+            donnees_comparaison = {
+                "compte1": compte1,
+                "compte2": compte2,
+                "periode": periode,
+                "titre_periode": titre_periode,
+                "date_debut": debut,
+                "date_fin": fin,
+                # ... autres données de comparaison ...
+            }
+
+    # Contexte pour le template
+    context = {
+        "tous_les_comptes": tous_les_comptes,
+        "compte1_selectionne": compte1,
+        "compte2_selectionne": compte2,
+        "periode": periode,
+        "date_ref": date_ref,
+        "donnees_comparaison": donnees_comparaison,
+        "graphique_svg": graphique_svg,
+        # Pour les filtres de la page
+        "titre_periode": titre_periode,
+        "date_debut": debut,
+        "date_fin": fin,
+    }
+
+    return render_template("banking/comparaison.html", **context)
+
 @bp.route('/banking/compte/<int:compte_id>/comparer_soldes', methods=['GET', 'POST'])
 @login_required
 def banking_comparer_soldes(compte_id):
@@ -6801,9 +6904,12 @@ def synthese_hebdomadaire():
         semaine = datetime.now().isocalendar()[1]
     else:
         semaine = int(semaine)
+
+    # Calculer et sauvegarder les synthèses par contrat pour la semaine si nécessaire
     data_list = g.models.synthese_hebdo_model.calculate_for_week_by_contrat(user_id, annee, semaine)
     for data in data_list:
         g.models.synthese_hebdo_model.create_or_update_batch([data])
+
     # Données de la semaine sélectionnée
     synthese_list = g.models.synthese_hebdo_model.get_by_user_and_week(
         user_id=user_id, annee=annee, semaine=semaine
@@ -6813,7 +6919,30 @@ def synthese_hebdomadaire():
     total_heures = sum(float(s.get('heures_reelles', 0)) for s in synthese_list)
     total_simule = sum(float(s.get('heures_simulees', 0)) for s in synthese_list)
 
-    # Préparer le graphique SVG pour l'année entière
+    # --- NOUVEAU : Calcul des stats h2f pour l'année ---
+    seuil_h2f_heure = 18 # Exemple : 18h
+    seuil_h2f_minutes = seuil_h2f_heure * 60
+    stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(user_id, None, None, annee, seuil_h2f_minutes)
+    # On récupère la moyenne pour la semaine affichée
+    moyenne_hebdo_h2f = stats_h2f['moyennes_hebdo'].get(semaine, 0.0)
+    moyenne_mobile_h2f = stats_h2f['moyennes_mobiles'].get(semaine, 0.0)
+
+    # --- NOUVEAU : Préparation des données SVG pour le graphique horaire de la semaine ---
+    # Pour simplifier, on suppose que l'employeur et le contrat sont connus ou qu'on veut les combiner.
+    # Ici, on va chercher les données brutes pour la semaine et on les affiche ensemble.
+    # ATTENTION : Si tu as plusieurs contrats/employeurs, tu devras peut-être itérer ou agréger.
+    # Pour cet exemple, on prend le premier contrat trouvé pour la semaine, ou None.
+    id_contrat_exemple = synthese_list[0]['id_contrat'] if synthese_list else None
+    employeur_exemple = synthese_list[0]['employeur'] if synthese_list else None
+
+    svg_horaire_data = None
+    if id_contrat_exemple and employeur_exemple:
+        svg_horaire_data = g.models.synthese_hebdo_model.prepare_svg_data_horaire_jour(
+            user_id, employeur_exemple, id_contrat_exemple, annee, semaine
+        )
+    # Si pas de contrat trouvé, svg_horaire_data restera None, gère-le dans ton template.
+
+    # Préparer le graphique SVG pour l'année entière (heures totales)
     graphique_svg = g.models.synthese_hebdo_model.prepare_svg_data_hebdo(user_id, annee)
 
     return render_template('salaires/synthese_hebdo.html',
@@ -6822,9 +6951,14 @@ def synthese_hebdomadaire():
                         total_simule=round(total_simule, 2),
                         current_annee=annee,
                         current_semaine=semaine,
-                        graphique_svg=graphique_svg,  # <-- ajouté
+                        # --- NOUVEAU : Ajouter les données pour le template ---
+                        stats_h2f=stats_h2f,
+                        moyenne_hebdo_h2f=moyenne_hebdo_h2f,
+                        moyenne_mobile_h2f=moyenne_mobile_h2f,
+                        seuil_h2f_heure=seuil_h2f_heure,
+                        svg_horaire_data=svg_horaire_data,
+                        graphique_svg=graphique_svg,
                         now=datetime.now())
-
 @bp.route('/synthese-hebdo/generer', methods=['POST'])
 @login_required
 def generer_syntheses_hebdomadaires():
@@ -6917,23 +7051,45 @@ def synthese_mensuelle():
         contrat_id=contrat_id
     )
 
-    # ✅ Préparer le graphique SVG (toujours pour l'année entière)
+    # ✅ Préparer le graphique SVG (toujours pour l'année entière, en CHF)
     graphique_svg = g.models.synthese_mensuelle_model.prepare_svg_data_mensuel(user_id, annee)
+
+    # --- NOUVEAU : Calcul des stats h2f pour le mois ---
+    seuil_h2f_heure = 18 # Exemple : 18h
+    seuil_h2f_minutes = seuil_h2f_heure * 60
+    stats_h2f_mois = None
+    svg_horaire_mois_data = None
+    if mois: # Si un mois est spécifié
+        # Comme synthese_mensuelle est par contrat, on suppose un seul contrat est affiché ou on prend un exemple.
+        id_contrat_exemple = synthese_list[0]['id_contrat'] if synthese_list else None
+        employeur_exemple = synthese_list[0]['employeur'] if synthese_list else None
+
+        if id_contrat_exemple and employeur_exemple:
+            stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(
+                user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes
+            )
+            # --- NOUVEAU : Préparation des données SVG pour le graphique horaire du mois ---
+            svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
+                user_id, employeur_exemple, id_contrat_exemple, annee, mois
+            )
 
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
     contrats = g.models.contrat_model.get_all_contrats(user_id)
 
     return render_template('salaires/synthese_mensuelle.html',
                         syntheses=synthese_list,
-                        graphique_svg=graphique_svg,  # ← ajouté
+                        graphique_svg=graphique_svg,
                         current_annee=annee,
                         current_mois=mois,
                         selected_employeur=employeur,
                         selected_contrat=contrat_id,
                         employeurs_disponibles=employeurs,
                         contrats_disponibles=contrats,
+                        # --- NOUVEAU : Ajouter les données pour le template ---
+                        stats_h2f_mois=stats_h2f_mois,
+                        seuil_h2f_heure=seuil_h2f_heure,
+                        svg_horaire_mois_data=svg_horaire_mois_data,
                         now=datetime.now())
-
 @bp.route('/contrat', methods=['GET', 'POST'])
 @login_required
 def gestion_contrat():
