@@ -10033,6 +10033,7 @@ class SyntheseHebdomadaire:
             'annee': annee
         } 
 
+
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
@@ -10083,6 +10084,7 @@ class SyntheseMensuelle:
         except Exception as e:
             logging.error(f"Erreur calcul synthèse mensuelle par contrat: {e}")
             return []
+
     def prepare_svg_data_mensuel(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         """
         Prépare les données pour un graphique SVG des salaires mensuels.
@@ -10219,6 +10221,7 @@ class SyntheseMensuelle:
         except Exception as e:
             logging.error(f"Erreur récupération synthèse annuelle: {e}")
             return []
+
     def get_by_user_and_filters(self, user_id: int, annee: int = None, mois: int = None, employeur: str = None, contrat_id: int = None) -> List[Dict]:
         try:
             with self.db.get_cursor() as cursor:
@@ -10339,6 +10342,133 @@ class SyntheseMensuelle:
             logging.error(f"Erreur récupération synthèses: {e}")
             return []
 
+    def calculate_h2f_stats_mensuel(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
+        """
+        Calcule les statistiques sur h2f pour un mois donné.
+        """
+        ht_instance = HeureTravail(self.db)
+        jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+        count = 0
+        for jour in jours_mois:
+            h2f_minutes = ht_instance.time_to_minutes(jour.get('h2f'))
+            if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
+                count += 1
+
+        moyenne_mensuelle = count / len(jours_mois) if jours_mois else 0.0
+
+        return {
+            'nb_jours_apres_seuil': count,
+            'jours_travailles': len(jours_mois),
+            'moyenne_mensuelle': round(moyenne_mensuelle, 2),
+            'seuil_heure': f"{seuil_h2f_minutes // 60}:{seuil_h2f_minutes % 60:02d}"
+        }
+
+    def prepare_svg_data_horaire_mois(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, largeur_svg: int = 1000, hauteur_svg: int = 400) -> Dict:
+        """
+        Prépare les données pour un graphique SVG des horaires sur un mois.
+        Axe X: Jours du mois (1, 2, 3, ..., 31)
+        Axe Y: Heures (6h en haut, 22h en bas)
+        """
+        ht_instance = HeureTravail(self.db)
+        jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+
+        # Constantes pour la conversion des heures en pixels
+        heure_debut_affichage = 6
+        heure_fin_affichage = 22
+        minute_debut_affichage = heure_debut_affichage * 60
+        minute_fin_affichage = heure_fin_affichage * 60
+        plage_minutes = (heure_fin_affichage - heure_debut_affichage) * 60
+
+        margin_x = largeur_svg * 0.1
+        margin_y = hauteur_svg * 0.1
+        plot_width = largeur_svg * 0.8
+        plot_height = hauteur_svg * 0.8
+
+        rectangles_svg = []
+        # On suppose que `jours_mois` est trié par date
+        for i, jour_data in enumerate(jours_mois):
+            date_obj = datetime.fromisoformat(jour_data['date'])
+            jour_du_mois = date_obj.day
+
+            h1d_minutes = ht_instance.time_to_minutes(jour_data.get('h1d'))
+            h2f_minutes = ht_instance.time_to_minutes(jour_data.get('h2f'))
+
+            # Coordonnée X basée sur le jour du mois
+            # On suppose que le mois a au maximum 31 jours
+            x_jour_debut = margin_x + (jour_du_mois - 1) * (plot_width / 31)
+            x_jour_fin = margin_x + jour_du_mois * (plot_width / 31)
+            largeur_rect = (x_jour_fin - x_jour_debut) * 0.8
+            x_rect_debut = x_jour_debut + (x_jour_fin - x_jour_debut) * 0.1
+
+            # Coordonnées Y
+            if h1d_minutes != -1 and h1d_minutes >= minute_debut_affichage and h1d_minutes <= minute_fin_affichage:
+                y_h1d = margin_y + plot_height - ((h1d_minutes - minute_debut_affichage) / plage_minutes) * plot_height
+            else:
+                y_h1d = None
+
+            if h2f_minutes != -1 and h2f_minutes >= minute_debut_affichage and h2f_minutes <= minute_fin_affichage:
+                y_h2f = margin_y + plot_height - ((h2f_minutes - minute_debut_affichage) / plage_minutes) * plot_height
+            else:
+                y_h2f = None
+
+            if y_h1d is not None and y_h2f is not None:
+                y_top = min(y_h1d, y_h2f)
+                y_bottom = max(y_h1d, y_h2f)
+                hauteur_rect = y_bottom - y_top
+                rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_top,
+                    'width': largeur_rect,
+                    'height': hauteur_rect,
+                    'jour': jour_data['date'],
+                    'type': 'h1d_to_h2f'
+                })
+            elif y_h1d is not None:
+                rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_h1d - 2,
+                    'width': largeur_rect,
+                    'height': 4,
+                    'jour': jour_data['date'],
+                    'type': 'h1d_only'
+                })
+            elif y_h2f is not None:
+                rectangles_svg.append({
+                    'x': x_rect_debut,
+                    'y': y_h2f - 2,
+                    'width': largeur_rect,
+                    'height': 4,
+                    'jour': jour_data['date'],
+                    'type': 'h2f_only'
+                })
+
+        # Ticks Y
+        ticks_y = []
+        for h in range(heure_debut_affichage, heure_fin_affichage + 1):
+             y_tick = margin_y + plot_height - ((h * 60 - minute_debut_affichage) / plage_minutes) * plot_height
+             ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
+
+        # Labels X (jours du mois)
+        labels_x = []
+        # On affiche un label tous les 5 jours pour moins encombrer l'axe
+        for j in range(1, 32):
+            if j % 5 == 0 or j == 1: # Label pour le 1er et tous les 5ème jour
+                x_label = margin_x + (j - 1) * (plot_width / 31)
+                labels_x.append({'jour': str(j), 'x': x_label})
+
+        return {
+            'rectangles': rectangles_svg,
+            'ticks_y': ticks_y,
+            'labels_x': labels_x,
+            'largeur_svg': largeur_svg,
+            'hauteur_svg': hauteur_svg,
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'plot_width': plot_width,
+            'plot_height': plot_height,
+            'mois': mois,
+            'annee': annee
+        }
 
 class ParametreUtilisateur:
     """Modèle pour gérer les paramètres utilisateur"""
