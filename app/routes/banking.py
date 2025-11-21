@@ -554,12 +554,10 @@ def banking_compte_detail(compte_id):
 @login_required
 def banking_compte_rapport(compte_id):
     user_id = current_user.id
-    compte_model = g.models.compte_model
-    transaction_model = g.models.transaction_financiere_model
-    categorie_model = g.models.categorie_transaction_model
+
 
     # Vérifier l'appartenance du compte
-    compte = compte_model.get_by_id(compte_id)
+    compte = g.models.compte_model.get_by_id(compte_id)
     if not compte or compte['utilisateur_id'] != user_id:
         flash('Compte non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))
@@ -595,15 +593,15 @@ def banking_compte_rapport(compte_id):
     # --- Données du Rapport ---
 
     # 1. Statistiques de base
-    stats = transaction_model.get_statistiques_compte(
+    stats = g.models.transaction_financiere_model.get_statistiques_compte(
         compte_type='compte_principal',
         compte_id=compte_id,
         user_id=user_id,
         date_debut=debut.isoformat(),
         date_fin=fin.isoformat()
     )
-    solde_initial = transaction_model._get_solde_avant_periode(compte_id, user_id, debut)
-    solde_final = transaction_model.get_solde_courant('compte_principal', compte_id, user_id)
+    solde_initial = g.models.transaction_financiere_model._get_solde_avant_periode(compte_id, user_id, debut)
+    solde_final = g.models.transaction_financiere_model.get_solde_courant('compte_principal', compte_id, user_id)
 
     # 2. Répartition par catégories (y compris 'Non catégorisé')
     # On réutilise la logique de `get_categories_par_type` mais en la modifiant pour inclure les transactions non catégorisées
@@ -619,7 +617,7 @@ def banking_compte_rapport(compte_id):
     }
 
     # Récupérer TOUTES les transactions de la période
-    tx_avec_cats, _ = transaction_model.get_all_user_transactions(
+    tx_avec_cats, _ = g.models.transaction_financiere_model.get_all_user_transactions(
         user_id=user_id,
         date_from=debut.isoformat(),
         date_to=fin.isoformat(),
@@ -632,7 +630,7 @@ def banking_compte_rapport(compte_id):
     repartition_cats = {}
     transactions_non_categorisees = []
     for tx in tx_avec_cats:
-        tx_cats = categorie_model.get_categories_transaction(tx['id'], user_id)
+        tx_cats = g.models.categorie_transaction_model.get_categories_transaction(tx['id'], user_id)
         if not tx_cats:
             cat_name = "Non catégorisé"
             transactions_non_categorisees.append(tx)
@@ -692,7 +690,7 @@ def banking_compte_rapport(compte_id):
         },
         "repartition_par_categories": repartition_cats,
         "transactions_non_categorisees": transactions_non_categorisees,
-        "liste_categories": categorie_model.get_categories_utilisateur(user_id),
+        "liste_categories": g.models.categorie_transaction_model.get_categories_utilisateur(user_id),
         "lien_comparatif": lien_comparatif,
         "graphique_svg": graphique_svg, # Ajout du graphique SVG
     }
@@ -703,8 +701,6 @@ def banking_compte_rapport(compte_id):
 @login_required
 def banking_comparaison():
     user_id = current_user.id
-    compte_model = g.models.compte_model
-    transaction_model = g.models.transaction_financiere_model
 
     # Récupérer les paramètres de la requête
     compte1_id = request.args.get('compte1_id', type=int)
@@ -724,7 +720,7 @@ def banking_comparaison():
         return redirect(url_for('banking.banking_dashboard'))
 
     # Récupérer le compte 1
-    compte1 = compte_model.get_by_id(compte1_id)
+    compte1 = g.models.compte_model.get_by_id(compte1_id)
     if not compte1 or compte1['utilisateur_id'] != user_id:
         flash('Compte 1 non trouvé ou non autorisé', 'error')
         return redirect(url_for('banking.banking_dashboard'))

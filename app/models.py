@@ -9918,7 +9918,16 @@ class SyntheseHebdomadaire:
         # On itère sur les données de la liste `jours_semaine`
         for i, jour_data in enumerate(jours_semaine):
             # Utiliser le jour de la semaine de la date pour positionner l'élément
-            date_obj = datetime.fromisoformat(jour_data['date'])
+            date_obj_raw = jour_data['date']
+            if isinstance(date_obj_raw, str):
+                date_obj = datetime.fromisoformat(date_obj_raw).date()
+            elif isinstance(date_obj_raw, datetime):
+                date_obj = date_obj_raw.date()
+            elif isinstance(date_obj_raw, date):
+                date_obj = date_obj_raw
+            else:
+                current_app.logger.error(f'Type inattendu pour la date : {type(date_obj_raw)}, valeur : {date_obj_raw}')
+                contunue
             jour_semaine_numero = date_obj.isocalendar()[2] # 1=Lundi, 7=Dimanche
             if jour_semaine_numero < 1 or jour_semaine_numero > 7:
                 continue # Ignorer les jours en dehors de Lundi-Dimanche si nécessaire
