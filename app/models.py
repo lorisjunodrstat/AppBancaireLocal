@@ -8988,7 +8988,7 @@ class HeureTravail:
 class Salaire:
     def __init__(self, db):
         self.db = db
-        self.heure_travail_model = HeureTravail(self.db)
+        self.heure_model = HeureTravail(self.db)
     def create(self, data: dict) -> bool:
         try:
             with self.db.get_cursor() as cursor:
@@ -9406,10 +9406,10 @@ class Salaire:
             return cursor.fetchall()
     
     def calculer_acompte_25(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
-        if not self.heure_travail_model:
+        if not self.heure_model:
             raise ValueError("HeureTravail manager non initialisé")
         
-        heures = self.heure_travail_model.get_heures_periode(
+        heures = self.heure_model.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         )
         # Protection contre les valeurs négatives ou None
@@ -9417,11 +9417,11 @@ class Salaire:
         return round(heures * salaire_horaire, 2)
     
     def calculer_acompte_10(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
-        if not self.heure_travail_model:
+        if not self.heure_model:
             raise ValueError("HeureTravail manager non initialisé")
 
-        heures_total = self.heure_travail_model.get_total_heures_mois(user_id, employeur, id_contrat, annee, mois)
-        heures_avant = self.heure_travail_model.get_heures_periode(
+        heures_total = self.heure_model.get_total_heures_mois(user_id, employeur, id_contrat, annee, mois)
+        heures_avant = self.heure_model.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         ) or 0.0
         
@@ -9521,7 +9521,7 @@ class Salaire:
 class SyntheseHebdomadaire:
     def __init__(self, db):
         self.db = db
-        self.heure_travail_model = HeureTravail(self.db)
+        self.heure_model = HeureTravail(self.db)
     # Dans la classe SyntheseHebdomadaire
     def calculate_for_week_by_contrat(self, user_id: int, annee: int, semaine: int) -> list[dict]:
         try:
@@ -9864,10 +9864,10 @@ class SyntheseHebdomadaire:
         weekly_counts = {} # { semaine: nb_jours_avec_h2f_apres_seuil }
 
         for semaine in range(1, 53): # Semaines de 1 à 52 (ou 53)
-            jours_semaine = self.heure_travail_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+            jours_semaine = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
             count = 0
             for jour in jours_semaine:
-                h2f_minutes = self.heure_travail_model.time_to_minutes(jour.get('h2f'))
+                h2f_minutes = self.heure_model.time_to_minutes(jour.get('h2f'))
                 if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
                     count += 1
             weekly_counts[semaine] = count
@@ -10032,7 +10032,6 @@ class SyntheseHebdomadaire:
             'semaine': semaine,
             'annee': annee
         } 
-
 
 class SyntheseMensuelle:
     def __init__(self, db):
@@ -10446,7 +10445,7 @@ class SyntheseMensuelle:
         ticks_y = []
         for h in range(heure_debut_affichage, heure_fin_affichage + 1):
              y_tick = margin_y + plot_height - ((h * 60 - minute_debut_affichage) / plage_minutes) * plot_height
-             ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
+            ticks_y.append({'heure': f"{h:02d}h", 'y': y_tick})
 
         # Labels X (jours du mois)
         labels_x = []
