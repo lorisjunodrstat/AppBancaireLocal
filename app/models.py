@@ -8989,6 +8989,7 @@ class Salaire:
     def __init__(self, db):
         self.db = db
         self.heure_model = HeureTravail(self.db)
+    
     def create(self, data: dict) -> bool:
         try:
             with self.db.get_cursor() as cursor:
@@ -10555,7 +10556,7 @@ class ModelManager:
         self.contact_compte_model = ContactCompte(self.db)
         self.contact_plan_model = ContactPlan(self.db)
         self.heure_model = HeureTravail(self.db)
-        self.salaire_model = Salaire(self.db, self.heure_model)
+        self.salaire_model = Salaire(self.db)
         self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
         self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
         self.contrat_model = Contrat(self.db)
