@@ -1,3 +1,4 @@
+from typing import Optional
 import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, current_app, g, session, abort, send_file
 from flask_login import login_required, current_user
@@ -547,6 +548,156 @@ def banking_compte_detail(compte_id):
                         categories_par_transaction=categories_par_transaction,
                         toutes_categories=toutes_categories)  # 🔥 NOUVEAU : Passer les catégories
 
+
+
+@bp.route('/banking/compte/<int:compte_id>/rapport')
+@login_required
+def banking_compte_rapport(compte_id):
+    user_id = current_user.id
+    compte_model = g.models.compte_model
+    transaction_model = g.models.transaction_financiere_model
+    categorie_model = g.models.categorie_transaction_model
+
+    # Vérifier l'appartenance du compte
+    compte = compte_model.get_by_id(compte_id)
+    if not compte or compte['utilisateur_id'] != user_id:
+        flash('Compte non trouvé ou non autorisé', 'error')
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Récupérer les paramètres de la requête (période)
+    periode = request.args.get('periode', 'mensuel') # Valeur par défaut
+    date_ref_str = request.args.get('date_ref') # Date de référence optionnelle
+    date_ref = date.today()
+    if date_ref_str:
+        try:
+            date_ref = datetime.strptime(date_ref_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Format de date invalide.', 'error')
+            # On continuera avec la date par défaut (today)
+
+    # Déterminer la plage de dates selon la période
+    if periode == "hebdo":
+        debut = date_ref - timedelta(days=date_ref.weekday())
+        fin = debut + timedelta(days=6)
+        titre_periode = f"Semaine du {debut.strftime('%d.%m.%Y')}"
+    elif periode == "annuel":
+        debut = date(date_ref.year, 1, 1)
+        fin = date(date_ref.year, 12, 31)
+        titre_periode = f"{date_ref.year}"
+    else: # 'mensuel' par défaut
+        debut = date_ref.replace(day=1)
+        if date_ref.month == 12:
+            fin = date(date_ref.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            fin = date(date_ref.year, date_ref.month + 1, 1) - timedelta(days=1)
+        titre_periode = f"{debut.strftime('%B %Y')}"
+
+    # --- Données du Rapport ---
+
+    # 1. Statistiques de base
+    stats = transaction_model.get_statistiques_compte(
+        compte_type='compte_principal',
+        compte_id=compte_id,
+        user_id=user_id,
+        date_debut=debut.isoformat(),
+        date_fin=fin.isoformat()
+    )
+    solde_initial = transaction_model._get_solde_avant_periode(compte_id, user_id, debut)
+    solde_final = transaction_model.get_solde_courant('compte_principal', compte_id, user_id)
+
+    # 2. Répartition par catégories (y compris 'Non catégorisé')
+    # On réutilise la logique de `get_categories_par_type` mais en la modifiant pour inclure les transactions non catégorisées
+    mapping_categories = {
+        'depot': 'Dépôts',
+        'retrait': 'Retraits',
+        'transfert_entrant': 'Transferts entrants',
+        'transfert_sortant': 'Transferts sortants',
+        'transfert_compte_vers_sous': 'Transferts vers sous-comptes',
+        'transfert_sous_vers_compte': 'Transferts depuis sous-comptes',
+        'transfert_externe': 'Transferts externes',
+        'recredit_annulation': 'Annulations / Recrédits'
+    }
+
+    # Récupérer TOUTES les transactions de la période
+    tx_avec_cats, _ = transaction_model.get_all_user_transactions(
+        user_id=user_id,
+        date_from=debut.isoformat(),
+        date_to=fin.isoformat(),
+        compte_source_id=compte_id,
+        compte_dest_id=compte_id,
+        per_page=10000 # Récupérer toutes les transactions de la période
+    )
+
+    # Agréger les montants par catégorie ou par "Non catégorisé"
+    repartition_cats = {}
+    transactions_non_categorisees = []
+    for tx in tx_avec_cats:
+        tx_cats = categorie_model.get_categories_transaction(tx['id'], user_id)
+        if not tx_cats:
+            cat_name = "Non catégorisé"
+            transactions_non_categorisees.append(tx)
+        else:
+            # Si une transaction a plusieurs catégories, on peut choisir la première ou agréger différemment
+            # Pour simplifier, on prend la première.
+            cat_name = tx_cats[0]['nom']
+        repartition_cats[cat_name] = repartition_cats.get(cat_name, Decimal('0')) + Decimal(str(tx['montant']))
+
+    # 3. Lien vers le comparatif
+    lien_comparatif = url_for('banking.banking_comparaison', compte1_id=compte_id, periode=periode, date_ref=date_ref.isoformat())
+
+    # 4. Générer un graphique SVG basique (exemple avec les catégories)
+    # On peut réutiliser la logique de ton `generer_graphique_top_comptes_echanges` ou en créer un dédié
+    # Pour l'instant, on va créer un graphique simple en barres horizontales
+    def generer_graphique_categories_svg(cats_data):
+        if not cats_data:
+            return "<svg width='600' height='300'><text x='10' y='20'>Aucune donnée</text></svg>"
+        # Trier les catégories par montant décroissant et limiter à 10
+        items = sorted(cats_data.items(), key=lambda x: x[1], reverse=True)[:10]
+        noms = [item[0] for item in items]
+        montants = [float(item[1]) for item in items]
+        total = sum(montants) or 1
+
+        h_svg = max(300, len(noms) * 30)
+        w_svg = 700
+        ml, mr, mt, mb = 200, 40, 30, 30
+        graph_w = w_svg - ml - mr
+        graph_h = h_svg - mt - mb
+
+        svg = f'<svg width="{w_svg}" height="{h_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+        for i, (nom, montant) in enumerate(items):
+            y = mt + i * (graph_h / len(items))
+            largeur = (montant / total) * graph_w
+            couleur = f"hsl({360 * i / len(items)}, 60%, 50%)"
+            svg += f'<rect x="{ml}" y="{y}" width="{largeur}" height="{graph_h/len(items)*0.8}" fill="{couleur}"/>\n'
+            svg += f'<text x="{ml-10}" y="{y + graph_h/len(items)*0.4}" text-anchor="end">{nom[:20]}</text>\n'
+            svg += f'<text x="{ml+largeur+10}" y="{y + graph_h/len(items)*0.4}">{montant:.2f}</text>\n'
+        svg += '</svg>'
+        return svg
+
+    graphique_svg = generer_graphique_categories_svg(repartition_cats)
+
+    # --- Contexte pour le template ---
+    context = {
+        "compte": compte,
+        "periode": periode,
+        "titre_periode": titre_periode,
+        "date_debut": debut,
+        "date_fin": fin,
+        "resume": {
+            "solde_initial": float(solde_initial),
+            "solde_final": float(solde_final),
+            "variation": float(solde_final - solde_initial),
+            "total_entrees": stats.get('total_entrees', 0.0),
+            "total_sorties": stats.get('total_sorties', 0.0),
+        },
+        "repartition_par_categories": repartition_cats,
+        "transactions_non_categorisees": transactions_non_categorisees,
+        "liste_categories": categorie_model.get_categories_utilisateur(user_id),
+        "lien_comparatif": lien_comparatif,
+        "graphique_svg": graphique_svg, # Ajout du graphique SVG
+    }
+
+    return render_template("banking/rapport_compte.html", **context)
 
 @bp.route('/banking/compte/<int:compte_id>/comparer_soldes', methods=['GET', 'POST'])
 @login_required
@@ -5385,6 +5536,7 @@ def detail_ecritures_categorie(type, categorie_id):
         logging.error(f"Erreur lors du chargement des détails: {e}")
         flash(f"Erreur lors du chargement des détails: {str(e)}", "danger")
         return redirect(url_for('banking.compte_de_resultat'))
+
 @bp.route('/comptabilite/ecritures/compte-resultat')
 @login_required
 def get_ecritures_compte_resultat():
