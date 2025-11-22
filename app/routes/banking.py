@@ -7205,13 +7205,7 @@ def synthese_mensuelle():
         contrat_id=contrat_id
     )
     logging.info(f'voici la synthese list : {synthese_list}')
-    graphique_h2f_annuel = None
-    if employeur and contrat_id:
-        graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
-            user_id, employeur, contrat_id, annee, seuil_h2f_minutes)
-    elif synthese_list:
-        graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
-            user_id, employeur_exemple, id_contrat_exemple, annee, seuil_h2f_minutes)
+   
         
         
     # ✅ Préparer le graphique SVG (toujours pour l'année entière, en CHF)
@@ -7231,6 +7225,13 @@ def synthese_mensuelle():
     logging.info(f'Voici le seuil : {seuil_h2f_minutes} pour {seuil_h2f_heure_input}')
 
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ✅ garantit un int
+    graphique_h2f_annuel = None
+    if employeur and contrat_id:
+        graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
+            user_id, employeur, contrat_id, annee, seuil_h2f_minutes, 900, 400)
+    elif synthese_list:
+        graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
+            user_id, employeur_exemple, id_contrat_exemple, annee, seuil_h2f_minutes, 900, 400)
     stats_h2f_mois = None
     svg_horaire_mois_data = None
     if mois: # Si un mois est spécifié
