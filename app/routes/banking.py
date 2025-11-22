@@ -4219,19 +4219,20 @@ def transactions_par_categorie(categorie_id):
 #    
 #    return redirect(request.referrer)
 
-@bp.route('/transaction/<int:transaction_id>/associer-categorie', methods=['POST'])
+@bp.route('/categorie/associer-transaction', methods=['POST'])
 @login_required
-def associer_categorie_transaction(transaction_id):
+def associer_categorie_transaction():
     """Associe une catégorie à une transaction via formulaire HTML classique."""
+    transaction_id = request.form.get('transaction_id', type=int)
     categorie_id = request.form.get('categorie_id', type=int)
     
-    if not categorie_id:
-        flash("Veuillez sélectionner une catégorie.", "warning")
+    if not transaction_id or not categorie_id:
+        flash("Veuillez sélectionner une transaction et une catégorie.", "warning")
         return redirect(request.referrer or url_for('banking.banking_dashboard'))
 
     # Vérifier que la transaction existe et appartient à l'utilisateur
-    tx = g.models.transaction_financiere_model.get_by_id(transaction_id)
-    if not tx or tx['utilisateur_id'] != current_user.id:
+    tx = g.models.transaction_financiere_model.get_transaction_by_id(transaction_id)
+    if not tx or tx.get('owner_user_id') != current_user.id:
         flash("Transaction non trouvée ou non autorisée.", "error")
         return redirect(request.referrer or url_for('banking.banking_dashboard'))
 
