@@ -7015,12 +7015,13 @@ def synthese_hebdomadaire():
     semaine = request.args.get('semaine')
     id_contrat_filtre = request.args.get('id_contrat')
     employeur_filtre = request.args.get('employeur')
-    seuil_h2f_heure = int(request.args.get('seuil_h2f', 20))
+    seuil_h2f_heure = request.args.get('seuil_h2f', '20.0')
     try:
         seuil_h2f_heure = float(seuil_h2f_heure)
     except (ValueError, TypeError):
-        seuil_h2f_heure = 19.5
-    seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))
+        seuil_h2f_heure = 20.0
+    seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ← entier en minutes
+
     # Déterminer la semaine courante si non fournie
     if semaine is None or not semaine.isdigit():
         semaine = datetime.now().isocalendar()[1]
@@ -7195,6 +7196,17 @@ def synthese_mensuelle():
     graphique_svg = g.models.synthese_mensuelle_model.prepare_svg_data_mensuel(user_id, annee)
 
     # --- NOUVEAU : Calcul des stats h2f pour le mois ---
+    seuil_h2f_heure_input = request.args.get('seuil_h2f', '20.0')
+    if seuil_h2f_heure_input:
+        try:
+            seuil_h2f_heure = float(seuil_h2f_heure_input)
+        except (ValueError, TypeError):
+            seuil_h2f_heure = 20.0
+    else:
+        seuil_h2f_heure = 20.0
+    seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ← entier en minutes
+
+
     seuil_h2f_heure = 20  # ou float(request.args.get('seuil_h2f', 18.5))
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ✅ garantit un int
     stats_h2f_mois = None
