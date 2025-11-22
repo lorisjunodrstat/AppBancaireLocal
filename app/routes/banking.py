@@ -684,6 +684,7 @@ def banking_compte_rapport(compte_id):
         "titre_periode": titre_periode,
         "date_debut": debut,
         "date_fin": fin,
+        'date_ref': date_ref,
         "resume": {
             "solde_initial": float(solde_initial),
             "solde_final": float(solde_final),
