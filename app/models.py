@@ -10355,12 +10355,11 @@ class SyntheseMensuelle:
                 count += 1
 
         moyenne_mensuelle = count / len(jours_mois) if jours_mois else 0.0
-
+        seuil_int = int(round(seuil_h2f_minutes))
         return {
             'nb_jours_apres_seuil': count,
             'jours_travailles': len(jours_mois),
             'moyenne_mensuelle': round(moyenne_mensuelle, 2),
-            seuil_int = int(round(seuil_h2f_minutes))  # round pour sécurité si float avec décimales
             'seuil_heure': f"{seuil_int // 60}:{seuil_int % 60:02d}"
         }
 
