@@ -7237,7 +7237,7 @@ def synthese_mensuelle():
             svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
                 user_id, employeur_exemple, id_contrat_exemple, annee, mois
             )
-            logging.info{f'Voici les données pour {mois} : {svg_horaire_mois_data}'}
+                logging.info{f'Voici les données pour {mois} : {svg_horaire_mois_data}'}
     # --- NOUVEAU : Graphique hebdomadaire du dépassement de seuil DANS le mois ---
     graphique_h2f_semaines = None
     if mois and synthese_list:
