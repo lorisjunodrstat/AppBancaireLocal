@@ -9840,8 +9840,6 @@ class SyntheseHebdomadaire:
             'annee': annee
         }
 
-    
-   
     def get_employeurs_distincts(self, user_id: int) -> List[str]:
         try:
             with self.db.get_cursor() as cursor:
@@ -10042,6 +10040,7 @@ class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
         self.heure_model = HeureTravail(self.db)
+        self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
         
 
     def calculate_for_month_by_contrat(self, user_id: int, annee: int, mois: int) -> list[dict]:
@@ -10489,7 +10488,7 @@ class SyntheseMensuelle:
 
     def prepare_svg_data_h2f_annuel(self, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60, largeur_svg: int = 900, hauteur_svg: int = 400) -> Dict:
     # Récupérer les stats hebdomadaires
-        stats = self.calculate_h2f_stats(user_id, employeur, id_contrat, annee, seuil_h2f_minutes)
+        stats = self.synthese_hebdo_model.calculate_h2f_stats(user_id, employeur, id_contrat, annee, seuil_h2f_minutes)
         
         semaines = list(range(1, 53))  # ou 54 si besoin
         depassements = [stats['moyennes_hebdo'].get(s, 0) for s in semaines]
