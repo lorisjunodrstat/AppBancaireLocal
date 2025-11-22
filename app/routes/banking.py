@@ -7187,6 +7187,13 @@ def synthese_mensuelle():
     mois = request.args.get('mois')
     employeur = request.args.get('employeur', employeurs_default)
     contrat_id = request.args.get('contrat', contrats_default)
+    if contrat_id is not None:
+        try:
+            contrat_id = int(contrat_id)
+        except (ValueError, TypeError):
+            contrat_id = None
+    else:
+        contrat_id = None
     
     mois = int(mois) if mois and mois.isdigit() else None
     contrat_id = int(contrat_id) if contrat_id and contrat_id.isdigit() else None
