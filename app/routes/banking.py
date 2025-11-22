@@ -523,7 +523,7 @@ def banking_compte_detail(compte_id):
     liste_categories = g.models.categorie_transaction_model.get_categories_utilisateur(current_user.id)
     return render_template('banking/compte_detail.html',
                         compte=compte,
-                        liste_categories=liste_categories
+                        liste_categories=liste_categories,
                         sous_comptes=sous_comptes,
                         mouvements=filtred_mouvements,
                         filtred_mouvements=filtred_mouvements,
