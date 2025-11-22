@@ -7203,11 +7203,11 @@ def synthese_mensuelle():
         employeur=employeur,
         contrat_id=contrat_id
     )
-    logging.info{f'voici la synthese list : {synthese_list}'}
+    logging.info(f'voici la synthese list : {synthese_list}')
 
     # ✅ Préparer le graphique SVG (toujours pour l'année entière, en CHF)
     graphique_svg = g.models.synthese_mensuelle_model.prepare_svg_data_mensuel(user_id, annee)
-    logging.info{f'Voici les données graphiques {graphique_svg} '}
+    logging.info(f'Voici les données graphiques {graphique_svg} ')
     # --- NOUVEAU : Calcul des stats h2f pour le mois ---
     seuil_h2f_heure_input = request.args.get('seuil_h2f', '20.0')
     if seuil_h2f_heure_input:
