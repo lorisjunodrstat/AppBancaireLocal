@@ -10041,6 +10041,8 @@ class SyntheseHebdomadaire:
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
+        self.heure_model = HeureTravail(self.db)
+        
 
     def calculate_for_month_by_contrat(self, user_id: int, annee: int, mois: int) -> list[dict]:
         try:
@@ -10352,8 +10354,8 @@ class SyntheseMensuelle:
         Calcule les statistiques sur h2f pour un mois donné.
         """
         seuil_h2f_minutes = int(round(seuil_h2f_minutes))
-        ht_instance = HeureTravail(self.db)
-        jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+
+        jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
         count = 0
         for jour in jours_mois:
             h2f_minutes = ht_instance.time_to_minutes(jour.get('h2f'))
@@ -10375,8 +10377,8 @@ class SyntheseMensuelle:
         Axe X: Jours du mois (1, 2, 3, ..., 31)
         Axe Y: Heures (6h en haut, 22h en bas)
         """
-        ht_instance = HeureTravail(self.db)
-        jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+
+        jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6
@@ -10484,7 +10486,6 @@ class SyntheseMensuelle:
         - 'jours_depassement': liste des compteurs par semaine
         - 'moyenne_mobile': liste des moyennes mobiles cumulatives
         """
-        from datetime import date, timedelta
 
         # Déterminer les dates de début et fin du mois
         if mois == 12:
@@ -10512,12 +10513,11 @@ class SyntheseMensuelle:
         else:
             semaines = list(range(semaine_debut, semaine_fin + 1))
 
-        ht_model = HeureTravail(self.db)
 
         jours_par_semaine = {}
         for semaine in semaines:
             # Récupérer tous les jours de cette semaine pour ce contrat
-            jours = ht_model.get_h1d_h2f_for_period(
+            jours = self.heure_model.get_h1d_h2f_for_period(
                 user_id=user_id,
                 employeur=employeur,
                 id_contrat=id_contrat,
@@ -10553,6 +10553,7 @@ class SyntheseMensuelle:
             'jours_depassement': depassements,
             'moyenne_mobile': moyennes_mobiles
         }
+
 class ParametreUtilisateur:
     """Modèle pour gérer les paramètres utilisateur"""
     
