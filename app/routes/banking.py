@@ -7016,7 +7016,10 @@ def synthese_hebdomadaire():
     id_contrat_filtre = request.args.get('id_contrat')
     employeur_filtre = request.args.get('employeur')
     seuil_h2f_heure = int(request.args.get('seuil_h2f', 19.50))
-
+    try:
+        seuil_h2f_heure = float(seuil_h2f_heure_input)
+    except (ValueError, TypeError):
+        seuil_h2f_heure = 19.5
     # Déterminer la semaine courante si non fournie
     if semaine is None or not semaine.isdigit():
         semaine = datetime.now().isocalendar()[1]
@@ -7039,8 +7042,8 @@ def synthese_hebdomadaire():
     total_simule = sum(float(s.get('heures_simulees', 0)) for s in synthese_list)
 
     # --- NOUVEAU : Calcul des stats h2f pour l'année ---
-    seuil_h2f_heure = 19.5 # Exemple : 18h
-    seuil_h2f_minutes = seuil_h2f_heure * 60
+  
+
     if employeur_filtre and id_contrat_filtre:
         stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(
             user_id, employeur_filtre, int(id_contrat_filtre), annee, seuil_h2f_minutes)
