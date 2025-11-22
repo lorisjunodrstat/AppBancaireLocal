@@ -9895,7 +9895,7 @@ class SyntheseHebdomadaire:
         }
     
 
-    def prepare_svg_data_horaire_jour(self, user_id: int, employeur: str, id_contrat: int, annee: int, semaine: int, seuil_h2f_heure: int = 18, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
+    def prepare_svg_data_horaire_jour(self, user_id: int, employeur: str, id_contrat: int, annee: int, semaine: int, seuil_h2f_heure: float = 18.0, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         """
         Prépare les données pour un graphique SVG des horaires de début/fin de journée.
         Axe X: Jours de la semaine (Lun, Mar, Mer, Jeu, Ven, Sam, Dim)
@@ -9913,7 +9913,7 @@ class SyntheseHebdomadaire:
         minute_fin_affichage = heure_fin_affichage * 60
         plage_minutes = plage_heures * 60 # 1080 minutes
 
-        seuil_h2f_minutes = seuil_h2f_heure * 60 # Convertir le seuil en minutes
+        seuil_h2f_minutes = int(seuil_h2f_heure * 60) # Convertir le seuil en minutes
 
         # Marges
         margin_x = largeur_svg * 0.1

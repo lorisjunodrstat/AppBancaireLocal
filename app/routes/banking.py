@@ -7015,7 +7015,7 @@ def synthese_hebdomadaire():
     semaine = request.args.get('semaine')
     id_contrat_filtre = request.args.get('id_contrat')
     employeur_filtre = request.args.get('employeur')
-    seuil_h2f_heure = int(request.args.get('seuil_h2f', 19.5))
+    seuil_h2f_heure = int(request.args.get('seuil_h2f', 19.50))
 
     # Déterminer la semaine courante si non fournie
     if semaine is None or not semaine.isdigit():
