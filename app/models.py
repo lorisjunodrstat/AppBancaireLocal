@@ -10360,7 +10360,8 @@ class SyntheseMensuelle:
             'nb_jours_apres_seuil': count,
             'jours_travailles': len(jours_mois),
             'moyenne_mensuelle': round(moyenne_mensuelle, 2),
-            'seuil_heure': f"{seuil_h2f_minutes // 60}:{seuil_h2f_minutes % 60:02d}"
+            seuil_int = int(round(seuil_h2f_minutes))  # round pour sécurité si float avec décimales
+            'seuil_heure': f"{seuil_int // 60}:{seuil_int % 60:02d}"
         }
 
     def prepare_svg_data_horaire_mois(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, largeur_svg: int = 1000, hauteur_svg: int = 400) -> Dict:
