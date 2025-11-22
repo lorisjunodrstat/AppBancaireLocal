@@ -10532,7 +10532,7 @@ class SyntheseMensuelle:
             # Compter les dépassements
             count = 0
             for j in jours_du_mois:
-                h2f_min = ht_model.time_to_minutes(j.get('h2f'))
+                h2f_min = self.heure_model.time_to_minutes(j.get('h2f'))
                 if h2f_min != -1 and h2f_min > seuil_h2f_minutes:
                     count += 1
             jours_par_semaine[semaine] = count
