@@ -10487,6 +10487,58 @@ class SyntheseMensuelle:
             'annee': annee
         }
 
+    def prepare_svg_data_h2f_annuel(self, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60, largeur_svg: int = 900, hauteur_svg: int = 400) -> Dict:
+    # Récupérer les stats hebdomadaires
+        stats = self.calculate_h2f_stats(user_id, employeur, id_contrat, annee, seuil_h2f_minutes)
+        
+        semaines = list(range(1, 53))  # ou 54 si besoin
+        depassements = [stats['moyennes_hebdo'].get(s, 0) for s in semaines]
+        moyennes_mobiles = [stats['moyennes_mobiles'].get(s, 0) for s in semaines]
+
+        # Calcul des dimensions SVG
+        margin_x = 60
+        margin_y = 40
+        plot_width = largeur_svg - margin_x - 50
+        plot_height = hauteur_svg - margin_y - 50
+
+        max_val = max(max(depassements), max(moyennes_mobiles)) if (depassements or moyennes_mobiles) else 1
+
+        # Barres
+        barres = []
+        for i, (semaine, val) in enumerate(zip(semaines, depassements)):
+            x = margin_x + i * (plot_width / 52)
+            largeur_barre = (plot_width / 52) * 0.7
+            hauteur_barre = (val / max_val) * plot_height if max_val > 0 else 0
+            y = hauteur_svg - margin_y - hauteur_barre
+            barres.append({
+                'x': x,
+                'y': y,
+                'width': largeur_barre,
+                'height': hauteur_barre,
+                'value': val
+            })
+
+        # Ligne moyenne mobile
+        points_ligne = []
+        for i, val in enumerate(moyennes_mobiles):
+            x = margin_x + (i + 0.5) * (plot_width / 52)
+            y = hauteur_svg - margin_y - (val / max_val) * plot_height if max_val > 0 else hauteur_svg - margin_y
+            points_ligne.append(f"{x},{y}")
+
+        return {
+            'barres': barres,
+            'ligne': points_ligne,
+            'semaines': [f"S{num}" for num in semaines],
+            'largeur_svg': largeur_svg,
+            'hauteur_svg': hauteur_svg,
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'plot_width': plot_width,
+            'plot_height': plot_height,
+            'max_val': max_val,
+            'annee': annee,
+            'seuil_heure': f"{seuil_h2f_minutes // 60}h{seuil_h2f_minutes % 60:02d}"
+        }
 
 
     def calculate_h2f_stats_weekly_for_month(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int) -> Dict:

@@ -7205,7 +7205,12 @@ def synthese_mensuelle():
         contrat_id=contrat_id
     )
     logging.info(f'voici la synthese list : {synthese_list}')
-
+    graphique_h2f_annuel = None
+        if synthese_list:
+            graphique_h2f_annuel = g.models.synthese_hebdo_model.prepare_svg_data_h2f_annuel(
+                user_id, employeur_exemple, id_contrat_exemple, annee, seuil_h2f_minutes
+                )
+        elif employeur a
     # ✅ Préparer le graphique SVG (toujours pour l'année entière, en CHF)
     graphique_svg = g.models.synthese_mensuelle_model.prepare_svg_data_mensuel(user_id, annee)
     logging.info(f'Voici les données graphiques {graphique_svg} ')
@@ -7230,14 +7235,17 @@ def synthese_mensuelle():
         id_contrat_exemple = synthese_list[0]['id_contrat'] if synthese_list else None
         employeur_exemple = synthese_list[0]['employeur'] if synthese_list else None
 
-        if id_contrat_exemple and employeur_exemple:
+        if contrat_id and employeur :
             stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(
-                user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes
-            )
+                user_id, employeur, contrat_id, annee, mois, seuil_h2f_minutes)
+            svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
+                user_id, employeur, contrat_id, annee, mois)
+        elif id_contrat_exemple and employeur_exemple:
+            stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(
+                user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes)
             # --- NOUVEAU : Préparation des données SVG pour le graphique horaire du mois ---
             svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
-                user_id, employeur_exemple, id_contrat_exemple, annee, mois
-            )
+                user_id, employeur_exemple, id_contrat_exemple, annee, mois)
             logging.info(f'Voici les données pour {mois} : {svg_horaire_mois_data}')
     # --- NOUVEAU : Graphique hebdomadaire du dépassement de seuil DANS le mois ---
     graphique_h2f_semaines = None
