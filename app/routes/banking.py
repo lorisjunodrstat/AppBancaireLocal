@@ -7208,7 +7208,8 @@ def synthese_mensuelle():
         try:
             seuil_h2f_heure = float(seuil_h2f_heure_input)
         except (ValueError, TypeError):
-            seuil_h2f_heure = 20.0
+            flash("La valeur du seuil est invalide.", "danger")
+            return redirect(url_for('banking.synthese_mensuelle')) 
     else:
         seuil_h2f_heure = 20.0
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ← entier en minutes
