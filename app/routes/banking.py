@@ -7175,6 +7175,12 @@ def generer_syntheses_mensuelles():
 @bp.route('/synthese-mensuelle', methods=['GET'])
 @login_required
 def synthese_mensuelle():
+    employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
+    contrats = g.models.contrat_model.get_all_contrats(user_id)
+    employeurs_default = employeurs[0]
+    logging.info(f'employeur par defaut : {employeurs_default}')
+    contrats_default = contrats['id'][0]
+    logging.info(f'contrat par défaut : {contrats_default}')
     user_id = current_user.id
     annee = int(request.args.get('annee', datetime.now().year))
     mois = request.args.get('mois')

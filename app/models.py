@@ -8487,7 +8487,7 @@ class Contrat:
         """Liste tous les contrats de l'utilisateur, du plus récent au plus ancien."""
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
-                query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut DESC;"
+                query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut ASC;"
                 logging.debug(f"SQL: {query} | Params: {user_id}")
                 cursor.execute(query, (user_id,))  # ← CORRIGÉ : virgule ajoutée
                 return cursor.fetchall()
@@ -10358,7 +10358,7 @@ class SyntheseMensuelle:
         jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
         count = 0
         for jour in jours_mois:
-            h2f_minutes = ht_instance.time_to_minutes(jour.get('h2f'))
+            h2f_minutes = self.heure_model.time_to_minutes(jour.get('h2f'))
             if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
                 count += 1
 
