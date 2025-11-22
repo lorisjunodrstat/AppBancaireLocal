@@ -7015,7 +7015,7 @@ def synthese_hebdomadaire():
     semaine = request.args.get('semaine')
     id_contrat_filtre = request.args.get('id_contrat')
     employeur_filtre = request.args.get('employeur')
-    seuil_h2f_heure = int(request.args.get('seuil_h2f', 19.50))
+    seuil_h2f_heure = int(request.args.get('seuil_h2f', 20.0))
     try:
         seuil_h2f_heure = float(seuil_h2f_heure)
     except (ValueError, TypeError):
