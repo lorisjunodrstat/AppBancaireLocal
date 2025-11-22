@@ -7195,8 +7195,8 @@ def synthese_mensuelle():
     graphique_svg = g.models.synthese_mensuelle_model.prepare_svg_data_mensuel(user_id, annee)
 
     # --- NOUVEAU : Calcul des stats h2f pour le mois ---
-    seuil_h2f_heure = 18 # Exemple : 18h
-    seuil_h2f_minutes = seuil_h2f_heure * 60
+    seuil_h2f_heure = 18.5  # ou float(request.args.get('seuil_h2f', 18.5))
+    seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ✅ garantit un int
     stats_h2f_mois = None
     svg_horaire_mois_data = None
     if mois: # Si un mois est spécifié
@@ -7212,13 +7212,73 @@ def synthese_mensuelle():
             svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
                 user_id, employeur_exemple, id_contrat_exemple, annee, mois
             )
+    # --- NOUVEAU : Graphique hebdomadaire du dépassement de seuil DANS le mois ---
+    graphique_h2f_semaines = None
+    if mois and synthese_list:
+        id_contrat_exemple = synthese_list[0]['id_contrat']
+        employeur_exemple = synthese_list[0]['employeur']
+        
+        donnees_semaines = g.models.synthese_mensuelle_model.calculate_h2f_stats_weekly_for_month(
+            user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes
+        )
 
+        # Préparer les données SVG (barres + ligne)
+        semaines = donnees_semaines['semaines']
+        depassements = donnees_semaines['jours_depassement']
+        moyennes_mobiles = donnees_semaines['moyenne_mobile']
+
+        if semaines:
+            largeur_svg = 800
+            hauteur_svg = 400
+            n = len(semaines)
+            margin_x = 50
+            margin_y = 30
+            plot_width = largeur_svg - margin_x - 50
+            plot_height = hauteur_svg - margin_y - 50
+
+            max_val = max(max(depassements or [0]), max(moyennes_mobiles or [0])) or 1
+
+            # Barres
+            barres = []
+            for i in range(n):
+                x = margin_x + i * (plot_width / n) + (plot_width / n) * 0.1
+                largeur_barre = (plot_width / n) * 0.8
+                hauteur_barre = (depassements[i] / max_val) * plot_height
+                y = hauteur_svg - margin_y - hauteur_barre
+                barres.append({
+                    'x': x,
+                    'y': y,
+                    'width': largeur_barre,
+                    'height': hauteur_barre,
+                    'value': depassements[i]
+                })
+
+            # Ligne (moyenne mobile)
+            points_ligne = []
+            for i in range(n):
+                x = margin_x + (i + 0.5) * (plot_width / n)
+                y = hauteur_svg - margin_y - (moyennes_mobiles[i] / max_val) * plot_height
+                points_ligne.append(f"{x},{y}")
+
+            graphique_h2f_semaines = {
+                'barres': barres,
+                'ligne': points_ligne,
+                'semaines': [f"S{num}" for num in semaines],
+                'largeur_svg': largeur_svg,
+                'hauteur_svg': hauteur_svg,
+                'margin_x': margin_x,
+                'margin_y': margin_y,
+                'plot_width': plot_width,
+                'plot_height': plot_height,
+                'max_val': max_val
+            }
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
     contrats = g.models.contrat_model.get_all_contrats(user_id)
 
     return render_template('salaires/synthese_mensuelle.html',
                         syntheses=synthese_list,
                         graphique_svg=graphique_svg,
+                        graphique_h2f_semaines=graphique_h2f_semaines,
                         current_annee=annee,
                         current_mois=mois,
                         selected_employeur=employeur,
@@ -7230,6 +7290,7 @@ def synthese_mensuelle():
                         seuil_h2f_heure=seuil_h2f_heure,
                         svg_horaire_mois_data=svg_horaire_mois_data,
                         now=datetime.now())
+
 @bp.route('/contrat', methods=['GET', 'POST'])
 @login_required
 def gestion_contrat():
