@@ -5042,7 +5042,7 @@ class CategorieTransaction:
         try:
             with self.db.get_cursor() as cursor:
                 query = """
-                    SELECT id, nom, description, couleur, icone, type_categorie, budget_mensuel, categorie_complementaire_id, type_ecriture_complementaire
+                    SELECT id, nom, description, couleur, icone, type_categorie, budget_mensuel
                     FROM categories_transactions
                     WHERE utilisateur_id = %s AND actif = TRUE
                 """
