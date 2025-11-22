@@ -7219,7 +7219,7 @@ def synthese_mensuelle():
     else:
         seuil_h2f_heure = 20.0
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ← entier en minutes
-    logging.info{f'Voici le seuil : {seuil_h2f_minutes} pour {seuil_h2f_heure_input}'}
+    logging.info(f'Voici le seuil : {seuil_h2f_minutes} pour {seuil_h2f_heure_input}')
 
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ✅ garantit un int
     stats_h2f_mois = None
