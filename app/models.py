@@ -10477,69 +10477,47 @@ class SyntheseMensuelle:
             'mois': mois,
             'annee': annee
         }
-    # Dans la classe SyntheseMensuelle
-    def calculate_h2f_stats_weekly_for_month(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int) -> Dict:
-        """
-        Calcule, pour chaque semaine ISO intersectant le mois, le nombre de jours où h2f > seuil.
-        Retourne:
-        - 'semaines': liste des numéros de semaine
-        - 'jours_depassement': liste des compteurs par semaine
-        - 'moyenne_mobile': liste des moyennes mobiles cumulatives
-        """
 
-        # Déterminer les dates de début et fin du mois
+    def calculate_h2f_stats_weekly_for_month(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int) -> Dict:
+    
+        # Bornes du mois
         if mois == 12:
-            debut_mois = date(annee, 12, 1)
             fin_mois = date(annee + 1, 1, 1) - timedelta(days=1)
         else:
-            debut_mois = date(annee, mois, 1)
             fin_mois = date(annee, mois + 1, 1) - timedelta(days=1)
+        debut_mois = date(annee, mois, 1)
 
-        # Déterminer la première et dernière semaine ISO intersectant le mois
-        semaine_debut = debut_mois.isocalendar()[1]
-        semaine_fin = fin_mois.isocalendar()[1]
-        annee_semaine_debut = debut_mois.isocalendar()[0]
-        annee_semaine_fin = fin_mois.isocalendar()[0]
+        # Récupérer TOUS les jours du mois
+        tous_les_jours = self.heure_model.get_h1d_h2f_for_period(
+            user_id=user_id,
+            employeur=employeur,
+            id_contrat=id_contrat,
+            annee=annee,
+            mois=mois
+        )
 
-        # Gérer le cas où le mois chevauche l'année (ex: décembre → semaine 1 de l'année suivante)
-        if annee_semaine_debut != annee_semaine_fin:
-            # On va itérer semaine par semaine en construisant les dates
-            semaines = []
-            current = debut_mois
-            while current <= fin_mois:
-                semaines.append(current.isocalendar()[1])
-                current += timedelta(weeks=1)
-            semaines = sorted(set(semaines))
-        else:
-            semaines = list(range(semaine_debut, semaine_fin + 1))
+        # Regrouper par semaine ISO
+        par_semaine = {}
+        for j in tous_les_jours:
+            d = datetime.fromisoformat(j['date']).date()
+            # Vérifier que la date est bien dans le mois (sécurité)
+            if d < debut_mois or d > fin_mois:
+                continue
+            semaine_iso = d.isocalendar()[1]
+            if semaine_iso not in par_semaine:
+                par_semaine[semaine_iso] = []
+            par_semaine[semaine_iso].append(j)
 
-
-        jours_par_semaine = {}
-        for semaine in semaines:
-            # Récupérer tous les jours de cette semaine pour ce contrat
-            jours = self.heure_model.get_h1d_h2f_for_period(
-                user_id=user_id,
-                employeur=employeur,
-                id_contrat=id_contrat,
-                annee=annee,  # note: get_h1d_h2f_for_period utilise l'année de la semaine, attention !
-                semaine=semaine
-            )
-            # Filtrer uniquement les jours DANS le mois
-            jours_du_mois = [
-                j for j in jours
-                if debut_mois <= datetime.fromisoformat(j['date']).date() <= fin_mois
-            ]
-            # Compter les dépassements
+        # Compter les dépassements
+        semaines_sorted = sorted(par_semaine.keys())
+        depassements = []
+        for semaine in semaines_sorted:
             count = 0
-            for j in jours_du_mois:
-                h2f_min = self.heure_model.time_to_minutes(j.get('h2f'))
+            for jour in par_semaine[semaine]:
+                h2f_min = self.heure_model.time_to_minutes(jour.get('h2f'))
                 if h2f_min != -1 and h2f_min > seuil_h2f_minutes:
                     count += 1
-            jours_par_semaine[semaine] = count
-
-        # Construire les listes ordonnées
-        semaines_sorted = sorted(jours_par_semaine.keys())
-        depassements = [jours_par_semaine[s] for s in semaines_sorted]
+            depassements.append(count)
 
         # Moyenne mobile cumulative
         moyennes_mobiles = []
@@ -10553,7 +10531,7 @@ class SyntheseMensuelle:
             'jours_depassement': depassements,
             'moyenne_mobile': moyennes_mobiles
         }
-
+    
 class ParametreUtilisateur:
     """Modèle pour gérer les paramètres utilisateur"""
     
