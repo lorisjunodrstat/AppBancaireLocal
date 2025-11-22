@@ -7175,17 +7175,18 @@ def generer_syntheses_mensuelles():
 @bp.route('/synthese-mensuelle', methods=['GET'])
 @login_required
 def synthese_mensuelle():
+    user_id = current_user.id
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
     contrats = g.models.contrat_model.get_all_contrats(user_id)
     employeurs_default = employeurs[0]
     logging.info(f'employeur par defaut : {employeurs_default}')
     contrats_default = contrats['id'][0]
     logging.info(f'contrat par défaut : {contrats_default}')
-    user_id = current_user.id
+    
     annee = int(request.args.get('annee', datetime.now().year))
     mois = request.args.get('mois')
-    employeur = request.args.get('employeur')
-    contrat_id = request.args.get('contrat')
+    employeur = request.args.get('employeur', employeurs_default)
+    contrat_id = request.args.get('contrat', contrats_default)
     
     mois = int(mois) if mois and mois.isdigit() else None
     contrat_id = int(contrat_id) if contrat_id and contrat_id.isdigit() else None
