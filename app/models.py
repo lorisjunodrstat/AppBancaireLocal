@@ -10487,8 +10487,9 @@ class SyntheseMensuelle:
             'annee': annee
         }
 
+
+
     def calculate_h2f_stats_weekly_for_month(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int) -> Dict:
-    
         # Bornes du mois
         if mois == 12:
             fin_mois = date(annee + 1, 1, 1) - timedelta(days=1)
@@ -10508,10 +10509,21 @@ class SyntheseMensuelle:
         # Regrouper par semaine ISO
         par_semaine = {}
         for j in tous_les_jours:
-            d = datetime.fromisoformat(j['date']).date()
+            date_val = j['date']
+            # Gérer les différents types possibles de `date`
+            if isinstance(date_val, str):
+                d = datetime.fromisoformat(date_val).date()
+            elif isinstance(date_val, datetime):
+                d = date_val.date()
+            elif isinstance(date_val, date):
+                d = date_val
+            else:
+                continue  # type inconnu, on ignore
+
             # Vérifier que la date est bien dans le mois (sécurité)
             if d < debut_mois or d > fin_mois:
                 continue
+
             semaine_iso = d.isocalendar()[1]
             if semaine_iso not in par_semaine:
                 par_semaine[semaine_iso] = []
@@ -10540,7 +10552,7 @@ class SyntheseMensuelle:
             'jours_depassement': depassements,
             'moyenne_mobile': moyennes_mobiles
         }
-    
+
 class ParametreUtilisateur:
     """Modèle pour gérer les paramètres utilisateur"""
     
