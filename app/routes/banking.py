@@ -7177,6 +7177,7 @@ def generer_syntheses_mensuelles():
 def synthese_mensuelle():
     user_id = current_user.id
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
+    logging.info(f'liste des employeurs : {employeurs}')
     contrats = g.models.contrat_model.get_all_contrats(user_id)
     employeurs_default = employeurs[0] if employeurs else None
     logging.info(f'employeur par defaut : {employeurs_default}')
