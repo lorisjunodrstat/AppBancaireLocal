@@ -520,9 +520,10 @@ def banking_compte_detail(compte_id):
             'plot_width': plot_width,
             'plot_height': plot_height
         }
-    
+    liste_categories = g.models.categorie_transaction_model.get_categories_utilisateur(current_user.id)
     return render_template('banking/compte_detail.html',
                         compte=compte,
+                        liste_categories=liste_categories
                         sous_comptes=sous_comptes,
                         mouvements=filtred_mouvements,
                         filtred_mouvements=filtred_mouvements,
@@ -4197,7 +4198,54 @@ def transactions_par_categorie(categorie_id):
         logging.error(f"Erreur chargement transactions par catégorie: {e}")
         flash("Erreur lors du chargement des transactions", "error")
         return redirect(url_for('banking.gestion_categories'))
+
+#@bp.route('/categorie/associer', methods=['POST'])
+#@login_required
+#def associer_categorie_transaction():
+#    transaction_id = request.form.get('transaction_id', type=int)
+#    categorie_id = request.form.get('categorie_id', type=int)
+#    
+#    if not transaction_id or not categorie_id:
+#        flash("Données manquantes", "error")
+#        return redirect(request.referrer or url_for('banking.banking_dashboard'))#
+#
+#    success, message = g.models.categorie_transaction_model.associer_categorie_transaction(
+#        transaction_id, categorie_id, current_user.id
+#    )
+#    if not success:
+#        flash(message, "error")
+#    else:
+#        flash("Catégorie associée avec succès", "success")
+#    
+#    return redirect(request.referrer)
+
+@bp.route('/transaction/<int:transaction_id>/associer-categorie', methods=['POST'])
+@login_required
+def associer_categorie_transaction(transaction_id):
+    """Associe une catégorie à une transaction via formulaire HTML classique."""
+    categorie_id = request.form.get('categorie_id', type=int)
     
+    if not categorie_id:
+        flash("Veuillez sélectionner une catégorie.", "warning")
+        return redirect(request.referrer or url_for('banking.banking_dashboard'))
+
+    # Vérifier que la transaction existe et appartient à l'utilisateur
+    tx = g.models.transaction_financiere_model.get_by_id(transaction_id)
+    if not tx or tx['utilisateur_id'] != current_user.id:
+        flash("Transaction non trouvée ou non autorisée.", "error")
+        return redirect(request.referrer or url_for('banking.banking_dashboard'))
+
+    success, message = g.models.categorie_transaction_model.associer_categorie_transaction(
+        transaction_id, categorie_id, current_user.id
+    )
+    
+    if success:
+        flash("Catégorie associée avec succès.", "success")
+    else:
+        flash(message, "error")
+    
+    return redirect(request.referrer)
+
 # API endpoints pour AJAX
 @bp.route('/api/categories', methods=['GET'])
 @login_required
