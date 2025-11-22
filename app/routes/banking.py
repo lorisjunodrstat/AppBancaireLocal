@@ -7203,10 +7203,11 @@ def synthese_mensuelle():
         employeur=employeur,
         contrat_id=contrat_id
     )
+    logging.info{f'voici la synthese list : {synthese_list}'}
 
     # ✅ Préparer le graphique SVG (toujours pour l'année entière, en CHF)
     graphique_svg = g.models.synthese_mensuelle_model.prepare_svg_data_mensuel(user_id, annee)
-
+    logging.info{f'Voici les données graphiques {graphique_svg} '}
     # --- NOUVEAU : Calcul des stats h2f pour le mois ---
     seuil_h2f_heure_input = request.args.get('seuil_h2f', '20.0')
     if seuil_h2f_heure_input:
@@ -7218,7 +7219,7 @@ def synthese_mensuelle():
     else:
         seuil_h2f_heure = 20.0
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ← entier en minutes
-
+    logging.info{f'Voici le seuil : {seuil_h2f_minutes} pour {seuil_h2f_heure_input}'}
 
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ✅ garantit un int
     stats_h2f_mois = None
@@ -7236,6 +7237,7 @@ def synthese_mensuelle():
             svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
                 user_id, employeur_exemple, id_contrat_exemple, annee, mois
             )
+            logging.info{f'Voici les données pour {mois} : {svg_horaire_mois_data}'}
     # --- NOUVEAU : Graphique hebdomadaire du dépassement de seuil DANS le mois ---
     graphique_h2f_semaines = None
     if mois and synthese_list:
@@ -7245,6 +7247,7 @@ def synthese_mensuelle():
         donnees_semaines = g.models.synthese_mensuelle_model.calculate_h2f_stats_weekly_for_month(
             user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes
         )
+        logging.info(f'voici les données pour {mois}: {donnees_semaines}')
 
         # Préparer les données SVG (barres + ligne)
         semaines = donnees_semaines['semaines']
