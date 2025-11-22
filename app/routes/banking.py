@@ -7020,6 +7020,7 @@ def synthese_hebdomadaire():
         seuil_h2f_heure = float(seuil_h2f_heure)
     except (ValueError, TypeError):
         seuil_h2f_heure = 19.5
+    seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))
     # Déterminer la semaine courante si non fournie
     if semaine is None or not semaine.isdigit():
         semaine = datetime.now().isocalendar()[1]
