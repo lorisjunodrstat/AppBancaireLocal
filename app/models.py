@@ -10342,10 +10342,12 @@ class SyntheseMensuelle:
             logging.error(f"Erreur récupération synthèses: {e}")
             return []
 
-    def calculate_h2f_stats_mensuel(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
+    def calculate_h2f_stats_mensuel(self, user_id: int, employeur: str, id_contrat: int, 
+                                    annee: int, mois: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
         """
         Calcule les statistiques sur h2f pour un mois donné.
         """
+        seuil_h2f_minutes = int(round(seuil_h2f_minutes))
         ht_instance = HeureTravail(self.db)
         jours_mois = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
         count = 0
