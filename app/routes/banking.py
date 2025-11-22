@@ -566,7 +566,6 @@ def banking_compte_rapport(compte_id):
     periode = request.args.get('periode', 'mensuel') # Valeur par défaut
     date_ref_str = request.args.get('date_ref') # Date de référence optionnelle
     
-    
     if date_ref_str:
         try:
             date_ref = datetime.strptime(date_ref_str, '%Y-%m-%d').date()
@@ -755,7 +754,7 @@ def banking_comparaison():
     donnees_comparaison = {}
     graphique_svg = None
     if compte2_id:
-        compte2 = compte_model.get_by_id(compte2_id)
+        compte2 = g.models.compte_model.get_by_id(compte2_id)
         if not compte2 or compte2['utilisateur_id'] != user_id:
             flash('Compte 2 non trouvé ou non autorisé', 'error')
             compte2 = None # Réinitialiser
