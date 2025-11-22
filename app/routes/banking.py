@@ -7195,7 +7195,6 @@ def synthese_mensuelle():
             contrat_id = None
     
     mois = int(mois) if mois and mois.isdigit() else None
-    contrat_id = int(contrat_id) if contrat_id and contrat_id.isdigit() else None
 
     synthese_list = g.models.synthese_mensuelle_model.get_by_user_and_filters(
         user_id=user_id,
