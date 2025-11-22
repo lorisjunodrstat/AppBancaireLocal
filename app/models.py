@@ -9902,8 +9902,8 @@ class SyntheseHebdomadaire:
         Axe Y: Heures (6h en haut, 24h en bas)
         seuil_h2f_heure: Heure du seuil à afficher (par défaut 18h).
         """
-        ht_instance = HeureTravail(self.db)
-        jours_semaine = ht_instance.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+
+        jours_semaine = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6  # 6h du matin
@@ -9945,8 +9945,8 @@ class SyntheseHebdomadaire:
             if jour_semaine_numero < 1 or jour_semaine_numero > 7:
                 continue # Ignorer les jours en dehors de Lundi-Dimanche si nécessaire
 
-            h1d_minutes = ht_instance.time_to_minutes(jour_data.get('h1d'))
-            h2f_minutes = ht_instance.time_to_minutes(jour_data.get('h2f'))
+            h1d_minutes = self.heure_model.time_to_minutes(jour_data.get('h1d'))
+            h2f_minutes = self.heure_model.time_to_minutes(jour_data.get('h2f'))
 
             # Calcul des coordonnées X pour la colonne du jour
             x_jour_debut = margin_x + (jour_semaine_numero - 1) * (plot_width / 7)
@@ -10398,8 +10398,8 @@ class SyntheseMensuelle:
             date_obj = datetime.fromisoformat(jour_data['date'])
             jour_du_mois = date_obj.day
 
-            h1d_minutes = ht_instance.time_to_minutes(jour_data.get('h1d'))
-            h2f_minutes = ht_instance.time_to_minutes(jour_data.get('h2f'))
+            h1d_minutes = self.heure_model.time_to_minutes(jour_data.get('h1d'))
+            h2f_minutes = self.heure_model.time_to_minutes(jour_data.get('h2f'))
 
             # Coordonnée X basée sur le jour du mois
             # On suppose que le mois a au maximum 31 jours
