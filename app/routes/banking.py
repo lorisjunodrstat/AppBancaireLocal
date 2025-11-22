@@ -7178,9 +7178,9 @@ def synthese_mensuelle():
     user_id = current_user.id
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(user_id)
     contrats = g.models.contrat_model.get_all_contrats(user_id)
-    employeurs_default = employeurs[0]
+    employeurs_default = employeurs[0] if employeurs else None
     logging.info(f'employeur par defaut : {employeurs_default}')
-    contrats_default = contrats['id'][0]
+    contrats_default = contrats[0]['id'] if contrats else None
     logging.info(f'contrat par défaut : {contrats_default}')
     
     annee = int(request.args.get('annee', datetime.now().year))
@@ -7215,7 +7215,6 @@ def synthese_mensuelle():
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ← entier en minutes
 
 
-    seuil_h2f_heure = 20  # ou float(request.args.get('seuil_h2f', 18.5))
     seuil_h2f_minutes = int(round(seuil_h2f_heure * 60))  # ✅ garantit un int
     stats_h2f_mois = None
     svg_horaire_mois_data = None
