@@ -118,6 +118,24 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
             </div>
+            <!-- === Formulaire d'ASSOCIATION DE CATÉGORIE (séparé) === -->
+            <form method="POST" action="{{ url_for('banking.associer_categorie_transaction', transaction_id=mv.id) }}"
+                class="mt-4 pt-3 border-top">
+                <div class="mb-3">
+                    <label for="categorie_select_{{ mv.id }}" class="form-label">Associer une catégorie</label>
+                    <select class="form-select" id="categorie_select_{{ mv.id }}" name="categorie_id">
+                        <option value="">Aucune (désassocier)</option>
+                        {% for cat in liste_categories %}
+                        <option value="{{ cat.id }}">{{ cat.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="d-flex justify-content-start">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-tags me-1"></i> Appliquer la catégorie
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
