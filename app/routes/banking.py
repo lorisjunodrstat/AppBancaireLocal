@@ -7207,10 +7207,10 @@ def synthese_mensuelle():
     logging.info(f'voici la synthese list : {synthese_list}')
     graphique_h2f_annuel = None
     if employeur and contrat_id:
-        graphique_h2f_annuel = g.models.synthese_hebdo_model.prepare_svg_data_h2f_annuel(
+        graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
             user_id, employeur, contrat_id, annee, seuil_h2f_minutes)
     elif synthese_list:
-        graphique_h2f_annuel = g.models.synthese_hebdo_model.prepare_svg_data_h2f_annuel(
+        graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
             user_id, employeur_exemple, id_contrat_exemple, annee, seuil_h2f_minutes)
         
         
