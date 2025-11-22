@@ -676,7 +676,7 @@ def banking_compte_rapport(compte_id):
         return svg
 
     graphique_svg = generer_graphique_categories_svg(repartition_cats)
-
+    liste_categories = g.models.categorie_transaction_model.get_categories_utilisateur(user_id)
     # --- Contexte pour le template ---
     context = {
         "compte": compte,
@@ -4246,7 +4246,70 @@ def associer_categorie_transaction():
         flash(message, "error")
     
     return redirect(request.referrer)
+@bp.route('/categorie/associer-transaction-multiple', methods=['POST'])
+@login_required
+def associer_categorie_transaction_multiple():
+    """Associe une même catégorie à toutes les transactions non catégorisées d'une période."""
+    compte_id = request.form.get('compte_id', type=int)
+    date_debut_str = request.form.get('date_debut')
+    date_fin_str = request.form.get('date_fin')
+    categorie_id = request.form.get('categorie_id', type=int)
 
+    if not all([compte_id, date_debut_str, date_fin_str, categorie_id]):
+        flash("Données incomplètes pour la catégorisation multiple.", "warning")
+        return redirect(request.referrer or url_for('banking.banking_dashboard'))
+
+    try:
+        date_debut = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
+        date_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
+    except ValueError:
+        flash("Dates invalides.", "error")
+        return redirect(request.referrer)
+
+    # Vérifier que le compte appartient à l'utilisateur
+    compte = g.models.compte_model.get_by_id(compte_id)
+    if not compte or compte['utilisateur_id'] != current_user.id:
+        flash("Compte non autorisé.", "error")
+        return redirect(url_for('banking.banking_dashboard'))
+
+    # Récupérer les transactions non catégorisées dans la période
+    transactions_non_cat, _ = g.models.transaction_financiere_model.get_all_user_transactions(
+        user_id=current_user.id,
+        date_from=date_debut.isoformat(),
+        date_to=date_fin.isoformat(),
+        compte_source_id=compte_id,
+        compte_dest_id=compte_id,
+        per_page=10000
+    )
+
+    # Filtrer celles qui n'ont aucune catégorie
+    transactions_a_categoriser = []
+    for tx in transactions_non_cat:
+        cats = g.models.categorie_transaction_model.get_categories_transaction(tx['id'], current_user.id)
+        if not cats:
+            transactions_a_categoriser.append(tx['id'])
+
+    if not transactions_a_categoriser:
+        flash("Aucune transaction non catégorisée dans cette période.", "info")
+        return redirect(request.referrer)
+
+    # Associer la catégorie à chacune
+    erreurs = 0
+    for tx_id in transactions_a_categoriser:
+        try:
+            g.models.categorie_transaction_model.associer_categorie_transaction(
+                tx_id, categorie_id, current_user.id
+            )
+        except Exception as e:
+            logging.error(f"Erreur catégorisation multiple TX {tx_id}: {e}")
+            erreurs += 1
+
+    if erreurs == 0:
+        flash(f"Catégorie appliquée à {len(transactions_a_categoriser)} transactions.", "success")
+    else:
+        flash(f"Catégorie appliquée partiellement ({len(transactions_a_categoriser) - erreurs} / {len(transactions_a_categoriser)}).", "warning")
+
+    return redirect(request.referrer)
 # API endpoints pour AJAX
 @bp.route('/api/categories', methods=['GET'])
 @login_required
