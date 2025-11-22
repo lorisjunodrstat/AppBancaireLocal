@@ -10017,13 +10017,17 @@ class SyntheseHebdomadaire:
         for i in range(7):
             x_label = margin_x + (i + 0.5) * (plot_width / 7)
             labels_x.append({'jour': jours_labels[i], 'x': x_label})
+        total_minutes = int(round(seuil_h2f_heure * 60))
+        heures = total_minutes // 60
+        minutes = total_minutes % 60
+        seuil_heure_label = f"{heures}h{minutes:02d}"
 
         return {
             'rectangles': rectangles_svg,
             'ticks_y': ticks_y,
             'labels_x': labels_x,
             'seuil_y': seuil_y, # <-- Ajout de la position Y du seuil
-            'seuil_heure': f"{seuil_h2f_heure:02d}h", # <-- Ajout de l'heure du seuil pour le label
+            'seuil_heure': seuil_heure_label, # <-- Ajout de l'heure du seuil pour le label
             'largeur_svg': largeur_svg,
             'hauteur_svg': hauteur_svg,
             'margin_x': margin_x,
