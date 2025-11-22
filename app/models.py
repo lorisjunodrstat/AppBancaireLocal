@@ -10395,7 +10395,16 @@ class SyntheseMensuelle:
         rectangles_svg = []
         # On suppose que `jours_mois` est trié par date
         for i, jour_data in enumerate(jours_mois):
-            date_obj = datetime.fromisoformat(jour_data['date'])
+            date_value = jour_data['date']
+            if isinstance(date_value, str):
+                date_obj = datetime.fromisoformat(date_value).date()
+            elif isinstance(date_value, datetime):
+                date_obj = date_value.date()
+            elif isinstance(date_value, date):
+                date_obj = date_value
+            else:
+                current_app.logger.warning(f"Type de date inattendu : {type(date_value)}")
+                continue
             jour_du_mois = date_obj.day
 
             h1d_minutes = self.heure_model.time_to_minutes(jour_data.get('h1d'))
