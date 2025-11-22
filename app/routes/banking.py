@@ -565,12 +565,15 @@ def banking_compte_rapport(compte_id):
     # Récupérer les paramètres de la requête (période)
     periode = request.args.get('periode', 'mensuel') # Valeur par défaut
     date_ref_str = request.args.get('date_ref') # Date de référence optionnelle
-    date_ref = date.today()
+    
+    
     if date_ref_str:
         try:
             date_ref = datetime.strptime(date_ref_str, '%Y-%m-%d').date()
         except ValueError:
             flash('Format de date invalide.', 'error')
+    else:
+        date_ref = date.today()
             # On continuera avec la date par défaut (today)
 
     # Déterminer la plage de dates selon la période
@@ -6920,7 +6923,7 @@ def synthese_hebdomadaire():
     total_simule = sum(float(s.get('heures_simulees', 0)) for s in synthese_list)
 
     # --- NOUVEAU : Calcul des stats h2f pour l'année ---
-    seuil_h2f_heure = 18 # Exemple : 18h
+    seuil_h2f_heure = 20 # Exemple : 18h
     seuil_h2f_minutes = seuil_h2f_heure * 60
     if employeur_filtre and id_contrat_filtre:
         stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(
