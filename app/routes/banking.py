@@ -650,30 +650,34 @@ def banking_compte_rapport(compte_id):
     # On peut réutiliser la logique de ton `generer_graphique_top_comptes_echanges` ou en créer un dédié
     # Pour l'instant, on va créer un graphique simple en barres horizontales
     def generer_graphique_categories_svg(cats_data):
-        if not cats_data:
-            return "<svg width='600' height='300'><text x='10' y='20'>Aucune donnée</text></svg>"
-        # Trier les catégories par montant décroissant et limiter à 10
-        items = sorted(cats_data.items(), key=lambda x: x[1], reverse=True)[:10]
-        noms = [item[0] for item in items]
-        montants = [float(item[1]) for item in items]
-        total = sum(montants) or 1
+    if not cats_data:
+        return "<svg width='600' height='300'><text x='10' y='20'>Aucune donnée</text></svg>"
+    
+    # Trier les catégories par montant décroissant et limiter à 10
+    items = sorted(cats_data.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    # Convertir TOUT en float dès le départ
+    items_float = [(nom, float(montant)) for nom, montant in items]
+    noms = [item[0] for item in items_float]
+    montants = [item[1] for item in items_float]
+    total = sum(montants) or 1.0  # float
 
-        h_svg = max(300, len(noms) * 30)
-        w_svg = 700
-        ml, mr, mt, mb = 200, 40, 30, 30
-        graph_w = w_svg - ml - mr
-        graph_h = h_svg - mt - mb
+    h_svg = max(300, len(noms) * 30)
+    w_svg = 700
+    ml, mr, mt, mb = 200, 40, 30, 30
+    graph_w = w_svg - ml - mr
+    graph_h = h_svg - mt - mb
 
-        svg = f'<svg width="{w_svg}" height="{h_svg}" xmlns="http://www.w3.org/2000/svg">\n'
-        for i, (nom, montant) in enumerate(items):
-            y = mt + i * (graph_h / len(items))
-            largeur = (montant / total) * graph_w
-            couleur = f"hsl({360 * i / len(items)}, 60%, 50%)"
-            svg += f'<rect x="{ml}" y="{y}" width="{largeur}" height="{graph_h/len(items)*0.8}" fill="{couleur}"/>\n'
-            svg += f'<text x="{ml-10}" y="{y + graph_h/len(items)*0.4}" text-anchor="end">{nom[:20]}</text>\n'
-            svg += f'<text x="{ml+largeur+10}" y="{y + graph_h/len(items)*0.4}">{montant:.2f}</text>\n'
-        svg += '</svg>'
-        return svg
+    svg = f'<svg width="{w_svg}" height="{h_svg}" xmlns="http://www.w3.org/2000/svg">\n'
+    for i, (nom, montant) in enumerate(items_float):  # ← utilise items_float ici
+        y = mt + i * (graph_h / len(items_float))
+        largeur = (montant / total) * graph_w
+        couleur = f"hsl({360 * i / len(items_float)}, 60%, 50%)"
+        svg += f'<rect x="{ml}" y="{y}" width="{largeur}" height="{graph_h/len(items_float)*0.8}" fill="{couleur}"/>\n'
+        svg += f'<text x="{ml-10}" y="{y + graph_h/len(items_float)*0.4}" text-anchor="end">{nom[:20]}</text>\n'
+        svg += f'<text x="{ml+largeur+10}" y="{y + graph_h/len(items_float)*0.4}">{montant:.2f}</text>\n'
+    svg += '</svg>'
+    return svg
 
     graphique_svg = generer_graphique_categories_svg(repartition_cats)
     liste_categories = g.models.categorie_transaction_model.get_categories_utilisateur(user_id)
