@@ -624,8 +624,8 @@ def banking_compte_rapport(compte_id):
         user_id=user_id,
         date_from=debut.isoformat(),
         date_to=fin.isoformat(),
-        compte_source_id=compte_id,
-        compte_dest_id=compte_id,
+        #compte_source_id=compte_id,
+        #compte_dest_id=compte_id,
         per_page=20000 # Récupérer toutes les transactions de la période
     )
 
