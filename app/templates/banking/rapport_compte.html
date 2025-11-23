@@ -103,6 +103,7 @@
                     <thead>
                         <tr>
                             <th>Date</th>
+                            <th>Compte destination</th>
                             <th>Description</th>
                             <th>Montant</th>
                             <th>Action</th>
@@ -112,6 +113,7 @@
                         {% for tx in transactions_non_categorisees %}
                         <tr>
                             <td>{{ tx.date_transaction.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ tx.nom_compte_dest }}</td>
                             <td>{{ tx.description }}</td>
                             <td>{{ "%.2f"|format(tx.montant) }} CHF</td>
                             <td>
@@ -130,7 +132,7 @@
 
     <!-- Lien vers le comparatif -->
     <div class="mb-4">
-        <a href="{{ lien_comparatif }}" class="btn btn-info">Voir le Comparatif</a>
+        <a href="{{ url_for('banking.banking_comparaison', compte_id=compte.id, ) }}" class="btn btn-info">Voir le Comparatif</a>
     </div>
 
 </div>
