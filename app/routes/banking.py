@@ -626,7 +626,7 @@ def banking_compte_rapport(compte_id):
         date_to=fin.isoformat(),
         compte_source_id=compte_id,
         compte_dest_id=compte_id,
-        per_page=10000 # Récupérer toutes les transactions de la période
+        per_page=20000 # Récupérer toutes les transactions de la période
     )
 
     # Agréger les montants par catégorie ou par "Non catégorisé"
@@ -751,7 +751,7 @@ def banking_comparaison():
         titre_periode = f"{debut.strftime('%B %Y')}"
 
     # Récupérer la liste des comptes de l'utilisateur pour le second sélecteur
-    tous_les_comptes = compte_model.get_by_user_id(user_id)
+    tous_les_comptes = g.models.compte_model.get_by_user_id(user_id)
 
     # Récupérer le compte 2 à partir des arguments GET ou POST (s'il est sélectionné)
     compte2_id = request.args.get('compte2_id', type=int)

@@ -2087,15 +2087,8 @@ class TransactionFinanciere:
                 LEFT JOIN sous_comptes sc_dest ON t.sous_compte_destination_id = sc_dest.id
                 -- Filtrer par utilisateur (via compte principal source ou destination)
                 WHERE (
-                    (cp.utilisateur_id = %(user_id)s) OR
-                    (sc.compte_principal_id IN (
-                        SELECT id FROM comptes_principaux WHERE utilisateur_id = %(user_id)s
-                    )) OR
-                    (cp_dest.utilisateur_id = %(user_id)s) OR
-                    (sc_dest.compte_principal_id IN (
-                        SELECT id FROM comptes_principaux WHERE utilisateur_id = %(user_id)s
-                    ))
-                )
+                    cp.utilisateur_id = %s OR
+                    cp_dest.utilisateur_id = %s
                 """
 
                 count_query = "SELECT COUNT(*) as total FROM (" + base_query + ") AS filtered"
