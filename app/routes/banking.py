@@ -4046,8 +4046,6 @@ def creer_categorie():
         try:
             nom = request.form.get('nom', '').strip()
             type_categorie = request.form.get('type_categorie', 'Dépense')
-            categorie_complementaire_id = request.form.get('categorie_complementaire_id', None)
-            type_ecriture_complementaire = request.form.get('type_ecriture_complementaire', None)
             description = request.form.get('description', '').strip()
             couleur = request.form.get('couleur', '')
             icone = request.form.get('icone', '')
@@ -4066,12 +4064,14 @@ def creer_categorie():
                     if budget_mensuel < 0:
                         flash("Le budget mensuel ne peut pas être négatif", "error")
                         return render_template('categories/creer_categorie.html')
+                    elif budget_mensuel is None:
+                        budget_mensuel = 0
             except ValueError:
                 flash("Le budget mensuel doit être un nombre valide", "error")
                 return render_template('categories/creer_categorie.html')
 
             success, message = g.models.categorie_transaction_model.creer_categorie(
-                current_user.id, nom, type_categorie, categorie_complementaire_id, type_ecriture_complementaire, description, couleur, icone, budget_mensuel
+                current_user.id, nom, type_categorie, description, couleur, icone, budget_mensuel
             )
             
             if success:
