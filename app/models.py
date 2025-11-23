@@ -2062,7 +2062,7 @@ class TransactionFinanciere:
             with self.db.get_cursor() as cursor:
                 # Construire la requête avec jointures pour récupérer les noms
                 base_query = """
-                SELECT 
+                SELECT
                     t.id,
                     t.type_transaction,
                     t.montant,
@@ -2079,16 +2079,13 @@ class TransactionFinanciere:
                     sc.nom_sous_compte as nom_sous_compte_source,
                     sc_dest.nom_sous_compte as nom_sous_compte_dest
                 FROM transactions t
-                -- Jointures pour les comptes principaux
                 LEFT JOIN comptes_principaux cp ON t.compte_principal_id = cp.id
                 LEFT JOIN comptes_principaux cp_dest ON t.compte_destination_id = cp_dest.id
-                -- Jointures pour les sous-comptes
                 LEFT JOIN sous_comptes sc ON t.sous_compte_id = sc.id
                 LEFT JOIN sous_comptes sc_dest ON t.sous_compte_destination_id = sc_dest.id
-                -- Filtrer par utilisateur (via compte principal source ou destination)
                 WHERE (
-                cp.utilisateur_id = %(user_id)s 
-                OR cp_dest.utilisateur_id = %(user_id)s
+                    cp.utilisateur_id = 6 
+                    OR cp_dest.utilisateur_id = 6
                 )
                 """
                 #WHERE (
