@@ -5060,8 +5060,7 @@ class CategorieTransaction:
             logging.error(f"Erreur récupération catégories: {e}")
             return []
 
-    def creer_categorie(self, user_id: int, nom: str, type_categorie: str = "Dépense",
-                        categorie_complementaire_id: int = None, type_ecriture_complementaire: str = None,
+    def creer_categorie(self, user_id: int, nom: str, type_categorie: str = "Dépense", 
                         description: str = '', couleur: str = None, icone: str = None, budget_mensuel: float = 0.0) -> Tuple[bool, str]:
         """Crée une nouvelle catégorie de transaction pour un utilisateur"""
         try:
@@ -5081,9 +5080,9 @@ class CategorieTransaction:
                 
                 cursor.execute("""
                     INSERT INTO categories_transactions 
-                    (utilisateur_id, nom, description, type_categorie, categorie_complementaire_id, type_ecriture_complementaire, couleur, icone, budget_mensuel)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (user_id, nom, description, type_categorie, categorie_complementaire_id, type_ecriture_complementaire, couleur, icone, budget_mensuel))
+                    (utilisateur_id, nom, description, type_categorie, couleur, icone, budget_mensuel)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (user_id, nom, description, type_categorie, couleur, icone, budget_mensuel))
                 
                 return True, "Catégorie créée avec succès"
         except Exception as e:
@@ -5127,20 +5126,20 @@ class CategorieTransaction:
             logging.error(f"Erreur mise à jour catégorie: {e}")
             return False, f"Erreur: {str(e)}"
 
-    def get_categorie_complementaire(self, categorie_id: int, user_id: int) -> Optional[Dict]:
-        """Récupère la catégorie complémentaire associée à une catégorie donnée"""
-        try:
-            with self.db.get_cursor() as cursor:
-                cursor.execute("""
-                    SELECT ct2.id, ct2.nom, ct2.description, ct2.couleur, ct2.icone, ct2.type_categorie, ct2.budget_mensuel
-                    FROM categories_transactions ct1
-                    JOIN categories_transactions ct2 ON ct1.categorie_complementaire_id = ct2.id
-                    WHERE ct1.id = %s AND ct1.utilisateur_id = %s AND ct2.actif = TRUE
-                """, (categorie_id, user_id))
-                return cursor.fetchone()
-        except Exception as e:
-            logging.error(f"Erreur récupération catégorie complémentaire: {e}")
-            return None
+    #def get_categorie_complementaire(self, categorie_id: int, user_id: int) -> Optional[Dict]:
+    #    """Récupère la catégorie complémentaire associée à une catégorie donnée"""
+    #    try:
+    #        with self.db.get_cursor() as cursor:
+    #            cursor.execute("""
+    #                SELECT ct2.id, ct2.nom, ct2.description, ct2.couleur, ct2.icone, ct2.type_categorie, ct2.budget_mensuel
+    #                FROM categories_transactions ct1
+    #                JOIN categories_transactions ct2 ON ct1.categorie_complementaire_id = ct2.id
+    #                WHERE ct1.id = %s AND ct1.utilisateur_id = %s AND ct2.actif = TRUE
+    #            """, (categorie_id, user_id))
+    #            return cursor.fetchone()
+    #    except Exception as e:
+    #        logging.error(f"Erreur récupération catégorie complémentaire: {e}")
+    #        return None
 
     def supprimer_categorie(self, categorie_id: int, user_id: int) -> Tuple[bool, str]:
         """Supprime une catégorie de transaction (soft delete)"""
@@ -6166,6 +6165,23 @@ class CategorieComptable:
         except Exception as e:
             logging.error(f"Erreur dans has_categorie_complementaire: {e}")
             return False
+    def get_categorie_complementaire(self, categorie_id: int, utilisateur_id: int)-> List[Dict]:
+        try:
+            with self.db.get_cursor() as cursor:
+                query = """
+                SELECT ct.id, ct.numero, ct.nom, ct.categorie_complementaire_id as id_complementaire, ct2.numero as numero_complementaire, ct2.nom as nom_complementaire
+                FROM categories_comptables ct
+                JOIN categories_comptables ct2 ON ct.categorie_complementaire_id = ct2.id
+                WHERE ct.id = %s AND ct.utilisateur_id = %s;
+
+                """
+                cursor.execute(query, (categorie_id, utilisateur_id))
+                result = cursor.fetchall()
+                logging.info(f'La categorie avec id {categorie_id} a : {result}')
+                return result
+        except Exception as e:
+            logging.error(f'Erreur dans la recherche de catégorie complémentaire: {e}')
+            return None
 
 class EcritureComptable:
     """Modèle pour gérer les écritures comptables"""
