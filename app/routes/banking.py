@@ -697,6 +697,7 @@ def banking_compte_rapport(compte_id):
             "total_sorties": stats.get('total_sorties', 0.0),
         },
         "repartition_par_categories": repartition_cats,
+        "all_transaxtions": tx_avec_cats,
         "transactions_non_categorisees": transactions_non_categorisees,
         "liste_categories": g.models.categorie_transaction_model.get_categories_utilisateur(user_id),
         "lien_comparatif": lien_comparatif,

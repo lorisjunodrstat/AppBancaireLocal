@@ -7093,41 +7093,75 @@ class EcritureComptable:
         try:
             with self.db.get_cursor() as cursor:
                 # 1. PRODUITS
+                #cursor.execute("""
+                #    SELECT 
+                #        c.numero, 
+                #        c.nom as categorie_nom,
+                #        c.id as categorie_id,
+                #        COUNT(e.id) as nombre_ecritures,
+                #        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'validée' THEN e.montant ELSE 0 END) as montant,
+                #        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'validée' THEN e.montant_htva ELSE 0 END) as montant_htva
+                #    FROM ecritures_comptables e
+                #    JOIN categories_comptables c ON e.categorie_id = c.id
+                #    WHERE e.utilisateur_id = %s 
+                #    AND e.date_ecriture BETWEEN %s AND %s
+                #    AND (c.type_compte = 'Actif' OR c.type_compte = 'revenus')
+                #    GROUP BY c.id, c.numero, c.nom
+                #    ORDER BY c.numero
+                #""", (user_id, date_from, date_to))
                 cursor.execute("""
-                    SELECT 
-                        c.numero, 
-                        c.nom as categorie_nom,
-                        c.id as categorie_id,
-                        COUNT(e.id) as nombre_ecritures,
-                        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'validée' THEN e.montant ELSE 0 END) as montant,
-                        SUM(CASE WHEN e.type_ecriture = 'recette' AND e.statut = 'validée' THEN e.montant_htva ELSE 0 END) as montant_htva
-                    FROM ecritures_comptables e
-                    JOIN categories_comptables c ON e.categorie_id = c.id
-                    WHERE e.utilisateur_id = %s 
-                    AND e.date_ecriture BETWEEN %s AND %s
-                    AND (c.type_compte = 'Actif' OR c.type_compte = 'revenus')
-                    GROUP BY c.id, c.numero, c.nom
-                    ORDER BY c.numero
+                SELECT 
+                    c.numero, 
+                    c.nom as categorie_nom,
+                    c.id as categorie_id,
+                    COUNT(e.id) as nombre_ecritures,
+                    SUM(e.montant) as montant,
+                    SUM(e.montant_htva) as montant_htva
+                FROM ecritures_comptables e
+                JOIN categories_comptables c ON e.categorie_id = c.id
+                WHERE e.utilisateur_id = %s 
+                AND e.date_ecriture BETWEEN %s AND %s
+                AND e.type_ecriture = 'recette'
+                AND e.statut = 'validée'
+                GROUP BY c.id, c.numero, c.nom
+                ORDER BY c.numero
                 """, (user_id, date_from, date_to))
                 produits = cursor.fetchall()
                 
                 # 2. CHARGES
+                #cursor.execute("""
+                #    SELECT 
+                #        c.numero, 
+                #        c.nom as categorie_nom,
+                #        c.id as categorie_id,
+                #        COUNT(e.id) as nombre_ecritures,
+                #        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'validée' THEN e.montant ELSE 0 END) as montant,
+                #        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'validée' THEN e.montant_htva ELSE 0 END) as montant_htva
+                #    FROM ecritures_comptables e
+                #    JOIN categories_comptables c ON e.categorie_id = c.id
+                #    WHERE e.utilisateur_id = %s 
+                #    AND e.date_ecriture BETWEEN %s AND %s
+                #    AND (c.type_compte = 'Charge' OR c.type_compte = 'Passif')
+                #    GROUP BY c.id, c.numero, c.nom
+                #    ORDER BY c.numero
+                #""", (user_id, date_from, date_to))
                 cursor.execute("""
-                    SELECT 
-                        c.numero, 
-                        c.nom as categorie_nom,
-                        c.id as categorie_id,
-                        COUNT(e.id) as nombre_ecritures,
-                        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'validée' THEN e.montant ELSE 0 END) as montant,
-                        SUM(CASE WHEN e.type_ecriture = 'depense' AND e.statut = 'validée' THEN e.montant_htva ELSE 0 END) as montant_htva
-                    FROM ecritures_comptables e
-                    JOIN categories_comptables c ON e.categorie_id = c.id
-                    WHERE e.utilisateur_id = %s 
-                    AND e.date_ecriture BETWEEN %s AND %s
-                    AND (c.type_compte = 'Charge' OR c.type_compte = 'Passif')
-                    GROUP BY c.id, c.numero, c.nom
-                    ORDER BY c.numero
-                """, (user_id, date_from, date_to))
+                            SELECT 
+                                c.numero, 
+                                c.nom as categorie_nom,
+                                c.id as categorie_id,
+                                COUNT(e.id) as nombre_ecritures,
+                                SUM(e.montant) as montant,
+                                SUM(e.montant_htva) as montant_htva
+                            FROM ecritures_comptables e
+                            JOIN categories_comptables c ON e.categorie_id = c.id
+                            WHERE e.utilisateur_id = %s 
+                            AND e.date_ecriture BETWEEN %s AND %s
+                            AND e.type_ecriture = 'depense'
+                            AND e.statut = 'validée'
+                            GROUP BY c.id, c.numero, c.nom
+                            ORDER BY c.numero
+                        """, (user_id, date_from, date_to))
                 charges = cursor.fetchall()
                 
             # 3. CALCUL DES TOTAUX
