@@ -27,28 +27,7 @@ from ..utils.pdf_salaire import generer_pdf_salaire
 # --- DÉBUT DES AJOUTS (8 lignes) ---
 from flask import _app_ctx_stack
 
-#class ModelManager:
-#    def __getattr__(self, name):
-#        ctx = _app_ctx_stack.top
-#        if not hasattr(ctx, 'banking_models'):
-#            db_config = current_app.config.get('DB_CONFIG')
-#            g.db_manager = DatabaseManager(db_config)
-#            ctx.banking_models = {
-#                'banque_model': Banque(g.db_manager),
-#                'compte_model': ComptePrincipal(g.db_manager),
-#                'sous_compte_model': SousCompte(g.db_manager),
-#                'transaction_financiere_model': TransactionFinanciere(g.db_manager),
-#                'stats_model': StatistiquesBancaires(g.db_manager),
-#                'plan_comptable_model': PlanComptable(g.db_manager),
-#                'ecriture_comptable_model': EcritureComptable(g.db_manager),
-#                'contact_model': Contacts(g.db_manager),
-#                'heure_model': HeureTravail(g.db_manager),
-#                'contrat_model': Contrat(g.db_manager)
-#            }
-#        return ctx.banking_g.models.get(name)
 
-#models = ModelManager()
-# --- FIN DES AJOUTS ---
 
 # Création du blueprint
 bp = Blueprint('banking', __name__)
@@ -264,16 +243,12 @@ def banking_dashboard():
     first_day = now.replace(day=1)
     last_day = (first_day.replace(month=first_day.month % 12 + 1, year=first_day.year + first_day.month // 12) - timedelta(days=1))
     
-    stats_comptables = g.models.ecriture_comptable_model.get_stats_by_categorie(
-        user_id=user_id,
-        date_from=first_day.strftime('%Y-%m-%d'),
-        date_to=last_day.strftime('%Y-%m-%d')
-    )
+
     les_comptes = []
     for c in comptes:
         c = les_comptes.append(g.models.compte_model.get_by_id(c['id']))
-    recettes_mois = sum(s['total_recettes'] or 0 for s in stats_comptables)
-    depenses_mois = sum(s['total_depenses'] or 0 for s in stats_comptables)
+    recettes_mois = sum(s['total_recettes'] or 0 for s in stats)
+    depenses_mois = sum(s['total_depenses'] or 0 for s in stats)
     
     return render_template('banking/dashboard.html', 
                         comptes=comptes, 
