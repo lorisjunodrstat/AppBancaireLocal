@@ -70,11 +70,14 @@ def load_user(user_id):
         return None
         
     try:
-        # Connexion directe sans utiliser DatabaseManager pour éviter la récursion
-        config_db = current_app.config.get('DB_CONFIG')
+        # IMPORT LOCAL ICI pour casser la boucle circulaire
+        from app.models import Utilisateur, DatabaseManager
+        
+        # On récupère la config
+        config_db = app.config.get('DB_CONFIG')
+        
         if not config_db:
             return None
-            
         connection = pymysql.connect(
             host=config_db['host'],
             port=config_db['port'],
@@ -84,7 +87,6 @@ def load_user(user_id):
             charset=config_db['charset'],
             cursorclass=pymysql.cursors.DictCursor
         )
-        
         user = None
         try:
             with connection.cursor() as cursor:
@@ -106,7 +108,7 @@ def load_user(user_id):
             
         return user
     except Exception as e:
-        logging.error(f"Erreur dans load_user: {e}")
+        logging.getLogger(__name__).error(f"Erreur dans load_user: {e}")
         return None
 
 
@@ -174,7 +176,7 @@ def inject_user_comptes():
             user_id = current_user.id
             user_comptes = []
             
-            # Utilise g.db_manager s'il existe et est initialisé
+            # Utilise g.db_manager s'il existe
             if hasattr(g, 'db_manager') and g.db_manager is not None:
                 try:
                     with g.db_manager.get_cursor(dictionary=True) as cursor:
@@ -196,28 +198,36 @@ def inject_user_comptes():
         logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}")
         return dict(user_comptes=[], user_id=None)
 # Remplacer la fonction before_request par un signal
-@app.before_request
-def before_request():
-    # Initialise g.db_manager pour la requête
+def create_managers_on_request_start(sender, **extra):
+    from app.models import DatabaseManager, ModelManager
     try:
-        from app.models import DatabaseManager
-        config_db = current_app.config.get('DB_CONFIG')
-        if config_db:
-            g.db_manager = DatabaseManager(config_db)
-        else:
-            g.db_manager = None
+        g.db_manager = DatabaseManager(sender.config['DB_CONFIG'])
+        g.models = ModelManager(g.db_manager)
     except Exception as e:
-        logging.error(f"Erreur lors de la création de DatabaseManager: {e}")
+        logging.error(f"Failed to establish database connection: {e}")
         g.db_manager = None
+        g.models = None
 
-@app.teardown_request
-def teardown_request(exception=None):
-    # Ferme la connexion à la base de données
-    if hasattr(g, 'db_manager') and g.db_manager is not None:
+# Connecter la fonction au signal request_started de l'application
+request_started.connect(create_managers_on_request_start, app)
+
+# Fermeture des ressources après chaque requête
+def close_managers_on_request_finish(sender, response, **extra):
+    # Vérifie si l'attribut db_manager existe dans l'objet g et n'est pas None
+    if hasattr(g, 'db_manager') and g.db_manager:
         try:
-            g.db_manager.close()
+            # Tente de fermer le pool de connexions si la méthode existe
+            if hasattr(g.db_manager, 'pool'):
+                g.db_manager.pool.close()
+            elif hasattr(g.db_manager, 'close'):
+                g.db_manager.close()
         except Exception as e:
-            logging.error(f"Erreur lors de la fermeture de la connexion: {e}")
+            logging.error(f"Erreur lors de la fermeture du gestionnaire de DB : {e}")
+    return response
+
+# Connecter la fonction au signal request_finished de l'application
+request_finished.connect(close_managers_on_request_finish, app)
+
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
     # Ajoutez le répertoire racine au chemin Python pour les imports absolus
