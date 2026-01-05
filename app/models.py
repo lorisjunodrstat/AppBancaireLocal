@@ -808,12 +808,14 @@ class DatabaseManager:
             current_app.logger.error(f"Erreur lors de la création des tables : {e}")
 
 class Utilisateur(UserMixin):
-    def __init__(self, id, nom=None, prenom=None, email=None, mot_de_passe=None):
+    def __init__(self, db, id, nom=None, prenom=None, email=None, mot_de_passe=None):
+        self.db = db
         self.id = id
         self.nom = nom
         self.prenom = prenom
         self.email = email
         self.mot_de_passe = mot_de_passe
+        
 
     # Méthodes requises par Flask-Login
     @property
@@ -837,7 +839,7 @@ class Utilisateur(UserMixin):
         Charge l'utilisateur depuis la base de données en utilisant le gestionnaire de contexte.
         """
         try:
-            with db.get_cursor(dictionary=True) as cursor:
+            with self.db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
                 cursor.execute(query, (user_id,))
                 row = cursor.fetchone()
@@ -857,7 +859,7 @@ class Utilisateur(UserMixin):
             current_app.logger.error("La connexion à la base de données est inexistante (None).")
             return None
         try:
-            with db.get_cursor(dictionary=True) as cursor:
+            with self.db.get_cursor(dictionary=True) as cursor:
                 cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
                 row = cursor.fetchone()
                 if row:
@@ -873,7 +875,7 @@ class Utilisateur(UserMixin):
         Crée un nouvel utilisateur dans la base de données.
         """
         try:
-            with db.get_cursor() as cursor:
+            with self.db.get_cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
                     VALUES (%s, %s, %s, %s)
