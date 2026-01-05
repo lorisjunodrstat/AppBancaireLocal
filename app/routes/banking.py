@@ -8170,7 +8170,7 @@ def liste_employe(user_id):
     return render_template('employes/liste.html', employes=employes)
 
 
-@bp.banking('dashboard/nouvel_employe', methods=['GET', 'POST'])
+@bp.route('dashboard/nouvel_employe', methods=['GET', 'POST'])
 @login_required
 def create_employe():
     current_user_id = current_user.id
