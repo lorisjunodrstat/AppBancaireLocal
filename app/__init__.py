@@ -66,6 +66,7 @@ login_manager.login_message_category = "info"
 # Fonction de chargement d'utilisateur pour Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
+    print(f"⚠️ load_user appelé avec user_id = {user_id!r}")
     if user_id is None:
         return None
         
@@ -145,9 +146,9 @@ def inject_user_comptes():
     from flask_login import current_user
     try:
         if current_user.is_authenticated:
-            # Vérifie que g.models est bien initialisé
-            if not hasattr(g, 'models') or g.models is None:
-                logging.warning("g.models non initialisé lors de l'injection des comptes utilisateur.")
+            # Vérifie que g.db_manager est bien initialisé
+            if not hasattr(g, 'db_manager') or g.db_manager is None:
+                logging.warning("g.db_manager non initialisé lors de l'injection des comptes utilisateur.")
                 return dict(user_comptes=[], user_id=current_user.id)
 
             # Récupère les comptes via la fonction utilitaire
