@@ -30,7 +30,7 @@ def login():
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('banking.banking_dashboard'))
         else:
-            logging.warning(f"Échec de connexion pour {email}")
+            logging.warning(f"Échec de connexion pour {email} {user}")
             flash("Email ou mot de passe incorrect", "error")
 
     return render_template('auth/login.html', active_tab='login')
