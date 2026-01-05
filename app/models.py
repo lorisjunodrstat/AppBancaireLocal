@@ -849,15 +849,29 @@ class Utilisateur(UserMixin):
 
     @staticmethod
     def get_by_email(email: str, db):
+        """
+        Récupère un utilisateur par email.
+        :param email: l'email de l'utilisateur
+        :param db: instance de DatabaseManager (ou objet avec méthode get_cursor())
+        :return: instance Utilisateur ou None
+        """
         if db is None:
             return None
         try:
             with db.get_cursor(dictionary=True) as cursor:
-                cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
+                cursor.execute(
+                    "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s",
+                    (email,)
+                )
                 row = cursor.fetchone()
                 if row:
-                    # On envoie l'ID en premier ici aussi
-                    return Utilisateur(row['id'], db, row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
+                    return Utilisateur(
+                        row['id'],
+                        row['nom'],
+                        row['prenom'],
+                        row['email'],
+                        row['mot_de_passe']
+                    )
                 return None
         except Exception as e:
             print(f"Erreur lors de la récupération de l'utilisateur par email: {e}")
