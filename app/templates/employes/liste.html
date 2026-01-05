@@ -1,0 +1,39 @@
+{{ extends "base.html" }}
+
+{{ block "title" }}Liste des employés{{ endblock }}
+
+{{ block "content" }}
+
+<h2>Liste des employés</h2>
+<a href="{{ url_for('banking.create_employe') }}">+ Nouvel employé</a>
+
+<table border="1">
+    <thead>
+        <tr>
+            <th>Nom</th>
+            <th>Prénom</th>
+            <th>Email</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in employes %}
+        <tr>
+            <td>{{ e.nom }}</td>
+            <td>{{ e.prenom }}</td>
+            <td>{{ e.email or '' }}</td>
+            <td>
+                <a href="{{ url_for('banking.detail_employe', employe_id=e.id, user_id=current_user.id) }}">Détail</a>
+                <a
+                    href="{{ url_for('banking.modifier_employe', employe_id=e.id, user_id=current_user.id) }}">Modifier</a>
+                <form method="post"
+                    action="{{ url_for('banking.supprimer_employe', employe_id=e.id, user_id=current_user.id) }}"
+                    style="display:inline;">
+                    <button type="submit" onclick="return confirm('Confirmer ?')">Supprimer</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{{ endblock }}

@@ -1,0 +1,34 @@
+{{ extends "base.html" }}
+
+{{ block "title" }}Dashboard Employés{{ endblock }}
+
+{{ block "content" }}
+
+<h2>Dashboard Employés</h2>
+<p>Nombre total d'employés : {{ all_employes }}</p>
+<p>Mois : {{ mois }} / {{ annee }}</p>
+<p>Heures totales : {{ "%.2f"|format(heures_total_mois) }} h</p>
+<p>Salaire total : {{ "%.2f"|format(salaire_total_mois) }} CHF</p>
+
+<form method="post">
+    <label>Mois :
+        <select name="date_dashboard_mois">
+            {% for m in range(1,13) %}
+            <option value="{{ m }}" {% if m==mois %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Année :
+        <input type="number" name="date_dashboard_annee" value="{{ annee }}" min="2020" max="2030">
+    </label>
+    <button type="submit">Actualiser</button>
+</form>
+
+<h3>Liste des employés</h3>
+<ul>
+    {% for e in employes %}
+    <li><a href="{{ url_for('banking.detail_employe', employe_id=e.id, user_id=current_user.id) }}">{{ e.prenom }} {{
+            e.nom }}</a></li>
+    {% endfor %}
+</ul>
+{{ endblock }}

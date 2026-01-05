@@ -1,0 +1,140 @@
+{% extends "accueil.html" %}
+{% block title %}Salaire & Heures de Travail{% endblock %}
+
+{% block head_css %}
+<style>
+  :root {
+    --ch-blue: #1a5fb4;
+    --ch-green: #2e8b57;
+    --ch-purple: #8e44ad;
+    --ch-gray: #4a4a4a;
+    --ch-light: #f8f9fa;
+    --ch-white: #ffffff;
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --radius: 14px;
+  }
+
+  .page-header {
+    background: linear-gradient(135deg, #8e44ad, #6c3483);
+    padding: 2.5rem 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2.5rem;
+    color: white;
+    text-align: center;
+  }
+
+  .page-header h1 {
+    margin: 0;
+    font-size: 2rem;
+  }
+
+  .page-header .subtitle {
+    margin-top: 0.5rem;
+    opacity: 0.95;
+    font-size: 1.1rem;
+  }
+
+  .feature-card {
+    background: var(--ch-white);
+    border-radius: var(--radius);
+    padding: 1.8rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+  }
+
+  .feature-card h2 {
+    color: var(--ch-purple);
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+  }
+
+  .feature-card ul {
+    padding-left: 1.4rem;
+  }
+
+  .feature-card li {
+    margin-bottom: 0.6rem;
+    line-height: 1.5;
+  }
+
+  .cta-section {
+    text-align: center;
+    margin-top: 3rem;
+  }
+
+  .cta-button {
+    display: inline-block;
+    background: var(--ch-purple);
+    color: white;
+    padding: 0.8rem 1.8rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: opacity 0.2s;
+  }
+
+  .cta-button:hover {
+    opacity: 0.9;
+  }
+
+  @media (max-width: 600px) {
+    .page-header {
+      padding: 1.8rem 1rem;
+    }
+
+    .page-header h1 {
+      font-size: 1.6rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>💼 Salaire & Heures de Travail</h1>
+  <p class="subtitle">Suivez vos heures réelles vs simulées, calculez votre salaire net avec cotisations AVS, et
+    comparez vos écarts.</p>
+</div>
+
+<div class="feature-card">
+  <h2>Heures de travail précises</h2>
+  <ul>
+    <li>🕗 Saisie manuelle ou import CSV : h1d → h1f, h2d → h2f</li>
+    <li>🔄 Deux modes : <strong>heures réelles</strong> (facturées) vs <strong>heures simulées</strong> (planifiées)
+    </li>
+    <li>📊 Visualisation SVG : matin en haut, soir en bas, seuil configurable (ex: 18h)</li>
+    <li>⚠️ Coloration rouge si h2f dépasse le seuil</li>
+  </ul>
+</div>
+
+<div class="feature-card">
+  <h2>Calcul salarial suisse</h2>
+  <p>Votre contrat stocke :</p>
+  <ul>
+    <li>💰 Salaire horaire, indemnités (vacances, jours fériés)</li>
+    <li>🛡️ Cotisations (AVS 5.30%, AC, assurance maladie, 2e pilier)</li>
+    <li>📅 Jour d’estimation (ex: 15) pour acomptes du 10 et du 25</li>
+  </ul>
+  <p>→ Le système calcule automatiquement :</p>
+  <ul>
+    <li>✅ Salaire brut → net</li>
+    <li>✅ Acomptes estimés</li>
+    <li>✅ Écart vs salaire versé (en CHF et %)</li>
+  </ul>
+</div>
+
+<div class="feature-card">
+  <h2>Synthèses hebdo/mensuelles</h2>
+  <ul>
+    <li>🧮 Total des heures par contrat ou employeur</li>
+    <li>⚖️ Comparaison salaire réel vs simulé agrégé</li>
+    <li>📈 Moyennes mobiles pour identifier les tendances</li>
+    <li>📊 Graphiques SVG avec seuils et barres quotidiennes</li>
+  </ul>
+</div>
+
+<div class="cta-section">
+  <a href="/" class="cta-button">← Retour à l’accueil</a>
+</div>
+{% endblock %}

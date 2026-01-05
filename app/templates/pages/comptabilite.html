@@ -1,0 +1,132 @@
+{% extends "accueil.html" %}
+{% block title %}Comptabilité & Écritures Comptables{% endblock %}
+
+{% block head_css %}
+<style>
+  :root {
+    --ch-blue: #1a5fb4;
+    --ch-green: #2e8b57;
+    --ch-gray: #4a4a4a;
+    --ch-light: #f8f9fa;
+    --ch-white: #ffffff;
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --radius: 14px;
+  }
+
+  .page-header {
+    background: linear-gradient(135deg, #2e8b57, #206b43);
+    padding: 2.5rem 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2.5rem;
+    color: white;
+    text-align: center;
+  }
+
+  .page-header h1 {
+    margin: 0;
+    font-size: 2rem;
+  }
+
+  .page-header .subtitle {
+    margin-top: 0.5rem;
+    opacity: 0.95;
+    font-size: 1.1rem;
+  }
+
+  .feature-card {
+    background: var(--ch-white);
+    border-radius: var(--radius);
+    padding: 1.8rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+  }
+
+  .feature-card h2 {
+    color: var(--ch-green);
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+  }
+
+  .feature-card ul {
+    padding-left: 1.4rem;
+  }
+
+  .feature-card li {
+    margin-bottom: 0.6rem;
+    line-height: 1.5;
+  }
+
+  .cta-section {
+    text-align: center;
+    margin-top: 3rem;
+  }
+
+  .cta-button {
+    display: inline-block;
+    background: var(--ch-green);
+    color: white;
+    padding: 0.8rem 1.8rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: opacity 0.2s;
+  }
+
+  .cta-button:hover {
+    opacity: 0.9;
+  }
+
+  @media (max-width: 600px) {
+    .page-header {
+      padding: 1.8rem 1rem;
+    }
+
+    .page-header h1 {
+      font-size: 1.6rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>📊 Comptabilité & Écritures Comptables</h1>
+  <p class="subtitle">Une comptabilité suisse rigoureuse, conforme au plan comptable, avec automatisation intelligente.
+  </p>
+</div>
+
+<div class="feature-card">
+  <h2>Écritures comptables liées aux transactions</h2>
+  <p>Chaque transaction peut être associée à une ou plusieurs <strong>écritures comptables</strong> :</p>
+  <ul>
+    <li>✅ Statut "en attente", "validée" ou "rejetée"</li>
+    <li>📄 Justificatifs joints (PDF, images)</li>
+    <li>👥 Liens avec des contacts (fournisseurs, clients)</li>
+  </ul>
+</div>
+
+<div class="feature-card">
+  <h2>Automatisation intelligente</h2>
+  <ul>
+    <li>🔁 <strong>Catégories complémentaires</strong> : ex. une dépense de bureau déclenche automatiquement une
+      écriture TVA déductible</li>
+    <li>🧮 <strong>Taux conservés</strong> : 3.20%, 2.6%, etc. ne sont jamais perdus</li>
+    <li>🛡️ <strong>Validation en deux temps</strong> : séparation claire entre saisie et validation finale</li>
+  </ul>
+</div>
+
+<div class="feature-card">
+  <h2>Rapports professionnels</h2>
+  <ul>
+    <li>📜 <strong>Compte de résultat</strong> : Produits vs Charges, avec total et solde</li>
+    <li>⚖️ <strong>Bilan</strong> : Actif, Passif, Capitaux propres</li>
+    <li>📈 <strong>Graphiques SVG</strong> : répartition par catégorie, seuils annuels</li>
+    <li>📤 <strong>Export PDF/Excel</strong> pour votre fiscaliste</li>
+  </ul>
+</div>
+
+<div class="cta-section">
+  <a href="/" class="cta-button">← Retour à l’accueil</a>
+</div>
+{% endblock %}

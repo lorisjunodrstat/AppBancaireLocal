@@ -300,9 +300,12 @@
                                                 <hr class="dropdown-divider">
                                             </li>
                                             <li>
-                                                <a class="dropdown-item" href="#">
-                                                    <i class="fas fa-file-export me-2"></i> Exporter PDF
+                                                {% if selected_employeur %}
+                                                <a href="{{ url_for('banking.salaire_pdf', mois=mois, annee=annee_courante, employeur=selected_employeur) }}"
+                                                    class="btn btn-sm btn-outline-secondary ms-1" target="_blank">
+                                                    <i class="fas fa-file-pdf"></i> PDF
                                                 </a>
+                                                {% endif %}
                                             </li>
                                             {% else %}
                                             <li>

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Paramètres de l'entreprise{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Mon entreprise</h2>
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Coordonnées et logo</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="nom" class="form-label">Nom de l'entreprise</label>
+                    <input type="text" class="form-control" id="nom" name="nom" value="{{ entreprise.nom }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="rue" class="form-label">Rue</label>
+                    <input type="text" class="form-control" id="rue" name="rue" value="{{ entreprise.rue }}">
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="code_postal" class="form-label">Code postal</label>
+                        <input type="text" class="form-control" id="code_postal" name="code_postal"
+                            value="{{ entreprise.code_postal }}">
+                    </div>
+                    <div class="col-md-8">
+                        <label for="commune" class="form-label">Commune</label>
+                        <input type="text" class="form-control" id="commune" name="commune"
+                            value="{{ entreprise.commune }}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ entreprise.email }}">
+                </div>
+                <div class="mb-3">
+                    <label for="telephone" class="form-label">Téléphone</label>
+                    <input type="text" class="form-control" id="telephone" name="telephone"
+                        value="{{ entreprise.telephone }}">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Logo actuel</label>
+                    {% if entreprise.logo_path %}
+                    <div class="mb-2">
+                        <img src="{{ url_for('static', filename=entreprise.logo_path) }}" alt="Logo"
+                            style="max-height: 80px; border: 1px solid #ddd; padding: 2px;">
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Aucun logo défini.</p>
+                    {% endif %}
+                
+                    <label for="logo" class="form-label">Remplacer le logo</label>
+                    <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                    <div class="form-text">
+                        Formats acceptés : PNG, JPG, GIF (max. 2 Mo).<br>
+                        Le logo apparaîtra sur les PDF de salaire.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+                <a href="{{ url_for('banking.dashboard') }}" class="btn btn-secondary">Annuler</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

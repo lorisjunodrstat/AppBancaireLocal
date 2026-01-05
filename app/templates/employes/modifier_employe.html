@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Modifier Employé</h2>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" action="{{ url_for('banking.modifier_employe', employe_id=employe.id, user_id=current_user.id) }}">
+                        <div class="mb-3">
+                            <label for="nom" class="form-label">Nom <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="nom" name="nom" value="{{ employe.nom }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="prenom" class="form-label">Prénom <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="prenom" name="prenom" value="{{ employe.prenom }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ employe.email or '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="telephone" class="form-label">Téléphone</label>
+                            <input type="tel" class="form-control" id="telephone" name="telephone" value="{{ employe.telephone or '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="adresse" class="form-label">Adresse</label>
+                            <input type="text" class="form-control" id="adresse" name="adresse" value="{{ employe.adresse or '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="code_postal" class="form-label">Code Postal</label>
+                            <input type="text" class="form-control" id="code_postal" name="code_postal" value="{{ employe.code_postal or '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ville" class="form-label">Ville</label>
+                            <input type="text" class="form-control" id="ville" name="ville" value="{{ employe.ville or '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="date_embauche" class="form-label">Date d'embauche</label>
+                            <input type="date" class="form-control" id="date_embauche" name="date_embauche" value="{{ employe.date_embauche or '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="statut" class="form-label">Statut <span class="text-danger">*</span></label>
+                            <select class="form-select" id="statut" name="statut" required>
+                                <option value="">Sélectionner un statut</option>
+                                <option value="actif" {% if employe.statut == 'actif' %}selected{% endif %}>Actif</option>
+                                <option value="inactif" {% if employe.statut == 'inactif' %}selected{% endif %}>Inactif</option>
+                                <option value="conge" {% if employe.statut == 'conge' %}selected{% endif %}>Congé</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fonction" class="form-label">Fonction</label>
+                            <input type="text" class="form-control" id="fonction" name="fonction" value="{{ employe.fonction or '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="departement" class="form-label">Département</label>
+                            <input type="text" class="form-control" id="departement" name="departement" value="{{ employe.departement or '' }}">
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Enregistrer les modifications
+                            </button>
+                            <a href="{{ url_for('banking.dashboard_employes') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Retour
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

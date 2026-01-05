@@ -5,11 +5,11 @@ from flask_login import login_required, current_user
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, date, time
 from calendar import monthrange
-from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts, ContactCompte, ComptePrincipalRapport, CategorieComptable
+from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts, ContactCompte, ComptePrincipalRapport, CategorieComptable, Employe, Equipe, Planning, Competence, PlanningRegles
 from io import StringIO
 import os
 import csv as csv_mod
-
+import secrets
 from io import BytesIO
 from flask import send_file
 import io
@@ -17,6 +17,11 @@ import traceback
 import random
 from collections import defaultdict
 from . import db_csv_store
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
 
 # --- DÉBUT DES AJOUTS (8 lignes) ---
 from flask import _app_ctx_stack
@@ -90,7 +95,8 @@ def index():
             return redirect(url_for('admin.liste_utilisateurs'))
         else:
             return redirect(url_for('banking.dashboard'))
-    return redirect(url_for('auth.login'))
+    # Sinon, afficher la landing page publique pour présenter l'application
+    return render_template('home2.html')
      
 
 @bp.route('/banques', methods=['GET'])
@@ -6009,30 +6015,36 @@ def heures_travail():
     for day_date in generate_days(annee, mois, semaine):
         date_str = day_date.isoformat()
         jour_data_default = {
-            'date': date_str,
-            'h1d': '',
-            'h1f': '',
-            'h2d': '',
-            'h2f': '',
+            'date' : date_str,
+            'plages':[],
             'vacances': False,
             'total_h': 0.0
         }
+        #   jour_data_default = {    
+        #    'date': date_str,
+        #    'h1d': '',
+        #    'h1f': '',
+        #    'h2d': '',
+        #    'h2f': '',
+        #    'vacances': False,
+        #    'total_h': 0.0
+        #}
         if contrat:
             jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, selected_employeur, contrat['id']) or jour_data_default 
         else:
             jour_data = jour_data_default
         logging.debug(f"banking 3012 DEBUG: Données pour le {date_str}: {jour_data}")
         # CORRECTION : Toujours recalculer total_h pour assurer la cohérence
-        if not jour_data['vacances'] and any([jour_data['h1d'], jour_data['h1f'], jour_data['h2d'], jour_data['h2f']]):
-            calculated_total = g.models.heure_model.calculer_heures(
-                jour_data['h1d'] or '', jour_data['h1f'] or '',
-                jour_data['h2d'] or '', jour_data['h2f'] or ''
-            )
-            # Mise à jour si différence significative (tolérance de 0.01h = 36 secondes)
-            if abs(jour_data['total_h'] - calculated_total) > 0.01:
-                jour_data['total_h'] = calculated_total
-        elif jour_data['vacances']:
-            jour_data['total_h'] = 0.0
+        #if not jour_data['vacances'] and any([jour_data['h1d'], jour_data['h1f'], jour_data['h2d'], jour_data['h2f']]):
+        #    calculated_total = g.models.heure_model.calculer_heures(
+        #        jour_data['h1d'] or '', jour_data['h1f'] or '',
+        #        jour_data['h2d'] or '', jour_data['h2f'] or ''
+        #    )
+        #    # Mise à jour si différence significative (tolérance de 0.01h = 36 secondes)
+        #    if abs(jour_data['total_h'] - calculated_total) > 0.01:
+        #        jour_data['total_h'] = calculated_total
+        #elif jour_data['vacances']:
+        #    jour_data['total_h'] = 0.0
         # Nom du jour en français
         jours_semaine_fr = {
             'Monday': 'Lundi', 'Tuesday': 'Mardi', 'Wednesday': 'Mercredi',
@@ -6069,17 +6081,17 @@ def heures_travail():
                         employeurs_unique=employeurs_unique,
                         selected_employeur=selected_employeur)
 
-def has_hours_for_employeur_and_contrat(self, user_id, employeur, id_contrat):
-    """Vérifie si l'utilisateur a des heures enregistrées pour un employeur donné"""
-    try:
-        with self.db.get_cursor() as cursor:
-            query = "SELECT 1 FROM heures_travail WHERE user_id = %s AND employeur = %s AND id_contrat = %s LIMIT 1"
-            cursor.execute(query, (user_id, employeur, id_contrat))
-            result = cursor.fetchone()
-            return result is not None
-    except Exception as e:
-        current_app.logger.error(f"Erreur has_hours_for_employeur_and_contrat: {e}")
-        return False
+#def has_hours_for_employeur_and_contrat(self, user_id, employeur, id_contrat):
+#    """Vérifie si l'utilisateur a des heures enregistrées pour un employeur donné"""
+#    try:
+#        with self.db.get_cursor() as cursor:
+#            query = "SELECT 1 FROM heures_travail WHERE user_id = %s AND employeur = %s AND id_contrat = %s LIMIT 1"
+#            cursor.execute(query, (user_id, employeur, id_contrat))
+#            result = cursor.fetchone()
+#            return result is not None
+#    except Exception as e:
+#        current_app.logger.error(f"Erreur has_hours_for_employeur_and_contrat: {e}")
+#        return False
 
 def is_valid_time(time_str):
     """Validation renforcée du format d'heure"""
@@ -6100,42 +6112,42 @@ def get_vacances_value(request, date_str):
     """Fonction utilitaire pour récupérer la valeur des vacances de manière cohérente"""
     return request.form.get(f'vacances_{date_str}') == 'on'
 
-def validate_day_data(request, date_str):
-    errors = []
-    
-    h1d = request.form.get(f'h1d_{date_str}', '').strip()
-    h1f = request.form.get(f'h1f_{date_str}', '').strip()
-    h2d = request.form.get(f'h2d_{date_str}', '').strip()
-    h2f = request.form.get(f'h2f_{date_str}', '').strip()
-    
+#def validate_day_data(request, date_str):
+#    errors = []
+#    
+#    h1d = request.form.get(f'h1d_{date_str}', '').strip()
+#    h1f = request.form.get(f'h1f_{date_str}', '').strip()
+#    h2d = request.form.get(f'h2d_{date_str}', '').strip()
+#    h2f = request.form.get(f'h2f_{date_str}', '').strip()
+#    
     # Validation format des heures
-    for field_name, time_str in [('h1d', h1d), ('h1f', h1f), ('h2d', h2d), ('h2f', h2f)]:
-        if not is_valid_time(time_str):
-            errors.append(f"Format d'heure invalide pour {field_name}: '{time_str}'")
+#    for field_name, time_str in [('h1d', h1d), ('h1f', h1f), ('h2d', h2d), ('h2f', h2f)]:
+#        if not is_valid_time(time_str):
+#            errors.append(f"Format d'heure invalide pour {field_name}: '{time_str}'")
     
     # MODIFICATION : Permettre les demi-journées et heures simples
     # Ne pas bloquer si seulement une période est remplie
-    if not errors:
-        # Vérifier la cohérence par période
-        if (h1d and not h1f) or (not h1d and h1f):
-            errors.append("Heure de début et fin de matin incohérentes")
-        if (h2d and not h2f) or (not h2d and h2f):
-            errors.append("Heure de début et fin d'après-midi incohérentes")
+#    if not errors:
+#        # Vérifier la cohérence par période
+#        if (h1d and not h1f) or (not h1d and h1f):
+#            errors.append("Heure de début et fin de matin incohérentes")
+#        if (h2d and not h2f) or (not h2d and h2f):
+#            errors.append("Heure de début et fin d'après-midi incohérentes")
             
         # Vérifier l'ordre chronologique si les deux périodes sont présentes
-        if h1d and h1f and h2d and h2f:
-            try:
-                t1d = datetime.strptime(h1d, '%H:%M').time()
-                t1f = datetime.strptime(h1f, '%H:%M').time()
-                t2d = datetime.strptime(h2d, '%H:%M').time()
-                t2f = datetime.strptime(h2f, '%H:%M').time()
+#        if h1d and h1f and h2d and h2f:
+#            try:
+#                t1d = datetime.strptime(h1d, '%H:%M').time()
+#                t1f = datetime.strptime(h1f, '%H:%M').time()
+#                t2d = datetime.strptime(h2d, '%H:%M').time()
+#                t2f = datetime.strptime(h2f, '%H:%M').time()
                 
-                if not (t1d <= t1f and t1f <= t2d and t2d <= t2f):
-                    errors.append("L'ordre chronologique des heures n'est pas respecté")
-            except ValueError:
-                pass
-    
-    return errors
+#                if not (t1d <= t1f and t1f <= t2d and t2d <= t2f):
+#                    errors.append("L'ordre chronologique des heures n'est pas respecté")
+#            except ValueError:
+#                pass
+#    
+#    return errors
 
 def create_day_payload(request, user_id, date_str, employeur, id_contrat):
     """Crée le payload pour une journée en gérant correctement les valeurs vides"""
@@ -6143,41 +6155,50 @@ def create_day_payload(request, user_id, date_str, employeur, id_contrat):
     def get_time_field(field_name):
         value = request.form.get(f'{field_name}_{date_str}', '').strip()
         return value if value else None
-    
-    h1d = get_time_field('h1d')
-    h1f = get_time_field('h1f')
-    h2d = get_time_field('h2d')
-    h2f = get_time_field('h2f')
+    plages = []
+    for i in range(5):
+        debut = request.form.get(f'plage_{i}_debut_{date_str}', '').strip() or None
+        fin = request.form.get(f'plage_{i}_fin_{date_str}', '').strip() or None
+        if debut or fin:
+            plages.append({'debut': debut, 'fin': fin})
     vacances = get_vacances_value(request, date_str)
+
+    #h1d = get_time_field('h1d')
+    #h1f = get_time_field('h1f')
+    #h2d = get_time_field('h2d')
+    #h2f = get_time_field('h2f')
+    #vacances = get_vacances_value(request, date_str)
     
     # Conversion des valeurs temporelles vides en None
-    time_fields = [h1d, h1f, h2d, h2f]
-    for i, value in enumerate(time_fields):
-        if value == '':
-            time_fields[i] = None
+    #time_fields = [h1d, h1f, h2d, h2f]
+    #for i, value in enumerate(time_fields):
+    #    if value == '':
+    #        time_fields[i] = None
     
     # Calcul du total uniquement si nécessaire
-    total_h = 0.0
-    if not vacances and any(time_fields):
+    #total_h = 0.0
+    #if not vacances and any(time_fields):
         # Utilisation de la méthode statique pour éviter l'instanciation inutile
-        total_h = HeureTravail.calculer_heures_static(
-            h1d or '', 
-            h1f or '',
-            h2d or '',
-            h2f or ''
-        )
+    #    total_h = HeureTravail.calculer_heures_static(
+    #        h1d or '', 
+    #        h1f or '',
+    #        h2d or '',
+    #        h2f or ''
+    #    )
     
     return {
         'date': date_str,
         'user_id': user_id,
         'employeur': employeur,
         'id_contrat': id_contrat,
-        'h1d': h1d,
-        'h1f': h1f,
-        'h2d': h2d,
-        'h2f': h2f,
+        'plages': plages,
+    #    'h1d': h1d,
+    #    'h1f': h1f,
+    #    'h2d': h2d,
+    #    'h2f': h2f,
         'vacances': vacances,
-        'total_h': total_h,
+        'type_heures': 'reelles'
+    #    'total_h': total_h,
         # Les champs suivants seront recalculés par create_or_update
         # On ne les inclut pas pour éviter les incohérences
     }
@@ -6204,11 +6225,11 @@ def save_day_transaction(cursor, payload):
         return False, error_msg
 
 def process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, id_contrat, flash_message=True):
-    errors = validate_day_data(request, date_str)
-    if errors:
-        for error in errors:
-            flash(f"Erreur {format_date(date_str)}: {error}", "error")
-        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
+    #errors = validate_day_data(request, date_str)
+    #if errors:
+    #    for error in errors:
+    #        flash(f"Erreur {format_date(date_str)}: {error}", "error")
+    #    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
     
     payload = create_day_payload(request, user_id, date_str, employeur, id_contrat)
     
@@ -6226,8 +6247,6 @@ def process_day(request, user_id, date_str, annee, mois, semaine, mode, employeu
 def format_date(date_str):
     return datetime.fromisoformat(date_str).strftime('%d/%m/%Y')
 
-def format_date(date_str):
-    return date.fromisoformat(date_str).strftime('%d/%m/%Y')
 
 def generate_days(annee: int, mois: int, semaine: int) -> list[date]:
     if semaine > 0:
@@ -6244,6 +6263,7 @@ def generate_days(annee: int, mois: int, semaine: int) -> list[date]:
         now = datetime.now()
         _, num_days = monthrange(now.year, now.month)
         return [date(now.year, now.month, day) for day in range(1, num_days + 1)]
+
 def handle_save_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     date_str = request.form['save_line']
     return process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, id_contrat)
@@ -6286,33 +6306,53 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur, id
         date_str = day.isoformat()
         vacances = get_vacances_value(request, date_str)
         if not vacances:
-            try:
-                total_h = g.models.heure_model.calculer_heures('08:00', '12:00', '13:00', '17:00')
                 payload = {
                     'date': date_str,
-                    'h1d': '08:00',
-                    'h1f': '12:00',
-                    'h2d': '13:00',
-                    'h2f': '17:00',
-                    'vacances': False,
-                    'total_h': total_h,
                     'user_id': user_id,
                     'employeur': employeur,
                     'id_contrat': id_contrat,
-                    'jour_semaine': day.strftime('%A'),
-                    'semaine_annee': day.isocalendar()[1],
-                    'mois': day.month
+                    'plages': [
+                        {'debut': '08:00', 'fin': '12:00'},
+                        {'debut': '13:00', 'fin': '17:00'}
+                    ],                    
+                    'vacances': False,
+                    'type_heures': 'simulees'
+
                 }
-                g.models.heure_model.create_or_update(payload)
-                success_count += 1
-            except Exception as e:
-                logger.error(f"Erreur simulation jour {date_str}: {str(e)}")
-                errors.append(format_date(date_str))
-    if errors:
-        flash(f"Erreur simulation pour les jours: {', '.join(errors)}", "error")
+                if g.models.heure_model.create_or_update(payload):
+                    success_count += 1
     if success_count > 0:
-        flash(f"Heures simulées appliquées pour {success_count} jour(s)", "info")
+        flash(f'heures simulées appliquées pour {success_count} jours', 'info')
     return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
+
+
+            #try:
+            #    total_h = g.models.heure_model.calculer_heures('08:00', '12:00', '13:00', '17:00')
+            #    payload = {
+            #        'date': date_str,
+            #        'h1d': '08:00',
+            #        'h1f': '12:00',
+            #        'h2d': '13:00',
+            #        'h2f': '17:00',
+            #        'vacances': False,
+            #        'total_h': total_h,
+            #        'user_id': user_id,
+            #        'employeur': employeur,
+            #        'id_contrat': id_contrat,
+            #        'jour_semaine': day.strftime('%A'),
+            #        'semaine_annee': day.isocalendar()[1],
+            #        'mois': day.month
+            #    }
+            #    g.models.heure_model.create_or_update(payload)
+            #    success_count += 1
+            #except Exception as e:
+            #    logger.error(f"Erreur simulation jour {date_str}: {str(e)}")
+            #    errors.append(format_date(date_str))
+    #if errors:
+    #    flash(f"Erreur simulation pour les jours: {', '.join(errors)}", "error")
+    #if success_count > 0:
+    #    flash(f"Heures simulées appliquées pour {success_count} jour(s)", "info")
+    #return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
 def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     days = generate_days(annee, mois, semaine)
@@ -6361,12 +6401,14 @@ def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
         'user_id': user_id,
         'employeur': employeur,
         'id_contrat': id_contrat,
-        'h1d': src_data.get('h1d'),
-        'h1f': src_data.get('h1f'),
-        'h2d': src_data.get('h2d'),
-        'h2f': src_data.get('h2f'),
+        'plages': src_data.get('plages', []),
+        #'h1d': src_data.get('h1d'),
+        #'h1f': src_data.get('h1f'),
+        #'h2d': src_data.get('h2d'),
+        #'h2f': src_data.get('h2f'),
         'vacances': src_data.get('vacances', False),
-        'total_h': src_data.get('total_h', 0.0)
+        'type_heures': src_data.get('type_heures', 'reelles')
+        #'total_h': src_data.get('total_h', 0.0)
     }
 
     if g.models.heure_model.create_or_update(payload):
@@ -6414,12 +6456,14 @@ def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
             'user_id': user_id,
             'employeur': employeur,
             'id_contrat': id_contrat,
-            'h1d': src_data.get('h1d'),
-            'h1f': src_data.get('h1f'),
-            'h2d': src_data.get('h2d'),
-            'h2f': src_data.get('h2f'),
+            'plages': src_data.get('plages', []),
+            #'h1d': src_data.get('h1d'),
+            #'h1f': src_data.get('h1f'),
+            #'h2d': src_data.get('h2d'),
+            #'h2f': src_data.get('h2f'),
             'vacances': src_data.get('vacances', False),
-            'total_h': src_data.get('total_h', 0.0)
+            'type_heures': src_data.get('type_heures', 'reelles')
+            #'total_h': src_data.get('total_h', 0.0)
         }
 
         if g.models.heure_model.create_or_update(payload):
@@ -6435,26 +6479,421 @@ def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
         mode=mode,
         employeur=employeur
     ))
-# --- Routes salaires ---
 
-@bp.route('/salaires', methods=['GET'])
+    ### Détail entreprise
+
+@bp.route('/entreprise', methods=['GET', 'POST'])
 @login_required
-def salaires():
+def gestion_entreprise():
     current_user_id = current_user.id
-    now = datetime.now()
-    annee = request.args.get('annee', now.year, type=int)
-    mois = request.args.get('mois', now.month, type=int)
-    selected_employeur = request.args.get('employeur', '')
 
-    logger.info(f"Affichage des salaires pour utilisateur {current_user_id}, année={annee}")
-    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
-    logging.info(f"banking 3320 {len(tous_contrats)} Contrats récupérés: {tous_contrats} ")
-    employeurs_unique = sorted({c['employeur'] for c in tous_contrats})
+    if request.method == 'POST':
+        data = {
+            'nom': request.form.get('nom', '').strip(),
+            'rue': request.form.get('rue', '').strip(),
+            'code_postal': request.form.get('code_postal', '').strip(),
+            'commune': request.form.get('commune', '').strip(),
+            'email': request.form.get('email', '').strip(),
+            'telephone': request.form.get('telephone', '').strip(),
+            'logo_path': None  # géré séparément si upload
+        }
+        if g.models.entreprise_model.update(current_user_id, data):
+            flash("Informations de l'entreprise mises à jour.", "success")
+        else:
+            flash("Aucune modification effectuée.", "warning")
+        return redirect(url_for('banking.gestion_entreprise'))
+
+    entreprise = g.models.entreprise_model.get_or_create_for_user(current_user_id)
+    return render_template('entreprise/gestion.html', entreprise=entreprise)
+### ---- Routes heures travail pour employées
+def prepare_svg_heures_employes(data_employes, jours_semaine, seuil_heure):
+    largeur_svg = 900
+    hauteur_svg = 500
+    margin = 60
+    plot_width = largeur_svg - 2 * margin
+    plot_height = hauteur_svg - 2 * margin
+
+    # Y-axis : 6h (haut) à 22h (bas) → 16h d’écart = 960 minutes
+    min_heure = 6
+    max_heure = 22
+    total_minutes = (max_heure - min_heure) * 60  # 960
+
+    def heure_to_y(heure_str):
+        if not heure_str:
+            return None
+        h, m = map(int, heure_str.split(':'))
+        total = h * 60 + m
+        # Si < 6h → ramener à 6h (ou gérer nuit)
+        total_clipped = max(total, min_heure * 60)
+        # Position depuis le haut
+        minutes_from_min = total_clipped - (min_heure * 60)
+        y_px = margin + (minutes_from_min / total_minutes) * plot_height
+        return y_px
+
+    rectangles = []
+    couleur_par_employe = {}
+    couleurs = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6']
     
-    # Structure : salaires_par_mois[mois] = { 'employeurs': { 'Nom Employeur': données_salaire, ... }, 'totaux_mois': {...} }
+    for idx, emp in enumerate(data_employes):
+        couleur = couleurs[idx % len(couleurs)]
+        couleur_par_employe[emp['employeur']] = couleur
+        for plage in emp['plages']:
+            jour = plage['date']
+            x = margin + jours_semaine.index(jour) * (plot_width / 7) + (plot_width / 7) * 0.1
+            largeur = (plot_width / 7) * 0.8
+            y1 = heure_to_y(plage['debut'])
+            y2 = heure_to_y(plage['fin'])
+            if y1 is not None and y2 is not None:
+                hauteur = y2 - y1
+                depasse_seuil = False
+                # Vérifier si la plage dépasse le seuil
+                if plage['fin']:
+                    h_fin, m_fin = map(int, plage['fin'].split(':'))
+                    if h_fin + m_fin/60 > seuil_heure:
+                        depasse_seuil = True
+                rectangles.append({
+                    'x': x,
+                    'y': y1,
+                    'width': largeur,
+                    'height': max(hauteur, 2),
+                    'color': couleur if not depasse_seuil else '#F87171',
+                    'employeur': emp['employeur'],
+                    'debut': plage['debut'],
+                    'fin': plage['fin']
+                })
+
+    # Ligne seuil
+    seuil_y = heure_to_y(f"{int(seuil_heure):02d}:{int((seuil_heure % 1)*60):02d}")
+
+    # Labels Y (6h, 10h, 14h, 18h, 22h)
+    labels_y = []
+    for h in range(min_heure, max_heure + 1, 2):
+        y = heure_to_y(f"{h:02d}:00")
+        labels_y.append({'heure': f"{h}h", 'y': y})
+
+    return {
+        'largeur': largeur_svg,
+        'hauteur': hauteur_svg,
+        'margin': margin,
+        'rectangles': rectangles,
+        'seuil_y': seuil_y,
+        'labels_y': labels_y,
+        'jours': [d.strftime('%a %d') for d in jours_semaine],
+        'couleurs': couleur_par_employe
+    }
+
+@bp.route('/heures-employes', methods=['GET'])
+@login_required
+def heures_employes():
+    user_id = current_user.id
+    now = datetime.now()
+    annee = int(request.args.get('annee', now.year))
+    semaine = int(request.args.get('semaine', now.isocalendar()[1]))
+    seuil_heure = float(request.args.get('seuil', 18.0))  # ex: 18h
+
+    # Récupérer tous les employés distincts pour lesquels vous avez des heures
+    with g.models.heure_model.db.get_cursor() as cursor:
+        cursor.execute("""
+            SELECT DISTINCT employeur, id_contrat
+            FROM heures_travail
+            WHERE user_id = %s
+        """, (user_id,))
+        employes = [{'employeur': row['employeur'], 'id_contrat': row['id_contrat']} for row in cursor.fetchall()]
+
+    # Pour chaque employé, récupérer les données de la semaine
+    data_employes = []
+    jours_semaine = [datetime.fromisocalendar(annee, semaine, d).date() for d in range(1, 8)]
+
+    for emp in employes:
+        plages_semaine = []
+        total_heures = 0.0
+        for jour in jours_semaine:
+            jour_data = g.models.heure_model.get_by_date(
+                jour.isoformat(), user_id, emp['employeur'], emp['id_contrat']
+            )
+            if jour_data and not jour_data.get('vacances'):
+                plages = jour_data.get('plages', [])
+                for plage in plages:
+                    if plage.get('debut') and plage.get('fin'):
+                        plages_semaine.append({
+                            'date': jour,
+                            'debut': plage['debut'],
+                            'fin': plage['fin']
+                        })
+                total_heures += jour_data.get('total_h', 0)
+        data_employes.append({
+            'employeur': emp['employeur'],
+            'id_contrat': emp['id_contrat'],
+            'plages': plages_semaine,
+            'total_heures': round(total_heures, 2)
+        })
+
+    # Préparer les données SVG
+    svg_data = prepare_svg_heures_employes(data_employes, jours_semaine, seuil_heure)
+
+    return render_template(
+        'salaires/heures_employes.html',
+        annee=annee,
+        semaine=semaine,
+        seuil_heure=seuil_heure,
+        employes=data_employes,
+        svg_data=svg_data,
+        jours_semaine=jours_semaine
+    )
+
+EMPLOYE_SESSION_KEY = 'employe_salaire_session'
+
+@bp.route('/employe/login', methods=['GET', 'POST'])
+def employe_login():
+    if request.method == 'POST':
+        try:
+            employe_id = int(request.form.get('employe_id', 0))
+            code = request.form.get('code', '').strip()
+        except (ValueError, TypeError):
+            flash("Identifiant invalide.", "error")
+            return render_template('employe/login.html')
+
+        # Vérifier le code
+        employe = g.models.employe_model.verifier_code_acces(employe_id, code)
+        if employe:
+            # Stocker en session (sans utiliser `current_user`)
+            session[EMPLOYE_SESSION_KEY] = {
+                'employe_id': employe['id'],
+                'user_id': employe['user_id'],
+                'prenom': employe['prenom'],
+                'nom': employe['nom']
+            }
+            return redirect(url_for('banking.employe_salaire_view'))
+        else:
+            flash("Numéro d'employé ou code d'accès invalide.", "error")
+    
+    return render_template('employe/login.html')
+
+@bp.route('/salaires/pdf/<int:mois>/<int:annee>')
+@login_required
+def salaire_pdf(mois: int, annee: int):
+    user_id = current_user.id
+    selected_employeur = request.args.get('employeur')
+
+    # Récupérer les données comme dans /salaires
+    contrat = g.models.contrat_model.get_contrat_for_date(user_id, selected_employeur, f"{annee}-{mois:02d}-01")
+    if not contrat:
+        abort(404)
+
+    heures_reelles = g.models.heure_model.get_total_heures_mois(user_id, selected_employeur, contrat['id'], annee, mois) or 0.0
+    salaires_db = g.models.salaire_model.get_by_mois_annee(user_id, annee, mois, selected_employeur, contrat['id'])
+    salaire_data = salaires_db[0] if salaires_db else None
+
+    result = g.models.salaire_model.calculer_salaire_net_avec_details(
+        heures_reelles=heures_reelles,
+        contrat=contrat,
+        contrat_id=contrat['id'],
+        annee=annee,
+        mois=mois,
+        user_id=user_id,
+        jour_estimation=contrat.get('jour_estimation_salaire', 15)
+    )
+    details = result.get('details', {})
+
+    # Récupérer infos entreprise
+    entreprise = g.models.entreprise_model.get_or_create_for_user(user_id)
+
+    # === GÉNÉRATION PDF ===
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+    elements = []
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        spaceAfter=14,
+        alignment=1  # center
+    )
+
+    # En-tête entreprise
+    if entreprise.get('logo_path') and os.path.exists(os.path.join(current_app.static_folder, entreprise['logo_path'])):
+        logo_path = os.path.join(current_app.static_folder, entreprise['logo_path'])
+        img = Image(logo_path, width=1.5*inch, height=1.5*inch)
+        elements.append(img)
+        elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph(entreprise.get('nom', 'Votre entreprise'), title_style))
+    elements.append(Paragraph(f"{entreprise.get('rue', '')}", styles['Normal']))
+    elements.append(Paragraph(f"{entreprise.get('code_postal', '')} {entreprise.get('commune', '')}", styles['Normal']))
+    elements.append(Spacer(1, 24))
+
+    # Titre du document
+    mois_noms = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+                 "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+    elements.append(Paragraph(f"Fiche de salaire – {mois_noms[mois]} {annee}", styles['Heading1']))
+    if selected_employeur:
+        elements.append(Paragraph(f"Employeur : {selected_employeur}", styles['Normal']))
+    elements.append(Spacer(1, 18))
+
+    # Tableau de synthèse
+    data = [
+        ["Élément", "Montant (CHF)"],
+        ["Heures réelles", f"{heures_reelles:.2f} h"],
+        ["Salaire brut", f"{details.get('salaire_brut', 0):.2f}"],
+        ["+ Indemnités", f"+{details.get('total_indemnites', 0):.2f}"],
+        ["- Cotisations", f"-{details.get('total_cotisations', 0):.2f}"],
+        ["= Salaire net", f"{result.get('salaire_net', 0):.2f}"],
+    ]
+    table = Table(data, colWidths=[3*inch, 1.5*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 24))
+
+    # Signature
+    elements.append(Paragraph("_________________________", styles['Normal']))
+    elements.append(Paragraph("Signature employeur", styles['Normal']))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    filename = f"salaire_{selected_employeur or 'perso'}_{annee}_{mois:02d}.pdf"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/pdf'
+    )
+
+@bp.route('/salaires/employe/<int:employe_id>/pdf/<int:annee>/<int:mois>')
+def salaire_employe_pdf(employe_id: int, annee: int, mois: int):
+    code = request.args.get('code')
+    if not code:
+        abort(403)
+
+    # Vérif code
+    employe = g.models.employe_model.get_employe_by_code(employe_id, code)
+    if not employe:
+        abort(403)
+    # Récupérer les données comme dans /salaires
+    contrat = g.models.contrat_model.get_contrat_for_date(user_id, selected_employeur, f"{annee}-{mois:02d}-01")
+    if not contrat:
+        abort(404)
+    user_id = employe['user_id']
+    heures_reelles = g.models.heure_model.get_total_heures_mois(user_id, selected_employeur, contrat['id'], annee, mois) or 0.0
+    salaires_db = g.models.salaire_model.get_by_mois_annee(user_id, annee, mois, selected_employeur, contrat['id'])
+    salaire_data = salaires_db[0] if salaires_db else None
+
+    result = g.models.salaire_model.calculer_salaire_net_avec_details(
+        heures_reelles=heures_reelles,
+        contrat=contrat,
+        contrat_id=contrat['id'],
+        annee=annee,
+        mois=mois,
+        user_id=user_id,
+        jour_estimation=contrat.get('jour_estimation_salaire', 15)
+    )
+    details = result.get('details', {})
+
+    # Récupérer infos entreprise
+    entreprise = g.models.entreprise_model.get_or_create_for_user(user_id)
+
+    # === GÉNÉRATION PDF ===
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+    elements = []
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        spaceAfter=14,
+        alignment=1  # center
+    )
+
+    # En-tête entreprise
+    if entreprise.get('logo_path') and os.path.exists(os.path.join(current_app.static_folder, entreprise['logo_path'])):
+        logo_path = os.path.join(current_app.static_folder, entreprise['logo_path'])
+        img = Image(logo_path, width=1.5*inch, height=1.5*inch)
+        elements.append(img)
+        elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph(entreprise.get('nom', 'Votre entreprise'), title_style))
+    elements.append(Paragraph(f"{entreprise.get('rue', '')}", styles['Normal']))
+    elements.append(Paragraph(f"{entreprise.get('code_postal', '')} {entreprise.get('commune', '')}", styles['Normal']))
+    elements.append(Spacer(1, 24))
+
+    # Titre du document
+    mois_noms = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+                 "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+    elements.append(Paragraph(f"Fiche de salaire – {mois_noms[mois]} {annee}", styles['Heading1']))
+    if selected_employeur:
+        elements.append(Paragraph(f"Employeur : {selected_employeur}", styles['Normal']))
+    elements.append(Spacer(1, 18))
+
+    # Tableau de synthèse
+    data = [
+        ["Élément", "Montant (CHF)"],
+        ["Heures réelles", f"{heures_reelles:.2f} h"],
+        ["Salaire brut", f"{details.get('salaire_brut', 0):.2f}"],
+        ["+ Indemnités", f"+{details.get('total_indemnites', 0):.2f}"],
+        ["- Cotisations", f"-{details.get('total_cotisations', 0):.2f}"],
+        ["= Salaire net", f"{result.get('salaire_net', 0):.2f}"],
+    ]
+    table = Table(data, colWidths=[3*inch, 1.5*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 24))
+
+    # Signature
+    elements.append(Paragraph("_________________________", styles['Normal']))
+    elements.append(Paragraph("Signature employeur", styles['Normal']))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    filename = f"salaire_{selected_employeur or 'perso'}_{annee}_{mois:02d}.pdf"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/pdf'
+    )
+
+@bp.route('/employe/mon-salaire')
+def employe_salaire_view():
+    employe_session = session.get(EMPLOYE_SESSION_KEY)
+    if not employe_session:
+        return redirect(url_for('banking.employe_login'))
+
+    employe_id = employe_session['employe_id']
+    user_id = employe_session['user_id']
+    annee = request.args.get('annee', datetime.now().year, type=int)
+
+    # Trouver le contrat de l'employé
+    contrat = g.models.contrat_model.get_contrat_for_employe(user_id, employe_id)
+    if not contrat:
+        flash("Aucun contrat trouvé pour votre compte.", "error")
+        return render_template('employe/salaire.html', employe=employe_session, salaires_par_mois={})
+
+    id_contrat = contrat['id']
+    employeur = contrat['employeur']
+    salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
+    jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
+
+    # Structure identique à /salaires
     salaires_par_mois = {}
-    
-    # Initialiser tous les mois de l'année
     for m in range(1, 13):
         salaires_par_mois[m] = {
             'employeurs': {},
@@ -6471,183 +6910,322 @@ def salaires():
             }
         }
 
-    # Sélection automatique de l'employeur si non spécifié
-    if not selected_employeur and employeurs_unique:
-        contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
-        if contrat_actuel:
-            selected_employeur = contrat_actuel['employeur']
-        else:
-            selected_employeur = employeurs_unique[0]
+    # Récupérer les salaires existants
+    salaires_db = g.models.salaire_model.get_by_user_and_month_with_employe(
+        user_id=user_id, annee=annee, mois=None, employe_id=employe_id
+    )
+    salaires_db_dict = {s['mois']: s for s in salaires_db}
 
-    # Pour chaque mois de l'année
+    # Calculer mois par mois
     for m in range(1, 13):
-        date_mois_str = f"{annee}-{m:02d}-01"
-        date_mois = date.fromisoformat(date_mois_str)
+        # Heures réelles
+        heures_reelles = g.models.heure_model.get_total_heures_mois(
+            user_id, employeur, id_contrat, annee, m
+        ) or 0.0
+        heures_reelles = round(heures_reelles, 2)
 
-        # Traiter chaque employeur sélectionné ou tous les employeurs
-        employeurs_a_traiter = [selected_employeur] if selected_employeur else employeurs_unique
-        
-        for employeur in employeurs_a_traiter:
-            # Trouver le contrat actif pour cet employeur ce mois-ci
-            contrat = None
-            for c in tous_contrats:
-                if c['employeur'] == employeur and c['date_debut'] <= date_mois and (c['date_fin'] is None or c['date_fin'] >= date_mois):
-                    contrat = c
-                    break
-            
-            if contrat:
-                id_contrat = contrat['id']
-                salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
-                jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
+        # Valeurs de base
+        salaire_verse = 0.0
+        acompte_25 = 0.0
+        acompte_10 = 0.0
 
-                # Récupérer les heures réelles pour cet employeur ce mois-ci
-                heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, id_contrat, annee, m) or 0.0
-                heures_reelles = round(heures_reelles, 2)
+        salaire_existant = salaires_db_dict.get(m)
+        if salaire_existant:
+            salaire_verse = salaire_existant.get('salaire_verse', 0.0)
+            acompte_25 = salaire_existant.get('acompte_25', 0.0)
+            acompte_10 = salaire_existant.get('acompte_10', 0.0)
 
-                # Vérifier si un salaire existe déjà en base POUR CET EMPLOYEUR ET CE CONTRAT
-                salaires_existants = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
-                salaire_existant = salaires_existants[0] if salaires_existants else None
+        # Calculs dynamiques
+        if heures_reelles > 0:
+            # 1. Salaire net + détails
+            result = g.models.salaire_model.calculer_salaire_net_avec_details(
+                heures_reelles=heures_reelles,
+                contrat=contrat,
+                contrat_id=id_contrat,
+                annee=annee,
+                user_id=user_id,
+                mois=m,
+                jour_estimation=jour_estimation
+            )
+            salaire_net = result.get('salaire_net', 0.0)
+            salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
+            details = result
 
-                # Valeurs par défaut
-                #salaire_calcule = 0.0
-                #salaire_net = 0.0
-                salaire_verse = 0.0
-                acompte_10 = 0.0
-                acompte_25 = 0.0
-                #acompte_25_estime = 0.0
-                #acompte_10_estime = 0.0
+            # 2. Acompte 25 = heures(1–15)
+            acompte_25_estime = 0.0
+            if contrat.get('versement_25'):
+                acompte_25_estime = g.models.salaire_model.calculer_acompte_25(
+                    user_id, annee, m, salaire_horaire, employeur, id_contrat, jour_estimation
+                )
+                acompte_25_estime = round(acompte_25_estime, 2)
 
-                if salaire_existant :
-                    # Utiliser les valeurs stockées en base
-                    salaire_verse = salaire_existant.get('salaire_verse', 0.0)
-                    acompte_25 = salaire_existant.get('acompte_25', 0.0)
-                    acompte_10 = salaire_existant.get('acompte_10', 0.0)
+            # 3. Acompte 10 = salaire_net − acompte_25_estime
+            acompte_10_estime = round(salaire_net - acompte_25_estime, 2)
 
-                # Nouveau mois : calculer à la volée
-                acompte_25_estime = 0.0
-                acompte_10_estime = 0.0
-                if heures_reelles > 0:
-                    try:
+            # 4. Injecter dans le détails pour le modal
+            if 'versements' not in details.get('details', {}):
+                details['details']['versements'] = {}
+            details['details']['versements']['acompte_25'] = {
+                'nom': 'Acompte du 25',
+                'actif': True,
+                'montant': acompte_25_estime,
+                'taux': 25
+            }
+            details['details']['versements']['acompte_10'] = {
+                'nom': 'Acompte du 10',
+                'actif': True,
+                'montant': acompte_10_estime,
+                'taux': 10
+            }
+            details['details']['total_versements'] = round(acompte_25_estime + acompte_10_estime, 2)
+            details['details']['calcul_final']['moins_versements'] = round(salaire_net - (acompte_25_estime + acompte_10_estime), 2)
 
-                        # Recalcul des acomptes estimés
-                        if contrat.get('versement_25'):
-                            acompte_25_estime = g.models.salaire_model.calculer_acompte_25(
-                                current_user_id, annee, m, salaire_horaire, employeur, id_contrat, jour_estimation)
-                        if contrat.get('versement_10'):
-                            acompte_10_estime = g.models.salaire_model.calculer_acompte_10(
-                                current_user_id, annee, m, salaire_horaire, employeur, id_contrat, jour_estimation)
-                        acompte_25_estime = round(float(acompte_25_estime), 2)
-                        acompte_10_estime = round(float(acompte_10_estime), 2)
-                    except Exception as e:
-                        logger.error(f"Erreur calcul acomptes estimés mois {m}: {e}")
-                    try:
-                        result = g.models.salaire_model.calculer_salaire_net_avec_details(
-                            heures_reelles, contrat, current_user_id, annee, m, jour_estimation)
-                        logger.info(f"Structure de result pour mois {m}: {result}")
-                        details = result
-                        salaire_net = result.get('salaire_net', 0.0)
-                        salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
-                        versements = result.get('details', {}).get('versements', {})
-                        acompte_25_estime = versements.get('acompte_25', {}).get('montant', 0.0)
-                        acompte_10_estime = versements.get('acompte_10', {}).get('montant', 0.0)
-                    except Exception as e:
-                        logger.error(f"Erreur calcul salaire mois {m}, employeur {employeur}: {e}")
-                        details = {'erreur': f'Erreur calcul: {str(e)}'}
-                        salaire_net = 0.0
-                        salaire_calcule = 0.0
-                        acompte_10_estime = 0.0
-                        acompte_25_estime = 0.0
-                else:
-                    details = {
-                        'erreur': 'Aucune heure saisie pour ce mois',
-                        'heures_reelles': 0.0,
-                        'taux_horaire': salaire_horaire,
-                        'salaire_brut': 0.0,
-                        'versements': {
-                            'acompte_25': {'montant': 0.0},
-                            'acompte_10': {'montant': 0.0}
-                        }
-                    }
-                    salaire_net = 0.0
-                    salaire_calcule = 0.0
-                    acompte_25_estime = 0.0
-                    acompte_10_estime = 0.0
-
-                # Préparer les données à sauvegarder / afficher
-                salaire_data = {
-                    'mois': m,
-                    'annee': annee,
-                    'user_id': current_user_id,
-                    'employeur': employeur,
-                    'id_contrat': id_contrat,
-                    'heures_reelles': heures_reelles,
+        else:
+            salaire_net = salaire_calcule = acompte_25_estime = acompte_10_estime = 0.0
+            details = {
+                'erreur': 'Aucune heure saisie',
+                'details': {
+                    'heures_reelles': 0.0,
                     'salaire_horaire': salaire_horaire,
-                    'salaire_calcule': salaire_calcule,
-                    'salaire_net': salaire_net,
-                    'salaire_verse': salaire_verse,
-                    'acompte_25': acompte_25,
-                    'acompte_10': acompte_10,
-                    'acompte_25_estime': acompte_25_estime,
-                    'acompte_10_estime': acompte_10_estime,
-                    'difference': 0.0,
-                    'difference_pourcent': 0.0,
-                    'details' : details}
+                    'salaire_brut': 0.0,
+                    'indemnites': {},
+                    'cotisations': {},
+                    'versements': {
+                        'acompte_25': {'montant': 0.0},
+                        'acompte_10': {'montant': 0.0}
+                    },
+                    'calcul_final': {
+                        'brut': 0.0,
+                        'plus_indemnites': 0.0,
+                        'moins_cotisations': 0.0,
+                        'moins_versements': 0.0
+                    }
+                }
+            }
 
-                # Calculer la différence si salaire versé existe
-                if salaire_data['salaire_verse'] is not None and salaire_data['salaire_calcule']:
-                    diff, diff_pct = g.models.salaire_model.calculer_differences(
-                        salaire_data['salaire_calcule'],
-                        salaire_data['salaire_verse']
-                    )
-                    salaire_data['difference'] = diff
-                    salaire_data['difference_pourcent'] = diff_pct
+        # Données du mois
+        salaire_data = {
+            'mois': m,
+            'annee': annee,
+            'user_id': user_id,
+            'employeur': employeur,
+            'id_contrat': id_contrat,
+            'heures_reelles': heures_reelles,
+            'salaire_horaire': salaire_horaire,
+            'salaire_calcule': salaire_calcule,
+            'salaire_net': salaire_net,
+            'salaire_verse': salaire_verse,
+            'acompte_25': acompte_25,
+            'acompte_10': acompte_10,
+            'acompte_25_estime': acompte_25_estime,
+            'acompte_10_estime': acompte_10_estime,
+            'difference': 0.0,
+            'difference_pourcent': 0.0,
+            'details': details
+        }
 
-                # Créer en base si c'est un nouveau mois et qu'il y a des heures
-                if not salaire_existant and heures_reelles > 0:
-                    success = g.models.salaire_model.create(salaire_data)
-                    if success:
-                        # Récupérer l'ID après création
-                        salaires_apres = g.models.salaire_model.get_by_mois_annee(current_user_id, annee, m, employeur, id_contrat)
-                        if salaires_apres:
-                            salaire_data['id'] = salaires_apres[0]['id']
+        # Différence
+        if salaire_calcule and salaire_verse:
+            diff, diff_pct = g.models.salaire_model.calculer_differences(salaire_calcule, salaire_verse)
+            salaire_data['difference'] = diff
+            salaire_data['difference_pourcent'] = diff_pct
 
-                # Stocker dans la structure d'affichage
-                salaires_par_mois[m]['employeurs'][employeur] = salaire_data
+        # Stocker
+        salaires_par_mois[m]['employeurs'][employeur] = salaire_data
 
-                # Ajouter aux totaux du mois (seulement pour l'employeur sélectionné ou tous)
-                if not selected_employeur or employeur == selected_employeur:
-                    totaux = salaires_par_mois[m]['totaux_mois']
-                    totaux['heures_reelles'] += heures_reelles
-                    totaux['salaire_calcule'] += salaire_calcule
-                    totaux['salaire_net'] += salaire_net
-                    totaux['salaire_verse'] += salaire_data['salaire_verse']
-                    totaux['acompte_25'] += salaire_data['acompte_25']
-                    totaux['acompte_10'] += salaire_data['acompte_10']
-                    totaux['acompte_25_estime'] += acompte_25_estime
-                    totaux['acompte_10_estime'] += acompte_10_estime
-                    totaux['difference'] += salaire_data['difference']
+        # Ajouter aux totaux (un seul employeur ici)
+        totaux = salaires_par_mois[m]['totaux_mois']
+        for key in totaux:
+            if key == 'heures_reelles':
+                totaux[key] = heures_reelles
+            elif key == 'salaire_calcule':
+                totaux[key] = salaire_calcule
+            elif key == 'salaire_net':
+                totaux[key] = salaire_net
+            elif key == 'salaire_verse':
+                totaux[key] = salaire_verse
+            elif key == 'acompte_25':
+                totaux[key] = acompte_25
+            elif key == 'acompte_10':
+                totaux[key] = acompte_10
+            elif key == 'acompte_25_estime':
+                totaux[key] = acompte_25_estime
+            elif key == 'acompte_10_estime':
+                totaux[key] = acompte_10_estime
+            elif key == 'difference':
+                totaux[key] = salaire_data['difference']
 
-    # Calcul des totaux annuels
+    # Totaux annuels
     totaux_annuels = {
-        'total_heures_reelles': 0.0,
-        'total_salaire_calcule': 0.0,
-        'total_salaire_net': 0.0,
-        'total_salaire_verse': 0.0,
-        'total_acompte_25': 0.0,
-        'total_acompte_10': 0.0,
-        'total_acompte_25_estime': 0.0,
-        'total_acompte_10_estime': 0.0,
-        'total_difference': 0.0,
+        f"total_{k}": round(sum(salaires_par_mois[m]['totaux_mois'][k] for m in range(1,13)), 2)
+        for k in salaires_par_mois[1]['totaux_mois'].keys()
     }
 
-    for m in range(1, 13):
-        mois_totaux = salaires_par_mois[m]['totaux_mois']
-        for key in totaux_annuels:
-            base_key = key.replace('total_', '')
-            totaux_annuels[key] += mois_totaux.get(base_key, 0.0)
+    # Préparer données SVG (optionnel — tu peux l’ajouter si besoin)
+    graphique1_svg = None
+    graphique2_svg = None
 
-    for key in totaux_annuels:
-        totaux_annuels[key] = round(totaux_annuels[key], 2)
+    return render_template(
+        'employe/salaire.html',  # ← même template que /salaires, mais allégé
+        salaires_par_mois=salaires_par_mois,
+        totaux=totaux_annuels,
+        annee_courante=annee,
+        selected_employeur=employeur,
+        employe=employe_session,
+        graphique1_svg=graphique1_svg,
+        graphique2_svg=graphique2_svg,
+        largeur_svg=800,
+        hauteur_svg=400
+    )
+
+@bp.route('/employe/logout')
+def employe_logout():
+    session.pop(EMPLOYE_SESSION_KEY, None)
+    return redirect(url_for('banking.employe_login'))
+
+# --- Routes salaires ---
+
+@bp.route('/salaires', methods=['GET'])
+@login_required
+def salaires():
+    current_user_id = current_user.id
+    now = datetime.now()
+    annee = request.args.get('annee', now.year, type=int)
+    mois = request.args.get('mois', now.month, type=int)
+    selected_employeur = request.args.get('employeur', '').strip()
+
+    tous_contrats = g.models.contrat_model.get_all_contrats(current_user_id)
+    employeurs_unique = sorted({c['employeur'] for c in tous_contrats if c.get('employeur')})
+
+    # Sélection automatique de l'employeur
+    if not selected_employeur and employeurs_unique:
+        contrat_actuel = g.models.contrat_model.get_contrat_actuel(current_user_id)
+        selected_employeur = contrat_actuel['employeur'] if contrat_actuel else employeurs_unique[0]
+
+    # Initialiser structure
+    salaires_par_mois = {}
+    for m in range(1, 13):
+        salaires_par_mois[m] = {
+            'employeurs': {},
+            'totaux_mois': {k: 0.0 for k in [
+                'heures_reelles', 'salaire_calcule', 'salaire_net', 'salaire_verse',
+                'acompte_25', 'acompte_10', 'acompte_25_estime', 'acompte_10_estime', 'difference'
+            ]}
+        }
+
+    # Traiter chaque mois
+    for m in range(1, 13):
+        date_mois = date(annee, m, 1)
+        employeurs_a_traiter = [selected_employeur] if selected_employeur else employeurs_unique
+
+        for employeur in employeurs_a_traiter:
+            # Trouver contrat actif ce mois-ci
+            contrat = next((
+                c for c in tous_contrats
+                if c['employeur'] == employeur
+                and c['date_debut'] <= date_mois
+                and (c['date_fin'] is None or c['date_fin'] >= date_mois)
+            ), None)
+
+            if not contrat:
+                continue
+
+            id_contrat = contrat['id']
+            salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
+            jour_estimation = int(contrat.get('jour_estimation_salaire', 15))
+
+            # Heures réelles
+            heures_reelles = g.models.heure_model.get_total_heures_mois(
+                current_user_id, employeur, id_contrat, annee, m
+            ) or 0.0
+            heures_reelles = round(heures_reelles, 2)
+
+            # Salaire existant ?
+            salaires_existants = g.models.salaire_model.get_by_mois_annee(
+                current_user_id, annee, m, employeur, id_contrat
+            )
+            salaire_existant = salaires_existants[0] if salaires_existants else None
+
+            # Valeurs saisies manuellement
+            salaire_verse = salaire_existant.get('salaire_verse', 0.0) if salaire_existant else 0.0
+            acompte_25 = salaire_existant.get('acompte_25', 0.0) if salaire_existant else 0.0
+            acompte_10 = salaire_existant.get('acompte_10', 0.0) if salaire_existant else 0.0
+
+            # Calculs dynamiques SI heures > 0
+            if heures_reelles > 0:
+                # 1. Salaire net + détails (via nouvelles tables)
+                result = g.models.salaire_model.calculer_salaire_net_avec_details(
+                    heures_reelles=heures_reelles,
+                    contrat=contrat,
+                    contrat_id=id_contrat,
+                    annee=annee,
+                    user_id=current_user_id,
+                    mois=m,
+                    jour_estimation=jour_estimation
+                )
+                salaire_net = result.get('salaire_net', 0.0)
+                salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
+                details = result
+
+                # 2. Acompte 25 = heures(1–15) × salaire_horaire
+                acompte_25_estime = 0.0
+                if contrat.get('versement_25'):
+                    acompte_25_estime = g.models.salaire_model.calculer_acompte_25(
+                        current_user_id, annee, m, salaire_horaire, employeur, id_contrat, jour_estimation
+                    )
+                    acompte_25_estime = round(acompte_25_estime, 2)
+
+                # 3. Acompte 10 = salaire_net − acompte_25_estime
+                acompte_10_estime = round(salaire_net - acompte_25_estime, 2)
+
+            else:
+                salaire_net = salaire_calcule = acompte_25_estime = acompte_10_estime = 0.0
+                details = {'erreur': 'Aucune heure saisie'}
+
+            # Préparer données
+            salaire_data = {
+                'mois': m,
+                'annee': annee,
+                'user_id': current_user_id,
+                'employeur': employeur,
+                'id_contrat': id_contrat,
+                'heures_reelles': heures_reelles,
+                'salaire_horaire': salaire_horaire,
+                'salaire_calcule': salaire_calcule,
+                'salaire_net': salaire_net,
+                'salaire_verse': salaire_verse,
+                'acompte_25': acompte_25,
+                'acompte_10': acompte_10,
+                'acompte_25_estime': acompte_25_estime,
+                'acompte_10_estime': acompte_10_estime,
+                'difference': 0.0,
+                'difference_pourcent': 0.0,
+                'details': details
+            }
+
+            # Différence
+            if salaire_calcule and salaire_verse is not None:
+                diff, diff_pct = g.models.salaire_model.calculer_differences(salaire_calcule, salaire_verse)
+                salaire_data['difference'] = diff
+                salaire_data['difference_pourcent'] = diff_pct
+
+            # Création auto si nouveau
+            if not salaire_existant and heures_reelles > 0:
+                g.models.salaire_model.create(salaire_data)
+
+            # Stocker
+            salaires_par_mois[m]['employeurs'][employeur] = salaire_data
+
+            # Ajouter aux totaux (si employeur sélectionné ou mode global)
+            if not selected_employeur or employeur == selected_employeur:
+                totaux = salaires_par_mois[m]['totaux_mois']
+                for key in ['heures_reelles', 'salaire_calcule', 'salaire_net', 'salaire_verse',
+                            'acompte_25', 'acompte_10', 'acompte_25_estime', 'acompte_10_estime', 'difference']:
+                    totaux[key] += salaire_data[key]
+
+    # Totaux annuels
+    totaux_annuels = {f"total_{k}": round(sum(salaires_par_mois[m]['totaux_mois'][k] for m in range(1,13)), 2)
+                      for k in salaires_par_mois[1]['totaux_mois'].keys()}
 
     # =============== PRÉPARATION DES DONNÉES POUR LES GRAPHIQUES SVG ===============
 
@@ -7435,3 +8013,338 @@ def nouveau_contrat():
             return redirect(url_for('banking.gestion_contrat'))
 
     return render_template('salaires/nouveau_contrat.html', today=date.today(), contrat=contrat)
+
+## ----- gestion des employés
+
+@bp.route('employes/dashboard')
+@login_required
+def dashboard_employes():
+    current_user_id = current_user.id
+    employes = g.models.employe_model.get_all_by_user(current_user_id)
+    all_employes = len(employes)
+    
+    maintenant = datetime.now()
+    mois_request = request.form.get('date_dashboard_mois')
+    annee_request = request.form.get('date_dashboard_annee')
+    
+    if mois_request and annee_request:
+        mois = int(mois_request)
+        annee = int(annee_request)
+    else:
+        mois = maintenant.month
+        annee = maintenant.year
+    
+    heures_total_mois = 0
+    salaire_total_mois = 0
+    for employe in employes:
+        heures = g.models.heure_model.get_heures_employe_mois(employe['id'], annee, mois)
+        salaire = g.models.salaire_model.get_salaire_employe_mois(employe['id'], annee, mois)
+        heures_total_mois += heures
+        salaire_total_mois += salaire
+    
+    return render_template(
+        'employes/dashboard.html',
+        today=date.today(),
+        all_employes=all_employes,
+        heures_total_mois=heures_total_mois,
+        salaire_total_mois=salaire_total_mois,
+        employes=employes,
+        mois=mois,
+        annee=annee
+    )
+
+@bp.route('employes/liste')
+@login_required
+def liste_employe(user_id):
+    current_user_id = current_user.id
+    employes = g.models.employe_model.get_all_by_user(current_user_id)
+    return render_template('employes/liste.html', employes=employes)
+
+
+@bp.banking('dashboard/nouvel_employe', methods=['GET', 'POST'])
+@login_required
+def create_employe():
+    current_user_id = current_user.id
+    if request.method == 'GET':
+        return render_template('employes/creer_employe.html')
+    elif request.method == 'POST':
+        try:
+            data = {
+                'user_id': current_user_id,
+                'nom': request.form.get('nom'),
+                'prenom': request.form.get('prenom'),
+                'email': request.form.get('email'),
+                'telephone': request.form.get('telephone'),
+                'rue': request.form.get('rue'),
+                'code_postal': request.form.get('code_postal'),
+                'commune': request.form.get('commune'),
+                'date_de_naissance': request.form.get('date_de_naissance'),
+                'No_AVS': request.form.get('No_AVS')
+            }
+            mandatory_fields = ('nom', 'prenom', 'No_AVS')
+            if not all(field in data and data[field] for field in mandatory_fields) :
+                flash("Le nom, le prénom et le numéro AVS sont oblîgatoires")
+                return render_template('employed/creer_employe.html')
+            success = g.models.employe_model.create(data)
+            if success:
+                flash("Nouvel employà créé avec succès", "success")
+                return redirect(url_for('liste_employe'))
+            else: 
+                flash("Erreur lors de la création de l'employe avec les données suivantes : {data}", "error")
+                return render_template('employes/creer_employe.html', form_data=data)
+        except Exception as e:
+            logging.error("Erreur lors de la creation employe: {e}")
+            flash(f'Erreur lors de la création : {str(e)}', 'error')        
+            return render_template('employes/creer_employe.html')
+
+@bp.route('dashboard/modifier_employe')
+@login_required
+def modifier_employe(employe_id, user_id):
+    employe = g.models.employe_model.get_by_id(employe_id, user_id)
+    if not employe:
+        flash(f"Employe avec id={employe_id} non trouvé", "error")
+        return redirect(url_for('liste_employes'))
+    if request.method == "POST":
+        try:
+            data= {
+                'user_id': user_id,
+                'nom': request.form.get('nom'),
+                'prenom': request.form.get('prenom'),
+                'email': request.form.get('email'),
+                'telephone': request.form.get('telephone'),
+                'rue': request.form.get('rue'),
+                'code_postal': request.form.get('code_postal'),
+                'commune': request.form.get('commune'),
+                'date_de_naissance': request.form.get('date_de_naissance'),
+                'No_AVS': request.form.get('No_AVS')
+            }
+            success = g.models.employe_model.update(employe_id, user_id, data)
+            if success:
+                flash("Les informations de l'employé ont été mises à jour avec succès", "success")
+                return redirect(url_for('liste_employes'))
+            else:
+                flash("Erreur lors de la mise à jour des informations de l'employé", "error")
+                return render_template('employes/modifier_employe.html', employe=employe, form_data=data)
+        except Exception as e:
+            logging.error(f"Erreur lors de la mise à jour de l'employé: {e}")
+            flash(f'Erreur lors de la mise à jour : {str(e)}', 'error')
+            return render_template('employes/modifier_employe.html', employe=employe)
+
+@bp.route('employes/detail_employe/<int:employe_id>', methods=['GET'])
+@login_required
+def detail_employe(employe_id):
+    employe = g.models.employe_model.get_by_id(employe_id, current_user.id)
+    if not employe:
+        flash("Employé non trouvé.", "error")
+        return redirect(url_for('banking.liste_employe'))
+
+    # Contrats liés à cet employé
+    contrats = []
+    tous_contrats = g.models.contrat_model.get_all_contrats(current_user.id)
+    for c in tous_contrats:
+        if c.get('employe_id') == employe_id:
+            contrats.append(c)
+
+    # Statistiques du mois actuel
+    maintenant = datetime.now()
+    annee = int(request.args.get('annee', maintenant.year))
+    mois = int(request.args.get('mois', maintenant.month))
+
+    heures_mois = g.models.heure_model.get_total_heures_mois(
+        user_id=current_user.id,
+        employeur=employe.get('employeur', ''),
+        id_contrat=employe.get('id_contrat'),
+        annee=annee,
+        mois=mois
+    )
+
+    salaires = g.models.salaire_model.get_by_user_and_month(
+        user_id=current_user.id,
+        employeur=employe.get('employeur', ''),
+        id_contrat=employe.get('id_contrat'),
+        annee=annee,
+        mois=mois
+    )
+    salaire_net = sum(s.get('salaire_net', 0) for s in salaires)
+
+    return render_template(
+        'employes/detail_employe.html',
+        employe=employe,
+        contrats=contrats,
+        annee=annee,
+        mois=mois,
+        heures_mois=heures_mois,
+        salaire_net=salaire_net
+    )
+
+@bp.route('employes/contrat/<int:employe_id>/contrats')
+@login_required
+def gestion_contrats_employe(employe_id):
+    employe = g.models.employe_model.get_by_id(employe_id, current_user.id)
+    if not employe:
+        flash("Employé non trouvé.", "error")
+        return redirect(url_for('banking.liste_employe'))
+
+    # Tous les contrats de l'utilisateur
+    contrats = g.models.contrat_model.get_all_contrats(current_user.id)
+    return render_template('employes/gestion_contrat.html', employe=employe, contrats=contrats)
+
+@bp.route('/employes/<int:employe_id>/contrat/nouveau', methods=['GET', 'POST'])
+@login_required
+def creer_contrat_employe(employe_id):
+    employe = g.models.employe_model.get_by_id(employe_id, current_user.id)
+    if not employe:
+        flash("Employé non trouvé.", "error")
+        return redirect(url_for('banking.liste_employe'))
+
+    if request.method == 'GET':
+        return render_template('employes/creer_contrat_employe.html', employe=employe)
+
+    # POST
+    data = request.form.to_dict()
+    data['user_id'] = current_user.id
+    data['employe_id'] = employe_id  # ⬅️ Important !
+
+    try:
+        # Convertir les champs numériques
+        for key in ['heures_hebdo', 'salaire_horaire']:
+            if data.get(key):
+                data[key] = float(data[key])
+        for key in ['versement_10', 'versement_25']:
+            data[key] = data.get(key) == 'on'
+
+        success = g.models.contrat_model.create_or_update(data)
+        if success:
+            flash("Contrat créé avec succès.", "success")
+            return redirect(url_for('banking.gestion_contrats_employe', employe_id=employe_id))
+        else:
+            flash("Erreur lors de la création du contrat.", "error")
+            return render_template('employes/creer_contrat_employe.html', employe=employe, form_data=data)
+    except Exception as e:
+        logging.error(f"Erreur création contrat: {e}")
+        flash(f"Erreur : {e}", "error")
+        return render_template('employes/creer_contrat_employe.html', employe=employe)
+    
+@bp.route('/contrats/<int:contrat_id>/cotisations', methods=['GET', 'POST'])
+@login_required
+def gestion_cotisations_contrat(contrat_id):
+    contrat = g.models.contrat_model.get_contrat_for_employe(current_user.id, contrat_id)
+    if not contrat:
+        flash("Contrat non trouvé.", "error")
+        return redirect(url_for('banking.liste_employe'))
+
+    annee = int(request.args.get('annee', datetime.now().year))
+
+    if request.method == 'POST':
+        # Sauvegarde des cotisations et indemnités
+        data = {
+            'annee': annee,
+            'cotisations': [],
+            'indemnites': []
+        }
+        # Exemple de données POST :
+        # cotisation_type_1=taux&cotisation_base_1=brut → à parser
+        # Pour simplifier, tu peux utiliser un formulaire avec listes :
+        cotis = request.form.getlist('cotis_type[]')
+        taux_c = request.form.getlist('cotis_taux[]')
+        base_c = request.form.getlist('cotis_base[]')
+        for i in range(len(cotis)):
+            if cotis[i] and taux_c[i]:
+                data['cotisations'].append({
+                    'type_id': int(cotis[i]),
+                    'taux': float(taux_c[i]),
+                    'base': base_c[i] if base_c[i] else 'brut'
+                })
+
+        indem = request.form.getlist('indem_type[]')
+        val_i = request.form.getlist('indem_valeur[]')
+        for i in range(len(indem)):
+            if indem[i] and val_i[i]:
+                data['indemnites'].append({
+                    'type_id': int(indem[i]),
+                    'valeur': float(val_i[i])
+                })
+
+        g.models.contrat_model.sauvegarder_cotisations_et_indemnites(contrat_id, current_user.id, data)
+        flash("Cotisations et indemnités sauvegardées.", "success")
+        return redirect(url_for('banking.gestion_cotisations_contrat', contrat_id=contrat_id, annee=annee))
+
+    # GET
+    types_cotis = g.models.type_cotisation_model.get_all_by_user(current_user.id)
+    types_indem = g.models.type_indemnite_model.get_all_by_user(current_user.id)
+    cotis_actuelles = g.models.cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
+    indem_actuelles = g.models.indemnites_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
+
+    return render_template(
+        'contrats/gestion_cotisations.html',
+        contrat=contrat,
+        annee=annee,
+        types_cotis=types_cotis,
+        types_indem=types_indem,
+        cotis_actuelles=cotis_actuelles,
+        indem_actuelles=indem_actuelles
+    )
+
+@bp.route('employes/<int_employe_id>/supprimer_employe', methods = ['POST'])
+@login_required
+def supprimer_employe(employe_id, user_id):
+    try:
+        success = g.models.employe_model.delete(employe_id, user_id)
+        if success:
+            flash("Employé supprimer avec succès", "success")
+        else:
+            flash("Erreur lors de la suppression de l'employe", "error")
+    except Exception as e:
+        logging.error(f'Erreur lors de la suppression employe {employe_id} : {e}')
+        flash(f"Erreur lors de la suppresion : {str(e)}")
+    return redirect(url_for('banking.liste_employes'))
+
+@bp.route('/employes/<int:employe_id>/planning')
+@login_required
+def planning_employe(employe_id):
+    employe = g.models.employe_model.get_by_id(employe_id, current_user.id)
+    if not employe:
+        flash("Employé non trouvé.", "error")
+        return redirect(url_for('banking.liste_employe'))
+
+    annee = int(request.args.get('annee', datetime.now().year))
+    mois = int(request.args.get('mois', datetime.now().month))
+
+    # Récupérer les heures avec plages
+    heures = g.models.heure_model.get_h1d_h2f_for_period(
+        user_id=current_user.id,
+        employeur="TBD",  # ⚠️ Problème : ton modèle `HeureTravail` exige employeur/contrat
+        id_contrat=1,     # → à revoir dans la DB
+        annee=annee,
+        mois=mois
+    )
+
+    return render_template(
+        'planning/planning_employe.html',
+        employe=employe,
+        heures=heures,
+        annee=annee,
+        mois=mois
+    )
+@bp.route('employes/planning-employes')
+@login_required
+def planning_employes():
+
+@bp.route('/synthese/mensuelle')
+@login_required
+def synthese_mensuelle():
+    annee = int(request.args.get('annee', datetime.now().year))
+    synthese = g.models.synthese_mensuelle_model.get_by_user_and_year(current_user.id, annee)
+    employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(current_user.id)
+    
+    # Préparer le SVG
+    svg_data = g.models.synthese_mensuelle_model.prepare_svg_data_mensuel(current_user.id, annee)
+
+    return render_template(
+        'employes/mensuelle.html',
+        annee=annee,
+        synthese=synthese,
+        employeurs=employeurs,
+        svg_data=svg_data
+    )
+

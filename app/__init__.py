@@ -39,6 +39,9 @@ root_logger.setLevel(logging.INFO)
 
 # Initialisation Flask
 app = Flask(__name__)
+# --- Chemins d'upload ---
+UPLOAD_FOLDER_LOGOS = os.path.join(app.static_folder, 'uploads', 'logos')
+os.makedirs(UPLOAD_FOLDER_LOGOS, exist_ok=True)
 app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
 
 # Configuration de la base de données avec PyMySQL
@@ -81,7 +84,15 @@ def index():
         else:
             return redirect(url_for('banking.dashboard'))
     return redirect(url_for('auth.login'))
-
+# Sécurité : bloquer les extensions dangereuses dans /static/uploads
+@app.route('/static/uploads/<path:filename>')
+def secure_uploads(filename):
+    dangerous_ext = {'.py', '.env', '.sh', '.exe', '.php', '.html', '.js', '.sql'}
+    if any(filename.lower().endswith(ext) for ext in dangerous_ext):
+        from flask import abort
+        abort(403)
+    from flask import send_from_directory
+    return send_from_directory(os.path.join(app.static_folder, 'uploads'), filename)
 # Enregistrement des blueprints
 app.register_blueprint(auth.bp)
 app.register_blueprint(admin.bp)

@@ -1,0 +1,143 @@
+{% extends "accueil.html" %}
+{% block title %}Installation – Mon Hub Financier{% endblock %}
+
+{% block head_css %}
+<style>
+    :root {
+        --ch-blue: #1a5fb4;
+        --ch-dark: #2c3e50;
+        --ch-gray: #4a4a4a;
+        --ch-light: #f8f9fa;
+        --ch-white: #ffffff;
+        --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        --radius: 14px;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #2c3e50, #1a252f);
+        padding: 2.5rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2.5rem;
+        color: white;
+        text-align: center;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 2rem;
+    }
+
+    .page-header .subtitle {
+        margin-top: 0.5rem;
+        opacity: 0.95;
+        font-size: 1.1rem;
+    }
+
+    .feature-card {
+        background: var(--ch-white);
+        border-radius: var(--radius);
+        padding: 1.8rem;
+        box-shadow: var(--shadow);
+        margin-bottom: 2rem;
+    }
+
+    .feature-card h2 {
+        color: var(--ch-dark);
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-size: 1.4rem;
+    }
+
+    pre {
+        background: #f4f4f4;
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 0.95rem;
+        line-height: 1.4;
+    }
+
+    code {
+        background: #eee;
+        padding: 0.15em 0.3em;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+
+    .cta-section {
+        text-align: center;
+        margin-top: 3rem;
+    }
+
+    .cta-button {
+        display: inline-block;
+        background: var(--ch-dark);
+        color: white;
+        padding: 0.8rem 1.8rem;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: opacity 0.2s;
+    }
+
+    .cta-button:hover {
+        opacity: 0.9;
+    }
+
+    @media (max-width: 600px) {
+        .page-header {
+            padding: 1.8rem 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.6rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🛠️ Installation & Accès Partout</h1>
+    <p class="subtitle">Déployez en local sur un Raspberry Pi, un NAS ou un mini-PC, et accédez à votre hub depuis
+        n’importe où avec Tailscale.</p>
+</div>
+
+<div class="feature-card">
+    <h2>Étape 1 : Installer localement</h2>
+    <p>Sur n’importe quelle machine Linux (ou Windows avec WSL) :</p>
+    <pre>git clone https://github.com/votreuser/mon-hub-financier.git
+cd mon-hub-financier
+pip install -r requirements.txt
+python app.py</pre>
+    <p>Ouvrez <code>http://localhost:5000</code> dans votre navigateur.</p>
+</div>
+
+<div class="feature-card">
+    <h2>Étape 2 : Connectez avec Tailscale</h2>
+    <p><strong>Tailscale</strong> crée un réseau privé sécurisé entre vos appareils, <strong>sans ouvrir de
+            ports</strong>.</p>
+    <ol>
+        <li>Installez Tailscale sur votre serveur local : <a href="https://tailscale.com/download"
+                style="color: var(--ch-blue);">tailscale.com/download</a></li>
+        <li>Connectez-le à votre compte Tailscale</li>
+        <li>Installez Tailscale sur votre smartphone, tablette, ordi portable</li>
+        <li>Accédez à votre app via l’IP Tailscale (ex: <code>http://100.x.y.z:5000</code>)</li>
+    </ol>
+    <p>→ Vous êtes chez vous, même en vacances à Bali.</p>
+</div>
+
+<div class="feature-card">
+    <h2>Avantages clés</h2>
+    <ul>
+        <li>🔒 Zéro donnée dans le cloud</li>
+        <li>📱 Accès multi-device synchronisé</li>
+        <li>⚙️ Mises à jour sans dépendance externe</li>
+        <li>🧩 Parfait pour un <strong>home lab</strong> suisse autonome</li>
+    </ul>
+</div>
+
+<div class="cta-section">
+    <a href="/" class="cta-button">← Retour à l’accueil</a>
+</div>
+{% endblock %}

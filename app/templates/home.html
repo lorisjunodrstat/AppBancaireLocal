@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Hub Financier — Loris Junod</title>
+  <style>
+    :root {
+      --chf-blue: #1a5fb4;
+      --chf-green: #2e8b57;
+      --chf-gray: #4a4a4a;
+      --chf-light: #f8f9fa;
+      --chf-card: #ffffff;
+      --shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--chf-light);
+      color: var(--chf-gray);
+      margin: 0;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      color: var(--chf-blue);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: #666;
+    }
+
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.8rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--chf-card);
+      border-radius: 14px;
+      padding: 1.6rem;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .card h2::before {
+      font-size: 1.5rem;
+    }
+
+    .card p {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #555;
+    }
+
+    .card-banque h2::before { content: "🏦"; }
+    .card-compta h2::before { content: "📊"; }
+    .card-salaire h2::before { content: "🕒"; }
+
+    footer {
+      text-align: center;
+      margin-top: 4rem;
+      font-size: 0.9rem;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mon Hub Financier Intelligent</h1>
+    <p class="subtitle">Gestion bancaire, comptabilité, salaires & planification — le tout centralisé, précis, et suisse !</p>
+  </header>
+
+  <main class="hub-grid">
+    <!-- 🏦 BANQUE & FLUX -->
+    <a href="/banking/accounts" class="card card-banque">
+      <h2>Comptes & Transferts</h2>
+      <p>Visualisez vos soldes en temps réel, gérez vos transferts entre comptes principaux et sous-comptes, importez vos transactions, et obtenez des graphiques SVG de vos flux hebdomadaires ou mensuels.</p>
+    </a>
+
+    <a href="/banking/transactions" class="card card-banque">
+      <h2>Historique & Catégorisation</h2>
+      <p>Consultez toutes vos transactions, filtrez par type, compte ou période, et catégorisez-les manuellement ou automatiquement. Identifiez les transferts externes (IBAN) et liez-les à des contacts.</p>
+    </a>
+
+    <!-- 🧾 COMPTABILITÉ & RAPPORTS -->
+    <a href="/compta/ecritures" class="card card-compta">
+      <h2>Écritures Comptables</h2>
+      <p>Créez des écritures liées à vos transactions, avec gestion automatique des écritures secondaires (TVA, cotisations). Intégrez des justificatifs, validez ou rejetez, et suivez l’état de vos opérations.</p>
+    </a>
+
+    <a href="/compta/rapports" class="card card-compta">
+      <h2>Rapports Mensuels & Annuels</h2>
+      <p>Générez des rapports financiers personnalisés selon le plan comptable suisse : compte de résultat, bilan, synthèse par catégorie. Exportez en PDF ou Excel avec un seul clic.</p>
+    </a>
+
+    <!-- 🕒 TRAVAIL & SALAIRES -->
+    <a href="/salaires/heures" class="card card-salaire">
+      <h2>Heures de Travail & Planning</h2>
+      <p>Enregistrez vos plages horaires réelles ou simulées, par employeur ou contrat. Comparez les écarts, visualisez les seuils (ex: heures après 18h), et planifiez vos équipes selon des règles métiers.</p>
+    </a>
+
+    <a href="/salaires/syntheses" class="card card-salaire">
+      <h2>Salaires & Synthèses</h2>
+      <p>Calculez automatiquement vos salaires nets avec cotisations, indemnités et acomptes. Visualisez les salaires mensuels, les écarts de paiement, et exportez les synthèses pour votre comptabilité.</p>
+    </a>
+
+    <!-- 🧩 Bonus personnalisé -->
+    <a href="/compta/comparaisons" class="card card-compta">
+      <h2>🔍 Comparaisons & Tendances</h2>
+      <p>Comparez deux comptes, deux périodes, ou deux types de transactions. Identifiez vos partenaires financiers les plus actifs et suivez l’évolution de votre trésorerie.</p>
+    </a>
+  </main>
+
+  <footer>
+    &copy; 2026 — Loris Junod | Application Financière Suisse 🇨🇭
+  </footer>
+</body>
+</html>

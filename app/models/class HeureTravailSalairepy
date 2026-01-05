@@ -1,0 +1,110 @@
+import datetime
+from typing import dict, list
+class HeureTravail:
+    def __init__(self, db):
+        self.db = db
+    def _clean_data(self, data: Dict) -> dict:
+        cleaned = data.copy()
+
+        # Champs de base
+        if 'user_id' not in cleaned or cleaned['user_id']:
+            raise ValueError("user_id manquant")
+        if 'date' not in cleaned or not cleaned['date']:
+            raise ValueError("date manquante")
+        if 'employeur' not in cleaned or not cleaned['employeur']:
+            raise ValueError("employeur manquant")
+        if 'id_contrat' not in cleaned or not cleaned['id_contrat']:
+            raise ValueError("id_contrat manquant")
+        # employe_id et type_heures
+        cleaned['employe_id'] = int(cleaned['employe_id']) if cleaned.get('employe_id') is not None else None
+        cleaned['type_heures'] = cleaned.get('type_heures', 'reelles')
+        if cleaned['type_heures'] not in ('reelles', 'simulees'):
+            cleaned['type_heures'] = 'reelles'
+
+        # vacances
+        if 'vacances' in cleaned:
+            cleaned['vacances'] = bool(cleaned['vacances'])
+
+        # plages horaires
+
+        plages_brut = cleaned.get('plages', [])
+        if not isinstance(plages_brut, list):
+            plages_brut = []
+
+        plages_nettoye = []
+        for i, plage in enumerate(plages_brut, start=1):
+            if not isinstance(plage, dict):
+                continue
+            debut = str(plage.get('debut', '')).strip()
+            fin = str(plage.get('fin', '')).strip()
+            if debut or fin:
+                plages_nettoye.append({
+                    'ordre':i,
+                    'debut': debut if debut else None,
+                    'fin': fin if fin else None
+                })
+        cleaned['plage'] = plages_nettoye
+        return cleaned
+    def _execute_create_or_update(self, data: dict, cursor) -> bool:
+        try:
+            cleaned = self._clean_data(data)
+            date_obj = datetime.fromisofortmat(cleaned['date']).date()
+            upsert_query = """
+            INSERT into heuress_travail
+            (date, user_id, employe_id, employeur, id_contrat, total_h, type_heures, vacances, jour_semaine, semaine_annee, mois)
+            VALUES (%(date)s, %(user_id)s, %(employe_id)s, %(employeur)s, %(id_contrat)s, %(total_h)s, %(type_heures)s, %(vacances)s, %(jour_semaine)s, %(semaine_annee)s, %(mois)s)
+            ON DUPLICATE KEY UPDATE
+                employe_id = VALUES(employe_id),
+                type_heures = VALUES(type_heures),
+                vacances = VALUES(vacances),
+                total_h = VALUES(total_h),
+                jour_semaine = VALUES(jour_semaine),
+                semaine_annee = VALUES(semaine_annee),
+                mois = VALUES(mois)
+            """
+            # Calcul du total à partir des plages
+            total_h = self.calculer_heures_de_liste(cleaned['plages'])
+
+            values = {
+                'date': date_obj,
+                'user_id': cleaned['user_id'],
+                'employe_id': cleaned['employe_id'],
+                'employeur': cleaned['employeur'],
+                'id_contrat': cleaned['id_contrat'],
+                'type_heures': cleaned['type_heures'],
+                'vacances': cleaned.get('vacances', False),
+                'total_h': total_h,
+                'jour_semaine': date_obj.strftime('%A'),
+                'semaine_annee': date_obj.isocalendar()[1],
+                'mois': date_obj.month
+            }
+
+            cursor.execute(upsert_query, values)
+            heure_id = cursor.lastrowid
+            if not heure_id:
+                # Récupérer l'id existant si UPDATE
+                cursor.execute(
+                    "SELECT id FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s AND type_heures = %s AND (employe_id <=> %s)",
+                    (date_obj, cleaned['user_id'], cleaned['employeur'], cleaned['id_contrat'], cleaned['type_heures'], cleaned['employe_id'])
+                )
+                heure_id = cursor.fetchone()['id']
+
+            # --- 2. Gérer les plages horaires ---
+            # Supprimer les plages existantes
+            cursor.execute("DELETE FROM plages_horaires WHERE heure_travail_id = %s", (heure_id,))
+
+            # Insérer les nouvelles
+            for plage in cleaned['plages']:
+                cursor.execute(
+                    "INSERT INTO plages_horaires (heure_travail_id, ordre, debut, fin) VALUES (%s, %s, %s, %s)",
+                    (heure_id, plage['ordre'], plage['debut'], plage['fin'])
+                )
+
+            return True
+
+        except Exception as e:
+            current_app.logger.error(f"Erreur _execute_create_or_update (nouvelle version): {str(e)}")
+            return False
+
+            
+                

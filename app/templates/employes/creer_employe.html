@@ -1,0 +1,192 @@
+
+{% extends "base.html" %}
+
+{% block head_css %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    input,
+    select,
+    textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: #4e79a7;
+        box-shadow: 0 0 5px rgba(78, 121, 167, 0.3);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+        justify-content: center;
+    }
+
+    button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background-color: #4e79a7;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #3a5a7f;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+
+    h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block title %}Créer un employé{% endblock %}
+{% block content %}
+<div class="form-container">
+    <h1>Créer un nouvel employé</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('banking.create_employe') }}">
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="prenom">Prénom *</label>
+                <input type="text" id="prenom" name="prenom" required>
+            </div>
+            <div class="form-group">
+                <label for="nom">Nom *</label>
+                <input type="text" id="nom" name="nom" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email">
+        </div>
+
+        <div class="form-group">
+            <label for="telephone">Téléphone</label>
+            <input type="tel" id="telephone" name="telephone">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="date_naissance">Date de naissance</label>
+                <input type="date" id="date_naissance" name="date_naissance">
+            </div>
+            <div class="form-group">
+                <label for="numero_securite_sociale">N° Sécurité Sociale</label>
+                <input type="text" id="numero_securite_sociale" name="numero_securite_sociale">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="adresse">Adresse</label>
+            <input type="text" id="adresse" name="adresse">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="code_postal">Code postal</label>
+                <input type="text" id="code_postal" name="code_postal">
+            </div>
+            <div class="form-group">
+                <label for="ville">Ville</label>
+                <input type="text" id="ville" name="ville">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="statut">Statut *</label>
+                <select id="statut" name="statut" required>
+                    <option value="">Sélectionner un statut</option>
+                    <option value="CDI">CDI</option>
+                    <option value="CDD">CDD</option>
+                    <option value="Stage">Stage</option>
+                    <option value="Alternance">Alternance</option>
+                    <option value="Prestataire">Prestataire</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="date_embauche">Date d'embauche</label>
+                <input type="date" id="date_embauche" name="date_embauche">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="fonction">Fonction</label>
+            <input type="text" id="fonction" name="fonction">
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="4"></textarea>
+        </div>
+
+        <div class="button-group">
+            <button type="submit" class="btn-primary">Créer l'employé</button>
+            <a href="{{ url_for('banking.dashboard_employes') }}" class="btn-secondary" style="text-decoration: none; display: inline-block;">Annuler</a>
+        </div>
+    </form>
+</div>
+
+
+{% endblock %}
