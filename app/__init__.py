@@ -173,23 +173,30 @@ def inject_user_comptes():
     from flask_login import current_user
     try:
         if current_user.is_authenticated:
-            # Vérifie que g.db_manager est bien initialisé
-            if not hasattr(g, 'db_manager') or g.db_manager is None:
-                logging.warning("g.db_manager non initialisé lors de l'injection des comptes utilisateur.")
-                return dict(user_comptes=[], user_id=current_user.id)
-
-            # Récupère les comptes via la fonction utilitaire
-            from app.routes.banking import get_comptes_utilisateur
             user_id = current_user.id
-            user_comptes = get_comptes_utilisateur(user_id)
+            user_comptes = []
+            
+            # Utilise g.db_manager s'il existe
+            if hasattr(g, 'db_manager') and g.db_manager is not None:
+                try:
+                    with g.db_manager.get_cursor(dictionary=True) as cursor:
+                        cursor.execute("""
+                            SELECT c.id, c.nom, c.solde, b.nom as banque_nom
+                            FROM comptes c
+                            LEFT JOIN banques b ON c.banque_id = b.id
+                            WHERE c.utilisateur_id = %s
+                            ORDER BY c.id
+                        """, (user_id,))
+                        user_comptes = cursor.fetchall()
+                except Exception as e:
+                    logging.error(f"Erreur lors de la récupération des comptes: {e}")
+            
             return dict(user_comptes=user_comptes, user_id=user_id)
         else:
-            # 👈👈👈 IMPORTANT : Toujours retourner un dict même si non connecté
             return dict(user_comptes=[], user_id=None)
     except Exception as e:
-        logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}", exc_info=True)
-        return dict(user_comptes=[], user_id=None)  # Toujours un dict, même en cas d'erreur
-    
+        logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}")
+        return dict(user_comptes=[], user_id=None)
 # Remplacer la fonction before_request par un signal
 def create_managers_on_request_start(sender, **extra):
     from app.models import DatabaseManager, ModelManager
