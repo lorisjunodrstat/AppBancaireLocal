@@ -164,7 +164,7 @@ def inject_user_comptes():
                 try:
                     with g.db_manager.get_cursor(dictionary=True) as cursor:
                         cursor.execute("""
-                            SELECT c.id, c.nom, c.solde, b.nom as banque_nom
+                            SELECT c.id, c.nom_compte, c.solde, b.nom as banque_nom
                             FROM comptes_principaux c
                             LEFT JOIN banques b ON c.banque_id = b.id
                             WHERE c.utilisateur_id = %s
