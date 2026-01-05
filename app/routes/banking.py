@@ -74,7 +74,7 @@ def index():
     return render_template('home2.html')
      
 @bp.route('/home')
-def index():
+def homepage():
     print("La route index est appelée !")
     return render_template('home2.html')
           
