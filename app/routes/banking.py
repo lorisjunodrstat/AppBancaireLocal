@@ -232,7 +232,7 @@ def banking_nouveau_sous_compte(compte_id):
 def banking_dashboard():
     if not hasattr(g, 'models') or g.models is None:
         flash("Erreur interne : impossible d’accéder aux données bancaires.", "error")
-        return redirect(url_for('auth.login')
+        return redirect(url_for('auth.login'))
     user_id = current_user.id
     logger.debug(f'Accès au dashboard bancaire pour l\'utilisateur {user_id}')
     try:
