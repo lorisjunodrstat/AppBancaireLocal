@@ -8,7 +8,7 @@ import os
 import sys
 from flask import Flask, g, redirect, url_for, request_started, request_finished, current_app
 from flask_login import LoginManager, current_user
-from app.models import DatabaseManager, Utilisateur
+
 from dotenv import load_dotenv
 from pathlib import Path
 import pymysql
@@ -71,6 +71,7 @@ def load_user(user_id):
         return None
         
     # On récupère exactement TA configuration Jelastic
+    from app.models import DatabaseManager, Utilisateur
     # current_app.config['DB_CONFIG'] est STRICTEMENT identique à app.config['DB_CONFIG']
     config_db = current_app.config.get('DB_CONFIG')
     
