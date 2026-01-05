@@ -67,18 +67,13 @@ def get_comptes_utilisateur(user_id):
 
 
 
-    # ---- ROUTES ----
 @bp.route('/')
-def home():
-    print("La route index est appelée !")
+def banking_home(): # Nom unique
     return render_template('home2.html')
-     
-@bp.route('/home')
-def homepage():
-    print("La route index est appelée !")
-    return render_template('home2.html')
-          
 
+@bp.route('/home')
+def banking_homepage(): # Nom unique
+    return render_template('home2.html')
 @bp.route('/banques', methods=['GET'])
 @login_required
 def liste_banques():

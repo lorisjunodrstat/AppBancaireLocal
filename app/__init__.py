@@ -98,11 +98,7 @@ def load_user(user_id):
 # Import des routes (APRES la création de l'app)
 from app.routes import auth, admin, banking, db_csv_store
 
-# Route racine redirigeant vers la page appropriée
-@app.route('/')
-def index():
-    print("La route index est appelée !")
-    return render_template('home2.html')
+
 # Sécurité : bloquer les extensions dangereuses dans /static/uploads
 @app.route('/static/uploads/<path:filename>')
 def secure_uploads(filename):
