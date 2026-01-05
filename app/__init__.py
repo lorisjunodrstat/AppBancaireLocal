@@ -185,9 +185,11 @@ def init_db_managers():
     from app.models import DatabaseManager, ModelManager
     try:
         g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
+        logging.info("✅ DatabaseManager créé")
         g.models = ModelManager(g.db_manager)
+        logging.info("✅ ModelManager créé avec succès")
     except Exception as e:
-        logging.error(f"Failed to establish database connection: {e}")
+        logging.error(f"❌ Échec création ModelManager: {e}", exc_info=True)
         g.db_manager = None
         g.models = None
 

@@ -6461,18 +6461,17 @@ class EcritureComptable:
     def __init__(self, db):
         self.db = db
         self.categorie_comptable_model = CategorieComptable(self.db)
-        logger.info(f"📁 Dossier courant (os.getcwd()): {os.getcwd()}")
-        logger.info(f"📁 Fichier courant (__file__): {__file__}")
-        self.upload_folder = os.path.join(os.getcwd(), 'ROOT', 'app', 'uploads', 'justificatifs')
-        self._ensure_upload_folder()
+    
+    @property
+    def upload_folder(self):
+        """Fournit le dossier d'upload à la demande, sans effet de bord à l'initialisation"""
+        return os.path.join(os.path.dirname(__file__), 'uploads', 'justificatifs')
 
-    def _ensure_upload_folder(self):
-        """Crée le dossier d'upload s'il n'existe pas"""
-        try:
-            os.makedirs(self.upload_folder, exist_ok=True)
-            logger.info(f"Dossier d'upload créé/sur: {self.upload_folder}")
-        except Exception as e:
-            logger.error(f"Erreur création dossier upload: {e}")
+    def ensure_upload_folder(self):
+        """À appeler explicitement quand nécessaire (ex: dans une route)"""
+        folder = self.upload_folder
+        os.makedirs(folder, exist_ok=True)
+        return folder
 
     def _get_file_path(self, filename):
         """Génère le chemin complet du fichier"""
@@ -13172,7 +13171,7 @@ class ModelManager:
         self.type_cotisations_model = TypeCotisation(self.db)
         self.type_indemnites_model = TypIndemnite(self.db)
         self.cotisations_contrat_model = CotisationContrat(self.db)
-        self.indemnites_contrat_model = CotisationContrat(self.db)
+        self.indemnites_contrat_model = IndemniteContrat(self.db)
         self.heure_model = HeureTravail(self.db)
         self.salaire_model = Salaire(self.db)
         self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
