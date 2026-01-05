@@ -8162,7 +8162,7 @@ def supprimer_type_indemnite(type_id):
         flash("Impossible de supprimer ce type.", "error")
     return redirect(url_for('banking.liste_types_indemnite'))
 
-@bp.route('employes/liste')
+@bp.route('/employes/liste')
 @login_required
 def liste_employe(user_id):
     current_user_id = current_user.id
@@ -8170,7 +8170,7 @@ def liste_employe(user_id):
     return render_template('employes/liste.html', employes=employes)
 
 
-@bp.route('dashboard/nouvel_employe', methods=['GET', 'POST'])
+@bp.route('/dashboard/nouvel_employe', methods=['GET', 'POST'])
 @login_required
 def create_employe():
     current_user_id = current_user.id
@@ -8206,7 +8206,7 @@ def create_employe():
             flash(f'Erreur lors de la création : {str(e)}', 'error')        
             return render_template('employes/creer_employe.html')
 
-@bp.route('dashboard/modifier_employe')
+@bp.route('/dashboard/modifier_employe')
 @login_required
 def modifier_employe(employe_id, user_id):
     employe = g.models.employe_model.get_by_id(employe_id, user_id)
@@ -8239,7 +8239,7 @@ def modifier_employe(employe_id, user_id):
             flash(f'Erreur lors de la mise à jour : {str(e)}', 'error')
             return render_template('employes/modifier_employe.html', employe=employe)
 
-@bp.route('employes/detail_employe/<int:employe_id>', methods=['GET'])
+@bp.route('/employes/detail_employe/<int:employe_id>', methods=['GET'])
 @login_required
 def detail_employe(employe_id):
     employe = g.models.employe_model.get_by_id(employe_id, current_user.id)
@@ -8286,7 +8286,7 @@ def detail_employe(employe_id):
         salaire_net=salaire_net
     )
 
-@bp.route('employes/contrat/<int:employe_id>/contrats')
+@bp.route('/employes/contrat/<int:employe_id>/contrats')
 @login_required
 def gestion_contrats_employe(employe_id):
     employe = g.models.employe_model.get_by_id(employe_id, current_user.id)
@@ -8394,7 +8394,7 @@ def gestion_cotisations_contrat(contrat_id):
         indem_actuelles=indem_actuelles
     )
 
-@bp.route('employes/<int_employe_id>/supprimer_employe', methods = ['POST'])
+@bp.route('/employes/<int_employe_id>/supprimer_employe', methods = ['POST'])
 @login_required
 def supprimer_employe(employe_id, user_id):
     try:
@@ -8444,7 +8444,7 @@ def get_semaine_from_date(date_str: str):
     # Trouver le lundi de la semaine
     lundi = date - timedelta(days=date.weekday())
     return [lundi + timedelta(days=i) for i in range(7)]
-@bp.route('employes/planning-employes')
+@bp.route('/employes/planning-employes')
 @login_required
 def planning_employes():
     user_id = current_user.id
