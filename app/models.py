@@ -853,6 +853,9 @@ class Utilisateur(UserMixin):
         """
         Récupère un utilisateur par son adresse email.
         """
+        if db is None:
+            current_app.logger.error("La connexion à la base de données est inexistante (None).")
+            return None
         try:
             with db.get_cursor(dictionary=True) as cursor:
                 cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
