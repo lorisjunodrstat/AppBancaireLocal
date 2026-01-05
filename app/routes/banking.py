@@ -73,6 +73,11 @@ def index():
     print("La route index est appelée !")
     return render_template('home2.html')
      
+@bp.route('/home')
+def index():
+    print("La route index est appelée !")
+    return render_template('home2.html')
+          
 
 @bp.route('/banques', methods=['GET'])
 @login_required
