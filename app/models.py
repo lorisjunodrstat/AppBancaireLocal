@@ -809,7 +809,7 @@ class DatabaseManager:
 
 class Utilisateur(UserMixin):
     def __init__(self, db, id, nom=None, prenom=None, email=None, mot_de_passe=None):
-        self.db = db
+        self.db = db_manager
         self.id = id
         self.nom = nom
         self.prenom = prenom
