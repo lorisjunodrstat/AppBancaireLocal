@@ -24,10 +24,102 @@ import traceback
 from contextlib import contextmanager
 from flask_login import UserMixin
 import logging
-from flask import current_app
+ 
 import secrets
 
 logger = logging.getLogger(__name__)
+
+
+
+class Utilisateur(UserMixin):
+    def __init__(self, id, nom=None, prenom=None, email=None, mot_de_passe=None):
+        self.id = id
+        self.nom = nom
+        self.prenom = prenom
+        self.email = email
+        self.mot_de_passe = mot_de_passe
+
+    # Méthodes requises par Flask-Login
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return str(self.id)
+
+    @staticmethod
+    def get_by_id(user_id: int, db):
+        try:
+            with db.get_cursor(dictionary=True) as cursor:
+                query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
+                cursor.execute(query, (user_id,))
+                row = cursor.fetchone()
+                if row:
+                    # On envoie l'ID en premier pour correspondre au nouveau __init__
+                    return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
+                return None
+        except Exception as e:
+            # Note: évite logger ici pour ne pas relancer la récursion
+            print(f"Erreur lors de la récupération de l'utilisateur: {e}")
+            return None
+
+    @staticmethod
+    def get_by_email(email: str, db):
+        """
+        Récupère un utilisateur par email.
+        :param email: l'email de l'utilisateur
+        :param db: instance de DatabaseManager (ou objet avec méthode get_cursor())
+        :return: instance Utilisateur ou None
+        """
+        if db is None:
+            return None
+        try:
+            with db.get_cursor(dictionary=True) as cursor:
+                cursor.execute(
+                    "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s",
+                    (email,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return Utilisateur(
+                        row['id'],
+                        row['nom'],
+                        row['prenom'],
+                        row['email'],
+                        row['mot_de_passe']
+                    )
+                return None
+        except Exception as e:
+            print(f"Erreur lors de la récupération de l'utilisateur par email: {e}")
+            return None
+
+    @staticmethod
+    def create(nom: str, prenom: str, email: str, mot_de_passe: str, db):
+        """
+        Crée un nouvel utilisateur dans la base de données.
+        """
+        if db is None:
+            return False
+        try:
+            with db.get_cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
+                    VALUES (%s, %s, %s, %s)
+                """, (nom, prenom, email, mot_de_passe))
+                user_id = cursor.lastrowid
+                logger.info(f"Utilisateur créé avec ID: {user_id}")
+            return user_id
+        except Exception as e:
+            logger.error(f"Erreur création utilisateur : {e}")
+            return False
 
 class DatabaseManager:
     """
@@ -811,96 +903,6 @@ class DatabaseManager:
 
         except Exception as e:
             logger.error(f"Erreur lors de la création des tables : {e}")
-
-class Utilisateur(UserMixin):
-    def __init__(self, id, nom=None, prenom=None, email=None, mot_de_passe=None):
-        self.id = id
-        self.nom = nom
-        self.prenom = prenom
-        self.email = email
-        self.mot_de_passe = mot_de_passe
-
-    # Méthodes requises par Flask-Login
-    @property
-    def is_authenticated(self):
-        return True
-
-    @property
-    def is_active(self):
-        return True
-
-    @property
-    def is_anonymous(self):
-        return False
-
-    def get_id(self):
-        return str(self.id)
-
-    @staticmethod
-    def get_by_id(user_id: int, db):
-        try:
-            with db.get_cursor(dictionary=True) as cursor:
-                query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
-                cursor.execute(query, (user_id,))
-                row = cursor.fetchone()
-                if row:
-                    # On envoie l'ID en premier pour correspondre au nouveau __init__
-                    return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
-                return None
-        except Exception as e:
-            # Note: évite logger ici pour ne pas relancer la récursion
-            print(f"Erreur lors de la récupération de l'utilisateur: {e}")
-            return None
-
-    @staticmethod
-    def get_by_email(email: str, db):
-        """
-        Récupère un utilisateur par email.
-        :param email: l'email de l'utilisateur
-        :param db: instance de DatabaseManager (ou objet avec méthode get_cursor())
-        :return: instance Utilisateur ou None
-        """
-        if db is None:
-            return None
-        try:
-            with db.get_cursor(dictionary=True) as cursor:
-                cursor.execute(
-                    "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s",
-                    (email,)
-                )
-                row = cursor.fetchone()
-                if row:
-                    return Utilisateur(
-                        row['id'],
-                        row['nom'],
-                        row['prenom'],
-                        row['email'],
-                        row['mot_de_passe']
-                    )
-                return None
-        except Exception as e:
-            print(f"Erreur lors de la récupération de l'utilisateur par email: {e}")
-            return None
-
-    @staticmethod
-    def create(nom: str, prenom: str, email: str, mot_de_passe: str, db):
-        """
-        Crée un nouvel utilisateur dans la base de données.
-        """
-        if db is None:
-            return False
-        try:
-            with db.get_cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
-                    VALUES (%s, %s, %s, %s)
-                """, (nom, prenom, email, mot_de_passe))
-                user_id = cursor.lastrowid
-                logger.info(f"Utilisateur créé avec ID: {user_id}")
-            return user_id
-        except Exception as e:
-            logger.error(f"Erreur création utilisateur : {e}")
-            return False
 
 class PeriodeFavorite:
     def __init__(self, db):
@@ -13150,7 +13152,6 @@ class ModelManager:
     def __init__(self, db):
         self.db = db
         self.banque_model = Banque(self.db)
-        self.user_model = Utilisateur(self.db)
         self.periode_favorite_model = PeriodeFavorite(self.db)
         self.compte_model = ComptePrincipal(self.db)
         self.compte__principal_rapport_model = ComptePrincipalRapport(self.db)

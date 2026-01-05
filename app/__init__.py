@@ -180,37 +180,24 @@ def inject_user_comptes():
     except Exception as e:
         logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}")
         return dict(user_comptes=[], user_id=None)
-# Remplacer la fonction before_request par un signal
-def create_managers_on_request_start(sender, **extra):
+@app.before_request
+def init_db_managers():
     from app.models import DatabaseManager, ModelManager
     try:
-        g.db_manager = DatabaseManager(sender.config['DB_CONFIG'])
+        g.db_manager = DatabaseManager(app.config['DB_CONFIG'])
         g.models = ModelManager(g.db_manager)
     except Exception as e:
         logging.error(f"Failed to establish database connection: {e}")
         g.db_manager = None
         g.models = None
 
-# Connecter la fonction au signal request_started de l'application
-request_started.connect(create_managers_on_request_start, app)
-
-# Fermeture des ressources après chaque requête
-def close_managers_on_request_finish(sender, response, **extra):
-    # Vérifie si l'attribut db_manager existe dans l'objet g et n'est pas None
-    if hasattr(g, 'db_manager') and g.db_manager:
+@app.teardown_appcontext
+def close_db_managers(exception=None):
+    if hasattr(g, 'db_manager') and g.db_manager is not None:
         try:
-            # Tente de fermer le pool de connexions si la méthode existe
-            if hasattr(g.db_manager, 'pool'):
-                g.db_manager.pool.close()
-            elif hasattr(g.db_manager, 'close'):
-                g.db_manager.close()
+            g.db_manager.close()
         except Exception as e:
-            logging.error(f"Erreur lors de la fermeture du gestionnaire de DB : {e}")
-    return response
-
-# Connecter la fonction au signal request_finished de l'application
-request_finished.connect(close_managers_on_request_finish, app)
-
+            logging.error(f"Erreur lors de la fermeture de la connexion DB: {e}")
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
 if __name__ == '__main__':
     # Ajoutez le répertoire racine au chemin Python pour les imports absolus
