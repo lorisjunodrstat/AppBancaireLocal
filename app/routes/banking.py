@@ -74,7 +74,7 @@ def index():
         if current_user.is_admin:
             return redirect(url_for('admin.liste_utilisateurs'))
         else:
-            return redirect(url_for('banking.dashboard'))
+            return render_template('home2.html')
     # Sinon, afficher la landing page publique pour présenter l'application
     return render_template('home2.html')
      
