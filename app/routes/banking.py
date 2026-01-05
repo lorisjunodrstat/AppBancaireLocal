@@ -8353,7 +8353,7 @@ def gestion_cotisations_contrat(contrat_id):
                     'valeur': float(val_i[i])
                 })
 
-        g.models.contrat_model.sauvegarder_cotisations_et_indemnites(contrat_id, current_user.id, data, cotisations_contrat_model=g.models.cotisations_contrat_model, indemnites_contrat_model=g.models.indemnites_contrat_model, indemnites_contrat_model=g.models.indemnites_contrat_model)
+        g.models.contrat_model.sauvegarder_cotisations_et_indemnites(contrat_id, current_user.id, data, cotisations_contrat_model=g.models.cotisations_contrat_model, indemnites_contrat_model=g.models.indemnites_contrat_model)
         flash("Cotisations et indemnités sauvegardées.", "success")
         return redirect(url_for('banking.gestion_cotisations_contrat', contrat_id=contrat_id, annee=annee))
 
