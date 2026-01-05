@@ -70,12 +70,6 @@ def get_comptes_utilisateur(user_id):
     # ---- ROUTES ----
 @bp.route('/')
 def index():
-    if current_user.is_authenticated:
-        if current_user.is_admin:
-            return redirect(url_for('admin.liste_utilisateurs'))
-        else:
-            return render_template('home2.html')
-    # Sinon, afficher la landing page publique pour présenter l'application
     return render_template('home2.html')
      
 
