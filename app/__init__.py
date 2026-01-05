@@ -120,7 +120,7 @@ def index():
         if current_user.is_admin:
             return redirect(url_for('admin.liste_utilisateurs'))
         else:
-            return redirect(url_for('banking.dashboard'))
+            return redirect(url_for('banking.banking_dashboard'))
     return redirect(url_for('auth.login'))
 # Sécurité : bloquer les extensions dangereuses dans /static/uploads
 @app.route('/static/uploads/<path:filename>')
