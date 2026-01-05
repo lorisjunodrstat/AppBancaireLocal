@@ -1,6 +1,6 @@
-{{ extends "accueil.html" }}
+{% extends "accueil.html" %}
 
-{{ block "head_css" }}
+{% block "head_css" %}
 <style>
     :root {
         --bg-main: #0b0f19;
@@ -154,13 +154,13 @@
         }
     }
 </style>
-{{ endblock }}
+{% endblock %}
 
 {% block title %}Mon Hub Financier Suisse — 100 % Local, 0 % Cloud{% endblock %}
 {% block meta_description %}
 Gestion bancaire, comptable et salariale — sans cloud, sans tiers, entièrement local. Testez la démo dès aujourd’hui !
 {% endblock %}
-{{ block content }}
+{% block content %}
     <header>
         <div class="badge">🧩 Open-source • 🇨🇭 Suisse • 🔐 Local-first</div>
     
@@ -251,4 +251,4 @@ Gestion bancaire, comptable et salariale — sans cloud, sans tiers, entièremen
         Open-source • Local-first • Sans cloud • Sans abonnement
     </footer>
     
-{{ endblock }}
+{% endblock %}
