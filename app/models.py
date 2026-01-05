@@ -815,7 +815,6 @@ class Utilisateur(UserMixin):
         self.prenom = prenom
         self.email = email
         self.mot_de_passe = mot_de_passe
-        
 
     # Méthodes requises par Flask-Login
     @property
@@ -835,36 +834,42 @@ class Utilisateur(UserMixin):
 
     @staticmethod
     def get_by_id(user_id: int, db):
+        """
+        Charge l'utilisateur depuis la base de données.
+        """
+        if db is None:
+            return None
         try:
-            # Correction : on utilise 'db' (l'argument), pas 'self.db'
             with db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
                 cursor.execute(query, (user_id,))
                 row = cursor.fetchone()
                 if row:
-                    # Correction : on ajoute 'db' en premier argument pour matcher le __init__
+                    # Ajout de 'db' en 1er argument pour correspondre au __init__
                     return Utilisateur(db, row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
                 return None
         except Exception as e:
-            current_app.logger.error(f"Erreur get_by_id: {e}")
+            current_app.logger.error(f"Erreur lors de la récupération de l'utilisateur: {e}")
             return None
 
     @staticmethod
     def get_by_email(email: str, db):
+        """
+        Récupère un utilisateur par son adresse email.
+        """
         if db is None:
             current_app.logger.error("La connexion à la base de données est inexistante (None).")
             return None
         try:
-            # Correction : on utilise 'db' (l'argument)
             with db.get_cursor(dictionary=True) as cursor:
                 cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
                 row = cursor.fetchone()
                 if row:
-                    # Correction : on ajoute 'db' en premier argument
+                    # Ajout de 'db' en 1er argument pour correspondre au __init__
                     return Utilisateur(db, row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
                 return None
         except Exception as e:
-            current_app.logger.error(f"Erreur get_by_email: {e}")
+            current_app.logger.error(f"Erreur lors de la récupération de l'utilisateur par email: {e}")
             return None
 
     @staticmethod
@@ -872,6 +877,8 @@ class Utilisateur(UserMixin):
         """
         Crée un nouvel utilisateur dans la base de données.
         """
+        if db is None:
+            return False
         try:
             with db.get_cursor() as cursor:
                 cursor.execute("""
@@ -881,7 +888,7 @@ class Utilisateur(UserMixin):
                 user_id = cursor.lastrowid
                 current_app.logger.info(f"Utilisateur créé avec ID: {user_id}")
             return user_id
-        except Error as e:
+        except Exception as e:
             current_app.logger.error(f"Erreur création utilisateur : {e}")
             return False
 
