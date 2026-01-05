@@ -69,7 +69,7 @@ def get_comptes_utilisateur(user_id):
 
     # ---- ROUTES ----
 @bp.route('/')
-def index():
+def home():
     print("La route index est appelée !")
     return render_template('home2.html')
      
