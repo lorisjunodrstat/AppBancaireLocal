@@ -66,8 +66,7 @@ login_manager.login_message_category = "info"
 # Fonction de chargement d'utilisateur pour Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    print(f"⚠️ load_user appelé avec user_id = {user_id!r}")
-    if user_id is None:
+    if not user_id or not current_app:
         return None
         
     try:
@@ -79,18 +78,38 @@ def load_user(user_id):
         
         if not config_db:
             return None
-
-        db_manager = DatabaseManager(config_db)
-        # Cet appel fonctionnera car l'ID est maintenant le 1er argument de Utilisateur()
-        user = Utilisateur.get_by_id(user_id, db_manager)
-        if hasattr(db_manager, 'close'):
-                db_manager.close()
-                
+        connection = pymysql.connect(
+            host=config_db['host'],
+            port=config_db['port'],
+            user=config_db['user'],
+            password=config_db['password'],
+            database=config_db['database'],
+            charset=config_db['charset'],
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        user = None
+        try:
+            with connection.cursor() as cursor:
+                query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
+                cursor.execute(query, (user_id,))
+                row = cursor.fetchone()
+                if row:
+                    # Import local pour éviter la dépendance circulaire
+                    from app.models import Utilisateur
+                    user = Utilisateur(
+                        id=row['id'],
+                        nom=row['nom'],
+                        prenom=row['prenom'],
+                        email=row['email'],
+                        mot_de_passe=row['mot_de_passe']
+                    )
+        finally:
+            connection.close()
+            
         return user
     except Exception as e:
-        logging.error(f"Erreur dans load_user: {e}")
+        logging.getLogger(__name__).error(f"Erreur dans load_user: {e}")
         return None
-
 
 
 # Import des routes (APRES la création de l'app)
