@@ -62,7 +62,7 @@ def login():
                         flash("Connexion réussie !", "success")
                         
                         # REDIRECTION IMMÉDIATE ET FORCÉE
-                        return redirect(url_for('banking.dashboard'))
+                        return redirect(url_for('banking.banking_dashboard'))
                     else:
                         logging.warning(f"Échec de connexion pour {email}")
                         flash("Email ou mot de passe incorrect", "error")
