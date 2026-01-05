@@ -8435,6 +8435,15 @@ def planning_employe(employe_id):
         annee=annee,
         mois=mois
     )
+def get_semaine_from_date(date_str: str):
+    """
+    Retourne les 7 jours de la semaine (lundi à dimanche)
+    contenant la date donnée.
+    """
+    date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    # Trouver le lundi de la semaine
+    lundi = date - timedelta(days=date.weekday())
+    return [lundi + timedelta(days=i) for i in range(7)]
 @bp.route('employes/planning-employes')
 @login_required
 def planning_employes():
@@ -8466,6 +8475,117 @@ def planning_employes():
         prev_week=semaine[0] - timedelta(weeks=1),
         next_week=semaine[0] + timedelta(weeks=1)
     )
+
+@bp.route('/planning/supprimer_jour', methods=['POST'])
+@login_required
+def planning_supprimer_jour():
+    user_id = current_user.id
+    date_str = request.form['date']
+    employeur = request.form['employeur']
+    id_contrat = int(request.form['id_contrat'])
+    
+    success = g.models.heure_model.delete_by_date(date_str, user_id, employeur, id_contrat)
+    flash("Jour supprimé." if success else "Rien à supprimer.", "warning")
+    return redirect(request.referrer or url_for('banking.planning_employes'))
+
+# Exemple : copier → réutilise TON handle_copier_jour
+@bp.route('/planning/copier_jour', methods=['POST'])
+@login_required
+def planning_copier_jour():
+    return handle_copier_jour(request, current_user.id, 'planning', request.form['employeur'], int(request.form['id_contrat']))
+
+# Exemple : simulation → réutilise TON handle_simulation
+@bp.route('/planning/simulation_semaine', methods=['POST'])
+@login_required
+def planning_simulation_semaine():
+    return handle_simulation(
+        request,
+        user_id=current_user.id,
+        annee=int(request.form['annee']),
+        mois=int(request.form['mois']),
+        semaine=int(request.form['semaine']),
+        mode='planning',
+        employeur=request.form['employeur'],
+        id_contrat=int(request.form['id_contrat'])
+    )
+
+# Réinitialisation semaine → réutilise TON handle_reset_all
+@bp.route('/planning/reset_semaine', methods=['POST'])
+@login_required
+def planning_reset_semaine():
+    return handle_reset_all(
+        request,
+        user_id=current_user.id,
+        annee=int(request.form['annee']),
+        mois=int(request.form['mois']),
+        semaine=int(request.form['semaine']),
+        mode='planning',
+        employeur=request.form['employeur'],
+        id_contrat=int(request.form['id_contrat'])
+    )
+
+# Modifier jour → charge les données et affiche le formulaire
+@bp.route('/planning/modifier_jour', methods=['POST'])
+@login_required
+def planning_modifier_jour():
+    user_id = current_user.id
+    date_str = request.form['date']
+    employe_id = request.form['employe_id']
+    # ... autres params
+    
+    data = g.models.heure_model.get_by_date(date_str, user_id, request.form['employeur'], int(request.form['id_contrat']))
+    if not data:
+        data = {'plages': [], 'vacances': False}
+    
+    return render_template('planning/form_modifier_jour.html',
+        date=date_str,
+        employe_id=employe_id,
+        data=data,
+        annee=request.form['annee'],
+        mois=request.form['mois'],
+        semaine=request.form['semaine'],
+        mode='planning',
+        employeur=request.form['employeur'],
+        id_contrat=request.form['id_contrat']
+    )
+
+# Sauvegarder jour → crée/écrase avec type_heures='simulees'
+@bp.route('/planning/sauvegarder_jour', methods=['POST'])
+@login_required
+def planning_sauvegarder_jour():
+    user_id = current_user.id
+    date_str = request.form['date']
+    employeur = request.form['employeur']
+    id_contrat = int(request.form['id_contrat'])
+
+    plages = []
+    for i in [1, 2]:
+        debut = request.form.get(f'plage{i}_debut')
+        fin = request.form.get(f'plage{i}_fin')
+        if debut and fin:
+            plages.append({'debut': debut, 'fin': fin})
+
+    payload = {
+        'date': date_str,
+        'user_id': user_id,
+        'employeur': employeur,
+        'id_contrat': id_contrat,
+        'plages': plages,
+        'vacances': bool(request.form.get('vacances')),
+        'type_heures': 'simulees'  # ← CRUCIAL pour le planning
+    }
+
+    success = g.models.heure_model.create_or_update(payload)
+    flash("Jour mis à jour." if success else "Erreur.", "success" if success else "error")
+    
+    return redirect(url_for('banking.planning_employes',
+        annee=request.form['annee'],
+        mois=request.form['mois'],
+        semaine=request.form['semaine'],
+        mode='planning',
+        employeur=employeur,
+        id_contrat=id_contrat
+    ))
 @bp.route('/synthese/mensuelle')
 @login_required
 def synthese_mensuelle():
