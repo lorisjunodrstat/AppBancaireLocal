@@ -20,18 +20,33 @@ def login():
         if not email or not password:
             flash("Veuillez remplir tous les champs", "error")
             return render_template('auth/login.html', active_tab='login')
+        from app.models import DatabaseManager, Utilisateur
+        config_db = current_app.config.get('DB_CONFIG')
+        
+        if not config_db:
+            flash("Erreur de configuration de la base de données", "error")
+            return render_template('auth/login.html', active_tab='login')
 
-        # Utilisez g.db_manager au lieu de db
-        user = Utilisateur.get_by_email(email, g.db_manager)
-        if user and check_password_hash(user.mot_de_passe, password):
-            login_user(user)
-            logging.info(f"Utilisateur {user.email} connecté")
-            flash("Connexion réussie !", "success")
-            next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('banking.banking_dashboard'))
-        else:
-            logging.warning(f"Échec de connexion pour {email} {user}")
-            flash("Email ou mot de passe incorrect", "error")
+        db_manager = DatabaseManager(config_db)
+        try:
+            user = Utilisateur.get_by_email(email, db_manager)
+            logging.warning(f"Tentative de connexion pour {email} {user} - {db_manager}")
+            if user and check_password_hash(user.mot_de_passe, password):
+                login_user(user)
+                logging.info(f"Utilisateur {user.email} connecté")
+                flash("Connexion réussie !", "success")
+                next_page = request.args.get('next')
+                return redirect(next_page) if next_page else redirect(url_for('banking.banking_dashboard'))
+            else:
+                logging.warning(f"Échec de connexion pour {email} {user}")
+                flash("Email ou mot de passe incorrect", "error")
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
+            flash("Erreur lors de la connexion", "error")
+        finally:
+            if hasattr(db_manager, 'close'):
+                db_manager.close()
+            return render_template('auth/login.html', active_tab='login')
 
     return render_template('auth/login.html', active_tab='login')
 
