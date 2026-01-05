@@ -6,6 +6,7 @@ Application Flask - Fichier d'initialisation principal
 
 import os
 import sys
+from . import app
 from flask import Flask, g, redirect, url_for, request_started, request_finished, current_app
 from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
@@ -66,18 +67,14 @@ login_manager.login_message_category = "info"
 # Fonction de chargement d'utilisateur pour Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    if not user_id or not current_app:
+    if not user_id:
         return None
-        
+
     try:
-        # IMPORT LOCAL ICI pour casser la boucle circulaire
-        from app.models import Utilisateur, DatabaseManager
-        
-        # On récupère la config
         config_db = app.config.get('DB_CONFIG')
-        
         if not config_db:
             return None
+
         connection = pymysql.connect(
             host=config_db['host'],
             port=config_db['port'],
@@ -87,16 +84,17 @@ def load_user(user_id):
             charset=config_db['charset'],
             cursorclass=pymysql.cursors.DictCursor
         )
-        user = None
+
         try:
             with connection.cursor() as cursor:
-                query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
-                cursor.execute(query, (user_id,))
+                cursor.execute(
+                    "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s",
+                    (user_id,)
+                )
                 row = cursor.fetchone()
                 if row:
-                    # Import local pour éviter la dépendance circulaire
                     from app.models import Utilisateur
-                    user = Utilisateur(
+                    return Utilisateur(
                         id=row['id'],
                         nom=row['nom'],
                         prenom=row['prenom'],
@@ -105,10 +103,8 @@ def load_user(user_id):
                     )
         finally:
             connection.close()
-            
-        return user
     except Exception as e:
-        logging.getLogger(__name__).error(f"Erreur dans load_user: {e}")
+        logging.error(f"Erreur dans load_user: {e}", exc_info=True)
         return None
 
 

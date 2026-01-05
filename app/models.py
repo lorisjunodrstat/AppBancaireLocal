@@ -27,6 +27,7 @@ import logging
 from flask import current_app
 import secrets
 
+logger = logging.getLogger(__name__)
 
 class DatabaseManager:
     """
@@ -41,7 +42,7 @@ class DatabaseManager:
     def _get_connection_pool(self):
         """Initialise et retourne le pool de connexions avec DBUtils."""
         if self._connection_pool is None:
-            current_app.logger.info("Initialisation du pool de connexions avec DBUtils...")
+            logger.info("Initialisation du pool de connexions avec DBUtils...")
             try:
                 self._connection_pool = PooledDB(
                     creator=pymysql,
@@ -57,9 +58,9 @@ class DatabaseManager:
                     ping=1,
                     **self.db_config
                 )
-                current_app.logger.info("Pool de connexions DBUtils initialisé avec succès.")
+                logger.info("Pool de connexions DBUtils initialisé avec succès.")
             except Error as err:
-                current_app.logger.error(f"Erreur lors de l'initialisation du pool de connexions : {err}")
+                logger.error(f"Erreur lors de l'initialisation du pool de connexions : {err}")
                 self._connection_pool = None
         return self._connection_pool
     def close_connection(self):
@@ -70,7 +71,11 @@ class DatabaseManager:
         if self._connection_pool is not None:
             self._connection_pool.close()
             self._connection_pool = None
-            current_app.logger.info("Pool de connexions fermé")
+            logger.info("Pool de connexions fermé")
+    
+    def close(self):
+        """Alias pour close_connection pour compatibilité"""
+        self.close_connection()
     @contextmanager
     def get_cursor(self, dictionary=False, commit=True):
         """
@@ -99,30 +104,30 @@ class DatabaseManager:
             if commit:
                 connection.commit()
         except Exception as e:
-            current_app.logger.error(f"Erreur dans le gestionnaire de curseur : {e}", exc_info=True)
+            logger.error(f"Erreur dans le gestionnaire de curseur : {e}", exc_info=True)
             if connection:
                 try:
                     connection.rollback()  # Annule les changements en cas d'erreur
                 except Exception as rollback_error:
-                    current_app.logger.error(f"Erreur lors du rollback : {rollback_error}", exc_info=True)
+                    logger.error(f"Erreur lors du rollback : {rollback_error}", exc_info=True)
             raise  # Relance l'exception
         finally:
             if cursor:
                 try:
                     cursor.close()
                 except Exception as close_error:
-                    current_app.logger.error(f"Erreur lors de la fermeture du curseur : {close_error}", exc_info=True)
+                    logger.error(f"Erreur lors de la fermeture du curseur : {close_error}", exc_info=True)
             if connection:
                 try:
                     connection.close()  # Retourne la connexion au pool
                 except Exception as close_error:
-                    current_app.logger.error(f"Erreur lors de la fermeture de la connexion : {close_error}", exc_info=True)
+                    logger.error(f"Erreur lors de la fermeture de la connexion : {close_error}", exc_info=True)
 
     def create_tables(self):
         """
         Crée toutes les tables de la base de données si elles n'existent pas.
         """
-        current_app.logger.info("Vérification et création des tables de la base de données...")
+        logger.info("Vérification et création des tables de la base de données...")
         try:
             # Utilisation du gestionnaire de contexte pour la création des tables.
             with self.get_cursor() as cursor:
@@ -802,10 +807,10 @@ class DatabaseManager:
 
 
 
-            current_app.logger.info("Toutes les tables ont été vérifiées/créées avec succès.")
+            logger.info("Toutes les tables ont été vérifiées/créées avec succès.")
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la création des tables : {e}")
+            logger.error(f"Erreur lors de la création des tables : {e}")
 
 class Utilisateur(UserMixin):
     def __init__(self, id, nom=None, prenom=None, email=None, mot_de_passe=None):
@@ -840,10 +845,10 @@ class Utilisateur(UserMixin):
                 row = cursor.fetchone()
                 if row:
                     # On envoie l'ID en premier pour correspondre au nouveau __init__
-                    return Utilisateur(row['id'], db, row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
+                    return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
                 return None
         except Exception as e:
-            # Note: évite current_app.logger ici pour ne pas relancer la récursion
+            # Note: évite logger ici pour ne pas relancer la récursion
             print(f"Erreur lors de la récupération de l'utilisateur: {e}")
             return None
 
@@ -891,10 +896,10 @@ class Utilisateur(UserMixin):
                     VALUES (%s, %s, %s, %s)
                 """, (nom, prenom, email, mot_de_passe))
                 user_id = cursor.lastrowid
-                current_app.logger.info(f"Utilisateur créé avec ID: {user_id}")
+                logger.info(f"Utilisateur créé avec ID: {user_id}")
             return user_id
         except Exception as e:
-            current_app.logger.error(f"Erreur création utilisateur : {e}")
+            logger.error(f"Erreur création utilisateur : {e}")
             return False
 
 class PeriodeFavorite:
@@ -916,7 +921,7 @@ class PeriodeFavorite:
                 periodes = cursor.fetchall()
                 return periodes
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des périodes favorites: {e}")
+            logger.error(f"Erreur lors de la récupération des périodes favorites: {e}")
             return []
         return periodes
 
@@ -931,7 +936,7 @@ class PeriodeFavorite:
                 cursor.execute(query, (user_id, compte_id, compte_type, nom, date_debut, date_fin, statut))
                 return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la création de la période favorite: {e}")
+            logger.error(f"Erreur lors de la création de la période favorite: {e}")
             return False
 
     def update(self, user_id: int, periode_id: int, nom: str, date_debut: date, date_fin: date, statut: str) -> bool:
@@ -946,7 +951,7 @@ class PeriodeFavorite:
                 cursor.execute(query, (nom, date_debut, date_fin, statut, periode_id, user_id))
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour de la période favorite: {e}")
+            logger.error(f"Erreur lors de la mise à jour de la période favorite: {e}")
             return False
 
     def delete(self, user_id: int, periode_id: int) -> bool:
@@ -957,7 +962,7 @@ class PeriodeFavorite:
                 cursor.execute(query, (periode_id, user_id))
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la suppression de la période favorite: {e}")
+            logger.error(f"Erreur lors de la suppression de la période favorite: {e}")
             return False
     def get_by_user_and_compte(self, user_id: int, compte_id: int, compte_type: str) -> Optional[Dict]:
         """Récupère une période favorite par utilisateur et compte"""
@@ -974,7 +979,7 @@ class PeriodeFavorite:
                 periode = cursor.fetchone()
                 return periode
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération de la période favorite: {e}")
+            logger.error(f"Erreur lors de la récupération de la période favorite: {e}")
             return None
 
 class Banque:
@@ -997,7 +1002,7 @@ class Banque:
                 banques = cursor.fetchall()
                 return banques
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des banques: {e}")
+            logger.error(f"Erreur lors de la récupération des banques: {e}")
             return []
         return banques
 
@@ -1011,7 +1016,7 @@ class Banque:
                 banque = cursor.fetchone()
                 return banque
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération de la banque: {e}")
+            logger.error(f"Erreur lors de la récupération de la banque: {e}")
             return None
 
     def create_banque(self, nom: str, code_banque: str, pays: str, couleur: str, site_web: str, logo_url: str) -> bool:
@@ -1025,7 +1030,7 @@ class Banque:
                 cursor.execute(query, (nom, code_banque, pays, couleur, site_web, logo_url))
                 return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la création de la banque: {e}")
+            logger.error(f"Erreur lors de la création de la banque: {e}")
             return False
 
     def update_banque(self, banque_id: int, nom: str, code_banque: str, pays: str, couleur: str, site_web: str, logo_url: str) -> bool:
@@ -1040,7 +1045,7 @@ class Banque:
                 cursor.execute(query, (nom, code_banque, pays, couleur, site_web, logo_url, banque_id))
                 return cursor.rowcount > 0 # Returns True if at least one row was updated
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour de la banque: {e}")
+            logger.error(f"Erreur lors de la mise à jour de la banque: {e}")
             return False
 
     def delete_banque(self, banque_id: int) -> bool:
@@ -1051,7 +1056,7 @@ class Banque:
                 cursor.execute(query, (banque_id,))
                 return cursor.rowcount > 0 # Returns True if the row was found and updated
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la suppression de la banque: {e}")
+            logger.error(f"Erreur lors de la suppression de la banque: {e}")
             return False
 
 class ComptePrincipal:
@@ -1080,10 +1085,10 @@ class ComptePrincipal:
                 """
                 cursor.execute(query, (user_id,))
                 comptes = cursor.fetchall() # N'oubliez pas de récupérer les données
-                current_app.logger.info(f"models 710 - Comptes récupérés - comptes - pour l'utilisateur {user_id}: {len(comptes)}")
+                logger.info(f"models 710 - Comptes récupérés - comptes - pour l'utilisateur {user_id}: {len(comptes)}")
                 return comptes
         except Error as e:
-            current_app.logger.error(f"713 Erreur lors de la récupération des comptes: {e}")
+            logger.error(f"713 Erreur lors de la récupération des comptes: {e}")
             return []
 
     def get_by_id(self, compte_id: int) -> Optional[Dict]:
@@ -1105,7 +1110,7 @@ class ComptePrincipal:
                 compte = cursor.fetchone() # N'oubliez pas de récupérer la donnée
                 return compte
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération du compte: {e}")
+            logger.error(f"Erreur lors de la récupération du compte: {e}")
             return None
 
     def create(self, data: Dict) -> bool:
@@ -1116,12 +1121,12 @@ class ComptePrincipal:
                 # Ces vérifications sont des requêtes SELECT, elles n'ont pas besoin d'être dans une transaction.
                 cursor.execute("SELECT id FROM utilisateurs WHERE id = %s", (data['utilisateur_id'],))
                 if not cursor.fetchone():
-                    current_app.logger.error(f"746 Erreur: Utilisateur avec ID {data['utilisateur_id']} n'existe pas")
+                    logger.error(f"746 Erreur: Utilisateur avec ID {data['utilisateur_id']} n'existe pas")
                     return False
 
                 cursor.execute("SELECT id FROM banques WHERE id = %s", (data['banque_id'],))
                 if not cursor.fetchone():
-                    current_app.logger.error(f"Erreur: Banque avec ID {data['banque_id']} n'existe pas")
+                    logger.error(f"Erreur: Banque avec ID {data['banque_id']} n'existe pas")
                     return False
 
                 query = """
@@ -1139,7 +1144,7 @@ class ComptePrincipal:
                 cursor.execute(query, values)
                 return True
         except Error as e:
-            current_app.logger.error(f"769 Erreur lors de la création du compte: {e}")
+            logger.error(f"769 Erreur lors de la création du compte: {e}")
             return False
 
     def update_solde(self, compte_id: int, nouveau_solde: Decimal) -> bool:
@@ -1151,7 +1156,7 @@ class ComptePrincipal:
                 cursor.execute(query, (nouveau_solde, compte_id))
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"781 Erreur lors de la mise à jour du solde: {e}")
+            logger.error(f"781 Erreur lors de la mise à jour du solde: {e}")
             return False
 
     def get_solde_total_avec_sous_comptes(self, compte_id: int) -> Decimal:
@@ -1178,7 +1183,7 @@ class ComptePrincipal:
                     return Decimal('0')
         except MySQLError as e:
             # J'ai remplacé "Error" par "MySQLError" pour gérer spécifiquement les erreurs de base de données.
-            current_app.logger.error(f"808 Erreur lors du calcul du solde total pour le compte {compte_id}: {e}")
+            logger.error(f"808 Erreur lors du calcul du solde total pour le compte {compte_id}: {e}")
             return Decimal('0')
 
     def get_solde_avec_ecritures(self, compte_id: int, date_jusqua: date = None) -> Decimal:
@@ -1209,7 +1214,7 @@ class ComptePrincipal:
                 # Suppression des fermetures de connexion/curseur inutiles
                 return solde + ajustement
         except Error as e:
-            current_app.logger.error(f"839Erreur lors du calcul du solde avec écritures: {e}")
+            logger.error(f"839Erreur lors du calcul du solde avec écritures: {e}")
             return Decimal('0')
 
     def get_all_accounts(self) -> List[Dict]:
@@ -1236,7 +1241,7 @@ class ComptePrincipal:
                 comptes = cursor.fetchall()
                 return comptes if comptes else []
         except Error as e:
-            current_app.logger.error(f"Erreur SQL: {e}")
+            logger.error(f"Erreur SQL: {e}")
             return []
 
 
@@ -1461,7 +1466,7 @@ class SousCompte:
 
     def get_by_compte_principal_id(self, compte_principal_id: int) -> List[Dict]:
         """Récupère tous les sous-comptes d'un compte principal"""
-        current_app.logger.debug(f"Récupération des sous-comptes pour le compte principal {compte_principal_id}")
+        logger.debug(f"Récupération des sous-comptes pour le compte principal {compte_principal_id}")
 
         try:
             with self.db.get_cursor() as cursor:
@@ -1481,16 +1486,16 @@ class SousCompte:
                 cursor.execute(query, (compte_principal_id,))
                 result = cursor.fetchall()
 
-                current_app.logger.debug(f"Résultat de la requête: {result}")
+                logger.debug(f"Résultat de la requête: {result}")
                 return result
 
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des sous-comptes: {e}")
+            logger.error(f"Erreur lors de la récupération des sous-comptes: {e}")
             return []
 
     def get_all_sous_comptes_by_user_id(self, user_id) -> List:
         """Récupère tous les sous-comptes d'un utilisateur"""
-        current_app.logger.debug(f"Récupération de tous les sous-comptes pour l'utilisateur {user_id}")
+        logger.debug(f"Récupération de tous les sous-comptes pour l'utilisateur {user_id}")
 
         try:
             with self.db.get_cursor() as cursor:
@@ -1505,7 +1510,7 @@ class SousCompte:
 
                 return result
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des sous-comptes: {e}")
+            logger.error(f"Erreur lors de la récupération des sous-comptes: {e}")
             return []
 
     def get_by_id(self, sous_compte_id: int) -> Optional[Dict]:
@@ -1520,10 +1525,10 @@ class SousCompte:
                 """
                 cursor.execute(query, (sous_compte_id,))
                 sous_compte = cursor.fetchone()
-                current_app.logger.debug(f'voici le resultat de get_by_id {sous_compte}')
+                logger.debug(f'voici le resultat de get_by_id {sous_compte}')
                 return sous_compte
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération du sous-compte: {e}")
+            logger.error(f"Erreur lors de la récupération du sous-compte: {e}")
             return None
 
     def create(self, data: Dict) -> bool:
@@ -1546,7 +1551,7 @@ class SousCompte:
                 cursor.execute(query, values)
                 return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la création du sous-compte: {e}")
+            logger.error(f"Erreur lors de la création du sous-compte: {e}")
             return False
 
     def update(self, sous_compte_id: int, data: Dict) -> bool:
@@ -1568,7 +1573,7 @@ class SousCompte:
                 cursor.execute(query, values)
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour du sous-compte: {e}")
+            logger.error(f"Erreur lors de la mise à jour du sous-compte: {e}")
             return False
 
     def delete(self, sous_compte_id: int) -> bool:
@@ -1580,14 +1585,14 @@ class SousCompte:
                 result = cursor.fetchone()
 
                 if result and Decimal(str(result['solde'])) > 0:
-                    current_app.logger.warning(f"Impossible de supprimer le sous-compte {sous_compte_id} car son solde n'est pas nul.")
+                    logger.warning(f"Impossible de supprimer le sous-compte {sous_compte_id} car son solde n'est pas nul.")
                     return False
 
                 # Soft delete
                 cursor.execute("UPDATE sous_comptes SET actif = FALSE WHERE id = %s", (sous_compte_id,))
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la suppression du sous-compte: {e}")
+            logger.error(f"Erreur lors de la suppression du sous-compte: {e}")
             return False
 
     def update_solde(self, sous_compte_id: int, nouveau_solde: float) -> bool:
@@ -1598,7 +1603,7 @@ class SousCompte:
                 cursor.execute(query, (nouveau_solde, sous_compte_id))
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour du solde: {e}")
+            logger.error(f"Erreur lors de la mise à jour du solde: {e}")
             return False
 
     def get_solde(self, sous_compte_id: int) -> float:
@@ -1610,7 +1615,7 @@ class SousCompte:
                 result = cursor.fetchone()
                 return float(result['solde']) if result and 'solde' in result else 0.0
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération du solde : {e}")
+            logger.error(f"Erreur lors de la récupération du solde : {e}")
             return 0.0
 
 class TransactionFinanciere:
@@ -1623,7 +1628,7 @@ class TransactionFinanciere:
 
     def _valider_solde_suffisant(self, compte_type: str, compte_id: int, montant: Decimal) -> Tuple[bool, Decimal]:
         """Vérifie si le solde est suffisant pour l'opération"""
-        current_app.logger.debug(f"Vérification du solde pour {compte_type} ID {compte_id}")
+        logger.debug(f"Vérification du solde pour {compte_type} ID {compte_id}")
 
         try:
             with self.db.get_cursor() as cursor:
@@ -1632,23 +1637,23 @@ class TransactionFinanciere:
                 elif compte_type == 'sous_compte':
                     cursor.execute("SELECT solde FROM sous_comptes WHERE id = %s", (compte_id,))
                 else:
-                    current_app.logger.error(f"Type de compte invalide: {compte_type}")
+                    logger.error(f"Type de compte invalide: {compte_type}")
                     return False, Decimal('0')
 
                 result = cursor.fetchone()
                 if not result or 'solde' not in result:
-                    current_app.logger.warning(f"Aucun solde trouvé pour {compte_type} ID {compte_id}")
+                    logger.warning(f"Aucun solde trouvé pour {compte_type} ID {compte_id}")
                     return False, Decimal('0')
 
                 solde_actuel = Decimal(str(result['solde']))
                 return solde_actuel >= montant, solde_actuel
         except Error as e:
-            current_app.logger.error(f"Erreur validation solde: {e}")
+            logger.error(f"Erreur validation solde: {e}")
             return False, Decimal('0')
 
     def _get_previous_transaction(self, compte_type: str, compte_id: int, date_transaction: datetime) -> Optional[Dict]:
         """Trouve la transaction précédente la plus proche pour un compte donné"""
-        current_app.logger.debug(f"Recherche de la transaction précédente pour {compte_type} ID {compte_id}")
+        logger.debug(f"Recherche de la transaction précédente pour {compte_type} ID {compte_id}")
 
         try:
             with self.db.get_cursor() as cursor:
@@ -1668,12 +1673,12 @@ class TransactionFinanciere:
                 cursor.execute(query, (compte_id, date_transaction))
                 return cursor.fetchone()
         except Error as e:
-            current_app.logger.error(f"Erreur recherche transaction précédente: {e}")
+            logger.error(f"Erreur recherche transaction précédente: {e}")
             return None
 
     def _get_solde_initial(self, compte_type: str, compte_id: int) -> Decimal:
         """Récupère le solde initial d'un compte"""
-        current_app.logger.debug(f"Récupération du solde initial pour {compte_type} ID {compte_id}")
+        logger.debug(f"Récupération du solde initial pour {compte_type} ID {compte_id}")
 
         try:
             with self.db.get_cursor() as cursor:
@@ -1685,14 +1690,14 @@ class TransactionFinanciere:
                 result = cursor.fetchone()
                 return Decimal(str(result['solde_initial'])) if result and 'solde_initial' in result else Decimal('0')
         except Error as e:
-            current_app.logger.error(f"Erreur récupération solde initial: {e}")
+            logger.error(f"Erreur récupération solde initial: {e}")
             return Decimal('0')
 
     def _update_subsequent_transactions(self, cursor, compte_type: str, compte_id: int,
                                       date_transaction: datetime, transaction_id: int,
                                       solde_apres_insere: Decimal) -> Optional[Decimal]:
         """Met à jour les soldes des transactions suivantes après une insertion ou modification"""
-        current_app.logger.debug("Mise à jour des transactions suivantes")
+        logger.debug("Mise à jour des transactions suivantes")
 
         if compte_type == 'compte_principal':
             condition = "compte_principal_id = %s"
@@ -1730,7 +1735,7 @@ class TransactionFinanciere:
                             montant: Decimal, description: str, user_id: int,
                             date_transaction: datetime, validate_balance: bool = True) -> Tuple[bool, str, Optional[int]]:
         """Insère une transaction avec calcul intelligent du solde et mise à jour des transactions suivantes"""
-        current_app.logger.info(f"Insertion de la transaction de type '{type_transaction}'")
+        logger.info(f"Insertion de la transaction de type '{type_transaction}'")
         try:
             with self.db.get_cursor() as cursor:
                 # Trouver la transaction précédente
@@ -1783,12 +1788,12 @@ class TransactionFinanciere:
 
                 return True, "Transaction insérée avec succès", transaction_id
         except Exception as e:
-            current_app.logger.error(f"Erreur insertion transaction: {e}")
+            logger.error(f"Erreur insertion transaction: {e}")
             return False, f"Erreur lors de l'insertion: {str(e)}", None
 
     def _recalculer_soldes_apres_date(self, compte_type: str, compte_id: int, date_modification: datetime) -> bool:
         """Recalcule tous les soldes_apres des transactions postérieures à une date"""
-        current_app.logger.info("Recalcul des soldes après modification")
+        logger.info("Recalcul des soldes après modification")
         try:
             with self.db.get_cursor() as cursor:
                 # Récupérer toutes les transactions à partir de la date de modification, triées chronologiquement
@@ -1833,12 +1838,12 @@ class TransactionFinanciere:
 
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur recalcul soldes: {e}")
+            logger.error(f"Erreur recalcul soldes: {e}")
             return False
 
     def _recalculer_soldes_apres_date_with_cursor(self, cursor, compte_type: str, compte_id: int, date_modification: datetime) -> bool:
         """Recalcule tous les soldes_apres des transactions postérieures à une date — version avec curseur existant"""
-        current_app.logger.info("Recalcul des soldes après modification")
+        logger.info("Recalcul des soldes après modification")
         try:
             # Récupérer toutes les transactions à partir de la date de modification, triées chronologiquement
             if compte_type == 'compte_principal':
@@ -1884,7 +1889,7 @@ class TransactionFinanciere:
 
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur recalcul soldes: {e}")
+            logger.error(f"Erreur recalcul soldes: {e}")
             return False
 
     def get_solde_historique(self, compte_type: str, compte_id: int, user_id: int,
@@ -1920,12 +1925,12 @@ class TransactionFinanciere:
                 cursor.execute(query, params)
                 return cursor.fetchall()
         except Error as e:
-            current_app.logger.error(f"Erreur récupération solde historique: {e}")
+            logger.error(f"Erreur récupération solde historique: {e}")
             return []
 
     def _mettre_a_jour_solde(self, compte_type: str, compte_id: int, nouveau_solde: Decimal) -> bool:
         """Met à jour le solde d'un compte"""
-        current_app.logger.info(f"Mise à jour solde {compte_type} ID {compte_id} -> {nouveau_solde}")
+        logger.info(f"Mise à jour solde {compte_type} ID {compte_id} -> {nouveau_solde}")
         try:
             with self.db.get_cursor() as cursor:
                 if compte_type == 'compte_principal':
@@ -1935,7 +1940,7 @@ class TransactionFinanciere:
                 cursor.execute(query, (float(nouveau_solde), compte_id))
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"Erreur mise à jour solde: {e}")
+            logger.error(f"Erreur mise à jour solde: {e}")
             return False
 
     def modifier_transaction(self, transaction_id: int, user_id: int,
@@ -2043,7 +2048,7 @@ class TransactionFinanciere:
                     if not success1:
                         raise Exception("Erreur lors du recalcul des soldes des transactions suivantes")
                     else:
-                        current_app.logger.info("Recalcul des soldes réussi de la transaction après modification")
+                        logger.info("Recalcul des soldes réussi de la transaction après modification")
                     if est_transfert and autre_tx:
                         # Recalculer aussi pour l'autre transaction du transfert
                         cursor.execute("""
@@ -2058,11 +2063,11 @@ class TransactionFinanciere:
                             if not success2:
                                 raise Exception("Erreur lors du recalcul des soldes de l'autre transaction du transfert")
                             else:
-                                current_app.logger.info("Recalcul des soldes réussi de l'autre transaction du transfert après modification")
+                                logger.info("Recalcul des soldes réussi de l'autre transaction du transfert après modification")
                 return True, "Transaction modifiée avec succès"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur modification transaction: {e}")
+            logger.error(f"Erreur modification transaction: {e}")
             return False, f"Erreur lors de la modification: {str(e)}"
 
     def supprimer_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
@@ -2086,9 +2091,9 @@ class TransactionFinanciere:
 
                 if not transaction:
                     return False, "Transaction non trouvée"
-                    current_app.logger.info(f'Transaction {transaction_id} non trouvée pour suppression')
+                    logger.info(f'Transaction {transaction_id} non trouvée pour suppression')
                 if transaction['owner_user_id'] != user_id:
-                    current_app.logger.info(f'Utilisateur {user_id} non autorisé à supprimer cette transaction')
+                    logger.info(f'Utilisateur {user_id} non autorisé à supprimer cette transaction')
                     return False, "Non autorisé à supprimer cette transaction"
 
                 type_tx = transaction['type_transaction']
@@ -2100,7 +2105,7 @@ class TransactionFinanciere:
                 if type_tx in ['transfert_entrant', 'transfert_sortant']:
                     reference_transfert = transaction.get('reference_transfert')
                     if not reference_transfert:
-                        current_app.logger.error(f"Transfert corrompu : référence manquante pour la transaction {transaction_id}")
+                        logger.error(f"Transfert corrompu : référence manquante pour la transaction {transaction_id}")
                         return False, "Transfert corrompu : référence manquante"
 
                     # Récupérer les deux transactions liées
@@ -2159,21 +2164,21 @@ class TransactionFinanciere:
                 else:
                     # Supprimer la transaction unique
                     cursor.execute("DELETE FROM transactions WHERE id = %s", (transaction_id,))
-                    current_app.logger.info(f"Demande de suppression de la Transaction {transaction_id} supprimée avec succès")
+                    logger.info(f"Demande de suppression de la Transaction {transaction_id} supprimée avec succès")
                     cursor.execute("SELECT * FROM transactions WHERE id = %s", (transaction_id,))
-                    current_app.logger.info(f"Vérification post-suppression: {cursor.fetchone()} (devrait être None)")
+                    logger.info(f"Vérification post-suppression: {cursor.fetchone()} (devrait être None)")
                     # Recalculer les soldes à partir de la date de la transaction
                     success = self._recalculer_soldes_apres_date_with_cursor(
                         cursor, compte_type, compte_id, date_transaction
                     )
-                    current_app.logger.info(f"Recalcul des soldes après suppression de la transaction {transaction_id} du compte {compte_id} en date du {date_transaction} {'réussi' if success else 'échoué'}")
+                    logger.info(f"Recalcul des soldes après suppression de la transaction {transaction_id} du compte {compte_id} en date du {date_transaction} {'réussi' if success else 'échoué'}")
                     if not success:
                         raise Exception("Erreur lors du recalcul des soldes")
 
                     return True, "Transaction supprimée avec succès"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la suppression de la transaction {transaction_id}: {e}", exc_info=True)
+            logger.error(f"Erreur lors de la suppression de la transaction {transaction_id}: {e}", exc_info=True)
             return False, f"Erreur lors de la suppression : {str(e)}"
 
     def reparer_soldes_compte(self, compte_type: str, compte_id: int, user_id: int) -> Tuple[bool, str]:
@@ -2189,7 +2194,7 @@ class TransactionFinanciere:
                 # Vérifier que l'utilisateur est bien propriétaire du compte
                 if not self._verifier_appartenance_compte_with_cursor(cursor, compte_type, compte_id, user_id):
                     return False, "Non autorisé"
-                current_app.logger.info(f"🔧 Réparation des soldes pour {compte_type} ID {compte_id}. Solde initial: {solde_initial}")
+                logger.info(f"🔧 Réparation des soldes pour {compte_type} ID {compte_id}. Solde initial: {solde_initial}")
                 # Récupérer TOUTES les transactions du compte, triées par date
                 if compte_type == 'compte_principal':
                     condition = "compte_principal_id = %s"
@@ -2217,23 +2222,23 @@ class TransactionFinanciere:
                         "UPDATE transactions SET solde_apres = %s WHERE id = %s",
                         (solde_courant, tx['id'])#(float(solde_courant), tx['id'])
                     )
-                    current_app.logger.info(f"  - Transaction ID {tx['id']} ({tx['type_transaction']} {montant} le {tx['date_transaction']}): solde_apres mis à jour à {solde_courant}")
+                    logger.info(f"  - Transaction ID {tx['id']} ({tx['type_transaction']} {montant} le {tx['date_transaction']}): solde_apres mis à jour à {solde_courant}")
 
                 # Mettre à jour le solde final du compte
                 if not self._mettre_a_jour_solde_with_cursor(cursor, compte_type, compte_id, solde_courant):
-                    current_app.logger.error(f"Échec de la mise à jour du solde {solde_courant} du compte {compte_id} de type {compte_type}après réparation")
+                    logger.error(f"Échec de la mise à jour du solde {solde_courant} du compte {compte_id} de type {compte_type}après réparation")
                     raise Exception("Échec de la mise à jour du solde du compte")
 
-                current_app.logger.info(f"✅ Soldes du {compte_type} ID {compte_id} réparés avec succès. Nouveau solde: {solde_courant}")
+                logger.info(f"✅ Soldes du {compte_type} ID {compte_id} réparés avec succès. Nouveau solde: {solde_courant}")
                 return True, "Soldes réparés avec succès"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la réparation des soldes: {e}")
+            logger.error(f"Erreur lors de la réparation des soldes: {e}")
             return False, f"Erreur: {str(e)}"
 
     def _verifier_appartenance_compte(self, compte_type: str, compte_id: int, user_id: int) -> bool:
         """Vérifie que le compte appartient à l'utilisateur"""
-        current_app.logger.debug(f"Vérification appartenance: {compte_type} ID {compte_id} pour user {user_id}")
+        logger.debug(f"Vérification appartenance: {compte_type} ID {compte_id} pour user {user_id}")
         try:
             with self.db.get_cursor() as cursor:
                 if compte_type == 'compte_principal':
@@ -2246,15 +2251,15 @@ class TransactionFinanciere:
                         WHERE sc.id = %s
                     """, (compte_id,))
                 else:
-                    current_app.logger.error("Type de compte invalide")
+                    logger.error("Type de compte invalide")
                     return False
 
                 result = cursor.fetchone()
                 appartenance = result and result['utilisateur_id'] == user_id
-                current_app.logger.debug(f"Résultat vérification appartenance: {appartenance}")
+                logger.debug(f"Résultat vérification appartenance: {appartenance}")
                 return appartenance
         except Error as e:
-            current_app.logger.error(f"Erreur vérification appartenance: {e}")
+            logger.error(f"Erreur vérification appartenance: {e}")
             return False
 
     def get_by_compte_id(self, compte_id: int, user_id: int, limit: int = 100) -> List[Dict]:
@@ -2303,7 +2308,7 @@ class TransactionFinanciere:
                 return transactions
 
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération transactions par compte: {e}")
+            logger.error(f"Erreur récupération transactions par compte: {e}")
             return []
 
     def get_all_user_transactions(self,
@@ -2434,7 +2439,7 @@ class TransactionFinanciere:
                 return list(transactions), total
 
         except Exception as e:
-            current_app.logger.error(f"Erreur dans get_all_user_transactions: {e}", exc_info=True)
+            logger.error(f"Erreur dans get_all_user_transactions: {e}", exc_info=True)
             return [], 0
 
    # ===== DÉPÔTS ET RETRAITS =====
@@ -2470,7 +2475,7 @@ class TransactionFinanciere:
                 )
                 return success, message
         except Exception as e:
-            current_app.logger.error(f"Erreur création dépôt: {e}")
+            logger.error(f"Erreur création dépôt: {e}")
             return False, f"Erreur lors de la création du dépôt: {str(e)}"
 
     def create_retrait(self, compte_id: int, user_id: int, montant: Decimal,
@@ -2492,7 +2497,7 @@ class TransactionFinanciere:
                                                                             compte_type, compte_id, 'retrait', montant, description, user_id, date_transaction, False)
             return success, message
         except Exception as e:
-            current_app.logger.error(f"Erreur création retrait: {e}")
+            logger.error(f"Erreur création retrait: {e}")
             return False, f"Erreur lors de la création du retrait: {str(e)}"
 
     def _valider_solde_suffisant_with_cursor(self, cursor, compte_type: str, compte_id: int, montant: Decimal) -> Tuple[bool, Decimal]:
@@ -2528,7 +2533,7 @@ class TransactionFinanciere:
             solde_actuel = Decimal(str(result['solde']))
             return solde_actuel >= montant, solde_actuel
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la validation du solde: {e}")
+            logger.error(f"Erreur lors de la validation du solde: {e}")
             return False, Decimal('0')
 
 # ===== TRANSFERTS INTERNES =====
@@ -2545,7 +2550,7 @@ class TransactionFinanciere:
         Returns:
             Decimal: Le solde du compte, ou 0 si une erreur survient.
         """
-        current_app.logger.error(f"Récupération solde pour {compte_type} ID {compte_id}")
+        logger.error(f"Récupération solde pour {compte_type} ID {compte_id}")
 
         if compte_type == 'compte_principal':
             query = "SELECT solde FROM comptes_principaux WHERE id = %s"
@@ -2557,10 +2562,10 @@ class TransactionFinanciere:
                 cursor.execute(query, (compte_id,))
                 result = cursor.fetchone()
                 solde = Decimal(result['solde']) if result  and 'solde' in result else Decimal('0')
-                current_app.logger.error(f"Solde trouvé: {solde}")
+                logger.error(f"Solde trouvé: {solde}")
                 return solde
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération du solde: {e}")
+            logger.error(f"Erreur lors de la récupération du solde: {e}")
             return Decimal('0')
 
     def _get_transaction_effect(self, transaction_type: str, compte_type: str) -> str:
@@ -2621,7 +2626,7 @@ class TransactionFinanciere:
             else:
                 return False
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la vérification de l'appartenance du compte: {e}")
+            logger.error(f"Erreur lors de la vérification de l'appartenance du compte: {e}")
             return False
 
     def _get_solde_compte_with_cursor(self, cursor, compte_type: str, compte_id: int) -> Decimal:
@@ -2648,7 +2653,7 @@ class TransactionFinanciere:
             else:
                 return Decimal('0')
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération du solde : {e}", exc_info=True)
+            logger.error(f"Erreur lors de la récupération du solde : {e}", exc_info=True)
             return Decimal('0')
 
     def valider_transfert_sous_compte(sous_compte_id, compte_principal_id, sous_comptes):
@@ -2768,7 +2773,7 @@ class TransactionFinanciere:
             return True, "Transaction insérée avec succès", transaction_id
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de l'insertion de la transaction: {e}", exc_info=True)
+            logger.error(f"Erreur lors de l'insertion de la transaction: {e}", exc_info=True)
             return False, f"Erreur lors de l'insertion: {str(e)}", None
 
     def _get_previous_transaction_with_cursor(self, cursor, compte_type: str, compte_id: int, date_transaction: datetime) -> Optional[tuple]:
@@ -2797,7 +2802,7 @@ class TransactionFinanciere:
             return None
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la recherche de la transaction précédente: {e}")
+            logger.error(f"Erreur lors de la recherche de la transaction précédente: {e}")
             return None
 
     def _get_solde_initial_with_cursor(self, cursor, compte_type: str, compte_id: int) -> Decimal:
@@ -2814,7 +2819,7 @@ class TransactionFinanciere:
             return Decimal(str(result['solde_initial'])) if result and 'solde_initial' in result else Decimal('0')
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération du solde initial: {e}")
+            logger.error(f"Erreur lors de la récupération du solde initial: {e}")
             return Decimal('0')
 
     def _mettre_a_jour_solde_with_cursor(self, cursor, compte_type: str, compte_id: int, nouveau_solde: Decimal) -> bool:
@@ -2822,7 +2827,7 @@ class TransactionFinanciere:
         Met à jour le solde d'un compte en utilisant un curseur existant.
         """
         try:
-            current_app.logger.info(f"➡️ Mise à jour solde: compte_type={compte_type}, compte_id={compte_id}, solde={nouveau_solde} (type={type(nouveau_solde)})")
+            logger.info(f"➡️ Mise à jour solde: compte_type={compte_type}, compte_id={compte_id}, solde={nouveau_solde} (type={type(nouveau_solde)})")
 
             if compte_type == 'compte_principal':
                 query = "UPDATE comptes_principaux SET solde = %s WHERE id = %s"
@@ -2831,10 +2836,10 @@ class TransactionFinanciere:
 
             cursor.execute(query, (nouveau_solde, compte_id))#cursor.execute(query, (float(nouveau_solde), compte_id))
             if cursor.rowcount > 0:
-                current_app.logger.info(f"✅ Nombre de lignes mises à jour : {cursor.rowcount}")
+                logger.info(f"✅ Nombre de lignes mises à jour : {cursor.rowcount}")
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour du solde: {e}")
+            logger.error(f"Erreur lors de la mise à jour du solde: {e}")
             return False
 
     def _update_subsequent_transactions_with_cursor(self, cursor, compte_type: str, compte_id: int,
@@ -2875,9 +2880,9 @@ class TransactionFinanciere:
             elif type_transaction_val in ['retrait', 'transfert_sortant', 'transfert_externe', 'transfert_compte_vers_sous']:
                 solde_courant -= montant_val
             else:
-                current_app.logger.warning(f"Type de transaction non reconnu: {type_transaction_val}")
+                logger.warning(f"Type de transaction non reconnu: {type_transaction_val}")
                 continue
-            current_app.logger.info(f"Solde final à enregistrer pour {transaction['id']}: {solde_courant} (type: {type(solde_courant)})")
+            logger.info(f"Solde final à enregistrer pour {transaction['id']}: {solde_courant} (type: {type(solde_courant)})")
             update_query = "UPDATE transactions SET solde_apres = %s WHERE id = %s"
             cursor.execute(update_query, (solde_courant, transaction['id'])) #cursor.execute(update_query, (float(solde_courant), transaction['id']))
             dernier_solde = solde_courant
@@ -2904,18 +2909,18 @@ class TransactionFinanciere:
         Returns:
             Tuple[bool, str]: Un tuple indiquant le succès (True/False) et un message.
         """
-        current_app.logger.info(f"=== DÉBUT TRANSFERT INTERNE ===")
-        current_app.logger.info(f"Source: {source_type} ID {source_id}")
-        current_app.logger.info(f"Destination: {dest_type} ID {dest_id}")
-        current_app.logger.info(f"Utilisateur: {user_id}, Montant: {montant}")
+        logger.info(f"=== DÉBUT TRANSFERT INTERNE ===")
+        logger.info(f"Source: {source_type} ID {source_id}")
+        logger.info(f"Destination: {dest_type} ID {dest_id}")
+        logger.info(f"Utilisateur: {user_id}, Montant: {montant}")
 
         # Validations initiales
         if montant <= 0:
-            current_app.logger.warning("❌ Échec: Le montant doit être positif")
+            logger.warning("❌ Échec: Le montant doit être positif")
             return False, "Le montant doit être positif"
 
         if source_type == dest_type and source_id == dest_id:
-            current_app.logger.warning("❌ Échec: Les comptes source et destination doivent être différents")
+            logger.warning("❌ Échec: Les comptes source et destination doivent être différents")
             return False, "Les comptes source et destination doivent être différents"
 
         if date_transaction is None:
@@ -2987,13 +2992,13 @@ class TransactionFinanciere:
                 ))
 
                 # Optionnel : loguer les IDs des transactions créées
-                current_app.logger.info(f"✅ Transfert interne réussi : débit={debit_tx_id}, crédit={credit_tx_id}")
+                logger.info(f"✅ Transfert interne réussi : débit={debit_tx_id}, crédit={credit_tx_id}")
 
                 # Le commit est automatique à la sortie du bloc 'with'
                 return True, "Transfert interne effectué avec succès"
 
         except Exception as e:
-            current_app.logger.error(f"❌ Erreur lors du transfert interne: {e}", exc_info=True)
+            logger.error(f"❌ Erreur lors du transfert interne: {e}", exc_info=True)
             return False, f"Erreur lors du transfert: {str(e)}"
 
     def transfert_compte_vers_sous_compte(self, compte_id, sous_compte_id, montant, user_id, description="", date_transaction = datetime.now(), reference_transfert=None):
@@ -3073,7 +3078,7 @@ class TransactionFinanciere:
                 return True, "Transfert effectué avec succès"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur transfert compte → sous-compte: {e}")
+            logger.error(f"Erreur transfert compte → sous-compte: {e}")
             return False, f"Erreur lors du transfert: {str(e)}"
 
     def transfert_sous_compte_vers_compte(self, sous_compte_id, compte_id, montant, user_id, description="", date_transaction = datetime.now()):
@@ -3153,7 +3158,7 @@ class TransactionFinanciere:
                 return True, "Transfert effectué avec succès"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur transfert sous-compte → compte: {e}")
+            logger.error(f"Erreur transfert sous-compte → compte: {e}")
             return False, f"Erreur lors du transfert: {str(e)}"
 
     # ===== TRANSFERTS EXTERNES =====
@@ -3210,7 +3215,7 @@ class TransactionFinanciere:
 
         except Exception as e:
             # Le rollback est géré automatiquement par le bloc 'with'
-            current_app.logger.error(f"Erreur transfert externe: {e}")
+            logger.error(f"Erreur transfert externe: {e}")
             return False, f"Erreur lors du transfert externe: {str(e)}"
 
     def get_historique_compte(self, compte_type: str, compte_id: int, user_id: int,
@@ -3310,7 +3315,7 @@ class TransactionFinanciere:
                 return transactions
 
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération historique: {e}")
+            logger.error(f"Erreur récupération historique: {e}")
             return []
 
     def get_statistiques_compte(self, compte_type: str, compte_id: int, user_id: int, date_debut: str = None, date_fin: str = None) -> Dict:
@@ -3353,7 +3358,7 @@ class TransactionFinanciere:
                     }
                 return {}
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération statistiques: {e}")
+            logger.error(f"Erreur récupération statistiques: {e}")
             return {}
 
     def get_transferts_externes_pending(self, user_id: int) -> List[Dict]:
@@ -3380,7 +3385,7 @@ class TransactionFinanciere:
                 return cursor.fetchall()
 
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération transferts externes: {e}")
+            logger.error(f"Erreur récupération transferts externes: {e}")
             return []
 
     def annuler_transfert_externe(self, transfert_externe_id: int, user_id: int) -> Tuple[bool, str]:
@@ -3433,7 +3438,7 @@ class TransactionFinanciere:
 
         except Exception as e:
             # Le rollback est géré automatiquement par le bloc 'with'
-            current_app.logger.error(f"Erreur annulation transfert externe: {e}")
+            logger.error(f"Erreur annulation transfert externe: {e}")
             return False, f"Erreur lors de l'annulation: {str(e)}"
 
     def get_evolution_soldes_quotidiens_compte(self, compte_id: int, user_id: int, date_debut: str = None, date_fin: str = None) -> List[Dict]:
@@ -3448,7 +3453,7 @@ class TransactionFinanciere:
                 cursor.execute("SELECT id, solde_initial FROM comptes_principaux WHERE id = %s AND utilisateur_id = %s", (compte_id, user_id))
                 row = cursor.fetchone()
                 if not row:
-                    current_app.logger.warning(f"Tentative d'accès non autorisé ou compte inexistant: compte={compte_id}, user={user_id}")
+                    logger.warning(f"Tentative d'accès non autorisé ou compte inexistant: compte={compte_id}, user={user_id}")
                     return []
                 solde_initial = Decimal(str(row['solde_initial'] or '0.00'))
 
@@ -3516,7 +3521,7 @@ class TransactionFinanciere:
                 return jours_complets
 
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération évolution soldes compte: {e}")
+            logger.error(f"Erreur récupération évolution soldes compte: {e}")
             return []
 
 
@@ -3599,7 +3604,7 @@ class TransactionFinanciere:
                 return jours_complets
 
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération évolution soldes sous-compte: {e}")
+            logger.error(f"Erreur récupération évolution soldes sous-compte: {e}")
             return []
 
     def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict]:
@@ -3641,7 +3646,7 @@ class TransactionFinanciere:
                 cursor.execute(query, (transaction_id,))
                 return cursor.fetchone()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération transaction: {e}")
+            logger.error(f"Erreur récupération transaction: {e}")
             return None
 
     def get_solde_courant(self, compte_type: str, compte_id: int, user_id: int) -> Decimal:
@@ -3662,7 +3667,7 @@ class TransactionFinanciere:
                 result = cursor.fetchone()
                 return Decimal(str(result['solde'])) if result and 'solde' in result else Decimal('0')
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération solde courant: {e}")
+            logger.error(f"Erreur récupération solde courant: {e}")
             return Decimal('0')
 
     def get_solde_total_avec_sous_comptes(self, compte_principal_id: int, user_id: int) -> Decimal:
@@ -3690,7 +3695,7 @@ class TransactionFinanciere:
 
                 return solde_total
         except Exception as e:
-            current_app.logger.error(f"Erreur calcul solde total: {e}")
+            logger.error(f"Erreur calcul solde total: {e}")
             return Decimal('0')
 
     def get_categories_par_type(self, compte_type: str, compte_id: int, user_id: int, date_debut: str, date_fin: str) -> Dict[str, Decimal]:
@@ -3722,7 +3727,7 @@ class TransactionFinanciere:
             with self.db.get_cursor() as cursor:
                 # Vérifier l'appartenance du compte
                 if not self._verifier_appartenance_compte_with_cursor(cursor, compte_type, compte_id, user_id):
-                    current_app.logger.warning(f"Tentative d'accès non autorisé aux catégories: user={user_id}, compte={compte_id} ({compte_type})")
+                    logger.warning(f"Tentative d'accès non autorisé aux catégories: user={user_id}, compte={compte_id} ({compte_type})")
                     return {}
 
                 # Construire la condition selon le type de compte
@@ -3756,7 +3761,7 @@ class TransactionFinanciere:
                 return result
 
         except Exception as e:
-            current_app.logger.error(f"Erreur dans get_categories_par_type: {e}", exc_info=True)
+            logger.error(f"Erreur dans get_categories_par_type: {e}", exc_info=True)
             return {}
 
     def get_categories_par_type_complet(self, user_id: int, date_debut: str, date_fin: str) -> Dict[str, Decimal]:
@@ -3806,7 +3811,7 @@ class TransactionFinanciere:
                 return result
 
         except Exception as e:
-            current_app.logger.error(f"Erreur dans get_categories_par_type_complet: {e}", exc_info=True)
+            logger.error(f"Erreur dans get_categories_par_type_complet: {e}", exc_info=True)
             return {}
 
     def get_categories_par_type_sous_compte(self, sous_compte_id: int, user_id: int, date_debut: str, date_fin: str) -> Dict[str, Decimal]:
@@ -3831,7 +3836,7 @@ class TransactionFinanciere:
                     WHERE sc.id = %s AND cp.utilisateur_id = %s
                 """, (sous_compte_id, user_id))
                 if not cursor.fetchone():
-                    current_app.logger.warning(f"Accès refusé au sous-compte {sous_compte_id} pour user {user_id}")
+                    logger.warning(f"Accès refusé au sous-compte {sous_compte_id} pour user {user_id}")
                     return {}
 
                 query = """
@@ -3856,7 +3861,7 @@ class TransactionFinanciere:
                 return result
 
         except Exception as e:
-            current_app.logger.error(f"Erreur dans get_categories_par_type_sous_compte: {e}", exc_info=True)
+            logger.error(f"Erreur dans get_categories_par_type_sous_compte: {e}", exc_info=True)
             return {}
 
     def get_transaction_with_ecritures_total(self, transaction_id: int, user_id: int) -> Optional[Dict]:
@@ -3910,7 +3915,7 @@ class TransactionFinanciere:
 
                 return tx
         except Exception as e:
-            current_app.logger.error(f"Erreur get_transaction_with_ecritures_total: {e}")
+            logger.error(f"Erreur get_transaction_with_ecritures_total: {e}")
             return None
 
     def _check_transaction_ownership(self, transaction_id: int, user_id: int) -> bool:
@@ -3933,7 +3938,7 @@ class TransactionFinanciere:
                 result = cursor.fetchone()
                 return result and result['owner_user_id'] == user_id
         except Exception as e:
-            current_app.logger.error(f"Erreur vérification propriété transaction: {e}")
+            logger.error(f"Erreur vérification propriété transaction: {e}")
             return False
 
     def get_contacts_avec_transactions(self, user_id: int) -> List[Dict]:
@@ -4034,7 +4039,7 @@ class TransactionFinanciere:
                 return list(comptes.values())
 
         except Exception as e:
-            current_app.logger.error(f"Erreur dans get_comptes_interagis: {e}", exc_info=True)
+            logger.error(f"Erreur dans get_comptes_interagis: {e}", exc_info=True)
             return []
 
     def get_transactions_sans_ecritures(self, user_id: int, date_from: str = None, date_to: str = None,
@@ -4087,7 +4092,7 @@ class TransactionFinanciere:
                 return cursor.fetchall()
 
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération transactions sans écritures: {e}")
+            logger.error(f"Erreur récupération transactions sans écritures: {e}")
             return []
 
 
@@ -4120,7 +4125,7 @@ class TransactionFinanciere:
                 }
 
         except Exception as e:
-            current_app.logger.error(f"Erreur statistiques transactions comptables: {e}")
+            logger.error(f"Erreur statistiques transactions comptables: {e}")
             return {}
 
     def creer_ecriture_automatique(self, transaction_id: int, user_id: int, categorie_id: int = None) -> Tuple[bool, str]:
@@ -4166,7 +4171,7 @@ class TransactionFinanciere:
                     return False, "Erreur lors de la création de l'écriture"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur création écriture automatique: {e}")
+            logger.error(f"Erreur création écriture automatique: {e}")
             return False, f"Erreur: {str(e)}"
 
     def _determiner_type_ecriture(self, type_transaction: str) -> str:
@@ -4201,7 +4206,7 @@ class TransactionFinanciere:
                 result = cursor.fetchone()
                 return result['id'] if result else None
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération catégorie par défaut: {e}")
+            logger.error(f"Erreur récupération catégorie par défaut: {e}")
             return None
 
     def get_transactions_sans_ecritures_par_compte(self, compte_id: int, user_id: int,
@@ -4271,7 +4276,7 @@ class TransactionFinanciere:
                 return cursor.fetchall()
 
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération transactions sans écritures par compte: {e}")
+            logger.error(f"Erreur récupération transactions sans écritures par compte: {e}")
             return []
 
     def _get_daily_balances(self, compte_id: int, date_debut: date, date_fin: date,
@@ -4329,7 +4334,7 @@ class TransactionFinanciere:
                             depenses_par_jour[tx_date] = depenses_par_jour.get(tx_date, Decimal('0')) + montant
                             solde_courant -= montant
                         else:
-                            current_app.logger.warning(f"Type de transaction inconnu : {tx_type}")
+                            logger.warning(f"Type de transaction inconnu : {tx_type}")
                             continue
 
                         # Enregistrer le solde à cette date
@@ -4357,7 +4362,7 @@ class TransactionFinanciere:
                     return result
 
             except Exception as e:
-                current_app.logger.error(f"Erreur dans _get_daily_balances (compte {compte_id}): {e}")
+                logger.error(f"Erreur dans _get_daily_balances (compte {compte_id}): {e}")
                 return {}
 
     def compare_comptes_soldes_barres_horizontales(self, compte_id_1: int, compte_id_2: int,
@@ -4894,18 +4899,18 @@ class TransactionFinanciere:
                     params = [compte_principal_id, date_debut, date_fin,
                             compte_principal_id, date_debut, date_fin,
                             limite]
-                    current_app.logger.info(f'models 4459 voici les params : {params}')
+                    logger.info(f'models 4459 voici les params : {params}')
                 if direction in ['envoye', 'recu']:
                     params = [compte_principal_id, date_debut, date_fin, limite]
 
                 cursor.execute(query, params)
-                current_app.logger.debug(f"Requête get_top_comptes_echanges exécutée avec params: {params}")
+                logger.debug(f"Requête get_top_comptes_echanges exécutée avec params: {params}")
                 resultats = cursor.fetchall()
-                current_app.logger.debug(f"{len(resultats)} Résultats obtenus: {resultats}")
+                logger.debug(f"{len(resultats)} Résultats obtenus: {resultats}")
                 return [dict(row) for row in resultats]
 
         except Exception as e:
-            current_app.logger.error(f"Erreur dans get_top_comptes_echanges: {e}")
+            logger.error(f"Erreur dans get_top_comptes_echanges: {e}")
             return []
 
     def generer_graphique_top_comptes_echanges(self, donnees: List[Dict],
@@ -5038,7 +5043,7 @@ class TransactionFinanciere:
                 return [dict(row) for row in resultats]
 
         except Exception as e:
-            current_app.logger.error(f"Erreur dans get_transactions_avec_comptes: {e}")
+            logger.error(f"Erreur dans get_transactions_avec_comptes: {e}")
             return []
 
     def _structurer_donnees_pour_graphique(self, donnees_brutes: List[Dict], cumuler: bool = False) -> Dict:
@@ -5264,7 +5269,7 @@ class TransactionFinanciere:
                     (compte_id, user_id)
                 )
                 if not cursor.fetchone():
-                    current_app.logger.warning(f"Tentative d'accès non autorisé ou compte inexistant: compte={compte_id}, user={user_id}")
+                    logger.warning(f"Tentative d'accès non autorisé ou compte inexistant: compte={compte_id}, user={user_id}")
                     return Decimal('0')
 
                 # Récupérer la dernière transaction avant la date de début de la période
@@ -5293,7 +5298,7 @@ class TransactionFinanciere:
                         # Si le solde_initial n'est pas non plus défini, retourner 0
                         return Decimal('0')
         except Exception as e:
-            current_app.logger.error(f"Erreur dans _get_solde_avant_periode (compte {compte_id}, date {debut_periode}): {e}")
+            logger.error(f"Erreur dans _get_solde_avant_periode (compte {compte_id}, date {debut_periode}): {e}")
             return Decimal('0')
 
 class CategorieTransaction:
@@ -5322,7 +5327,7 @@ class CategorieTransaction:
                 cursor.execute(query, params)
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération catégories: {e}")
+            logger.error(f"Erreur récupération catégories: {e}")
             return []
 
     def creer_categorie(self, user_id: int, nom: str, type_categorie: str = "Dépense",
@@ -5351,7 +5356,7 @@ class CategorieTransaction:
 
                 return True, "Catégorie créée avec succès"
         except Exception as e:
-            current_app.logger.error(f"Erreur création catégorie: {e}")
+            logger.error(f"Erreur création catégorie: {e}")
             return False, f"Erreur: {str(e)}"
 
     def modifier_categorie(self, categorie_id: int, user_id: int, **kwargs) -> Tuple[bool, str]:
@@ -5388,7 +5393,7 @@ class CategorieTransaction:
                 cursor.execute(query, valeurs)
                 return True, "Catégorie modifiée avec succès"
         except Exception as e:
-            current_app.logger.error(f"Erreur mise à jour catégorie: {e}")
+            logger.error(f"Erreur mise à jour catégorie: {e}")
             return False, f"Erreur: {str(e)}"
 
     #def get_categorie_complementaire(self, categorie_id: int, user_id: int) -> Optional[Dict]:
@@ -5403,7 +5408,7 @@ class CategorieTransaction:
     #            """, (categorie_id, user_id))
     #            return cursor.fetchone()
     #    except Exception as e:
-    #        current_app.logger.error(f"Erreur récupération catégorie complémentaire: {e}")
+    #        logger.error(f"Erreur récupération catégorie complémentaire: {e}")
     #        return None
 
     def supprimer_categorie(self, categorie_id: int, user_id: int) -> Tuple[bool, str]:
@@ -5433,7 +5438,7 @@ class CategorieTransaction:
                 else:
                     return False, "Catégorie non trouvée ou non autorisée"
         except Exception as e:
-            current_app.logger.error(f"Erreur suppression catégorie: {e}")
+            logger.error(f"Erreur suppression catégorie: {e}")
             return False, f"Erreur: {str(e)}"
 
     def associer_categorie_transaction(self, transaction_id: int, categorie_id: int, user_id: int) -> Tuple[bool, str]:
@@ -5459,7 +5464,7 @@ class CategorieTransaction:
 
                 return True, "Catégorie associée avec succès"
         except Exception as e:
-            current_app.logger.error(f"Erreur association catégorie à transaction: {e}")
+            logger.error(f"Erreur association catégorie à transaction: {e}")
             return False, f"Erreur: {str(e)}"
 
     def dissocier_categorie_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
@@ -5492,7 +5497,7 @@ class CategorieTransaction:
 
                 return True, "Catégorie dissociée avec succès"
         except Exception as e:
-            current_app.logger.error(f"Erreur dissociation catégorie de transaction: {e}")
+            logger.error(f"Erreur dissociation catégorie de transaction: {e}")
             return False, f"Erreur: {str(e)}"
 
     def get_categorie_par_id(self, categorie_id: int, user_id: int) -> Optional[Dict]:
@@ -5506,7 +5511,7 @@ class CategorieTransaction:
                 """, (categorie_id, user_id))
                 return cursor.fetchone()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération catégorie par ID: {e}")
+            logger.error(f"Erreur récupération catégorie par ID: {e}")
             return None
 
     def get_transactions_par_categorie(self, categorie_id: int, user_id: int,
@@ -5536,7 +5541,7 @@ class CategorieTransaction:
                 cursor.execute(query, params)
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération transactions par catégorie: {e}")
+            logger.error(f"Erreur récupération transactions par catégorie: {e}")
             return []
 
     def get_statistiques_categories(self, user_id: int, date_debut: str = None, date_fin: str = None) -> List[Dict]:
@@ -5578,7 +5583,7 @@ class CategorieTransaction:
                 cursor.execute(query, params)
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération statistiques catégories: {e}")
+            logger.error(f"Erreur récupération statistiques catégories: {e}")
             return []
 
     def _generer_couleur_aleatoire(self) -> str:
@@ -5598,7 +5603,7 @@ class CategorieTransaction:
                 """, (transaction_id, user_id))
                 return cursor.fetchall()  # Retourne une LISTE
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération catégories transaction: {e}")
+            logger.error(f"Erreur récupération catégories transaction: {e}")
             return []
     def dissocier_categorie_transaction(self, transaction_id: int, categorie_id: int, user_id: int) -> Tuple[bool, str]:
         """Dissocie une catégorie spécifique d'une transaction"""
@@ -5614,7 +5619,7 @@ class CategorieTransaction:
                 else:
                     return False, "Association non trouvée"
         except Exception as e:
-            current_app.logger.error(f"Erreur dissociation catégorie de transaction: {e}")
+            logger.error(f"Erreur dissociation catégorie de transaction: {e}")
             return False, f"Erreur: {str(e)}"
 
     def dissocier_toutes_categories_transaction(self, transaction_id: int, user_id: int) -> Tuple[bool, str]:
@@ -5627,7 +5632,7 @@ class CategorieTransaction:
                 """, (transaction_id, user_id))
                 return True, "Toutes les catégories ont été dissociées"
         except Exception as e:
-            current_app.logger.error(f"Erreur dissociation catégories de transaction: {e}")
+            logger.error(f"Erreur dissociation catégories de transaction: {e}")
             return False, f"Erreur: {str(e)}"
 
 class StatistiquesBancaires:
@@ -5732,7 +5737,7 @@ class StatistiquesBancaires:
             }
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors du calcul des statistiques: {e}")
+            logger.error(f"Erreur lors du calcul des statistiques: {e}")
             # Retourner des valeurs par défaut en cas d'erreur
             return {
                 'nb_comptes': 0,
@@ -5783,7 +5788,7 @@ class StatistiquesBancaires:
 
             return result
         except Exception as e:
-            current_app.logger.error(f"Erreur lors du calcul de la répartition par banque: {e}")
+            logger.error(f"Erreur lors du calcul de la répartition par banque: {e}")
             return []
 
     def get_evolution_epargne(self, user_id: int, nb_mois: int = 6, statut: str = 'validée') -> List[Dict]:
@@ -5809,7 +5814,7 @@ class StatistiquesBancaires:
                 evolution = cursor.fetchall()
                 return evolution
         except Exception as e:
-            current_app.logger.error(f"Erreur lors du calcul de l'évolution: {e}")
+            logger.error(f"Erreur lors du calcul de l'évolution: {e}")
             return []
 
     def get_evolution_soldes_quotidiens(self, user_id: int, nb_jours: int = 30) -> Dict[str, List]:
@@ -5867,7 +5872,7 @@ class StatistiquesBancaires:
                     'total': []  # On ne calcule pas le total ici
                 }
         except Error as e:
-            current_app.logger.error(f"Erreur lors du calcul de l'évolution quotidienne: {e}")
+            logger.error(f"Erreur lors du calcul de l'évolution quotidienne: {e}")
             return {'comptes_principaux': [], 'sous_comptes': [], 'total': []}
 
     def preparer_svg_tresorie(self, user_id: int, compte_id: int, date_debut: date, date_fin : date):
@@ -5908,7 +5913,7 @@ class StatistiquesBancaires:
                 'unite': 'CHF'
             }
         except Exception as e:
-            current_app.logger.error(f"Erreur préparation graphique solde quotidien: {e}")
+            logger.error(f"Erreur préparation graphique solde quotidien: {e}")
             return None
 
     def preparer_graphique_tresorerie(self, user_id: int, compte_id: int, date_debut: date, date_fin: date) -> Optional[Dict]:
@@ -5937,7 +5942,7 @@ class StatistiquesBancaires:
                 'unite': 'CHF'
             }
         except Exception as e:
-            current_app.logger.error(f"Erreur préparation graphique trésorerie: {e}")
+            logger.error(f"Erreur préparation graphique trésorerie: {e}")
             return None
 
     def preparer_graphique_tresorerie_cumulee(self, user_id: int, compte_id: int, date_debut: date, date_fin: date) -> Optional[Dict]:
@@ -6002,7 +6007,7 @@ class StatistiquesBancaires:
                 'unite': 'CHF'
             }
         except Exception as e:
-            current_app.logger.error(f"Erreur préparation trésorerie cumulée: {e}")
+            logger.error(f"Erreur préparation trésorerie cumulée: {e}")
             return None
 
     def preparer_graphique_categories(self, user_id: int, compte_id: int, date_debut: date, date_fin: date) -> Optional[Dict]:
@@ -6053,7 +6058,7 @@ class StatistiquesBancaires:
                 'unite': 'CHF'
             }
         except Exception as e:
-            current_app.logger.error(f"Erreur préparation graphique comparaison trésorerie: {e}")
+            logger.error(f"Erreur préparation graphique comparaison trésorerie: {e}")
             return None
 
 class PlanComptable:
@@ -6079,7 +6084,7 @@ class PlanComptable:
                 cursor.execute(query, values)
                 return cursor.lastrowid
         except Exception as e:
-            current_app.logger.error(f"Erreur création plan comptable: {e}")
+            logger.error(f"Erreur création plan comptable: {e}")
             return None
 
     def modifier_plan(self, plan_id: int, data: Dict) -> bool:
@@ -6099,7 +6104,7 @@ class PlanComptable:
                 """, (utilisateur_id,))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur liste plans: {e}")
+            logger.error(f"Erreur liste plans: {e}")
             return []
 
     def get_plan_with_categories(self, plan_id: int, utilisateur_id: int) -> Optional[Dict]:
@@ -6126,7 +6131,7 @@ class PlanComptable:
                 plan['categories'] = cursor.fetchall()
                 return plan
         except Exception as e:
-            current_app.logger.error(f"Erreur plan + catégories: {e}")
+            logger.error(f"Erreur plan + catégories: {e}")
             return None
 
     def add_categorie_to_plan(self, plan_id: int, categorie_id: int, utilisateur_id: int) -> bool:
@@ -6147,7 +6152,7 @@ class PlanComptable:
                 """, (plan_id, categorie_id))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur ajout catégorie au plan: {e}")
+            logger.error(f"Erreur ajout catégorie au plan: {e}")
             return False
 
     def remove_categorie_from_plan(self, plan_id: int, categorie_id: int) -> bool:
@@ -6160,7 +6165,7 @@ class PlanComptable:
                 """, (plan_id, categorie_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur retrait catégorie du plan: {e}")
+            logger.error(f"Erreur retrait catégorie du plan: {e}")
             return False
     def get_categories_for_plan(self, plan_id: int, utilisateur_id: int) -> List[Dict]:
         """Récupère uniquement les catégories d’un plan"""
@@ -6175,7 +6180,7 @@ class PlanComptable:
                 """, (plan_id, utilisateur_id))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur catégories du plan: {e}")
+            logger.error(f"Erreur catégories du plan: {e}")
             return []
 
 
@@ -6205,7 +6210,7 @@ class CategorieComptable:
                 # Le commit est géré par le context manager dans la classe DatabaseManager
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la création de la catégorie comptable: {e}")
+            logger.error(f"Erreur lors de la création de la catégorie comptable: {e}")
             return False
 
     def modifier_plan(self, plan_id: int, data: Dict, utilisateur_id: int) -> bool:
@@ -6235,7 +6240,7 @@ class CategorieComptable:
                 cursor.execute(query, values)
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur mise à jour plan comptable: {e}")
+            logger.error(f"Erreur mise à jour plan comptable: {e}")
             return False
 
     def update(self, categorie_id: int, data: Dict) -> bool:
@@ -6263,7 +6268,7 @@ class CategorieComptable:
                 # Le commit est géré par le context manager
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour de la catégorie comptable: {e}")
+            logger.error(f"Erreur lors de la mise à jour de la catégorie comptable: {e}")
             return False
 
     def delete(self, categorie_id: int) -> bool:
@@ -6275,7 +6280,7 @@ class CategorieComptable:
                 # Le commit est géré par le context manager
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la suppression de la catégorie comptable: {e}")
+            logger.error(f"Erreur lors de la suppression de la catégorie comptable: {e}")
             return False
 
     def get_by_id(self, categorie_id: int) -> Optional[Dict]:
@@ -6287,7 +6292,7 @@ class CategorieComptable:
                 categorie = cursor.fetchone()
             return categorie
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
+            logger.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
             return None
 
     def get_all_categories(self, utilisateur_id: int = None) -> List[Dict]:
@@ -6329,7 +6334,7 @@ class CategorieComptable:
                     cursor.execute(query)
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur get_all_categories: {e}")
+            logger.error(f"Erreur get_all_categories: {e}")
             return []
 
     def get_by_numero(self, numero: str, utilisateur_id: int) -> Optional[Dict]:
@@ -6341,7 +6346,7 @@ class CategorieComptable:
                 categorie = cursor.fetchone()
             return categorie
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
+            logger.error(f"Erreur lors de la récupération de la catégorie comptable: {e}")
             return None
 
     def get_by_type(self, type_compte: str, utilisateur_id: int) -> List[Dict]:
@@ -6353,7 +6358,7 @@ class CategorieComptable:
                 categories = cursor.fetchall()
             return categories
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des catégories comptables: {e}")
+            logger.error(f"Erreur lors de la récupération des catégories comptables: {e}")
             return []
 
     def get_categories_avec_complementaires(self, utilisateur_id: int) -> List[Dict]:
@@ -6386,7 +6391,7 @@ class CategorieComptable:
                 cursor.execute(query, (utilisateur_id,)) # On passe 1 seul argument.
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur get_categories_avec_complementaires: {e}")
+            logger.error(f"Erreur get_categories_avec_complementaires: {e}")
             return []
 
     def ajouter_categorie_complementaire(self, categorie_id: int, categorie_complementaire_id: int,
@@ -6407,7 +6412,7 @@ class CategorieComptable:
                 cursor.execute(query, (categorie_id, categorie_complementaire_id, utilisateur_id, type_complement, taux))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur ajouter_categorie_complementaire: {e}")
+            logger.error(f"Erreur ajouter_categorie_complementaire: {e}")
             return False
 
     def has_categorie_complementaire(self, categorie_id: int, utilisateur_id: int) -> bool:
@@ -6425,10 +6430,10 @@ class CategorieComptable:
                 cursor.execute(query, (categorie_id, utilisateur_id))
                 result = cursor.fetchone()
                 has_complementaire = result['count'] > 0
-                current_app.logger.info(f"Catégorie ID {categorie_id} a une catégorie complémentaire: {has_complementaire}")
+                logger.info(f"Catégorie ID {categorie_id} a une catégorie complémentaire: {has_complementaire}")
                 return has_complementaire
         except Exception as e:
-            current_app.logger.error(f"Erreur dans has_categorie_complementaire: {e}")
+            logger.error(f"Erreur dans has_categorie_complementaire: {e}")
             return False
     def get_categorie_complementaire(self, categorie_id: int, utilisateur_id: int)-> List[Dict]:
         try:
@@ -6442,10 +6447,10 @@ class CategorieComptable:
                 """
                 cursor.execute(query, (categorie_id, utilisateur_id))
                 result = cursor.fetchall()
-                current_app.logger.info(f'La categorie avec id {categorie_id} a : {result}')
+                logger.info(f'La categorie avec id {categorie_id} a : {result}')
                 return result
         except Exception as e:
-            current_app.logger.error(f'Erreur dans la recherche de catégorie complémentaire: {e}')
+            logger.error(f'Erreur dans la recherche de catégorie complémentaire: {e}')
             return None
 
 class EcritureComptable:
@@ -6454,8 +6459,8 @@ class EcritureComptable:
     def __init__(self, db):
         self.db = db
         self.categorie_comptable_model = CategorieComptable(self.db)
-        current_app.logger.info(f"📁 Dossier courant (os.getcwd()): {os.getcwd()}")
-        current_app.logger.info(f"📁 Fichier courant (__file__): {__file__}")
+        logger.info(f"📁 Dossier courant (os.getcwd()): {os.getcwd()}")
+        logger.info(f"📁 Fichier courant (__file__): {__file__}")
         self.upload_folder = os.path.join(os.getcwd(), 'ROOT', 'app', 'uploads', 'justificatifs')
         self._ensure_upload_folder()
 
@@ -6463,9 +6468,9 @@ class EcritureComptable:
         """Crée le dossier d'upload s'il n'existe pas"""
         try:
             os.makedirs(self.upload_folder, exist_ok=True)
-            current_app.logger.info(f"Dossier d'upload créé/sur: {self.upload_folder}")
+            logger.info(f"Dossier d'upload créé/sur: {self.upload_folder}")
         except Exception as e:
-            current_app.logger.error(f"Erreur création dossier upload: {e}")
+            logger.error(f"Erreur création dossier upload: {e}")
 
     def _get_file_path(self, filename):
         """Génère le chemin complet du fichier"""
@@ -6511,7 +6516,7 @@ class EcritureComptable:
                 data['categorie_id'],
                 data['utilisateur_id']
             ):
-                current_app.logger.warning("Catégorie non autorisée pour ce contact.")
+                logger.warning("Catégorie non autorisée pour ce contact.")
                 return False
         try:
             with self.db.get_cursor() as cursor:
@@ -6545,7 +6550,7 @@ class EcritureComptable:
 
                 cursor.execute(query, values)
                 ecriture_principale_id = cursor.lastrowid
-                current_app.logger.info(f"Écriture principale créée avec ID: {ecriture_principale_id}")
+                logger.info(f"Écriture principale créée avec ID: {ecriture_principale_id}")
 
                 # 🔥 Vérifier si la catégorie a une catégorie complémentaire
                 categorie_id = data['categorie_id']
@@ -6556,21 +6561,21 @@ class EcritureComptable:
                         categorie_id, utilisateur_id
                     )
                     if has_complementaire:
-                        current_app.logger.info(f"La catégorie ID {categorie_id} a une catégorie complémentaire. Création d'écritures secondaires.")
+                        logger.info(f"La catégorie ID {categorie_id} a une catégorie complémentaire. Création d'écritures secondaires.")
                         self._create_secondary_ecritures(cursor, ecriture_principale_id, data)
                     else:
-                        current_app.logger.info(f"La catégorie ID {categorie_id} n'a pas de catégorie complémentaire. Aucune écriture secondaire.")
+                        logger.info(f"La catégorie ID {categorie_id} n'a pas de catégorie complémentaire. Aucune écriture secondaire.")
                 else:
-                    current_app.logger.warning("Modèle CategorieComptable non disponible pour la vérification.")
+                    logger.warning("Modèle CategorieComptable non disponible pour la vérification.")
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la création de l'écriture comptable: {e}")
+            logger.error(f"Erreur lors de la création de l'écriture comptable: {e}")
             return False
 
     def _create_secondary_ecritures(self, cursor, ecriture_principale_id: int,  data: Dict):
         """Crée les écritures secondaires (TVA, taxes, etc.)"""
         try:
-            current_app.logger.info(f"Début de la vérification des écritures secondaires pour l'écriture principale ID: {ecriture_principale_id}")
+            logger.info(f"Début de la vérification des écritures secondaires pour l'écriture principale ID: {ecriture_principale_id}")
 
             categorie_id = data['categorie_id']
             utilisateur_id = data['utilisateur_id']
@@ -6596,7 +6601,7 @@ class EcritureComptable:
             result = cursor.fetchone()
 
             if not result:
-                current_app.logger.info(f"Aucune catégorie complémentaire configurée pour la catégorie ID {categorie_id}.")
+                logger.info(f"Aucune catégorie complémentaire configurée pour la catégorie ID {categorie_id}.")
                 return
 
             categorie_complementaire_id = result['categorie_complementaire_id']
@@ -6607,7 +6612,7 @@ class EcritureComptable:
             categorie_complementaire_nom = result.get('categorie_complementaire_nom', 'N/A')
             categorie_complementaire_numero = result.get('categorie_complementaire_numero', 'N/A')
 
-            current_app.logger.info(
+            logger.info(
                 f"Catégorie '{categorie_numero} - {categorie_nom}' a une catégorie complémentaire "
                 f"'{categorie_complementaire_numero} - {categorie_complementaire_nom}' "
                 f"(ID: {categorie_complementaire_id}) avec type '{type_ecriture_complementaire}'."
@@ -6635,12 +6640,12 @@ class EcritureComptable:
                 }
                 self._create_secondary_ecriture(
                     cursor, ecriture_principale_id, data, comp_cat_simulated, montant_secondaire)
-                current_app.logger.info(f"Écriture secondaire de {montant_secondaire:.2f} CHF créée pour la catégorie complémentaire ID {categorie_complementaire_id}.")
+                logger.info(f"Écriture secondaire de {montant_secondaire:.2f} CHF créée pour la catégorie complémentaire ID {categorie_complementaire_id}.")
             else:
-                current_app.logger.info(f"Montant secondaire négligeable ({montant_secondaire:.2f} CHF), pas de création d'écriture.")
+                logger.info(f"Montant secondaire négligeable ({montant_secondaire:.2f} CHF), pas de création d'écriture.")
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la création des écritures secondaires pour écriture ID {ecriture_principale_id}: {e}")
+            logger.error(f"Erreur lors de la création des écritures secondaires pour écriture ID {ecriture_principale_id}: {e}")
             raise
 
     def has_secondary_ecritures(self, ecriture_id: int, user_id: int) -> bool:
@@ -6649,7 +6654,7 @@ class EcritureComptable:
             secondaires = self.get_ecritures_complementaires(ecriture_id, user_id)
             return len(secondaires) > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur vérification écritures secondaires: {e}")
+            logger.error(f"Erreur vérification écritures secondaires: {e}")
             return False
 
     def _calculate_secondary_amount(self, data: Dict, type_complement: str, taux: float) -> float:
@@ -6689,7 +6694,7 @@ class EcritureComptable:
             # 🔥 Déterminer le type d'écriture pour la secondaire
             type_ecriture_secondaire = self._get_secondary_type(data['type_ecriture'], comp_cat['type_complement'])
 
-            current_app.logger.info(
+            logger.info(
                 f"Création d'une écriture secondaire de type '{type_ecriture_secondaire}' "
                 f"pour la catégorie complémentaire ID {comp_cat['categorie_complementaire_id']}, "
                 f"montant: {montant_secondaire:.2f} CHF."
@@ -6725,10 +6730,10 @@ class EcritureComptable:
             )
 
             cursor.execute(query, values)
-            current_app.logger.info(f"Écriture secondaire insérée dans la base de données avec succès.")
+            logger.info(f"Écriture secondaire insérée dans la base de données avec succès.")
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la création de l'écriture secondaire: {e}")
+            logger.error(f"Erreur lors de la création de l'écriture secondaire: {e}")
             raise
 
 
@@ -6758,7 +6763,7 @@ class EcritureComptable:
                     'secondaires': ecritures_secondaires
                 }
         except Exception as e:
-            current_app.logger.error(f"Erreur get_ecriture_avec_secondaires: {e}")
+            logger.error(f"Erreur get_ecriture_avec_secondaires: {e}")
             return None
 
     def update_statut_comptable(self, ecriture_id: int, user_id: int, statut_comptable: str) -> Tuple[bool, str]:
@@ -6784,7 +6789,7 @@ class EcritureComptable:
                     cursor.execute(query, (statut_comptable, ecriture_id, user_id))
             return True, "Statut comptable mis à jour avec succès"
         except Exception as e:
-            current_app.logger.error(f"Erreur mise à jour statut comptable: {e}")
+            logger.error(f"Erreur mise à jour statut comptable: {e}")
             return False, f"Erreur: {str(e)}"
 
     def get_solde_tva_par_periode(self, user_id: int, date_debut: str, date_fin: str) -> Dict:
@@ -6807,7 +6812,7 @@ class EcritureComptable:
 
                 return cursor.fetchone() or {'tva_collectee': 0, 'tva_deductible': 0, 'solde_tva': 0}
         except Exception as e:
-            current_app.logger.error(f"Erreur get_solde_tva_par_periode: {e}")
+            logger.error(f"Erreur get_solde_tva_par_periode: {e}")
             return {'tva_collectee': 0, 'tva_deductible': 0, 'solde_tva': 0}
 
     def _create_ecriture_liee(self, cursor, data: Dict):
@@ -6842,9 +6847,9 @@ class EcritureComptable:
                 data.get('type_ecriture_comptable', 'complementaire')
             )
             cursor.execute(query, values)
-            current_app.logger.info(f"Écriture liée créée avec succès")
+            logger.info(f"Écriture liée créée avec succès")
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la création de l'écriture liée: {e}")
+            logger.error(f"Erreur lors de la création de l'écriture liée: {e}")
             raise
 
     # *** MÉTHODE POUR RÉCUPÉRER LES ÉCRITURES COMPLÉMENTAIRES D'UNE ÉCRITURE PRINCIPALE ***
@@ -6866,7 +6871,7 @@ class EcritureComptable:
                 ecritures = cursor.fetchall()
                 return ecritures
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures complémentaires: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures complémentaires: {e}")
             return []
 
     # *** MÉTHODE POUR RÉCUPÉRER L'ÉCRITURE PRINCIPALE D'UNE ÉCRITURE COMPLÉMENTAIRE ***
@@ -6894,7 +6899,7 @@ class EcritureComptable:
                 return cursor.fetchone()
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération de l'écriture principale: {e}")
+            logger.error(f"Erreur lors de la récupération de l'écriture principale: {e}")
             return None
     # *** MÉTHODE POUR METTRE À JOUR UNE ÉCRITURE PRINCIPALE ET SES COMPLÉMENTAIRES ***
     def update_principale_et_complementaires(self, ecriture_principale_id: int, user_id: int, **kwargs) -> Tuple[bool, str]:
@@ -6982,11 +6987,11 @@ class EcritureComptable:
                                 SET montant = %s, montant_htva = %s -- Mettre à jour le montant de la complémentaire
                                 WHERE id = %s AND utilisateur_id = %s AND type_ecriture_comptable = 'complementaire'
                             """, (nouveau_montant_tva_calc, nouveau_montant_tva_calc, ecriture_comp['id'], user_id))
-                            current_app.logger.info(f"Écriture complémentaire {ecriture_comp['id']} mise à jour en fonction de la modification de la principale {ecriture_principale_id}.")
+                            logger.info(f"Écriture complémentaire {ecriture_comp['id']} mise à jour en fonction de la modification de la principale {ecriture_principale_id}.")
 
                 return True, "Écriture principale mise à jour, complémentaires recalculées si nécessaire."
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour de l'écriture (principale ou complémentaire): {e}")
+            logger.error(f"Erreur lors de la mise à jour de l'écriture (principale ou complémentaire): {e}")
             return False, f"Erreur: {str(e)}"
 
     def update(self, ecriture_id: int, data: Dict) -> bool:
@@ -6998,7 +7003,7 @@ class EcritureComptable:
                     data['categorie_id'],
                     data['utilisateur_id']
                 ):
-                    current_app.logger.warning("Catégorie non autorisée pour ce contact.")
+                    logger.warning("Catégorie non autorisée pour ce contact.")
                     return False
             with self.db.get_cursor() as cursor:
                 query = """
@@ -7032,7 +7037,7 @@ class EcritureComptable:
                 return cursor.rowcount > 0
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour de l'écriture comptable: {e}")
+            logger.error(f"Erreur lors de la mise à jour de l'écriture comptable: {e}")
             return False
 
     def delete_hard(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
@@ -7065,7 +7070,7 @@ class EcritureComptable:
                         "UPDATE ecritures_comptables SET transaction_id = NULL WHERE id = %s",
                         (ecriture_id,)
                     )
-                    current_app.logger.info(f"Écriture {ecriture_id} déliée de la transaction {ecriture['transaction_id']}")
+                    logger.info(f"Écriture {ecriture_id} déliée de la transaction {ecriture['transaction_id']}")
 
                 # 3. Gestion des écritures secondaires
                 ecritures_secondaires_ids = []
@@ -7086,7 +7091,7 @@ class EcritureComptable:
                         (sec_id, user_id)
                     )
                     if cursor.rowcount > 0:
-                        current_app.logger.info(f"Écriture secondaire {sec_id} supprimée avec succès")
+                        logger.info(f"Écriture secondaire {sec_id} supprimée avec succès")
 
                 # 5. Supprimer l'écriture principale
                 cursor.execute(
@@ -7098,13 +7103,13 @@ class EcritureComptable:
                     message = f"Écriture {ecriture_id} supprimée avec succès"
                     if ecritures_secondaires_ids:
                         message += f" ainsi que {len(ecritures_secondaires_ids)} écriture(s) secondaire(s)"
-                    current_app.logger.info(message)
+                    logger.info(message)
                     return True, message
                 else:
                     return False, "Erreur lors de la suppression de l'écriture"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
+            logger.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
 
     def delete_soft(self, ecriture_id: int, user_id: int, soft_delete: bool = True) -> Tuple[bool, str]:
@@ -7136,7 +7141,7 @@ class EcritureComptable:
                         "UPDATE ecritures_comptables SET transaction_id = NULL WHERE id = %s",
                         (ecriture_id,)
                     )
-                    current_app.logger.info(f"Écriture {ecriture_id} déliée de la transaction {ecriture['transaction_id']}")
+                    logger.info(f"Écriture {ecriture_id} déliée de la transaction {ecriture['transaction_id']}")
 
                 # Gestion des écritures secondaires
                 ecritures_secondaires_ids = []
@@ -7162,7 +7167,7 @@ class EcritureComptable:
                         """, (sec_id, user_id))
                         if cursor.rowcount > 0:
                             success_count += 1
-                            current_app.logger.info(f"Écriture secondaire {sec_id} marquée comme supprimée")
+                            logger.info(f"Écriture secondaire {sec_id} marquée comme supprimée")
 
                     # Marquer l'écriture principale
                     cursor.execute("""
@@ -7173,7 +7178,7 @@ class EcritureComptable:
 
                     if cursor.rowcount > 0:
                         success_count += 1
-                        current_app.logger.info(f"Écriture {ecriture_id} marquée comme supprimée")
+                        logger.info(f"Écriture {ecriture_id} marquée comme supprimée")
 
                     if success_count > 0:
                         message = f"Écriture {ecriture_id} marquée comme supprimée"
@@ -7192,7 +7197,7 @@ class EcritureComptable:
                             (sec_id, user_id)
                         )
                         if cursor.rowcount > 0:
-                            current_app.logger.info(f"Écriture secondaire {sec_id} supprimée définitivement")
+                            logger.info(f"Écriture secondaire {sec_id} supprimée définitivement")
 
                     # Supprimer l'écriture principale
                     cursor.execute(
@@ -7204,13 +7209,13 @@ class EcritureComptable:
                         message = f"Écriture {ecriture_id} supprimée définitivement"
                         if ecritures_secondaires_ids:
                             message += f" ainsi que {len(ecritures_secondaires_ids)} écriture(s) secondaire(s)"
-                        current_app.logger.info(message)
+                        logger.info(message)
                         return True, message
                     else:
                         return False, "Erreur lors de la suppression de l'écriture"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
+            logger.error(f"Erreur lors de la suppression de l'écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de la suppression: {str(e)}"
 
     def get_by_id(self, ecriture_id: int) -> Optional[Dict]:
@@ -7229,7 +7234,7 @@ class EcritureComptable:
                 ecriture = cursor.fetchone()
             return ecriture
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération de l'écriture comptable: {e}")
+            logger.error(f"Erreur lors de la récupération de l'écriture comptable: {e}")
             return None
 
     def get_by_compte_bancaire(self, compte_id: int, user_id: int,
@@ -7264,7 +7269,7 @@ class EcritureComptable:
                 ecritures = cursor.fetchall()
             return ecritures
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures: {e}")
             return []
 
     def get_ecritures_non_synchronisees(self, compte_id: int, user_id: int):
@@ -7307,7 +7312,7 @@ class EcritureComptable:
                 ecritures = cursor.fetchall()
             return ecritures
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures par catégorie: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures par catégorie: {e}")
             return []
 
     def get_stats_by_categorie(self, user_id: int, date_from: str = None,
@@ -7350,7 +7355,7 @@ class EcritureComptable:
                 stats = cursor.fetchall()
             return stats
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des statistiques par catégorie: {e}")
+            logger.error(f"Erreur lors de la récupération des statistiques par catégorie: {e}")
             return []
 
     def _validate_date(date_str: str) -> bool:
@@ -7383,7 +7388,7 @@ class EcritureComptable:
 
     def get_compte_de_resultat(self, user_id: int, date_from: str, date_to: str) -> Dict:
         if not (self._validate_date(date_from) and self._validate_date(date_to)):
-            current_app.logger.error("Format de date invalide dans get_compte_de_resultat")
+            logger.error("Format de date invalide dans get_compte_de_resultat")
             return {}
 
         try:
@@ -7408,7 +7413,7 @@ class EcritureComptable:
                 'date_to': date_to
             }
         except Exception as e:
-            current_app.logger.error(f"Erreur génération compte de résultat: {e}")
+            logger.error(f"Erreur génération compte de résultat: {e}")
             return {}
 
     def get_bilan(self, user_id: int, date_bilan: str) -> Dict:
@@ -7416,7 +7421,7 @@ class EcritureComptable:
         Génère le bilan à une date donnée (solde cumulé jusqu'à date_bilan inclus).
         """
         if not self._validate_date(date_bilan):
-            current_app.logger.error("Format de date invalide pour le bilan")
+            logger.error("Format de date invalide pour le bilan")
             return {}
 
         try:
@@ -7495,7 +7500,7 @@ class EcritureComptable:
             }
 
         except Exception as e:
-            current_app.logger.error(f"Erreur génération bilan: {e}")
+            logger.error(f"Erreur génération bilan: {e}")
             return {}
 
     def get_ecritures_by_categorie_period(self, user_id: int, type_categorie: str = None,
@@ -7553,7 +7558,7 @@ class EcritureComptable:
                     return ecritures, total, titre
 
             except Exception as e:
-                current_app.logger.error(f"Erreur lors de la récupération des écritures par catégorie: {e}")
+                logger.error(f"Erreur lors de la récupération des écritures par catégorie: {e}")
                 return [], 0, ""
 
     def _generate_titre_detail(self, cursor, type_categorie: str, categorie_id: str,
@@ -7596,7 +7601,7 @@ class EcritureComptable:
                     cursor.execute(query, (statut, ecriture_id, user_id))
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour du statut: {e}")
+            logger.error(f"Erreur lors de la mise à jour du statut: {e}")
             return False
 
     def get_by_statut(self, user_id: int, statut: str, date_from: str = None,
@@ -7629,7 +7634,7 @@ class EcritureComptable:
                 cursor.execute(query, tuple(params))
                 ecritures = cursor.fetchall()
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures par statut: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures par statut: {e}")
 
         return ecritures
 
@@ -7674,7 +7679,7 @@ class EcritureComptable:
             }
 
         except Error as e:
-            current_app.logger.error(f"Erreur lors du calcul des statistiques par statut: {e}")
+            logger.error(f"Erreur lors du calcul des statistiques par statut: {e}")
             return {}
 
     def get_alertes_statut(self, user_id: int) -> List[Dict]:
@@ -7723,7 +7728,7 @@ class EcritureComptable:
             return resultat
 
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des alertes: {e}")
+            logger.error(f"Erreur lors de la récupération des alertes: {e}")
             return []
 
     def get_indicateurs_performance(self, user_id: int, statut: str = 'validée') -> Dict:
@@ -7761,7 +7766,7 @@ class EcritureComptable:
             }
 
         except Error as e:
-            current_app.logger.error(f"Erreur lors du calcul des indicateurs de performance: {e}")
+            logger.error(f"Erreur lors du calcul des indicateurs de performance: {e}")
             return {}
 
     def get_annees_disponibles(self, user_id):
@@ -7777,7 +7782,7 @@ class EcritureComptable:
                 annees = [row['annee'] for row in cursor.fetchall()]
                 return annees
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération des années disponibles : {e}")
+            logger.error(f"Erreur lors de la récupération des années disponibles : {e}")
             return []
 
     def get_all(self, user_id: int, date_from: str = None, date_to: str = None, limit: int = 100) -> List[Dict]:
@@ -7810,7 +7815,7 @@ class EcritureComptable:
 
                 return ecritures
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures: {e}")
             return []
 
     def get_with_filters(self, user_id: int, date_from: str = None, date_to: str = None,
@@ -7865,7 +7870,7 @@ class EcritureComptable:
 
                 return ecritures
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures avec filtres: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures avec filtres: {e}")
             return []
 
     def get_by_user_period(self, user_id, date_from, date_to):
@@ -7887,7 +7892,7 @@ class EcritureComptable:
                 ecritures = cursor.fetchall()
                 return ecritures
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures par période: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures par période: {e}")
             return []
 
     def get_by_contact_id(self, contact_id: int, utilisateur_id: int) -> List[Dict]:
@@ -7905,7 +7910,7 @@ class EcritureComptable:
                 cursor.execute(query, (contact_id, utilisateur_id))
                 ecritures = cursor.fetchall()
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures: {e}")
         return ecritures
 
     def get_synthese_statuts(self, user_id: int, date_from: str, date_to: str) -> Dict:
@@ -7932,7 +7937,7 @@ class EcritureComptable:
                     'date_fin': date_to
                 }
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération de la synthèse des statuts: {e}")
+            logger.error(f"Erreur lors de la récupération de la synthèse des statuts: {e}")
             return {}
 
     def get_by_contact(self, contact_id: int, user_id: int) -> List[Dict]:
@@ -7952,7 +7957,7 @@ class EcritureComptable:
                 ecritures = cursor.fetchall()
                 return ecritures
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des écritures par contact: {e}")
+            logger.error(f"Erreur lors de la récupération des écritures par contact: {e}")
             return []
 
     def link_to_transaction(self, ecriture_id: int, transaction_id: int, user_id: int) -> bool:
@@ -7984,7 +7989,7 @@ class EcritureComptable:
                 )
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur lien écriture-transaction : {e}")
+            logger.error(f"Erreur lien écriture-transaction : {e}")
             return False
 
     def get_ecritures_by_transaction(self, transaction_id: int, user_id: int) -> List[Dict]:
@@ -8028,7 +8033,7 @@ class EcritureComptable:
                 )
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur lors du délien de l'écriture {ecriture_id}: {e}")
+            logger.error(f"Erreur lors du délien de l'écriture {ecriture_id}: {e}")
             return False
 
     def link_ecriture_to_transaction(self, ecriture_id: int, transaction_id: int, user_id: int) -> bool:
@@ -8066,7 +8071,7 @@ class EcritureComptable:
                 )
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur lors du lien écriture {ecriture_id} → transaction {transaction_id}: {e}")
+            logger.error(f"Erreur lors du lien écriture {ecriture_id} → transaction {transaction_id}: {e}")
             return False
 
     def unlink_all_ecritures_from_transaction(self, transaction_id: int, user_id: int) -> int:
@@ -8095,7 +8100,7 @@ class EcritureComptable:
                 )
                 return cursor.rowcount
         except Exception as e:
-            current_app.logger.error(f"Erreur lors du délien de toutes les écritures de la transaction {transaction_id}: {e}")
+            logger.error(f"Erreur lors du délien de toutes les écritures de la transaction {transaction_id}: {e}")
             return 0
 
     def _is_categorie_valid_for_contact(self, contact_id: int, categorie_id: int, utilisateur_id: int) -> bool:
@@ -8120,7 +8125,7 @@ class EcritureComptable:
                 """, plan_ids + [categorie_id])
                 return cursor.fetchone() is not None
         except Exception as e:
-            current_app.logger.error(f"Erreur validation catégorie pour contact {contact_id}: {e}")
+            logger.error(f"Erreur validation catégorie pour contact {contact_id}: {e}")
             return False
 
     ## Gestion fichiers
@@ -8165,23 +8170,23 @@ class EcritureComptable:
             if not fichier or fichier.filename == '':
                 return False, "Aucun fichier sélectionné"
 
-            current_app.logger.info(f"Tentative d'upload - Fichier: {fichier.filename}, Taille: {fichier.content_length}")
+            logger.info(f"Tentative d'upload - Fichier: {fichier.filename}, Taille: {fichier.content_length}")
 
             # Vérifier le dossier d'upload
-            current_app.logger.info(f"Chemin upload folder: {self.upload_folder}")
-            current_app.logger.info(f"Dossier existe: {os.path.exists(self.upload_folder)}")
+            logger.info(f"Chemin upload folder: {self.upload_folder}")
+            logger.info(f"Dossier existe: {os.path.exists(self.upload_folder)}")
 
             if not os.path.exists(self.upload_folder):
                 try:
                     os.makedirs(self.upload_folder, exist_ok=True)
-                    current_app.logger.info(f"Dossier créé: {self.upload_folder}")
+                    logger.info(f"Dossier créé: {self.upload_folder}")
                 except Exception as e:
-                    current_app.logger.error(f"Erreur création dossier: {e}")
+                    logger.error(f"Erreur création dossier: {e}")
                     return False, f"Erreur création dossier: {str(e)}"
 
             # Vérifier les permissions
             if not os.access(self.upload_folder, os.W_OK):
-                current_app.logger.error(f"Pas de permission d'écriture dans: {self.upload_folder}")
+                logger.error(f"Pas de permission d'écriture dans: {self.upload_folder}")
                 return False, "Pas de permission d'écriture"
 
             if not self._allowed_file(fichier.filename):
@@ -8189,7 +8194,7 @@ class EcritureComptable:
 
             # Lire le fichier
             fichier_data = fichier.read()
-            current_app.logger.info(f"Fichier lu - Taille données: {len(fichier_data)} bytes")
+            logger.info(f"Fichier lu - Taille données: {len(fichier_data)} bytes")
 
             if len(fichier_data) == 0:
                 return False, "Fichier vide"
@@ -8211,25 +8216,25 @@ class EcritureComptable:
                 nouveau_nom = self._generate_filename(ecriture_id, fichier.filename, user_id)
                 file_path = self._get_file_path(nouveau_nom)
 
-                current_app.logger.info(f"Chemin complet du fichier: {file_path}")
-                current_app.logger.info(f"Nom généré: {nouveau_nom}")
+                logger.info(f"Chemin complet du fichier: {file_path}")
+                logger.info(f"Nom généré: {nouveau_nom}")
 
                 # Sauvegarder le fichier sur le filesystem
                 try:
                     with open(file_path, 'wb') as f:
                         f.write(fichier_data)
-                    current_app.logger.info(f"Fichier sauvegardé avec succès: {file_path}")
+                    logger.info(f"Fichier sauvegardé avec succès: {file_path}")
 
                     # Vérifier que le fichier a bien été écrit
                     if os.path.exists(file_path):
                         file_size = os.path.getsize(file_path)
-                        current_app.logger.info(f"Fichier vérifié - Taille sur disk: {file_size} bytes")
+                        logger.info(f"Fichier vérifié - Taille sur disk: {file_size} bytes")
                     else:
-                        current_app.logger.error("Fichier non trouvé après écriture!")
+                        logger.error("Fichier non trouvé après écriture!")
                         return False, "Erreur lors de l'écriture du fichier"
 
                 except Exception as e:
-                    current_app.logger.error(f"Erreur écriture fichier: {e}")
+                    logger.error(f"Erreur écriture fichier: {e}")
                     return False, f"Erreur écriture fichier: {str(e)}"
 
                 # Mettre à jour la base de données
@@ -8246,11 +8251,11 @@ class EcritureComptable:
                     user_id
                 ))
 
-                current_app.logger.info(f"Base de données mise à jour pour écriture {ecriture_id}")
+                logger.info(f"Base de données mise à jour pour écriture {ecriture_id}")
                 return True, "Fichier joint ajouté avec succès"
 
         except Exception as e:
-            current_app.logger.error(f"Erreur ajout fichier écriture {ecriture_id}: {e}")
+            logger.error(f"Erreur ajout fichier écriture {ecriture_id}: {e}")
             return False, f"Erreur lors de l'ajout du fichier: {str(e)}"
 
     def get_fichier(self, ecriture_id: int, user_id: int) -> Optional[Dict]:
@@ -8283,7 +8288,7 @@ class EcritureComptable:
                             'stockage': 'filesystem'
                         }
                     else:
-                        current_app.logger.warning(f"Fichier manquant sur le disk: {file_path}")
+                        logger.warning(f"Fichier manquant sur le disk: {file_path}")
                         return None
                 elif result['fichier_joint']:
                     return {
@@ -8295,7 +8300,7 @@ class EcritureComptable:
                 }
                 return None
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération fichier écriture {ecriture_id}: {e}")
+            logger.error(f"Erreur récupération fichier écriture {ecriture_id}: {e}")
             return None
 
     def supprimer_fichier(self, ecriture_id: int, user_id: int) -> Tuple[bool, str]:
@@ -8303,7 +8308,7 @@ class EcritureComptable:
         Supprime le fichier joint d'une écriture (physiquement et en base).
         """
         try:
-            current_app.logger.info(f"📍 Début suppression fichier - Écriture: {ecriture_id}, User: {user_id}")
+            logger.info(f"📍 Début suppression fichier - Écriture: {ecriture_id}, User: {user_id}")
 
             with self.db.get_cursor() as cursor:
                 # Récupérer les infos du fichier avant suppression
@@ -8315,7 +8320,7 @@ class EcritureComptable:
 
                 result = cursor.fetchone()
                 if not result:
-                    current_app.logger.error(f"❌ Écriture {ecriture_id} non trouvée pour l'utilisateur {user_id}")
+                    logger.error(f"❌ Écriture {ecriture_id} non trouvée pour l'utilisateur {user_id}")
                     return False, "Écriture non trouvée ou non autorisée"
 
                 fichier_supprime = False
@@ -8329,12 +8334,12 @@ class EcritureComptable:
                             os.remove(file_path)
                             fichier_supprime = True
                             message_suppression = f"Fichier physique supprimé: {file_path}"
-                            current_app.logger.info(f"✓ {message_suppression}")
+                            logger.info(f"✓ {message_suppression}")
                         except Exception as e:
-                            current_app.logger.error(f"❌ Erreur suppression fichier physique: {e}")
+                            logger.error(f"❌ Erreur suppression fichier physique: {e}")
                             return False, f"Erreur suppression fichier: {str(e)}"
                     else:
-                        current_app.logger.warning(f"⚠️ Fichier physique non trouvé: {file_path}")
+                        logger.warning(f"⚠️ Fichier physique non trouvé: {file_path}")
 
                 # Mettre à jour la base de données
                 cursor.execute("""
@@ -8353,15 +8358,15 @@ class EcritureComptable:
                     else:
                         message = f"Informations fichier supprimées (fichier physique non trouvé)"
 
-                    current_app.logger.info(f"✓ Suppression réussie: {message}")
+                    logger.info(f"✓ Suppression réussie: {message}")
                     return True, message
                 else:
-                    current_app.logger.error(f"❌ Aucune ligne mise à jour dans la base")
+                    logger.error(f"❌ Aucune ligne mise à jour dans la base")
                     return False, "Erreur lors de la suppression en base de données"
 
         except Exception as e:
-            current_app.logger.error(f"❌ Erreur suppression fichier écriture {ecriture_id}: {e}")
-            current_app.logger.error(f"❌ Traceback: {traceback.format_exc()}")
+            logger.error(f"❌ Erreur suppression fichier écriture {ecriture_id}: {e}")
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return False, f"Erreur lors de la suppression: {str(e)}"
 
     def get_chemin_fichier_physique(self, ecriture_id: int, user_id: int) -> Optional[str]:
@@ -8436,8 +8441,8 @@ class Contacts:
                 cursor.execute(query, values)
                 return True
         except Error as e:
-            # Utilisez un logger au lieu de current_app.logger.error pour un environnement de production
-            current_app.logger.error(f"Erreur lors de la création du contact: {e}")
+            # Utilisez un logger au lieu de logger.error pour un environnement de production
+            logger.error(f"Erreur lors de la création du contact: {e}")
             return False
 
     def update(self, contact_id: int, data: Dict, utilisateur_id: int) -> bool:
@@ -8463,14 +8468,14 @@ class Contacts:
                 )
 
                 # Utilisez le logger de l'application Flask
-                current_app.logger.debug(f"[update] Query: {query} avec params: {values}")
+                logger.debug(f"[update] Query: {query} avec params: {values}")
 
                 cursor.execute(query, values)
                 # Le commit est géré par la classe DatabaseManager (autocommit)
                 # ou via une transaction si vous l'avez configurée.
                 return cursor.rowcount > 0 # Vérifie si une ligne a été modifiée
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour du contact: {e}")
+            logger.error(f"Erreur lors de la mise à jour du contact: {e}")
             return False
 
     def get_all(self, utilisateur_id: int) -> List[Dict]:
@@ -8482,7 +8487,7 @@ class Contacts:
                 contacts = cursor.fetchall()
                 return contacts
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des contacts: {e}")
+            logger.error(f"Erreur lors de la récupération des contacts: {e}")
             return []
 
     def get_by_id(self, contact_id: int, utilisateur_id: int) -> Optional[Dict]:
@@ -8494,7 +8499,7 @@ class Contacts:
                 contact = cursor.fetchone()
                 return contact
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération du contact: {e}")
+            logger.error(f"Erreur lors de la récupération du contact: {e}")
             return None
 
     def delete(self, contact_id: int, utilisateur_id: int) -> bool:
@@ -8506,7 +8511,7 @@ class Contacts:
                 # Le commit est géré par la classe DatabaseManager
                 return cursor.rowcount > 0 # Vérifie si une ligne a été supprimée
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la suppression du contact: {e}")
+            logger.error(f"Erreur lors de la suppression du contact: {e}")
             return False
 
     def get_last_insert_id(self) -> Optional[int]:
@@ -8519,7 +8524,7 @@ class Contacts:
                 # Il faut donc y accéder avec la clé 'LAST_INSERT_ID()'
                 return result['LAST_INSERT_ID()'] if result else None
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération du dernier ID: {e}")
+            logger.error(f"Erreur lors de la récupération du dernier ID: {e}")
             return None
 
     def get_by_name(self, nom: str, utilisateur_id: int) -> List[Dict]:
@@ -8531,7 +8536,7 @@ class Contacts:
                 contacts = cursor.fetchall()
                 return contacts
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la recherche de contacts: {e}")
+            logger.error(f"Erreur lors de la recherche de contacts: {e}")
             return []
 
 class ContactCompte:
@@ -8549,7 +8554,7 @@ class ContactCompte:
                             WHERE id_contact = %s AND utilisateur_id = %s
                             """, (contact_id, utilisateur_id))
                 if not cursor.fetchone():
-                    current_app.logger.warning(f'Tentative de liason avec un contact non autorisé: contact_id={contact_id}, user={utilisateur_id}')
+                    logger.warning(f'Tentative de liason avec un contact non autorisé: contact_id={contact_id}, user={utilisateur_id}')
                     return False
                 cursor.execute("""
                             SELECT id
@@ -8557,7 +8562,7 @@ class ContactCompte:
                             WHERE id = %s
                             """, (compte_id))
                 if not cursor.fetchone():
-                    current_app.logger.warning(f'Tentative de liason avec un compte non existant: compte_id = {compte_id}')
+                    logger.warning(f'Tentative de liason avec un compte non existant: compte_id = {compte_id}')
                     return False
 
                 cursor.execute("""
@@ -8566,10 +8571,10 @@ class ContactCompte:
                 """, (contact_id, compte_id, utilisateur_id))
                 return True
         except Error as e:
-            current_app.logger.error(f"Erreur SQL dans link_to_compte : {e}")
+            logger.error(f"Erreur SQL dans link_to_compte : {e}")
             return False
         except Exception as e:
-            current_app.logger.error(f"Erreur liaison contact-compte : {e}")
+            logger.error(f"Erreur liaison contact-compte : {e}")
             return False
 
     def unlink_from_compte(self, contact_id: int, compte_id: int, utilisateur_id: int) -> bool:
@@ -8582,10 +8587,10 @@ class ContactCompte:
                 """, (contact_id, compte_id, utilisateur_id))
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"Erreur SQL dans unlink_from_compte : {e}")
+            logger.error(f"Erreur SQL dans unlink_from_compte : {e}")
             return False
         except Exception as e:
-            current_app.logger.error(f"Erreur déliaison contact-compte : {e}")
+            logger.error(f"Erreur déliaison contact-compte : {e}")
             return False
 
     def get_comptes_for_contact(self, contact_id: int, utilisateur_id: int) -> List[Dict]:
@@ -8604,10 +8609,10 @@ class ContactCompte:
                 """, (contact_id, utilisateur_id))
                 return cursor.fetchall()
         except Error as e:
-            current_app.logger.error(f"Erreur SQL dans get_comptes_for_contact : {e}")
+            logger.error(f"Erreur SQL dans get_comptes_for_contact : {e}")
             return []
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération comptes pour contact : {e}")
+            logger.error(f"Erreur récupération comptes pour contact : {e}")
             return []
 
     def get_contacts_for_compte(self, compte_id: int, utilisateur_id: int) -> List[Dict]:
@@ -8623,7 +8628,7 @@ class ContactCompte:
                 """, (compte_id, utilisateur_id))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération contacts pour compte : {e}")
+            logger.error(f"Erreur récupération contacts pour compte : {e}")
             return []
 
     def get_contact_by_compte(self, compte_id: int, utilisateur_id: int) -> Optional[Dict]:
@@ -8639,7 +8644,7 @@ class ContactCompte:
                 """, (compte_id, utilisateur_id))
                 return cursor.fetchone()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération contact par compte : {e}")
+            logger.error(f"Erreur récupération contact par compte : {e}")
             return None
 
 class Rapport:
@@ -8785,7 +8790,7 @@ class BaremeCotisation:
                     ))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la modification du barème pour type_cotisation {type_cotisation_id}: {e}")
+            logger.error(f"Erreur lors de la modification du barème pour type_cotisation {type_cotisation_id}: {e}")
             return False
 
     def get_bareme(self, type_cotisation_id: int) -> List[Dict]:
@@ -8800,7 +8805,7 @@ class BaremeCotisation:
                 """, (type_cotisation_id,))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération barème type {type_cotisation_id}: {e}")
+            logger.error(f"Erreur récupération barème type {type_cotisation_id}: {e}")
             return []
 
     def has_bareme(self, type_cotisation_id: int) -> bool:
@@ -8810,7 +8815,7 @@ class BaremeCotisation:
                 cursor.execute("SELECT 1 FROM baremes_cotisation WHERE type_cotisation_id = %s LIMIT 1", (type_cotisation_id,))
                 return cursor.fetchone() is not None
         except Exception as e:
-            current_app.logger.error(f"Erreur vérification barème: {e}")
+            logger.error(f"Erreur vérification barème: {e}")
             return False
         
 class BaremeIndemnite:
@@ -8860,7 +8865,7 @@ class BaremeIndemnite:
                     ))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la modification du barème pour type_indemnite {type_indemnite_id}: {e}")
+            logger.error(f"Erreur lors de la modification du barème pour type_indemnite {type_indemnite_id}: {e}")
             return False
 
     def get_bareme(self, type_indemnite_id: int) -> List[Dict]:
@@ -8875,7 +8880,7 @@ class BaremeIndemnite:
                 """, (type_indemnite_id,))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération barème type indemnité {type_indemnite_id}: {e}")
+            logger.error(f"Erreur récupération barème type indemnité {type_indemnite_id}: {e}")
             return []
 
     def has_bareme(self, type_indemnite_id: int) -> bool:
@@ -8885,7 +8890,7 @@ class BaremeIndemnite:
                 cursor.execute("SELECT 1 FROM baremes_indemnite WHERE type_indemnite_id = %s LIMIT 1", (type_indemnite_id,))
                 return cursor.fetchone() is not None
         except Exception as e:
-            current_app.logger.error(f"Erreur vérification barème indemnité: {e}")
+            logger.error(f"Erreur vérification barème indemnité: {e}")
             return False
         
 class TypeCotisation:
@@ -8901,7 +8906,7 @@ class TypeCotisation:
                 cursor.execute(query, (user_id, nom, description, est_obligatoire))
                 return cursor.lastrowid
         except Exception as e:
-            current_app.logger.error(f"Erreur création type_cotisation {e}")
+            logger.error(f"Erreur création type_cotisation {e}")
     def get_all_by_user(self, user_id: int)-> List[Dict]:
         """récupère toutes les cotisations de l'utilisateur"""
         try:
@@ -8914,7 +8919,7 @@ class TypeCotisation:
                 cursor.execute(query, (user_id))
                 return cursor.fetchall
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération types_cotisation : {e}")
+            logger.error(f"Erreur récupération types_cotisation : {e}")
             return []
     def update(self, type_id: int, user_id:int, data: Dict)-> bool:
         set_clause = ", ".join([f"{k} = %s" for k in data.keys()])
@@ -8927,7 +8932,7 @@ class TypeCotisation:
                 cursor.execute(query, params)
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger(f"Erreur mise à jour type cotisation : {e}")
+            logger(f"Erreur mise à jour type cotisation : {e}")
     def delete(self, type_id:int, user_id:int)-> bool:
         try:
             with self.db.get_cursor() as cursor:
@@ -8935,7 +8940,7 @@ class TypeCotisation:
                     (type_id, user_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur suppression type cotisation: {e}")
+            logger.error(f"Erreur suppression type cotisation: {e}")
             return False
 
 class TypIndemnite:
@@ -8951,7 +8956,7 @@ class TypIndemnite:
                 cursor.execute(query, (user_id, nom, description, est_obligatoire))
                 return cursor.lastrowid
         except Exception as e:
-            current_app.logger.error(f"Erreur création type_cotisation {e}")
+            logger.error(f"Erreur création type_cotisation {e}")
     def get_all_by_user(self, user_id: int)-> List[Dict]:
         """récupère toutes les indemnités de l'utilisateur"""
         try:
@@ -8964,7 +8969,7 @@ class TypIndemnite:
                 cursor.execute(query, (user_id))
                 return cursor.fetchall
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération types_indemnite : {e}")
+            logger.error(f"Erreur récupération types_indemnite : {e}")
             return []
     def update(self, type_id: int, user_id:int, data: Dict)-> bool:
         set_clause = ", ".join([f"{k} = %s" for k in data.keys()])
@@ -8977,7 +8982,7 @@ class TypIndemnite:
                 cursor.execute(query, params)
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger(f"Erreur mise à jour type indemnite : {e}")
+            logger(f"Erreur mise à jour type indemnite : {e}")
     def delete(self, type_id:int, user_id:int)-> bool:
         try:
             with self.db.get_cursor() as cursor:
@@ -8985,7 +8990,7 @@ class TypIndemnite:
                     (type_id, user_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur suppression type indemnite: {e}")
+            logger.error(f"Erreur suppression type indemnite: {e}")
             return False
 
 class CotisationContrat:
@@ -9028,7 +9033,7 @@ class CotisationContrat:
                 cursor.execute(query, (contrat_id, type_cotisation_id, taux, base_calcul, annee))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur assignation cotisation : {e}")
+            logger.error(f"Erreur assignation cotisation : {e}")
             return False
     def get_for_contrat(self, contrat_id: int)-> List[Dict]:
         try:
@@ -9042,7 +9047,7 @@ class CotisationContrat:
                 cursor.execute(query,(contrat_id))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération cotisation contrat : {e}")
+            logger.error(f"Erreur récupération cotisation contrat : {e}")
             return []
     def get_for_contrat_and_annee(self, contrat_id: int, annee: int) -> List[Dict]:
         try:
@@ -9056,7 +9061,7 @@ class CotisationContrat:
                 cursor.execute(query,(contrat_id, annee))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération cotisation contrat {contrat_id} pour annee {annee} : {e}")
+            logger.error(f"Erreur récupération cotisation contrat {contrat_id} pour annee {annee} : {e}")
             return []
     def get_total_cotisations_par_mois(self, user_id: int, annee: int, mois: int) -> List[Dict]:
         """
@@ -9145,7 +9150,7 @@ class CotisationContrat:
                     })
                 return result
         except Exception as e:
-            current_app.logger.error(f"Erreur get_total_cotisations_par_mois: {e}")
+            logger.error(f"Erreur get_total_cotisations_par_mois: {e}")
             return []
 
     def prepare_svg_cotisations_mensuelles(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
@@ -9332,7 +9337,7 @@ class IndemniteContrat:
                 cursor.execute(query, (contrat_id, type_indemnite_id, taux, base_calcul, annee))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur assignation cotisation : {e}")
+            logger.error(f"Erreur assignation cotisation : {e}")
             return False
     def get_for_contrat(self, contrat_id: int)-> List[Dict]:
         try:
@@ -9346,7 +9351,7 @@ class IndemniteContrat:
                 cursor.execute(query,(contrat_id))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération indemnite contrat : {e}")
+            logger.error(f"Erreur récupération indemnite contrat : {e}")
             return []
     def get_for_contrat_and_annee(self, contrat_id: int, annee: int) -> List[Dict]:
         try:
@@ -9360,7 +9365,7 @@ class IndemniteContrat:
                 cursor.execute(query,(contrat_id, annee))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération indemnite contrat {contrat_id} pour annee {annee} : {e}")
+            logger.error(f"Erreur récupération indemnite contrat {contrat_id} pour annee {annee} : {e}")
             return []
 
     def get_total_indemnites_par_mois(self, user_id: int, annee: int, mois: int) -> List[Dict]:
@@ -9428,7 +9433,7 @@ class IndemniteContrat:
                     })
                 return result
         except Exception as e:
-            current_app.logger.error(f"Erreur get_total_indemnites_par_mois: {e}")
+            logger.error(f"Erreur get_total_indemnites_par_mois: {e}")
             return []
     
     def prepare_svg_indemnites_mensuelles(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
@@ -9677,7 +9682,7 @@ class Contrat:
                 return True
 
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la création/mise à jour du contrat: {e}")
+            logger.error(f"Erreur lors de la création/mise à jour du contrat: {e}")
             return False
 
     def get_contrat_actuel(self, user_id: int) -> Optional[Dict]:
@@ -9694,7 +9699,7 @@ class Contrat:
                 cursor.execute(query, (user_id,))
                 return cursor.fetchone()
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération du contrat: {e}")
+            logger.error(f"Erreur lors de la récupération du contrat: {e}")
             return None
 
     def get_all_contrats(self, user_id: int) -> List[Dict]:
@@ -9702,11 +9707,11 @@ class Contrat:
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT * FROM contrats WHERE user_id = %s ORDER BY date_debut ASC;"
-                current_app.logger.debug(f"SQL: {query} | Params: {user_id}")
+                logger.debug(f"SQL: {query} | Params: {user_id}")
                 cursor.execute(query, (user_id,))  # ← CORRIGÉ : virgule ajoutée
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération des contrats: {e}")
+            logger.error(f"Erreur lors de la récupération des contrats: {e}")
             return []
 
     def delete(self, contrat_id: int) -> bool:
@@ -9717,7 +9722,7 @@ class Contrat:
                 cursor.execute(query, (contrat_id,))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la suppression du contrat: {e}")
+            logger.error(f"Erreur lors de la suppression du contrat: {e}")
             return False
 
     def get_contrat_for_date(self, user_id: int, employeur: str, date_str: str) -> Optional[Dict]:
@@ -9736,7 +9741,7 @@ class Contrat:
                 cursor.execute(query, (user_id, employeur, date_str, date_str))
                 return cursor.fetchone()
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération du contrat pour la date {date_str}: {e}")
+            logger.error(f"Erreur lors de la récupération du contrat pour la date {date_str}: {e}")
             return None
 
     def get_contrats_actifs(self, user_id: int) -> List[Dict]:
@@ -9752,7 +9757,7 @@ class Contrat:
                 cursor.execute(query, (user_id,))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération des contrats actifs: {e}")
+            logger.error(f"Erreur lors de la récupération des contrats actifs: {e}")
             return []
 
     def get_contrat_for_employe(self, user_id: int, id_employe: int) -> Optional[Dict]:
@@ -9768,7 +9773,7 @@ class Contrat:
                 cursor.execute(query, (user_id, id_employe))
                 return cursor.fetchone()
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération du contrat pour l'employé {id_employe}: {e}")
+            logger.error(f"Erreur lors de la récupération du contrat pour l'employé {id_employe}: {e}")
             return None
     def sauvegarder_cotisations_et_indemnites(self, contrat_id: int, user_id: int, data: Dict)-> bool:
         annee = data.get('annee')
@@ -9845,7 +9850,7 @@ class Employe:
                 cursor.execute(query, values)
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de création fr l'employe: {e}")
+            logger.error(f"Erreur lors de création fr l'employe: {e}")
             return False
 
 
@@ -9863,7 +9868,7 @@ class Employe:
                 cursor.execute(query, (user_id,))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f'Erreur de récupération des employées pour user_id {user_id}: {e}')
+            logger.error(f'Erreur de récupération des employées pour user_id {user_id}: {e}')
 
     def get_by_id(self, employe_id: int, user_id : int) -> Optional[Dict]:
         """
@@ -9877,7 +9882,7 @@ class Employe:
                 cursor.execute(query, (employe_id, user_id))
                 return cursor.fetchone()
         except Exception as e:
-            current_app.logger.error(f'Erreur de récupération employe ID {employe_id} de user_id {user_id}: {e}')
+            logger.error(f'Erreur de récupération employe ID {employe_id} de user_id {user_id}: {e}')
             return None
 
     def update(self, employe_id : int, user_id : int, data: dict) -> bool:
@@ -9900,7 +9905,7 @@ class Employe:
                         """, params)
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f'Erreur lors de la mise à jour employe {employe_id} pour {data}: {e}')
+            logger.error(f'Erreur lors de la mise à jour employe {employe_id} pour {data}: {e}')
             return False
 
     def delete(self, employe_id: int, user_id: int) -> bool:
@@ -9915,7 +9920,7 @@ class Employe:
                             """, (employe_id, user_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f'Erreur dans la suppresion employe {employe_id} de user {user_id}; {e}')
+            logger.error(f'Erreur dans la suppresion employe {employe_id} de user {user_id}; {e}')
             return False
 
     def get_heures_mois(self, annee: int, mois: int) -> float:
@@ -9935,7 +9940,7 @@ class Employe:
                 result = cursor.fetchone()
                 return float(result['total_heures']) if result and result['total_heures'] else 0.0
         except Exception as e:
-            current_app.logger.error(f'Erreur récupération heures mois {annee}-{mois} : {e}')
+            logger.error(f'Erreur récupération heures mois {annee}-{mois} : {e}')
             return 0.0
     def get_salaire_mois(self, annee: int, mois: int) -> dict:
         """
@@ -9955,7 +9960,7 @@ class Employe:
                     'total_retentions': float(result['total']) if result and result['total'] else 0.0
                 }
         except Exception as e:
-            current_app.logger.error(f'Erreur récupération salaire mois {annee}-{mois} : {e}')
+            logger.error(f'Erreur récupération salaire mois {annee}-{mois} : {e}')
             return {'total_salaire': 0.0, 'total_retentions': 0.0}
 
     def recalculer_salaire_mois(self, annee: int, mois: int) -> bool:
@@ -9974,7 +9979,7 @@ class Employe:
             #
             return True
         except Exception as e:
-            current_app.logger.error(f'Erreur recalcul salaire mois {annee}-{mois} : {e}')
+            logger.error(f'Erreur recalcul salaire mois {annee}-{mois} : {e}')
             return False
     def get_contrats_actifs(self) -> list:
         """
@@ -9989,7 +9994,7 @@ class Employe:
                 cursor.execute(query, (self.id,))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f'Erreur récupération contrats actifs pour employe {self.id} : {e}')
+            logger.error(f'Erreur récupération contrats actifs pour employe {self.id} : {e}')
             return []
     def get_employe_by_id_and_code(self, employe_id: int, code: str) -> Optional[Dict]:
         with self.db.get_cursor() as cursor:
@@ -10029,7 +10034,7 @@ class HeureTravail:
                     success = self._execute_create_or_update(data, new_cursor)
                     return success
             except Exception as e:
-                current_app.logger.error(f"Impossible d'obtenir une connexion ou erreur d'exécution: {str(e)}")
+                logger.error(f"Impossible d'obtenir une connexion ou erreur d'exécution: {str(e)}")
                 return False
 
     def _execute_create_or_update(self, data: dict, cursor) -> bool:
@@ -10093,7 +10098,7 @@ class HeureTravail:
             )
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur _execute_create_or_update: {str(e)}")
+            logger.error(f"Erreur _execute_create_or_update: {str(e)}")
             return False
 
             # Gestion des champs horaires avec protection
@@ -10142,7 +10147,7 @@ class HeureTravail:
             #return True
 
         #except Exception as e:
-        #    current_app.logger.error(f"Erreur _execute_create_or_update: {str(e)}")
+        #    logger.error(f"Erreur _execute_create_or_update: {str(e)}")
         #    return False
 
     def _update_plages_horaires(self, cursor, heure_travail_id: int, plages: List[Dict]) -> None:
@@ -10161,7 +10166,7 @@ class HeureTravail:
                         """
                         inner_cursor.execute(query_insert, (heure_travail_id, index + 1, plage['debut'], plage['fin']))
         except Exception as e:
-            current_app.logger.error(f"Erreur _update_plages_horaires: {str(e)}")
+            logger.error(f"Erreur _update_plages_horaires: {str(e)}")
             return False
 
     def _clean_data(self, data: dict) -> dict:
@@ -10281,7 +10286,7 @@ class HeureTravail:
                     WHERE ht.date = %s AND ht.user_id = %s AND ht.employeur = %s AND ht.id_contrat = %s
                     GROUP BY ht.id
                 """
-                current_app.logger.debug(f"[get_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
+                logger.debug(f"[get_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
                 cursor.execute(query, (date_str, user_id, employeur, id_contrat))
                 jour = cursor.fetchone()
 
@@ -10308,18 +10313,18 @@ class HeureTravail:
                                     minutes = int((total_seconds % 3600) // 60)
                                     plage['fin'] = f"{hours:02d}:{minutes:02d}"
                         except Exception as e:
-                            current_app.logger.error(f"Erreur parsing plages horaires JSON: {str(e)}")
+                            logger.error(f"Erreur parsing plages horaires JSON: {str(e)}")
                             jour['plages'] = []
                     else:
                         jour['plages']= []
-                    current_app.logger.debug(f"[get_by_date] Données trouvées avec {len(jour['plages'])} plages")
+                    logger.debug(f"[get_by_date] Données trouvées avec {len(jour['plages'])} plages")
 
                 return jour
         except Exception as e:
-            current_app.logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
+            logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
 
         except Exception as e:
-            current_app.logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
+            logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
             return None
 
     def get_jour_travail(self, mois:int, semaine:int, user_id: int, employeur: str, id_contrat: int) -> List[Dict]:
@@ -10374,7 +10379,7 @@ class HeureTravail:
                         jour['plages'] = []
                 return jours
         except Exception as e:
-            current_app.logger.error(f"Erreur get_jour_travail: {str(e)}")
+            logger.error(f"Erreur get_jour_travail: {str(e)}")
             return []
 
     def calculer_heures(self, h1d: str, h1f: str, h2d: str, h2f: str) -> float:
@@ -10395,21 +10400,21 @@ class HeureTravail:
     #    try:
     #        with self.db.get_cursor() as cursor:
     #            query = "SELECT * FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s"
-    #            current_app.logger.debug(f"[get_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
+    #            logger.debug(f"[get_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
     #
     #            cursor.execute(query, (date_str, user_id, employeur, id_contrat))
     #            jour = cursor.fetchone()
     #
     #            if jour:
-    #                current_app.logger.debug(f"[get_by_date] Données trouvées pour {date_str}, user_id: {user_id}, employeur: {employeur}, id_contrat: {id_contrat}  ")
+    #                logger.debug(f"[get_by_date] Données trouvées pour {date_str}, user_id: {user_id}, employeur: {employeur}, id_contrat: {id_contrat}  ")
     #                self._convert_timedelta_fields(jour, ['h1d', 'h1f', 'h2d', 'h2f'])
     #            else:
-    #               current_app.logger.debug(f"[get_by_date] Aucune donnée trouvée pour {date_str}, user_id: {user_id}, employeur: {employeur}, id_contrat: {id_contrat}  ")
+    #               logger.debug(f"[get_by_date] Aucune donnée trouvée pour {date_str}, user_id: {user_id}, employeur: {employeur}, id_contrat: {id_contrat}  ")
     #
     #            return jour
     #
     #    except Exception as e:
-    #        current_app.logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
+    #        logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
     #        return []]
 
     def get_jours_travail(self, mois: int, semaine: int, user_id: int, employeur: str, id_contrat: int) -> List[Dict]:
@@ -10423,11 +10428,11 @@ class HeureTravail:
                     query = "SELECT * FROM heures_travail WHERE mois = %s AND user_id = %s AND employeur = %s AND id_contrat = %s ORDER BY date"
                     params = (mois, user_id, employeur, id_contrat)
 
-                current_app.logger.debug(f"[get_jours_travail] Query: {query} avec params: {params}")
+                logger.debug(f"[get_jours_travail] Query: {query} avec params: {params}")
                 cursor.execute(query, params)
                 jours = cursor.fetchall()
 
-                current_app.logger.debug(f"[get_jours_travail] {len(jours)} jours trouvés")
+                logger.debug(f"[get_jours_travail] {len(jours)} jours trouvés")
 
                 for jour in jours:
                     self._convert_timedelta_fields(jour, ['h1d', 'h1f', 'h2d', 'h2f'])
@@ -10435,7 +10440,7 @@ class HeureTravail:
                 return jours
 
         except Exception as e:
-            current_app.logger.error(f"Erreur get_jours_travail: {str(e)}")
+            logger.error(f"Erreur get_jours_travail: {str(e)}")
             return []
 
     def delete_by_date(self, date_str: str, user_id: int, employeur: str, id_contrat: int) -> bool:
@@ -10443,16 +10448,16 @@ class HeureTravail:
         try:
             with self.db.get_cursor(commit=True) as cursor:
                 query = "DELETE FROM heures_travail WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s"
-                current_app.logger.debug(f"[delete_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
+                logger.debug(f"[delete_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
 
                 cursor.execute(query, (date_str, user_id, employeur, id_contrat))
                 rows_affected = cursor.rowcount
 
-                current_app.logger.debug(f"[delete_by_date] {rows_affected} ligne(s) supprimée(s) pour {date_str}")
+                logger.debug(f"[delete_by_date] {rows_affected} ligne(s) supprimée(s) pour {date_str}")
                 return True
 
         except Exception as e:
-            current_app.logger.error(f"Erreur delete_by_date pour {date_str}: {str(e)}")
+            logger.error(f"Erreur delete_by_date pour {date_str}: {str(e)}")
             return False
 
     def _convert_timedelta_fields(self, record: dict, fields: list) -> None:
@@ -10480,10 +10485,10 @@ class HeureTravail:
                 cursor.execute(query, (user_id, employeur, id_contrat, annee, mois))
                 result = cursor.fetchone()
                 total = float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
-                current_app.logger.info(f"get_total_heures_mois → user={user_id}, mois={mois}/{annee}, employeur={employeur}, contrat={id_contrat} → total={total}")
+                logger.info(f"get_total_heures_mois → user={user_id}, mois={mois}/{annee}, employeur={employeur}, contrat={id_contrat} → total={total}")
                 return total
         except Exception as e:
-            current_app.logger.error(f"Erreur get_total_heures_mois: {e}")
+            logger.error(f"Erreur get_total_heures_mois: {e}")
             return 0.0
 
     def get_heures_periode(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, start_day: int, end_day: int) -> float:
@@ -10499,10 +10504,10 @@ class HeureTravail:
                 cursor.execute(query, (user_id, employeur, id_contrat, annee, mois, start_day, end_day))
                 result = cursor.fetchone()
                 total = float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
-                current_app.logger.info(f"get_heures_periode → user={user_id}, mois={mois}/{annee}, jours={start_day}-{end_day}, employeur={employeur}, contrat={id_contrat} → total={total}")
+                logger.info(f"get_heures_periode → user={user_id}, mois={mois}/{annee}, jours={start_day}-{end_day}, employeur={employeur}, contrat={id_contrat} → total={total}")
                 return total
         except Exception as e:
-            current_app.logger.error(f"Erreur get_heures_periode: {e}")
+            logger.error(f"Erreur get_heures_periode: {e}")
             return 0.0
 
     def importer_depuis_csv(self, fichier_csv: str, user_id: int) -> int:
@@ -10522,12 +10527,12 @@ class HeureTravail:
                         employeur = row.get('employeur')
                         id_contrat = row.get('id_contrat')
                         if id_contrat is None:
-                            current_app.logger.warning(f"[Import CSV] id_contrat manquant pour la ligne avec date : {row}. Ligne ignorée.")
+                            logger.warning(f"[Import CSV] id_contrat manquant pour la ligne avec date : {row}. Ligne ignorée.")
                             continue
                         try:
                             id_contrat = int(id_contrat)
                         except ValueError:
-                            current_app.logger.warning(f"[Import CSV] id_contrat invalide pour la ligne avec date : {id_contrat}")
+                            logger.warning(f"[Import CSV] id_contrat invalide pour la ligne avec date : {id_contrat}")
                             continue
                         if not date_str or not employeur:
                             continue
@@ -10535,7 +10540,7 @@ class HeureTravail:
                         try:
                             date_obj = datetime.fromisoformat(date_str).date()
                         except ValueError:
-                            current_app.logger.warning(f"[Import CSV] Date invalide ignorée : {date_str}")
+                            logger.warning(f"[Import CSV] Date invalide ignorée : {date_str}")
                             continue
 
                         h1d = row.get('h1d') or None
@@ -10582,11 +10587,11 @@ class HeureTravail:
                             ))
                         lignes_importees += 1
 
-            current_app.logger.info(f"[Import CSV] {lignes_importees} lignes importées avec succès")
+            logger.info(f"[Import CSV] {lignes_importees} lignes importées avec succès")
             return lignes_importees
 
         except Exception as e:
-            current_app.logger.error(f"[Import CSV] Erreur : {e}")
+            logger.error(f"[Import CSV] Erreur : {e}")
             return 0
 
     def get_heures_employe_mois(self, employe_id: int, annee: int, mois: int) -> float:
@@ -10600,7 +10605,7 @@ class HeureTravail:
                 result = cursor.fetchone()
                 return float(result['SUM(total_h)']) if result and result['SUM(total_h)'] else 0.0
         except Exception as e:
-            current_app.logger.error(f"Erreur get_heures_employe_mois: {e}")
+            logger.error(f"Erreur get_heures_employe_mois: {e}")
             return 0.0
 
     def get_heures_par_employe_mois(self, employe_id: int, annee: int, mois: int) -> List[Dict]:
@@ -10641,7 +10646,7 @@ class HeureTravail:
                 result = cursor.fetchone()
                 return result is not None
         except Exception as e:
-            current_app.logger.error(f"Erreur has_hours_for_employeur: {e}")
+            logger.error(f"Erreur has_hours_for_employeur: {e}")
             return False
 
     def get_h1d_h2f_for_period(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int = None, semaine: int = None) -> List[Dict]:
@@ -10682,7 +10687,7 @@ class HeureTravail:
                     self._convert_timedelta_fields(row, ['h1d', 'h2f'])
             return rows
         except Exception as e:
-            current_app.logger.error("Erreur get_h1d_h2f_for period: {e}")
+            logger.error("Erreur get_h1d_h2f_for period: {e}")
             return []
 
 
@@ -10731,7 +10736,7 @@ class HeureTravail:
 #
     #            return rows
     #    except Exception as e:
-    #        current_app.logger.error(f"Erreur get_h1d_h2f_for_period: {e}")
+    #        logger.error(f"Erreur get_h1d_h2f_for_period: {e}")
     #        return []
 
     #def get_jour_travaille(self, date_str: str, user_id: int, employeur: str, id_contrat: int) -> Optional[Dict]:
@@ -10751,7 +10756,7 @@ class HeureTravail:
     #                self._convert_timedelta_fields(jour, ['h1d', 'h2f'])
     #            return jour
     #    except Exception as e:
-    #        current_app.logger.error(f"Erreur get_jour_travaille pour {date_str}: {e}")
+    #        logger.error(f"Erreur get_jour_travaille pour {date_str}: {e}")
     #        return None
 
     def time_to_minutes(self, time_str: str) -> int:
@@ -10854,7 +10859,7 @@ class Salaire:
                 cursor.execute(query, values)
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur création salaire: {e}")
+            logger.error(f"Erreur création salaire: {e}")
             return False
 
     def update(self, salaire_id: int, data: dict) -> bool:
@@ -10880,7 +10885,7 @@ class Salaire:
                 cursor.execute(query, values)
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur mise à jour salaire: {e}")
+            logger.error(f"Erreur mise à jour salaire: {e}")
             return False
 
     def delete(self, salaire_id: int) -> bool:
@@ -10892,7 +10897,7 @@ class Salaire:
                 cursor.execute(query, (salaire_id,))
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur suppression salaire: {e}")
+            logger.error(f"Erreur suppression salaire: {e}")
             return False
 
     def get_by_id(self, salaire_id: int) -> Optional[Dict]:
@@ -10917,10 +10922,10 @@ class Salaire:
                 query = "SELECT * FROM salaires WHERE user_id = %s AND employeur = %s AND id_contrat = %s AND annee = %s AND mois = %s"
                 cursor.execute(query, (user_id, employeur, id_contrat, annee, mois))
                 result = cursor.fetchall()
-                current_app.logger.info(f'ligne 4785 salaire selectionné: {result}')
+                logger.info(f'ligne 4785 salaire selectionné: {result}')
                 return result
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération salaire par mois/année: {e}")
+            logger.error(f"Erreur récupération salaire par mois/année: {e}")
             return []
 
     def get_cotisations_indemnites_mois(self, user_id: int, annee: int, mois: int) -> Dict:
@@ -10943,7 +10948,7 @@ class Salaire:
             heures_reelles = round(heures_reelles, 2)
             return round(heures_reelles * float(salaire_horaire), 2)
         except Exception as e:
-            current_app.logger.error(f"Erreur calcul salaire: {e}")
+            logger.error(f"Erreur calcul salaire: {e}")
             return 0.0
 
     def calculer_salaire_net(self, heures_reelles: float, contrat: Dict) -> float:
@@ -10978,7 +10983,7 @@ class Salaire:
 
             return round(brut + additions - soustractions, 2)
         except Exception as e:
-            current_app.logger.error(f"Erreur calcul salaire net: {e}")
+            logger.error(f"Erreur calcul salaire net: {e}")
             return 0.0
 
 
@@ -11103,7 +11108,7 @@ class Salaire:
             }
 
         except Exception as e:
-            current_app.logger.error(f"Erreur dans calculer_salaire_net_avec_details: {str(e)}")
+            logger.error(f"Erreur dans calculer_salaire_net_avec_details: {str(e)}")
             return {
                 'salaire_net': 0.0,
                 'erreur': str(e),
@@ -11178,7 +11183,7 @@ class Salaire:
                         cursor.execute(query, values)
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur import salaires: {e}")
+            logger.error(f"Erreur import salaires: {e}")
             return False
 
     def get_by_user_and_month(self, user_id: int, employeur: str, id_contrat: int, mois: int = None, annee: int = None) -> List[Dict]:
@@ -11226,20 +11231,20 @@ class Salaire:
 
         # Log en cas d’incohérence (utile pour le debug)
         if heures_apres < 0:
-            current_app.logger.warning(
+            logger.warning(
                 f"Incohérence heures acompte 10: total={heures_total}, avant={heures_avant} "
                 f"(user={user_id}, mois={mois}/{annee}, employeur={employeur})"
             )
             heures_apres = 0.0
         result = round(heures_apres * salaire_horaire, 2)
-        current_app.logger.info(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
-        current_app.logger.error(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
+        logger.info(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
+        logger.error(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         return result
     def recalculer_salaire(self, salaire_id: int, contrat: Dict) -> bool:
         try:
             salaire = self.get_by_id(salaire_id)
             if not salaire:
-                current_app.logger.warning(f"Salaire ID {salaire_id} introuvable.")
+                logger.warning(f"Salaire ID {salaire_id} introuvable.")
                 return False
 
             heures_reelles = salaire.get('heures_reelles') or 0.0
@@ -11263,7 +11268,7 @@ class Salaire:
             )
 
             if result['erreur']:
-                current_app.logger.error(f"Erreur recalcul salaire : {result['erreur']}")
+                logger.error(f"Erreur recalcul salaire : {result['erreur']}")
                 return False
 
             salaire_net = result['salaire_net']
@@ -11302,7 +11307,7 @@ class Salaire:
             return self.update(salaire_id, update_data)
 
         except Exception as e:
-            current_app.logger.error(f"Erreur recalcul salaire ID {salaire_id}: {e}", exc_info=True)
+            logger.error(f"Erreur recalcul salaire ID {salaire_id}: {e}", exc_info=True)
             return False
     #def recalculer_salaire(self, salaire_id: int, contrat: Dict) -> bool:
     #    """
@@ -11313,7 +11318,7 @@ class Salaire:
     #        # 1. Récupérer le salaire existant
     #        salaire = self.get_by_id(salaire_id)
     #        if not salaire:
-    #            current_app.logger.warning(f"Salaire ID {salaire_id} introuvable pour recalcul.")
+    #            logger.warning(f"Salaire ID {salaire_id} introuvable pour recalcul.")
     #            return False
 
     #        # 2. Extraire les données nécessaires
@@ -11371,11 +11376,11 @@ class Salaire:
     #        }
 
     #        # 5. Mettre à jour en base
-    #        current_app.logger.info(f'update_data : {update_data}')
+    #        logger.info(f'update_data : {update_data}')
     #        return self.update(salaire_id, update_data)
 
     #    except Exception as e:
-    #        current_app.logger.error(f"Erreur lors du recalcul du salaire ID {salaire_id}: {e}", exc_info=True)
+    #        logger.error(f"Erreur lors du recalcul du salaire ID {salaire_id}: {e}", exc_info=True)
     #        return False
 
     def get_salaire_employe_mois(self, employe_id: int, annee: int, mois: int) -> float:
@@ -11388,7 +11393,7 @@ class Salaire:
                 row = cursor.fetchone()
                 return float(row[0]) if row and row[0] else 0.0
         except Exception as e:
-            current_app.logger.error(f"Erreur get_salaire_employe_mois: {e}")
+            logger.error(f"Erreur get_salaire_employe_mois: {e}")
             return 0.0
 
     def get_by_user_and_month_with_employe(self,user_id: int,annee: int,mois: int,employe_id: Optional[int] = None) -> List[Dict]:
@@ -11451,7 +11456,7 @@ class SyntheseHebdomadaire:
                     })
                 return resultats
         except Exception as e:
-            current_app.logger.error(f"Erreur calcul synthèse hebdo par contrat: {e}")
+            logger.error(f"Erreur calcul synthèse hebdo par contrat: {e}")
             return []
 
     def create_or_update(self, data: dict) -> bool:
@@ -11491,7 +11496,7 @@ class SyntheseHebdomadaire:
                     ))
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur synthèse hebdo: {e}")
+            logger.error(f"Erreur synthèse hebdo: {e}")
             return False
 
     def create_or_update_batch(self, data_list: list[dict]) -> bool:
@@ -11547,7 +11552,7 @@ class SyntheseHebdomadaire:
                         ))
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur batch synthèse hebdo: {e}")
+            logger.error(f"Erreur batch synthèse hebdo: {e}")
             return False
 
     def get_by_user(self, user_id: int, limit: int = 12) -> List[Dict]:
@@ -11563,7 +11568,7 @@ class SyntheseHebdomadaire:
                 syntheses = cursor.fetchall()
                 return syntheses
         except Error as e:
-            current_app.logger.error(f"Erreur récupération synthèses: {e}")
+            logger.error(f"Erreur récupération synthèses: {e}")
             return []
 
     def get_by_user_and_year(self, user_id: int, annee: int) -> List[Dict]:
@@ -11577,7 +11582,7 @@ class SyntheseHebdomadaire:
                 cursor.execute(query, (user_id, annee))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération synthèse hebdo année: {e}")
+            logger.error(f"Erreur récupération synthèse hebdo année: {e}")
             return []
 
     def get_by_user_and_week(self, user_id: int, annee: int = None, semaine: int = None) -> List[Dict]:
@@ -11598,7 +11603,7 @@ class SyntheseHebdomadaire:
                 result = cursor.fetchall()
                 return result
         except Error as e:
-            current_app.logger.error(f"Erreur récupération synthèse par semaine: {e}")
+            logger.error(f"Erreur récupération synthèse par semaine: {e}")
             return []
 
     def get_by_user_and_week_and_contrat(self, user_id: int, id_contrat: int, annee: int = None, semaine: int = None) -> List[Dict]:
@@ -11613,7 +11618,7 @@ class SyntheseHebdomadaire:
                 syntheses = cursor.fetchall()
                 return syntheses
         except Error as e:
-            current_app.logger.error(f'erreur récupération synthpèse: {e}')
+            logger.error(f'erreur récupération synthpèse: {e}')
             return []
 
     def get_by_user_and_filters(self, user_id: int, annee: int = None, semaine: int = None,
@@ -11638,7 +11643,7 @@ class SyntheseHebdomadaire:
                 cursor.execute(query, tuple(params))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur filtre synthèse hebdo: {e}")
+            logger.error(f"Erreur filtre synthèse hebdo: {e}")
             return []
 
     def prepare_svg_data_hebdo(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
@@ -11738,7 +11743,7 @@ class SyntheseHebdomadaire:
                 """, (user_id,))
                 return [row['employeur'] for row in cursor.fetchall()]
         except Exception as e:
-            current_app.logger.error(f"Erreur employeurs: {e}")
+            logger.error(f"Erreur employeurs: {e}")
             return []
 
     def calculate_h2f_stats(self, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
@@ -11824,7 +11829,7 @@ class SyntheseHebdomadaire:
             elif isinstance(date_obj_raw, date):
                 date_obj = date_obj_raw
             else:
-                current_app.logger.error(f'Type inattendu pour la date : {type(date_obj_raw)}, valeur : {date_obj_raw}')
+                logger.error(f'Type inattendu pour la date : {type(date_obj_raw)}, valeur : {date_obj_raw}')
                 continue
 
             jour_semaine_numero = date_obj.isocalendar()[2] # 1=Lundi, 7=Dimanche
@@ -11979,7 +11984,7 @@ class SyntheseMensuelle:
                     })
                 return resultats
         except Exception as e:
-            current_app.logger.error(f"Erreur calcul synthèse mensuelle par contrat: {e}")
+            logger.error(f"Erreur calcul synthèse mensuelle par contrat: {e}")
             return []
 
     def prepare_svg_data_mensuel(self, user_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
@@ -12102,7 +12107,7 @@ class SyntheseMensuelle:
                 cursor.execute(query, (user_id, annee))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération synthèse annuelle: {e}")
+            logger.error(f"Erreur récupération synthèse annuelle: {e}")
             return []
 
     def get_by_user_and_month(self, user_id: int, annee : int, mois: int) -> List[Dict]:
@@ -12116,7 +12121,7 @@ class SyntheseMensuelle:
                 cursor.execute(query, (user_id, annee, mois))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération synthèse annuelle: {e}")
+            logger.error(f"Erreur récupération synthèse annuelle: {e}")
             return []
 
     def get_by_user_and_filters(self, user_id: int, annee: int = None, mois: int = None, employeur: str = None, contrat_id: int = None) -> List[Dict]:
@@ -12140,7 +12145,7 @@ class SyntheseMensuelle:
                 cursor.execute(query, tuple(params))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur filtre synthèse: {e}")
+            logger.error(f"Erreur filtre synthèse: {e}")
             return []
 
     def get_employeurs_distincts(self, user_id: int) -> List[str]:
@@ -12154,7 +12159,7 @@ class SyntheseMensuelle:
                 """, (user_id,))
                 return [row['employeur'] for row in cursor.fetchall()]
         except Exception as e:
-            current_app.logger.error(f"Erreur employeurs: {e}")
+            logger.error(f"Erreur employeurs: {e}")
             return []
 
     def create_or_update(self, data: dict) -> bool:
@@ -12204,7 +12209,7 @@ class SyntheseMensuelle:
                     ))
             return True
         except Exception as e:
-            current_app.logger.error(f"Erreur synthèse mensuelle: {e}")
+            logger.error(f"Erreur synthèse mensuelle: {e}")
             return False
 
     def delete_by_user_and_year(self, user_id: int, annee: int):
@@ -12236,7 +12241,7 @@ class SyntheseMensuelle:
                 syntheses = cursor.fetchall()
                 return syntheses
         except Error as e:
-            current_app.logger.error(f"Erreur récupération synthèses: {e}")
+            logger.error(f"Erreur récupération synthèses: {e}")
             return []
 
     def calculate_h2f_stats_mensuel(self, user_id: int, employeur: str, id_contrat: int,
@@ -12294,7 +12299,7 @@ class SyntheseMensuelle:
             elif isinstance(date_value, date):
                 date_obj = date_value
             else:
-                current_app.logger.warning(f"Type de date inattendu : {type(date_value)}")
+                logger.warning(f"Type de date inattendu : {type(date_value)}")
                 continue
             jour_du_mois = date_obj.day
 
@@ -12512,7 +12517,7 @@ class Equipe:
                 cursor.execute(query, (user_id, nom))
             return cursor.lastrowid
         except Error as e:
-            current_app.logger.error(f'"erreur création équipe : {e}')
+            logger.error(f'"erreur création équipe : {e}')
             return None
 
     def modifier(self, user_id:int, nom: str, id_equipe: int)-> int:
@@ -12526,7 +12531,7 @@ class Equipe:
                 params = (nom, id_equipe, user_id)
                 return cursor.rowcount > 0
         except Error as e:
-            current_app.logger.error(f"Erreur mise à jour équipe {id_equipe} : {e}")
+            logger.error(f"Erreur mise à jour équipe {id_equipe} : {e}")
             return False
     def supprimer(self, user_id: int, id_equipe: int) -> bool:
         try:
@@ -12536,7 +12541,7 @@ class Equipe:
                 cursor.execute("DELETE FROM equipes WHERE id = %s AND user_id = %s", (id_equipe, user_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur suppression equipe {id_equipe}: {e}")
+            logger.error(f"Erreur suppression equipe {id_equipe}: {e}")
             return False
 
     def ajouter_employe_to_equipe(self, id_equipe: int, employe_id: int, user_id: int) -> bool:
@@ -12552,7 +12557,7 @@ class Equipe:
                 )
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur ajout employe {employe_id} à equipe {id_equipe}: {e}")
+            logger.error(f"Erreur ajout employe {employe_id} à equipe {id_equipe}: {e}")
             return False
     def retirer_employe_to_equipe(self, id_equipe: int, employe_id: int) -> bool:
         try:
@@ -12563,7 +12568,7 @@ class Equipe:
                 """, (id_equipe, employe_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur retrait employe {employe_id} de l'equipe {id_equipe} : {e}")
+            logger.error(f"Erreur retrait employe {employe_id} de l'equipe {id_equipe} : {e}")
             return False
 
     def get_employes_from_equipe(self, user_id: int, id_equipe: int)-> List[Dict]:
@@ -12579,7 +12584,7 @@ class Equipe:
                 cursor.execute(query, (id_equipe, user_id))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur Récupération employé equipe {id_equipe}: {e}")
+            logger.error(f"Erreur Récupération employé equipe {id_equipe}: {e}")
             return []
     def get_equipes_from_user(self, user_id:int)->List[Dict]:
         try:
@@ -12587,7 +12592,7 @@ class Equipe:
                 cursor.execute("SELECT * FROM equipes WHERE user_id = %s ORDER BY nom", (user_id))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération équipes user {user_id}: {e}")
+            logger.error(f"Erreur récupération équipes user {user_id}: {e}")
             return []
 
     def get_equipes_avec_employe(self, user_id: int)-> List[Dict]:
@@ -12621,7 +12626,7 @@ class Equipe:
                         })
                 return list(equipes.values())
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération des équipes avec employes de user {user_id}: {e}")
+            logger.error(f"Erreur récupération des équipes avec employes de user {user_id}: {e}")
             return []
 
 class Competence:
@@ -12638,7 +12643,7 @@ class Competence:
                 """, (user_id, nom))
                 return cursor.lastrowid
         except Exception as e:
-            current_app.logger.error(f"Erreur créatio competence : {e}")
+            logger.error(f"Erreur créatio competence : {e}")
             return None
     def modifier(self, user_id:int, nom: str, id_competence: int)-> int:
         try:
@@ -12650,7 +12655,7 @@ class Competence:
                 """, (nom, id_competence, user_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur mise à jour compétence : {e}")
+            logger.error(f"Erreur mise à jour compétence : {e}")
             return False
     def supprimer(self, user_id: int, id_competence: int)-> bool:
         try:
@@ -12660,7 +12665,7 @@ class Competence:
                 cursor.execute("DELETE FROM competences WHERE id = %s AND user_id = %s", (id_competence, user_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur suppression compétence {id_competence} : {e}")
+            logger.error(f"Erreur suppression compétence {id_competence} : {e}")
             return False
     def assigner_employe_competence(self, id_competence: int, employe_id: int, user_id:int) -> bool:
         if not self.employe_model.get_by_id(employe_id, user_id):
@@ -12673,7 +12678,7 @@ class Competence:
                 """, (id_competence, employe_id))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur assignation compétence {id_competence} à employé {employe_id} : {e}")
+            logger.error(f"Erreur assignation compétence {id_competence} à employé {employe_id} : {e}")
             return False
     def retirer_de_employe(self, id_competence: int, employe_id: int) -> bool:
         try:
@@ -12684,7 +12689,7 @@ class Competence:
                 """, (id_competence, employe_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur retrait compétence {id_competence} de employé {employe_id} : {e}")
+            logger.error(f"Erreur retrait compétence {id_competence} de employé {employe_id} : {e}")
             return False
 
     def get_competences_employe(self, employe_id: int) -> List[Dict]:
@@ -12698,7 +12703,7 @@ class Competence:
                 """, (employe_id,))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération compétences employé {employe_id} : {e}")
+            logger.error(f"Erreur récupération compétences employé {employe_id} : {e}")
             return []
     def get_employes_avec_competence(self, user_id: int, id_competence: int) -> List[Dict]:
         try:
@@ -12711,7 +12716,7 @@ class Competence:
                 """, (id_competence, user_id))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération employés compétence {id_competence} : {e}")
+            logger.error(f"Erreur récupération employés compétence {id_competence} : {e}")
             return []
     def definir_competence_requise_equipe(self, user_id: int, equipe_id: int, id_competence: int, quantite_min: int = 1) -> bool:
         # Vérifier que l’équipe appartient à l’utilisateur
@@ -12727,7 +12732,7 @@ class Competence:
                 """, (equipe_id, id_competence, quantite_min))
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erreur définition comp. requise équipe {equipe_id} : {e}")
+            logger.error(f"Erreur définition comp. requise équipe {equipe_id} : {e}")
             return False
     def get_competences_requises_equipe(self, user_id: int, equipe_id: int) -> List[Dict]:
         try:
@@ -12741,7 +12746,7 @@ class Competence:
                 """, (equipe_id, user_id))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération comp. requises équipe {equipe_id} : {e}")
+            logger.error(f"Erreur récupération comp. requises équipe {equipe_id} : {e}")
             return []
 
 class Planning:
@@ -12773,7 +12778,7 @@ class Planning:
                 cursor.execute(query, values)
                 return True
         except Error as e:
-            current_app.logger.error("Erreur création shift {e}")
+            logger.error("Erreur création shift {e}")
             return False
 
     def get_shifts_for_period(self, user_id: int, date_debut: str, date_fin: str)-> Dict:
@@ -12806,7 +12811,7 @@ class Planning:
 
                 return organized
         except Exception as e:
-            current_app.logger.error(f"Erreur récupération shifts: {e}")
+            logger.error(f"Erreur récupération shifts: {e}")
 
 class PlanningRegles:
     def __init__(self, db):
@@ -12828,7 +12833,7 @@ class PlanningRegles:
                 """, (user_id, nom, type_regle, json.dumps(params)))
                 return cursor.lastrowid
         except Exception as e:
-            current_app.logger.error(f"Erreur création règle planning : {e}")
+            logger.error(f"Erreur création règle planning : {e}")
             return None
 
     def get_regles_by_user(self, user_id: int) -> List[Dict]:
@@ -12845,7 +12850,7 @@ class PlanningRegles:
                     for row in cursor.fetchall()
                 ]
         except Exception as e:
-            current_app.logger.error(f"Erreur récup règles user {user_id} : {e}")
+            logger.error(f"Erreur récup règles user {user_id} : {e}")
             return []
 
     def delete_regle(self, user_id: int, regle_id: int) -> bool:
@@ -12854,7 +12859,7 @@ class PlanningRegles:
                 cursor.execute("DELETE FROM planning_regles WHERE id = %s AND user_id = %s", (regle_id, user_id))
                 return cursor.rowcount > 0
         except Exception as e:
-            current_app.logger.error(f"Erreur suppression règle {regle_id} : {e}")
+            logger.error(f"Erreur suppression règle {regle_id} : {e}")
             return False
 
     def valider_periode_simulee(self, user_id: int, date_debut: date, date_fin: date) -> List[Dict]:
@@ -12888,7 +12893,7 @@ class PlanningRegles:
                 """, (user_id, equipe_id, date_jour))
                 return cursor.fetchall()
         except Exception as e:
-            current_app.logger.error(f"Erreur récup simulés {date_jour} équipe {equipe_id} : {e}")
+            logger.error(f"Erreur récup simulés {date_jour} équipe {equipe_id} : {e}")
             return []
 
     def _valider_competence_min_simulee(self, user_id: int, regle: Dict, debut: date, fin: date) -> List[Dict]:
@@ -13010,7 +13015,7 @@ class PlanningRegles:
                     'plage_simulee': f"{plage_h1d} → {plage_h2f}"
                 }
         except Exception as e:
-            current_app.logger.error(f"Erreur contexte réel pour {employe_id} le {date_ref} : {e}")
+            logger.error(f"Erreur contexte réel pour {employe_id} le {date_ref} : {e}")
             return {'erreur': str(e)}
 
     def _time_to_minutes(self, t) -> int:
@@ -13038,7 +13043,7 @@ class ParametreUtilisateur:
                 params = cursor.fetchone()
                 return params or {}
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération des paramètres: {e}")
+            logger.error(f"Erreur lors de la récupération des paramètres: {e}")
             return {}
 
     def update(self, user_id: int, data: Dict) -> bool:
@@ -13085,7 +13090,7 @@ class ParametreUtilisateur:
                 cursor.execute(query, values)
             return True
         except Error as e:
-            current_app.logger.error(f"Erreur lors de la mise à jour des paramètres: {e}")
+            logger.error(f"Erreur lors de la mise à jour des paramètres: {e}")
             return False
 
 class Entreprise:
@@ -13166,7 +13171,7 @@ class ModelManager:
         self.type_cotisations_model = TypeCotisation(self.db)
         self.type_indemnites_model = TypIndemnite(self.db)
         self.cotisations_contrat_model = CotisationContrat(self.db)
-        self.indemnites_contrat_models_contrat_model = CotisationContrat(self.db)
+        self.indemnites_contrat_model = CotisationContrat(self.db)
         self.heure_model = HeureTravail(self.db)
         self.salaire_model = Salaire(self.db)
         self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
@@ -13191,5 +13196,5 @@ class ModelManager:
                 user_data = cursor.fetchone()
                 return user_data
         except Exception as e:
-            current_app.logger.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
+            logger.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
             return None
