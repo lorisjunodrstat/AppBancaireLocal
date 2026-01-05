@@ -184,15 +184,24 @@ def inject_user_comptes():
 def before_request():
     # Initialise g.db_manager pour la requête
     try:
-        from app.models import DatabaseManager
+        from app.models import DatabaseManager, ModelManager
+        if hasattr(g, 'db_manager') and g.db_manager is not None:
+            return
         config_db = current_app.config.get('DB_CONFIG')
         if config_db:
             g.db_manager = DatabaseManager(config_db)
+            try:
+                g.models = ModelManager(g.db_manager)
+            except Exception as e:
+                logging.error(f"Erreur lors de l'initialisation de ModelManager: {e}")
+                g.models = None
         else:
             g.db_manager = None
+            g.models = None
     except Exception as e:
         logging.error(f"Erreur lors de la création de DatabaseManager: {e}")
         g.db_manager = None
+        g.models = None
 
 @app.teardown_request
 def teardown_request(exception=None):

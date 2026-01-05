@@ -97,7 +97,7 @@ def detail_utilisateur(user_id=None):
             
             if not utilisateur:
                 flash('Utilisateur non trouvé', 'error')
-                return redirect(url_for('banking.dashboard'))
+                return redirect(url_for('banking.banking_dashboard'))
             
             # Récupérer ses comptes bancaires
             cursor.execute("""
@@ -114,7 +114,7 @@ def detail_utilisateur(user_id=None):
                                  comptes=comptes)
     except Error as e:
         flash(f'Erreur lors de la récupération des données: {str(e)}', 'error')
-        return redirect(url_for('banking.dashboard'))
+        return redirect(url_for('banking.banking_dashboard'))
 
 @bp.route('/api/utilisateurs')
 def api_utilisateurs():
