@@ -8588,7 +8588,7 @@ def planning_sauvegarder_jour():
     ))
 @bp.route('/synthese/mensuelle')
 @login_required
-def synthese_mensuelle():
+def synthese_mensuelle_employes():
     annee = int(request.args.get('annee', datetime.now().year))
     synthese = g.models.synthese_mensuelle_model.get_by_user_and_year(current_user.id, annee)
     employeurs = g.models.synthese_mensuelle_model.get_employeurs_distincts(current_user.id)
