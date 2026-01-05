@@ -835,38 +835,36 @@ class Utilisateur(UserMixin):
 
     @staticmethod
     def get_by_id(user_id: int, db):
-        """
-        Charge l'utilisateur depuis la base de données en utilisant le gestionnaire de contexte.
-        """
         try:
-            with self.db.get_cursor(dictionary=True) as cursor:
+            # Correction : on utilise 'db' (l'argument), pas 'self.db'
+            with db.get_cursor(dictionary=True) as cursor:
                 query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
                 cursor.execute(query, (user_id,))
                 row = cursor.fetchone()
                 if row:
-                    return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
+                    # Correction : on ajoute 'db' en premier argument pour matcher le __init__
+                    return Utilisateur(db, row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
                 return None
-        except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération de l'utilisateur: {e}")
+        except Exception as e:
+            current_app.logger.error(f"Erreur get_by_id: {e}")
             return None
 
     @staticmethod
     def get_by_email(email: str, db):
-        """
-        Récupère un utilisateur par son adresse email.
-        """
         if db is None:
             current_app.logger.error("La connexion à la base de données est inexistante (None).")
             return None
         try:
-            with self.db.get_cursor(dictionary=True) as cursor:
+            # Correction : on utilise 'db' (l'argument)
+            with db.get_cursor(dictionary=True) as cursor:
                 cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
                 row = cursor.fetchone()
                 if row:
-                    return Utilisateur(row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
+                    # Correction : on ajoute 'db' en premier argument
+                    return Utilisateur(db, row['id'], row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
                 return None
-        except Error as e:
-            current_app.logger.error(f"Erreur lors de la récupération de l'utilisateur par email: {e}")
+        except Exception as e:
+            current_app.logger.error(f"Erreur get_by_email: {e}")
             return None
 
     @staticmethod
@@ -875,7 +873,7 @@ class Utilisateur(UserMixin):
         Crée un nouvel utilisateur dans la base de données.
         """
         try:
-            with self.db.get_cursor() as cursor:
+            with db.get_cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe)
                     VALUES (%s, %s, %s, %s)
