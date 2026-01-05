@@ -230,33 +230,39 @@ def banking_nouveau_sous_compte(compte_id):
 @bp.route('/banking')
 @login_required
 def banking_dashboard():
+    if not hasattr(g, 'models') or g.models is None:
+        flash("Erreur interne : impossible d’accéder aux données bancaires.", "error")
+        return redirect(url_for('auth.login')
     user_id = current_user.id
     logger.debug(f'Accès au dashboard bancaire pour l\'utilisateur {user_id}')
-    stats = g.models.stats_model.get_resume_utilisateur(user_id)
-    logger.debug(f'Stats récupérées: {stats}')
-    repartition = g.models.stats_model.get_repartition_par_banque(user_id)
-    comptes = get_comptes_utilisateur(user_id)
-    logger.debug(f'Dashboard - 247 - Comptes récupérés: {len(comptes)} pour l\'utilisateur {user_id}')
-        
-    # Ajout des stats comptables
-    now = datetime.now()
-    first_day = now.replace(day=1)
-    last_day = (first_day.replace(month=first_day.month % 12 + 1, year=first_day.year + first_day.month // 12) - timedelta(days=1))
-    
+    try:
+        stats = g.models.stats_model.get_resume_utilisateur(user_id)
+        repartition = g.models.stats_model.get_repartition_par_banque(user_id)
+        comptes = get_comptes_utilisateur(user_id)
+        logger.debug(f'Dashboard - Comptes récupérés: {len(comptes)} pour utilisateur {user_id}')
 
-    les_comptes = []
-    for c in comptes:
-        c = les_comptes.append(g.models.compte_model.get_by_id(c['id']))
-    recettes_mois = sum(s['total_recettes'] or 0 for s in stats)
-    depenses_mois = sum(s['total_depenses'] or 0 for s in stats)
-    
-    return render_template('banking/dashboard.html', 
-                        comptes=comptes, 
-                        stats=stats, 
-                        repartition=repartition,
-                        recettes_mois=recettes_mois,
-                        depenses_mois=depenses_mois,
-                        les_comptes=les_comptes)
+        # Correction de la boucle (vous aviez une erreur de logique)
+        les_comptes = []
+        for c in comptes:
+            compte_detail = g.models.compte_model.get_by_id(c['id'])
+            if compte_detail:
+                les_comptes.append(compte_detail)
+
+        recettes_mois = sum(s.get('total_recettes') or 0 for s in stats)
+        depenses_mois = sum(s.get('total_depenses') or 0 for s in stats)
+
+        return render_template('banking/dashboard.html',
+                             comptes=comptes,
+                             stats=stats,
+                             repartition=repartition,
+                             recettes_mois=recettes_mois,
+                             depenses_mois=depenses_mois,
+                             les_comptes=les_comptes)
+                             
+    except Exception as e:
+        logger.error(f"Erreur dans banking_dashboard: {e}", exc_info=True)
+        flash("Une erreur est survenue lors du chargement du tableau de bord.", "error")
+        return redirect(url_for('auth.login'))
 
 @bp.route('/banking/compte/<int:compte_id>')
 @login_required
