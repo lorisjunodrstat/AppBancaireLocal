@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+import pymysql
+from pymysql import Error, MySQLError
 from ..models import Utilisateur
 import logging
 
@@ -20,33 +22,56 @@ def login():
         if not email or not password:
             flash("Veuillez remplir tous les champs", "error")
             return render_template('auth/login.html', active_tab='login')
-        from app.models import DatabaseManager, Utilisateur
+
         config_db = current_app.config.get('DB_CONFIG')
         
         if not config_db:
             flash("Erreur de configuration de la base de données", "error")
             return render_template('auth/login.html', active_tab='login')
 
-        db_manager = DatabaseManager(config_db)
         try:
-            user = Utilisateur.get_by_email(email, db_manager)
-            logging.warning(f"Tentative de connexion pour {email} {user} - {db_manager}")
-            if user and check_password_hash(user.mot_de_passe, password):
-                login_user(user)
-                logging.info(f"Utilisateur {user.email} connecté")
-                flash("Connexion réussie !", "success")
-                next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('banking.banking_dashboard'))
-            else:
-                logging.warning(f"Échec de connexion pour {email} {user}")
-                flash("Email ou mot de passe incorrect", "error")
+            connection = pymysql.connect(
+                host=config_db['host'],
+                port=config_db['port'],
+                user=config_db['user'],
+                password=config_db['password'],
+                database=config_db['database'],
+                charset=config_db['charset'],
+                cursorclass=pymysql.cursors.DictCursor
+            )
+            
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s",
+                        (email,)
+                    )
+                    row = cursor.fetchone()
+                    
+                    if row and check_password_hash(row['mot_de_passe'], password):
+                        from app.models import Utilisateur
+                        user = Utilisateur(
+                            id=row['id'],
+                            nom=row['nom'],
+                            prenom=row['prenom'],
+                            email=row['email'],
+                            mot_de_passe=row['mot_de_passe']
+                        )
+                        login_user(user, remember=True)  # Ajoutez remember=True pour maintenir la session
+                        logging.info(f"Utilisateur {user.email} connecté")
+                        flash("Connexion réussie !", "success")
+                        
+                        # REDIRECTION IMMÉDIATE ET FORCÉE
+                        return redirect(url_for('banking.dashboard'))
+                    else:
+                        logging.warning(f"Échec de connexion pour {email}")
+                        flash("Email ou mot de passe incorrect", "error")
+            finally:
+                connection.close()
+                
         except Exception as e:
-            logging.error(f"Erreur lors de la récupération de l'utilisateur : {e}")
+            logging.error(f"Erreur lors de la connexion: {e}")
             flash("Erreur lors de la connexion", "error")
-        finally:
-            if hasattr(db_manager, 'close'):
-                db_manager.close()
-            return render_template('auth/login.html', active_tab='login')
 
     return render_template('auth/login.html', active_tab='login')
 

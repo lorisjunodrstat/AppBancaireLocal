@@ -171,29 +171,13 @@ def inject_user_comptes():
     from flask_login import current_user
     try:
         if current_user.is_authenticated:
-            user_id = current_user.id
-            user_comptes = []
-            
-            # Utilise g.db_manager s'il existe et est initialisé
-            if hasattr(g, 'db_manager') and g.db_manager is not None:
-                try:
-                    with g.db_manager.get_cursor(dictionary=True) as cursor:
-                        cursor.execute("""
-                            SELECT c.id, c.nom, c.solde, b.nom as banque_nom
-                            FROM comptes c
-                            LEFT JOIN banques b ON c.banque_id = b.id
-                            WHERE c.utilisateur_id = %s
-                            ORDER BY c.id
-                        """, (user_id,))
-                        user_comptes = cursor.fetchall()
-                except Exception as e:
-                    logging.error(f"Erreur lors de la récupération des comptes: {e}")
-            
-            return dict(user_comptes=user_comptes, user_id=user_id)
+            # Retourne simplement un dict vide sans essayer de récupérer des comptes
+            # Évite l'erreur de table 'comptes' qui n'existe pas
+            return dict(user_comptes=[], user_id=current_user.id)
         else:
             return dict(user_comptes=[], user_id=None)
     except Exception as e:
-        logging.error(f"Erreur globale lors de l'injection des comptes utilisateur: {e}")
+        logging.error(f"Erreur dans inject_user_comptes: {e}")
         return dict(user_comptes=[], user_id=None)
 # Remplacer la fonction before_request par un signal
 @app.before_request
@@ -215,7 +199,10 @@ def teardown_request(exception=None):
     # Ferme la connexion à la base de données
     if hasattr(g, 'db_manager') and g.db_manager is not None:
         try:
-            g.db_manager.close()
+            if hasattr(g.db_manager, 'close_connection'):
+                g.db_manager.close_connection()
+            elif hasattr(g.db_manager, 'close'):
+                g.db_manager.close()
         except Exception as e:
             logging.error(f"Erreur lors de la fermeture de la connexion: {e}")
 # Point d'entrée pour l'exécution directe (UNIQUEMENT pour le développement)
