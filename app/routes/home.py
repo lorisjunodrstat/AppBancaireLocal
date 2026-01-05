@@ -27,31 +27,10 @@ from ..utils.pdf_salaire import generer_pdf_salaire
 # --- DÉBUT DES AJOUTS (8 lignes) ---
 from flask import _app_ctx_stack
 
-#class ModelManager:
-#    def __getattr__(self, name):
-#        ctx = _app_ctx_stack.top
-#        if not hasattr(ctx, 'banking_models'):
-#            db_config = current_app.config.get('DB_CONFIG')
-#            g.db_manager = DatabaseManager(db_config)
-#            ctx.banking_models = {
-#                'banque_model': Banque(g.db_manager),
-#                'compte_model': ComptePrincipal(g.db_manager),
-#                'sous_compte_model': SousCompte(g.db_manager),
-#                'transaction_financiere_model': TransactionFinanciere(g.db_manager),
-#                'stats_model': StatistiquesBancaires(g.db_manager),
-#                'plan_comptable_model': PlanComptable(g.db_manager),
-#                'ecriture_comptable_model': EcritureComptable(g.db_manager),
-#                'contact_model': Contacts(g.db_manager),
-#                'heure_model': HeureTravail(g.db_manager),
-#                'contrat_model': Contrat(g.db_manager)
-#            }
-#        return ctx.banking_g.models.get(name)
 
-#models = ModelManager()
-# --- FIN DES AJOUTS ---
 
 # Création du blueprint
-bp = Blueprint('banking', __name__)
+bp = Blueprint('home', __name__)
 
 # Configuration du logger
 logger = logging.getLogger(__name__)

@@ -834,42 +834,35 @@ class Utilisateur(UserMixin):
 
     @staticmethod
     def get_by_id(user_id: int, db):
-        """
-        Charge l'utilisateur depuis la base de données.
-        """
-        def get_by_id(user_id, db):
-            try:
-                with db.get_cursor(dictionary=True) as cursor:
-                    query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
-                    cursor.execute(query, (user_id,))
-                    row = cursor.fetchone()
-                    if row:
-                        # Ici, on respecte le nouvel ordre : ID en premier, DB en deuxième
-                        return Utilisateur(row['id'], db, row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
-                    return None
-            except Exception as e:
-                current_app.logger.error(f"Erreur get_by_id: {e}")
+        try:
+            with db.get_cursor(dictionary=True) as cursor:
+                query = "SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE id = %s"
+                cursor.execute(query, (user_id,))
+                row = cursor.fetchone()
+                if row:
+                    # On envoie l'ID en premier pour correspondre au nouveau __init__
+                    return Utilisateur(row['id'], db, row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
                 return None
+        except Exception as e:
+            # Note: évite current_app.logger ici pour ne pas relancer la récursion
+            print(f"Erreur lors de la récupération de l'utilisateur: {e}")
+            return None
 
     @staticmethod
     def get_by_email(email: str, db):
-        """
-        Récupère un utilisateur par son adresse email.
-        """
-        def get_by_email(email, db):
-            if db is None:
+        if db is None:
+            return None
+        try:
+            with db.get_cursor(dictionary=True) as cursor:
+                cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
+                row = cursor.fetchone()
+                if row:
+                    # On envoie l'ID en premier ici aussi
+                    return Utilisateur(row['id'], db, row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
                 return None
-            try:
-                with db.get_cursor(dictionary=True) as cursor:
-                    cursor.execute("SELECT id, nom, prenom, email, mot_de_passe FROM utilisateurs WHERE email = %s", (email,))
-                    row = cursor.fetchone()
-                    if row:
-                        # Même chose ici : ID d'abord, DB ensuite
-                        return Utilisateur(row['id'], db, row['nom'], row['prenom'], row['email'], row['mot_de_passe'])
-                    return None
-            except Exception as e:
-                current_app.logger.error(f"Erreur get_by_email: {e}")
-                return None
+        except Exception as e:
+            print(f"Erreur lors de la récupération de l'utilisateur par email: {e}")
+            return None
 
     @staticmethod
     def create(nom: str, prenom: str, email: str, mot_de_passe: str, db):
