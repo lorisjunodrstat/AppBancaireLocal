@@ -11,6 +11,7 @@ from flask import Flask, g, redirect, url_for, request_started, request_finished
 from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
 from pathlib import Path
+from config import DB_CONFIG
 import pymysql
 import pymysql.cursors
 import logging
@@ -46,16 +47,7 @@ os.makedirs(UPLOAD_FOLDER_LOGOS, exist_ok=True)
 app.secret_key = os.environ.get('SECRET_KEY', 'votre-cle-secrete-tres-longue-et-complexe')
 
 # Configuration de la base de données avec PyMySQL
-app.config['DB_CONFIG'] = {
-    'host': os.environ.get('DB_HOST'),
-    'port': int(os.environ.get('DB_PORT', 3306)),
-    'database': os.environ.get('DB_NAME'),
-    'user': os.environ.get('DB_USER'),
-    'password': os.environ.get('DB_PASSWORD'),
-    'charset': 'utf8mb4',
-    'autocommit': True,
-    'cursorclass': pymysql.cursors.DictCursor
-}
+app.config['DB_CONFIG'] = DB_CONFIG
 
 # Configuration Flask-Login
 login_manager = LoginManager()
@@ -71,20 +63,16 @@ def load_user(user_id):
         return None
 
     try:
-        config_db = app.config.get('DB_CONFIG')
-        if not config_db:
-            return None
+        # Import local pour éviter circular import
+        from config import DB_CONFIG
+        import pymysql
+        from pymysql.cursors import DictCursor
 
-        connection = pymysql.connect(
-            host=config_db['host'],
-            port=config_db['port'],
-            user=config_db['user'],
-            password=config_db['password'],
-            database=config_db['database'],
-            charset=config_db['charset'],
-            cursorclass=pymysql.cursors.DictCursor
-        )
+        config = DB_CONFIG.copy()
+        # Convertir le cursorclass de chaîne en classe réelle
+        config['cursorclass'] = DictCursor
 
+        connection = pymysql.connect(**config)
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
