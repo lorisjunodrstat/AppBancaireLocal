@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+
+{% block title %}Créer un Contrat - {{ employe.nom }} {{ employe.prenom }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1>Créer un Contrat</h1>
+            <p class="text-muted">Employé: <strong>{{ employe.nom }} {{ employe.prenom }}</strong></p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="needs-validation" novalidate>
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Informations du Contrat</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Type de contrat -->
+                        <div class="mb-3">
+                            <label for="type_contrat" class="form-label">Type de Contrat *</label>
+                            <select class="form-select" id="type_contrat" name="type_contrat" required>
+                                <option value="">-- Sélectionner --</option>
+                                <option value="CDI">CDI (Contrat à Durée Indéterminée)</option>
+                                <option value="CDD">CDD (Contrat à Durée Déterminée)</option>
+                                <option value="Stage">Stage</option>
+                                <option value="Apprentissage">Apprentissage</option>
+                                <option value="Freelance">Freelance</option>
+                            </select>
+                            <div class="invalid-feedback">Veuillez sélectionner un type de contrat.</div>
+                        </div>
+
+                        <!-- Date de début -->
+                        <div class="mb-3">
+                            <label for="date_debut" class="form-label">Date de Début *</label>
+                            <input type="date" class="form-control" id="date_debut" name="date_debut" required>
+                            <div class="invalid-feedback">La date de début est requise.</div>
+                        </div>
+
+                        <!-- Date de fin (optionnelle pour CDD) -->
+                        <div class="mb-3">
+                            <label for="date_fin" class="form-label">Date de Fin</label>
+                            <input type="date" class="form-control" id="date_fin" name="date_fin">
+                            <small class="form-text text-muted">Requise pour les CDD</small>
+                            <div class="invalid-feedback">La date de fin est requise pour les CDD.</div>
+                        </div>
+
+                        <!-- Poste -->
+                        <div class="mb-3">
+                            <label for="poste" class="form-label">Poste *</label>
+                            <input type="text" class="form-control" id="poste" name="poste" placeholder="Ex: Développeur, Secrétaire..." required>
+                            <div class="invalid-feedback">Le poste est requis.</div>
+                        </div>
+
+                        <!-- Salaire brut mensuel -->
+                        <div class="mb-3">
+                            <label for="salaire_brut" class="form-label">Salaire Brut Mensuel *</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="salaire_brut" name="salaire_brut" 
+                                       step="0.01" placeholder="0.00" required>
+                                <span class="input-group-text">€</span>
+                            </div>
+                            <div class="invalid-feedback">Le salaire brut est requis.</div>
+                        </div>
+
+                        <!-- Horaires de travail -->
+                        <div class="mb-3">
+                            <label for="heures_par_semaine" class="form-label">Heures par Semaine *</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="heures_par_semaine" name="heures_par_semaine" 
+                                       step="0.5" placeholder="35" required>
+                                <span class="input-group-text">h</span>
+                            </div>
+                            <div class="invalid-feedback">Le nombre d'heures est requis.</div>
+                        </div>
+
+                        <!-- Secteur d'activité -->
+                        <div class="mb-3">
+                            <label for="secteur" class="form-label">Secteur d'Activité</label>
+                            <input type="text" class="form-control" id="secteur" name="secteur" 
+                                   placeholder="Ex: Informatique, Commerce...">
+                        </div>
+
+                        <!-- Convention collective -->
+                        <div class="mb-3">
+                            <label for="convention_collective" class="form-label">Convention Collective</label>
+                            <input type="text" class="form-control" id="convention_collective" name="convention_collective" 
+                                   placeholder="Ex: IDCC 1234">
+                        </div>
+
+                        <!-- Lieu de travail -->
+                        <div class="mb-3">
+                            <label for="lieu_travail" class="form-label">Lieu de Travail</label>
+                            <input type="text" class="form-control" id="lieu_travail" name="lieu_travail" 
+                                   placeholder="Ex: Siège social, Agence...">
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes Supplémentaires</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                      placeholder="Informations complémentaires..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cotisations -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5>Cotisations et Retenues</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="cotisations-container">
+                            <div class="cotisation-item mb-4 p-3 border rounded" data-index="0">
+                                <button type="button" class="btn btn-sm btn-danger float-end remove-cotisation" style="display:none;">Supprimer</button>
+                                <div class="mb-3">
+                                    <label class="form-label">Type de Cotisation *</label>
+                                    <select class="form-select cotisation-type" name="cotisations[0][type_id]" required>
+                                        <option value="">-- Sélectionner --</option>
+                                        {% for type_cot in types_cotisations %}
+                                            <option value="{{ type_cot.id }}">{{ type_cot.nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Taux/Montant (%)</label>
+                                    <input type="number" class="form-control cotisation-taux" name="cotisations[0][taux]" 
+                                           step="0.01" placeholder="0.00" value="0.00">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Notes</label>
+                                    <input type="text" class="form-control" name="cotisations[0][notes]" 
+                                           placeholder="Notes supplémentaires">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-success" id="add-cotisation">
+                            <i class="bi bi-plus-circle"></i> Ajouter une Cotisation
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Indemnités -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5>Indemnités et Avantages</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="indemnites-container">
+                            <div class="indemnite-item mb-4 p-3 border rounded" data-index="0">
+                                <button type="button" class="btn btn-sm btn-danger float-end remove-indemnite" style="display:none;">Supprimer</button>
+                                <div class="mb-3">
+                                    <label class="form-label">Type d'Indemnité *</label>
+                                    <select class="form-select indemnite-type" name="indemnites[0][type_id]" required>
+                                        <option value="">-- Sélectionner --</option>
+                                        {% for type_ind in types_indemnites %}
+                                            <option value="{{ type_ind.id }}">{{ type_ind.nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Montant (€)</label>
+                                    <input type="number" class="form-control indemnite-montant" name="indemnites[0][montant]" 
+                                           step="0.01" placeholder="0.00" value="0.00" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Fréquence</label>
+                                    <select class="form-select" name="indemnites[0][frequence]">
+                                        <option value="mensuel">Mensuel</option>
+                                        <option value="annuel">Annuel</option>
+                                        <option value="ponctuel">Ponctuel</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Notes</label>
+                                    <input type="text" class="form-control" name="indemnites[0][notes]" 
+                                           placeholder="Notes supplémentaires">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-success" id="add-indemnite">
+                            <i class="bi bi-plus-circle"></i> Ajouter une Indemnité
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Boutons -->
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Créer le Contrat
+                    </button>
+                    <a href="{{ url_for('banking.gestion_contrats_employe', employe_id=employe.id) }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Retour
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Validation du formulaire et gestion des cotisations/indemnités
+    (function() {
+        const forms = document.querySelectorAll('.needs-validation');
+        Array.prototype.slice.call(forms).forEach(function(form) {
+            form.addEventListener('submit', function(event) {
+                // Validation CDD : date_fin requise
+                const typeContrat = document.getElementById('type_contrat').value;
+                const dateFin = document.getElementById('date_fin');
+                if (typeContrat === 'CDD' && !dateFin.value) {
+                    dateFin.classList.add('is-invalid');
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+
+    // Gestion dynamique des cotisations
+    document.getElementById('add-cotisation')?.addEventListener('click', function() {
+        const container = document.getElementById('cotisations-container');
+        const index = container.children.length;
+        const newItem = container.querySelector('.cotisation-item').cloneNode(true);
+        newItem.setAttribute('data-index', index);
+        newItem.querySelector('.remove-cotisation').style.display = 'block';
+        newItem.querySelectorAll('input, select').forEach(el => {
+            el.name = el.name.replace(/\[\d+\]/, '[' + index + ']');
+            el.value = '';
+        });
+        container.appendChild(newItem);
+        attachRemoveCotisationListener(newItem.querySelector('.remove-cotisation'));
+    });
+
+    document.querySelectorAll('.remove-cotisation').forEach(btn => {
+        attachRemoveCotisationListener(btn);
+    });
+
+    function attachRemoveCotisationListener(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            this.closest('.cotisation-item').remove();
+        });
+    }
+
+    // Gestion dynamique des indemnités
+    document.getElementById('add-indemnite')?.addEventListener('click', function() {
+        const container = document.getElementById('indemnites-container');
+        const index = container.children.length;
+        const newItem = container.querySelector('.indemnite-item').cloneNode(true);
+        newItem.setAttribute('data-index', index);
+        newItem.querySelector('.remove-indemnite').style.display = 'block';
+        newItem.querySelectorAll('input, select').forEach(el => {
+            el.name = el.name.replace(/\[\d+\]/, '[' + index + ']');
+            el.value = '';
+        });
+        container.appendChild(newItem);
+        attachRemoveIndemniteListener(newItem.querySelector('.remove-indemnite'));
+    });
+
+    document.querySelectorAll('.remove-indemnite').forEach(btn => {
+        attachRemoveIndemniteListener(btn);
+    });
+
+    function attachRemoveIndemniteListener(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            this.closest('.indemnite-item').remove();
+        });
+    }
+</script>
+{% endblock %}

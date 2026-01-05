@@ -8,6 +8,7 @@ from calendar import monthrange
 from app.models import DatabaseManager, Banque, ComptePrincipal, SousCompte, TransactionFinanciere, StatistiquesBancaires, PlanComptable, EcritureComptable, HeureTravail, Salaire, SyntheseHebdomadaire, SyntheseMensuelle, Contrat, Contacts, ContactCompte, ComptePrincipalRapport, CategorieComptable, Employe, Equipe, Planning, Competence, PlanningRegles
 from io import StringIO
 import os
+from werkzeug.utils import secure_filename
 import csv as csv_mod
 import secrets
 from io import BytesIO
@@ -22,7 +23,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-
+from ..utils.pdf_salaire import generer_pdf_salaire
 # --- DÉBUT DES AJOUTS (8 lignes) ---
 from flask import _app_ctx_stack
 
@@ -6482,10 +6483,22 @@ def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
 
     ### Détail entreprise
 
+# Constantes
+UPLOAD_FOLDER_LOGOS = 'static/uploads/logos'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 Mo
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def ensure_upload_dir():
+    os.makedirs(UPLOAD_FOLDER_LOGOS, exist_ok=True)
+
 @bp.route('/entreprise', methods=['GET', 'POST'])
 @login_required
 def gestion_entreprise():
     current_user_id = current_user.id
+    ensure_upload_dir()
 
     if request.method == 'POST':
         data = {
@@ -6495,8 +6508,42 @@ def gestion_entreprise():
             'commune': request.form.get('commune', '').strip(),
             'email': request.form.get('email', '').strip(),
             'telephone': request.form.get('telephone', '').strip(),
-            'logo_path': None  # géré séparément si upload
+            'logo_path': None
         }
+
+        # Gestion du logo
+        logo_path = None
+        if 'logo' in request.files:
+            file = request.files['logo']
+            if file and file.filename != '' and allowed_file(file.filename):
+                # Vérifier taille
+                file.seek(0, os.SEEK_END)
+                size = file.tell()
+                file.seek(0)
+                if size > MAX_FILE_SIZE:
+                    flash("Le fichier est trop volumineux (max. 2 Mo).", "error")
+                    return redirect(request.url)
+
+                # Générer un nom unique
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"user_{current_user_id}_logo_{secrets.token_urlsafe(8)}.{ext}"
+                filepath = os.path.join(UPLOAD_FOLDER_LOGOS, filename)
+
+                # Supprimer l’ancien logo
+                ancien_logo = g.models.entreprise_model.get_logo_path(current_user_id)
+                if ancien_logo:
+                    ancien_path = os.path.join(current_app.static_folder, ancien_logo)
+                    if os.path.exists(ancien_path):
+                        os.remove(ancien_path)
+
+                # Sauvegarder nouveau
+                file.save(filepath)
+                logo_path = os.path.join('uploads', 'logos', filename).replace('\\', '/')
+
+        if logo_path:
+            data['logo_path'] = logo_path
+
+        # Mise à jour base
         if g.models.entreprise_model.update(current_user_id, data):
             flash("Informations de l'entreprise mises à jour.", "success")
         else:
@@ -6505,6 +6552,8 @@ def gestion_entreprise():
 
     entreprise = g.models.entreprise_model.get_or_create_for_user(current_user_id)
     return render_template('entreprise/gestion.html', entreprise=entreprise)
+
+
 ### ---- Routes heures travail pour employées
 def prepare_svg_heures_employes(data_employes, jours_semaine, seuil_heure):
     largeur_svg = 900
@@ -6768,25 +6817,24 @@ def salaire_pdf(mois: int, annee: int):
         mimetype='application/pdf'
     )
 
+
 @bp.route('/salaires/employe/<int:employe_id>/pdf/<int:annee>/<int:mois>')
 def salaire_employe_pdf(employe_id: int, annee: int, mois: int):
     code = request.args.get('code')
     if not code:
         abort(403)
 
-    # Vérif code
     employe = g.models.employe_model.get_employe_by_code(employe_id, code)
     if not employe:
         abort(403)
-    # Récupérer les données comme dans /salaires
-    contrat = g.models.contrat_model.get_contrat_for_date(user_id, selected_employeur, f"{annee}-{mois:02d}-01")
+
+    user_id = employe['user_id']
+    contrat = g.models.contrat_model.get_contrat_for_employe(user_id, employe_id)
     if not contrat:
         abort(404)
-    user_id = employe['user_id']
-    heures_reelles = g.models.heure_model.get_total_heures_mois(user_id, selected_employeur, contrat['id'], annee, mois) or 0.0
-    salaires_db = g.models.salaire_model.get_by_mois_annee(user_id, annee, mois, selected_employeur, contrat['id'])
-    salaire_data = salaires_db[0] if salaires_db else None
 
+    employeur = contrat['employeur']
+    heures_reelles = g.models.heure_model.get_total_heures_mois(user_id, employeur, contrat['id'], annee, mois) or 0.0
     result = g.models.salaire_model.calculer_salaire_net_avec_details(
         heures_reelles=heures_reelles,
         contrat=contrat,
@@ -6797,79 +6845,24 @@ def salaire_employe_pdf(employe_id: int, annee: int, mois: int):
         jour_estimation=contrat.get('jour_estimation_salaire', 15)
     )
     details = result.get('details', {})
-
-    # Récupérer infos entreprise
     entreprise = g.models.entreprise_model.get_or_create_for_user(user_id)
 
-    # === GÉNÉRATION PDF ===
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
-    elements = []
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=14,
-        alignment=1  # center
+    buffer = generer_pdf_salaire(
+        entreprise=entreprise,
+        employe_info={
+            'prenom': employe['prenom'],
+            'nom': employe['nom'],
+            'employeur': employeur
+        },
+        mois=mois,
+        annee=annee,
+        heures_reelles=heures_reelles,
+        result=result,
+        details=details
     )
 
-    # En-tête entreprise
-    if entreprise.get('logo_path') and os.path.exists(os.path.join(current_app.static_folder, entreprise['logo_path'])):
-        logo_path = os.path.join(current_app.static_folder, entreprise['logo_path'])
-        img = Image(logo_path, width=1.5*inch, height=1.5*inch)
-        elements.append(img)
-        elements.append(Spacer(1, 12))
-
-    elements.append(Paragraph(entreprise.get('nom', 'Votre entreprise'), title_style))
-    elements.append(Paragraph(f"{entreprise.get('rue', '')}", styles['Normal']))
-    elements.append(Paragraph(f"{entreprise.get('code_postal', '')} {entreprise.get('commune', '')}", styles['Normal']))
-    elements.append(Spacer(1, 24))
-
-    # Titre du document
-    mois_noms = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                 "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
-    elements.append(Paragraph(f"Fiche de salaire – {mois_noms[mois]} {annee}", styles['Heading1']))
-    if selected_employeur:
-        elements.append(Paragraph(f"Employeur : {selected_employeur}", styles['Normal']))
-    elements.append(Spacer(1, 18))
-
-    # Tableau de synthèse
-    data = [
-        ["Élément", "Montant (CHF)"],
-        ["Heures réelles", f"{heures_reelles:.2f} h"],
-        ["Salaire brut", f"{details.get('salaire_brut', 0):.2f}"],
-        ["+ Indemnités", f"+{details.get('total_indemnites', 0):.2f}"],
-        ["- Cotisations", f"-{details.get('total_cotisations', 0):.2f}"],
-        ["= Salaire net", f"{result.get('salaire_net', 0):.2f}"],
-    ]
-    table = Table(data, colWidths=[3*inch, 1.5*inch])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ]))
-    elements.append(table)
-    elements.append(Spacer(1, 24))
-
-    # Signature
-    elements.append(Paragraph("_________________________", styles['Normal']))
-    elements.append(Paragraph("Signature employeur", styles['Normal']))
-
-    doc.build(elements)
-    buffer.seek(0)
-
-    filename = f"salaire_{selected_employeur or 'perso'}_{annee}_{mois:02d}.pdf"
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name=filename,
-        mimetype='application/pdf'
-    )
+    filename = f"salaire_{employe['prenom']}_{employe['nom']}_{annee}_{mois:02d}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 @bp.route('/employe/mon-salaire')
 def employe_salaire_view():
@@ -8329,7 +8322,7 @@ def planning_employe(employe_id):
 @bp.route('employes/planning-employes')
 @login_required
 def planning_employes():
-
+    pass
 @bp.route('/synthese/mensuelle')
 @login_required
 def synthese_mensuelle():

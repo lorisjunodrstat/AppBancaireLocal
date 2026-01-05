@@ -7,7 +7,7 @@ Classes pour manipuler les banques, comptes et sous-comptes
 import statistics
 from dbutils.pooled_db import PooledDB
 import pymysql
-from pymysql import Error
+from pymysql import Error, MySQLError
 from decimal import Decimal
 from datetime import datetime, date, timedelta
 import calendar
@@ -473,6 +473,24 @@ class DatabaseManager:
                 """
                 cursor.execute(create_heures_travail_table_query)
 
+                # Table heures_simules
+                create_heures_simules_table_query = """
+                CREATE TABLE heures_simulees (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                employe_id INT NOT NULL,
+                equipe_id INT NULL,
+                date DATE NOT NULL,
+                h1d TIME,            -- heure début
+                h2f TIME,            -- heure fin
+                total_h FLOAT,       -- heures totales
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (employe_id) REFERENCES employes(id),
+                FOREIGN KEY (equipe_id) REFERENCES equipes(id)
+                );"""
+                cursor.execute(create_heures_simules_table_query)
+
                 # Table salaires
                 create_salaires_table_query = """
                 CREATE TABLE IF NOT EXISTS salaires (
@@ -559,6 +577,114 @@ class DatabaseManager:
                 """
                 cursor.execute(create_contrats_table_query)
 
+                # Tables types_cotisation 
+                create_types_cotisation_table_query = """
+                CREATE TABLE IF NOT EXISTS types_cotisation (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                nom VARCHAR(100) NOT NULL,
+                description TEXT,
+                est_obligatoire BOOLEAN DEFAULT FALSE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES utilisateurs(id) ON DELETE CASCADE
+                );"""
+                cursor.execute(create_types_cotisation_table_query)
+
+                # Tables types_indemnite 
+                create_types_indemnite_table_query = """
+                CREATE TABLE IF NOT EXISTS types_indemnite (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                nom VARCHAR(100) NOT NULL,
+                description TEXT,
+                est_obligatoire BOOLEAN DEFAULT FALSE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES utilisateurs(id) ON DELETE CASCADE
+              );"""
+                cursor.execute(create_types_indemnite_table_query)
+
+                # cotisations_contrat
+                create_cotisations_contrat_table_query = """
+                CREATE TABLE IF NOT EXISTS cotisations_contrat (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                contrat_id INT NOT NULL,
+                type_cotisation_id INT NOT NULL,
+                taux DECIMAL(10,4) NOT NULL, -- peut être % ou montant fixe
+                base_calcul ENUM('brut', 'brut_tot') DEFAULT 'brut',
+                annee YEAR NOT NULL,
+                actif BOOLEAN DEFAULT TRUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_contrat_type_annee (contrat_id, type_cotisation_id, annee),
+                FOREIGN KEY (contrat_id) REFERENCES contrats(id) ON DELETE CASCADE,
+                FOREIGN KEY (type_cotisation_id) REFERENCES types_cotisation(id) ON DELETE CASCADE
+               );
+                """
+                cursor.execute(create_cotisations_contrat_table_query)
+
+                 # indemnites_contrat
+                create_indemnites_contrat_table_query = """
+                CREATE TABLE IF NOT EXISTS indemnites_contrat (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                contrat_id INT NOT NULL,
+                type_indemnite_id INT NOT NULL,
+                taux DECIMAL(10,4) NOT NULL, -- interprété comme % du brut
+                base_calcul ENUM('brut', 'brut_tot') DEFAULT 'brut',
+                annee YEAR NOT NULL,
+                actif BOOLEAN DEFAULT TRUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_contrat_type_annee (contrat_id, type_indemnite_id, annee),
+                FOREIGN KEY (contrat_id) REFERENCES contrats(id) ON DELETE CASCADE,
+                FOREIGN KEY (type_indemnite_id) REFERENCES types_indemnite(id) ON DELETE CASCADE
+                );
+                """
+                cursor.execute(create_indemnites_contrat_table_query)
+                # regles_cotisation
+
+                create_regles_cotisations_table_query = """
+                CREATE TABLE IF NOT EXISTS regles_cotisation (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                type_cotisation_id INT NOT NULL,
+                seuil_min DECIMAL(10,2) DEFAULT 0.00,   -- salaire mensuel brut minimum inclus
+                seuil_max DECIMAL(10,2) DEFAULT NULL,   -- NULL = sans limite
+                montant_fixe DECIMAL(10,2) DEFAULT 0.00,
+                taux DECIMAL(5,2) DEFAULT 0.00,         -- à utiliser si montant non fixe
+                type_valeur ENUM('taux','fixe') NOT NULL DEFAULT 'fixe',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (type_cotisation_id) REFERENCES types_cotisation(id) ON DELETE CASCADE
+                );"""
+                cursor.execute(create_regles_cotisations_table_query)
+                 # baremes_indemnite
+
+                create_baremes_indemnite_table_query = """
+                CREATE TABLE IF NOT EXISTS baremes_indemnite (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                type_indemnite_id INT NOT NULL,
+                seuil_min DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                seuil_max DECIMAL(10,2) DEFAULT NULL,
+                montant_fixe DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                taux DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+                type_valeur ENUM('taux','fixe') NOT NULL DEFAULT 'fixe',
+                ordre INT NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (type_indemnite_id) REFERENCES types_indemnite(id) ON DELETE CASCADE
+                 );"""
+                cursor.execute(create_baremes_indemnite_table_query)
+
+                #plages_horaires
+                create_plages_horaires_table_query = """
+                CREATE TABLE IF NOT EXISTS plages_horaires (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                heure_travail_id INT NOT NULL,
+                ordre TINYINT NOT NULL,
+                debut TIME,
+                fin TIME,
+                FOREIGN KEY (heure_travail_id) REFERENCES heures_travail(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_heure_travail_ordre (heure_travail_id, ordre)
+                );
+                """
+                cursor.execute(create_plages_horaires_table_query)
+
+
                 # Table employe
                 create_employes_table_query = """
                 CREATE TABLE IF NOT EXISTS employes (
@@ -571,8 +697,9 @@ class DatabaseManager:
                     rue VARCHAR(255),
                     code_postal VARCHAR(10),
                     commune VARCHAR(100),
-                    genre ENUM('M', 'F', 'Autre') NOT NULL,
+                    genre ENUM('M', 'F') NOT NULL,
                     date_de_naissance DATE NOT NULL,
+                    code_acces_salaire VARCHAR(50),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES utilisateurs(id) ON DELETE CASCADE
                 );"""
@@ -641,6 +768,20 @@ class DatabaseManager:
                 );
                 """
                 cursor.execute(create_equipes_competences_requises_table_query)
+
+                #Table palnning regles
+                create_planning_regles_table_query = """
+                CREATE TABLE IF NOT EXISTS planning_regles (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                nom VARCHAR(150) NOT NULL,
+                type_regle VARCHAR(50) NOT NULL,
+                params_json JSON NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+                );"""
+                cursor.execute(create_planning_regles_table_query)
+
                 # Table entreprise
                 create_entreprise_table_query = """
                 CREATE TABLE IF NOT EXISTS entreprise (
@@ -656,7 +797,7 @@ class DatabaseManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                );
+                );"""
                 cursor.execute(create_entreprise_table_query)
 
 
@@ -8582,8 +8723,158 @@ class Rapport:
             'nombre_ecritures': sum(item['nb_ecritures'] or 0 for item in ecritures)
         }
 
+class BaremeCotisation:
+    def __init__(self, db):
+        self.db = db
+
+    def modifier_bareme(self, type_cotisation_id: int, tranches: List[Dict]) -> bool:
+        """
+        Remplace entièrement le barème associé à un type de cotisation.
+        `tranches` est une liste de dict avec :
+            - seuil_min (float)
+            - seuil_max (float ou None)
+            - montant_fixe (float, utilisé si type_valeur='fixe')
+            - taux (float, utilisé si type_valeur='taux')
+            - type_valeur ('taux' ou 'fixe')
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Supprimer les anciennes tranches
+                cursor.execute("DELETE FROM baremes_cotisation WHERE type_cotisation_id = %s", (type_cotisation_id,))
+
+                # Insérer les nouvelles
+                query = """
+                INSERT INTO baremes_cotisation 
+                (type_cotisation_id, seuil_min, seuil_max, montant_fixe, taux, type_valeur, ordre)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                for i, t in enumerate(tranches):
+                    seuil_min = float(t.get('seuil_min', 0))
+                    seuil_max = t.get('seuil_max')
+                    if seuil_max is not None:
+                        seuil_max = float(seuil_max)
+                    montant_fixe = float(t.get('montant_fixe', 0))
+                    taux = float(t.get('taux', 0))
+                    type_valeur = t.get('type_valeur', 'fixe')
+                    if type_valeur not in ('taux', 'fixe'):
+                        type_valeur = 'fixe'
+
+                    cursor.execute(query, (
+                        type_cotisation_id,
+                        seuil_min,
+                        seuil_max,
+                        montant_fixe,
+                        taux,
+                        type_valeur,
+                        i
+                    ))
+                return True
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors de la modification du barème pour type_cotisation {type_cotisation_id}: {e}")
+            return False
+
+    def get_bareme(self, type_cotisation_id: int) -> List[Dict]:
+        """Récupère toutes les tranches d’un barème, triées par seuil_min"""
+        try:
+            with self.db.get_cursor(dictionary=True) as cursor:
+                cursor.execute("""
+                    SELECT seuil_min, seuil_max, montant_fixe, taux, type_valeur
+                    FROM baremes_cotisation
+                    WHERE type_cotisation_id = %s
+                    ORDER BY seuil_min
+                """, (type_cotisation_id,))
+                return cursor.fetchall()
+        except Exception as e:
+            current_app.logger.error(f"Erreur récupération barème type {type_cotisation_id}: {e}")
+            return []
+
+    def has_bareme(self, type_cotisation_id: int) -> bool:
+        """Vérifie si un barème existe pour ce type"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("SELECT 1 FROM baremes_cotisation WHERE type_cotisation_id = %s LIMIT 1", (type_cotisation_id,))
+                return cursor.fetchone() is not None
+        except Exception as e:
+            current_app.logger.error(f"Erreur vérification barème: {e}")
+            return False
+        
+class BaremeIndemnite:
+    def __init__(self, db):
+        self.db = db
+
+    def modifier_bareme(self, type_indemnite_id: int, tranches: List[Dict]) -> bool:
+        """
+        Remplace entièrement le barème associé à un type d'indemnité.
+        `tranches` est une liste de dict avec :
+            - seuil_min (float)
+            - seuil_max (float ou None)
+            - montant_fixe (float, utilisé si type_valeur='fixe')
+            - taux (float, utilisé si type_valeur='taux')
+            - type_valeur ('taux' ou 'fixe')
+        """
+        try:
+            with self.db.get_cursor() as cursor:
+                # Supprimer les anciennes tranches
+                cursor.execute("DELETE FROM baremes_indemnite WHERE type_indemnite_id = %s", (type_indemnite_id,))
+
+                # Insérer les nouvelles
+                query = """
+                INSERT INTO baremes_indemnite
+                (type_indemnite_id, seuil_min, seuil_max, montant_fixe, taux, type_valeur, ordre)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                for i, t in enumerate(tranches):
+                    seuil_min = float(t.get('seuil_min', 0))
+                    seuil_max = t.get('seuil_max')
+                    if seuil_max is not None:
+                        seuil_max = float(seuil_max)
+                    montant_fixe = float(t.get('montant_fixe', 0))
+                    taux = float(t.get('taux', 0))
+                    type_valeur = t.get('type_valeur', 'fixe')
+                    if type_valeur not in ('taux', 'fixe'):
+                        type_valeur = 'fixe'
+
+                    cursor.execute(query, (
+                        type_indemnite_id,
+                        seuil_min,
+                        seuil_max,
+                        montant_fixe,
+                        taux,
+                        type_valeur,
+                        i
+                    ))
+                return True
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors de la modification du barème pour type_indemnite {type_indemnite_id}: {e}")
+            return False
+
+    def get_bareme(self, type_indemnite_id: int) -> List[Dict]:
+        """Récupère toutes les tranches d’un barème, triées par seuil_min"""
+        try:
+            with self.db.get_cursor(dictionary=True) as cursor:
+                cursor.execute("""
+                    SELECT seuil_min, seuil_max, montant_fixe, taux, type_valeur
+                    FROM baremes_indemnite
+                    WHERE type_indemnite_id = %s
+                    ORDER BY seuil_min
+                """, (type_indemnite_id,))
+                return cursor.fetchall()
+        except Exception as e:
+            current_app.logger.error(f"Erreur récupération barème type indemnité {type_indemnite_id}: {e}")
+            return []
+
+    def has_bareme(self, type_indemnite_id: int) -> bool:
+        """Vérifie si un barème existe pour ce type d'indemnité"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("SELECT 1 FROM baremes_indemnite WHERE type_indemnite_id = %s LIMIT 1", (type_indemnite_id,))
+                return cursor.fetchone() is not None
+        except Exception as e:
+            current_app.logger.error(f"Erreur vérification barème indemnité: {e}")
+            return False
+        
 class TypeCotisation:
-    def __init__(self):
+    def __init__(self, db):
         self.db = db
     def create(self, user_id: int, nom: str, description: str ="", est_obligatoire: bool = False)-> int:
         """Crée un type de cotisation"""
@@ -8686,6 +8977,31 @@ class CotisationContrat:
     def __init__(self, db):
         self.db = db
         self.employe_model = Employe(self.db)
+        self.bareme_cotisation_model = BaremeCotisation(self.db)
+    def calculer_montant_cotisation(self, type_cotisation_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
+        """
+        Calcule le montant d'une cotisation :
+        - Si barème → utilise le barème avec base_montant (salaire brut ou brut_tot)
+        - Sinon → utilise taux_fallback (issu de cotisations_contrat)
+        """
+        if self.bareme_cotisation_model.has_bareme(type_cotisation_id):
+            tranches = self.bareme_cotisation_model.get_bareme(type_cotisation_id)
+            for tranche in tranches:
+                min_s = tranche['seuil_min']
+                max_s = tranche['seuil_max']
+                if base_montant >= min_s and (max_s is None or base_montant <= max_s):
+                    if tranche['type_valeur'] == 'fixe':
+                        return float(tranche['montant_fixe'])
+                    else:
+                        return float(base_montant * (tranche['taux'] / 100))
+            return 0.0
+        else:
+            # Ancien comportement
+            if taux_fallback >= 10:
+                return float(taux_fallback)  # montant fixe
+            else:
+                return float(base_montant * (taux_fallback / 100))
+            
     def assigner_a_contrat(self, contrat_id: int, type_cotisation_id: int, taux:float, annee: int, base_calcul : str = "brut")-> bool:
         try:
             with self.db.get_cursor() as cursor:
@@ -8779,7 +9095,27 @@ class CotisationContrat:
 
                     # Pour simplifier, on suppose "base_calcul = brut"
                     # (une version avancée devrait inclure indemnités → nécessite appel à IndemniteContrat)
-                    montant = brut * (item['taux'] / 100) if item['taux'] < 10 else item['taux']
+                    type_cotisation_id = item['type_cotisation_id']
+                    montant = 0.0
+
+                    # 1. Vérifier si un barème existe pour ce type
+                    if self.bareme_cotisation_model.has_bareme(type_cotisation_id):
+                        tranches = self.bareme_cotisation_model.get_bareme(type_cotisation_id)
+                        for tranche in tranches:
+                            min_s = tranche['seuil_min']
+                            max_s = tranche['seuil_max']
+                            if brut >= min_s and (max_s is None or brut <= max_s):
+                                if tranche['type_valeur'] == 'fixe':
+                                    montant = tranche['montant_fixe']
+                                else:
+                                    montant = brut * (tranche['taux'] / 100)
+                                break
+                    else:
+                        # 2. Sinon, utiliser l’ancien système (depuis cotisations_contrat)
+                        if item['taux'] >= 10:
+                            montant = item['taux']  # montant fixe absolu
+                        else:
+                            montant = brut * (item['taux'] / 100)  # pourcentage
 
                     result.append({
                         'contrat_id': contrat_id,
@@ -8947,15 +9283,38 @@ class IndemniteContrat:
     def __init__(self, db):
         self.db = db
         self.employe_model = Employe(self.db)
+        self.bareme_indemnite_model = BaremeIndemnite(db)
+
+    def calculer_montant_indemnite(self, type_indemnite_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
+        """
+        Calcule le montant d'une indemnité :
+        - Si barème → utilise le barème avec base_montant
+        - Sinon → utilise taux_fallback (issu de indemnites_contrat)
+        """
+        if self.bareme_indemnite_model.has_bareme(type_indemnite_id):
+            tranches = self.bareme_indemnite_model.get_bareme(type_indemnite_id)
+            for tranche in tranches:
+                min_s = tranche['seuil_min']
+                max_s = tranche['seuil_max']
+                if base_montant >= min_s and (max_s is None or base_montant <= max_s):
+                    if tranche['type_valeur'] == 'fixe':
+                        return float(tranche['montant_fixe'])
+                    else:
+                        return float(base_montant * (tranche['taux'] / 100))
+            return 0.0
+        else:
+            # Ancien comportement : toujours en % du brut
+            return float(base_montant * (taux_fallback / 100))
+    
     def assigner_a_contrat(self, contrat_id: int, type_indemnite_id: int, taux:float, annee: int, base_calcul : str = "brut")-> bool:
         try:
             with self.db.get_cursor() as cursor:
                 query = """
                 INSERT INTO indemnites_contrat (contrat_id, type_indemnite_id, taux, base_calcul, annee)
-                VALUES (%s, %s, %s, %s, %S)
+                VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE taux = VALUES(taux), base_calcul = VALUES(base_calcul), actif = TRUE
                 """
-                cursor.execute(query, (contrat_id, type_indemnite_id, taux, base_calcul))
+                cursor.execute(query, (contrat_id, type_indemnite_id, taux, base_calcul, annee))
                 return True
         except Exception as e:
             current_app.logger.error(f"Erreur assignation cotisation : {e}")
@@ -9034,7 +9393,12 @@ class IndemniteContrat:
                     heures = heures_par_contrat.get(contrat_id, 0.0)
                     salaire_horaire = float(item['salaire_horaire'])
                     brut = heures * salaire_horaire
-                    montant = round(brut * (item['taux'] / 100), 2)  # toujours en % du brut
+                    montant = self.calculer_montant_indemnite(
+                        type_indemnite_id=item['type_indemnite_id'],
+                        base_montant=brut,
+                        taux_fallback=item['taux']
+                    )
+                    montant = round(montant, 2)
 
                     result.append({
                         'contrat_id': contrat_id,
@@ -9204,6 +9568,11 @@ class Contrat:
         self.cotisations_contrat_model = CotisationContrat(self.db)
         self.indemnites_contrat_model = IndemniteContrat(self.db)
 
+    def user_has_types_cotisation_or_indemnite(self, user_id: int) -> bool:
+        cotisations = self.cotisations_contrat_model.get_all_by_user(user_id)
+        indemnites = self.indemnites_contrat_model.get_all_by_user(user_id)
+        return len(cotisations) > 0 or len(indemnites) > 0
+
     def create_or_update(self, data: Dict) -> bool:
         try:
             with self.db.get_cursor() as cursor:
@@ -9229,7 +9598,9 @@ class Contrat:
                             cotisation_ac_tx = %s,
                             cotisation_accident_n_prof_tx = %s,
                             cotisation_assurance_indemnite_maladie_tx = %s,
-                            cotisation_cap_tx = %s
+                            cotisation_cap_tx = %s,
+                            salaire_brut_mensuel = %s,
+                            heures_prevues_mensuelles = %s
                         WHERE id = %s;
                     """
                     params = (
@@ -9251,6 +9622,8 @@ class Contrat:
                         data.get('cotisation_accident_n_prof_tx', 0),
                         data.get('cotisation_assurance_indemnite_maladie_tx', 0),
                         data.get('cotisation_cap_tx', 0),
+                        data.get('salaire_brut_mensuel'),
+                        data.get('heures_prevues_mensuelles'),
                         data['id']
                     )
                 else:
@@ -9262,8 +9635,8 @@ class Contrat:
                     indemnite_vacances_tx, indemnite_jours_feries_tx, indemnite_jour_conges_tx,
                     indemnite_repas_tx, indemnite_retenues_tx,
                     cotisation_avs_tx, cotisation_ac_tx, cotisation_accident_n_prof_tx,
-                    cotisation_assurance_indemnite_maladie_tx, cotisation_cap_tx)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    cotisation_assurance_indemnite_maladie_tx, cotisation_cap_tx, salaire_brut_mensuel, heures_prevues_mensuelles)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                     """
                     params = (
                         data['user_id'], data['employeur'], data['heures_hebdo'], data['date_debut'], data.get('date_fin'),
@@ -9280,7 +9653,9 @@ class Contrat:
                         data.get('cotisation_ac_tx', 0),
                         data.get('cotisation_accident_n_prof_tx', 0),
                         data.get('cotisation_assurance_indemnite_maladie_tx', 0),
-                        data.get('cotisation_cap_tx', 0)
+                        data.get('cotisation_cap_tx', 0),
+                        data.get('salaire_brut_mensuel'),
+                        data.get('heures_prevues_mensuelles')
                     )
 
                 cursor.execute(query, params)
@@ -9621,6 +9996,7 @@ class Employe:
                 WHERE id = %s AND code_acces_salaire = %s
             """, (employe_id, code))
             return cursor.fetchone()
+
 
 class HeureTravail:
     def __init__(self, db):
@@ -10619,13 +10995,11 @@ class Salaire:
             indemnites_detail = {}
             total_indemnites = 0.0
             for item in indemnites_contrat:
-                montant = round(salaire_brut * (item['taux'] / 100), 2)
-                total_indemnites += montant
-                indemnites_detail[item['nom_indemnite']] = {
-                    'taux': item['taux'],
-                    'montant': montant
-                }
-
+                montant = self.indemnites_contrat_model.calculer_montant_indemnite(
+                    type_indemnite_id=item['type_indemnite_id'],
+                    base_montant=salaire_brut,
+                    taux_fallback=item['taux']
+                )
             salaire_brut_tot = round(salaire_brut + total_indemnites, 2)
 
 
@@ -10635,10 +11009,12 @@ class Salaire:
             for item in cotisations_contrat:
                 base = item.get('base_calcul', 'brut')
                 base_montant = salaire_brut_tot if base == 'brut_tot' else salaire_brut
-                if item['taux'] >= 10:
-                    montant = item['taux']  # montant fixe
-                else:
-                    montant = round(base_montant * (item['taux'] / 100), 2)
+                montant = self.cotisations_contrat_model.calculer_montant_cotisation(
+                    type_cotisation_id=item['type_cotisation_id'],
+                    base_montant=base_montant,
+                    taux_fallback=item['taux']
+                )
+                montant = round(montant, 2)
                 total_cotisations += montant
                 cotisations_detail[item['nom_cotisation']] = {
                     'taux': item['taux'],
@@ -12223,7 +12599,7 @@ class Equipe:
                             'membres': []
                         }
                     if row['employe_id']:
-                        equipes[equipe_id]]['membres'].append({
+                        equipes[equipe_id]['membres'].append({
                             'id': row['employe_id'],
                             'nom': row['employe_nom'],
                             'prenom': row['employe_prenom']
@@ -12404,11 +12780,15 @@ class Planning:
                 for shift in shifts:
                     employe_id = shift['employe_id']
                     date_str = str(shift['date'])
+                    
                     if employe_id not in organized:
-                        organized[employe_id]: {}
-                    if date_str not in organized(employe_id):
-                        organized[employe_id][date_str]: []
+                        organized[employe_id] = {}  # Correction : '=' au lieu de ':'
+                    
+                    if date_str not in organized[employe_id]: # Correction : [] au lieu de ()
+                        organized[employe_id][date_str] = []  # Correction : '=' au lieu de ':'
+                        
                     organized[employe_id][date_str].append(shift)
+
                 return organized
         except Exception as e:
             current_app.logger.error(f"Erreur récupération shifts: {e}")
@@ -12693,6 +13073,58 @@ class ParametreUtilisateur:
             current_app.logger.error(f"Erreur lors de la mise à jour des paramètres: {e}")
             return False
 
+class Entreprise:
+    def __init__(self, db):
+        self.db = db
+
+    def get_or_create_for_user(self, user_id: int) -> Dict:
+        """
+        Récupère ou crée une entrée par défaut pour l'utilisateur.
+        """
+        with self.db.get_cursor(dictionary=True) as cursor:
+            cursor.execute("""
+                SELECT * FROM entreprise WHERE user_id = %s
+            """, (user_id,))
+            row = cursor.fetchone()
+            if row:
+                return row
+            # Création par défaut
+            cursor.execute("""
+                INSERT INTO entreprise (user_id, nom, rue, code_postal, commune, email, telephone)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (user_id, f"Entreprise de utilisateur {user_id}", "", "", "", "", ""))
+            cursor.execute("""
+                SELECT * FROM entreprise WHERE user_id = %s
+            """, (user_id,))
+            return cursor.fetchone()
+
+    def update(self, user_id: int, data: Dict) -> bool:
+        """
+        Met à jour les infos de l'entreprise.
+        Champs autorisés : nom, rue, code_postal, commune, email, telephone, logo_path
+        """
+        allowed = {'nom', 'rue', 'code_postal', 'commune', 'email', 'telephone', 'logo_path'}
+        update_data = {k: v for k, v in data.items() if k in allowed}
+        if not update_data:
+            return False
+
+        set_clause = ", ".join([f"{k} = %s" for k in update_data.keys()])
+        values = list(update_data.values()) + [user_id]
+
+        with self.db.get_cursor() as cursor:
+            cursor.execute(f"""
+                UPDATE entreprise SET {set_clause} WHERE user_id = %s
+            """, values)
+            return cursor.rowcount > 0
+
+    def get_logo_path(self, user_id: int) -> Optional[str]:
+        """
+        Renvoie le chemin du logo (relatif à static/) ou None.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute("SELECT logo_path FROM entreprise WHERE user_id = %s", (user_id,))
+            row = cursor.fetchone()
+            return row[0] if row else None
 
 class ModelManager:
     def __init__(self, db):
@@ -12714,6 +13146,8 @@ class ModelManager:
         self.contact_compte_model = ContactCompte(self.db)
         self.contact_plan_model = ContactPlan(self.db)
         self.rapport_model = Rapport(self.db)
+        self.bareme_cotisation_model = BaremeCotisation(self.db)
+        self.bareme_indemnite_model = BaremeIndemnite(self.db)
         self.type_cotisations_model = TypeCotisation(self.db)
         self.type_indemnites_model = TypIndemnite(self.db)
         self.cotisations_contrat_model = CotisationContrat(self.db)
@@ -12728,6 +13162,7 @@ class ModelManager:
         self.competence_model = Competence(self.db)
         self.planning_model = Planning(self.db)
         self.planning_regles_model =  PlanningRegles(self.db)
+        self.entreprise_model = Entreprise(self.db)
         self.parametre_utilisateur_model = ParametreUtilisateur(self.db)
     def get_user_by_username(self, username):
         """
