@@ -808,7 +808,7 @@ class DatabaseManager:
             current_app.logger.error(f"Erreur lors de la création des tables : {e}")
 
 class Utilisateur(UserMixin):
-    def __init__(self, db, id, nom=None, prenom=None, email=None, mot_de_passe=None):
+    def __init__(self, db_manager, id, nom=None, prenom=None, email=None, mot_de_passe=None):
         self.db = db_manager
         self.id = id
         self.nom = nom
