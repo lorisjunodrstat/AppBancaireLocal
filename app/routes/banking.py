@@ -8164,7 +8164,7 @@ def supprimer_type_indemnite(type_id):
 
 @bp.route('/employes/liste')
 @login_required
-def liste_employe(user_id):
+def liste_employe():
     current_user_id = current_user.id
     employes = g.models.employe_model.get_all_by_user(current_user_id)
     return render_template('employes/liste.html', employes=employes)
