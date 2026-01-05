@@ -6,7 +6,7 @@ Application Flask - Fichier d'initialisation principal
 
 import os
 import sys
-from flask import Flask, g, redirect, url_for, request_started, request_finished, current_app
+from flask import Flask, g, redirect, url_for, request_started, request_finished, current_app, render_template
 from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
 from pathlib import Path
@@ -101,12 +101,8 @@ from app.routes import auth, admin, banking, db_csv_store
 # Route racine redirigeant vers la page appropriée
 @app.route('/')
 def index():
-    if current_user.is_authenticated:
-        if current_user.is_admin:
-            return redirect(url_for('admin.liste_utilisateurs'))
-        else:
-            return redirect(url_for('banking.dashboard'))
-    return redirect(url_for('auth.login'))
+    print("La route index est appelée !")
+    return render_template('home2.html')
 # Sécurité : bloquer les extensions dangereuses dans /static/uploads
 @app.route('/static/uploads/<path:filename>')
 def secure_uploads(filename):
