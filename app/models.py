@@ -8652,14 +8652,13 @@ class Rapport:
     def __init__(self, db):
         self.db = db
 
-    def generate_rapport_mensuel(self, user_id: int, annee: int, mois: int, statut: str = 'validée') -> Dict:
+    def generate_rapport_mensuel(self, ecriture_comptable, user_id: int, annee: int, mois: int, statut: str = 'validée') -> Dict:
         """Génère un rapport mensuel avec filtrage par statut"""
         date_debut = date(annee, mois, 1)
         date_fin = date(annee, mois + 1, 1) if mois < 12 else date(annee + 1, 1, 1)
         date_fin = date_fin - timedelta(days=1)
 
         # Utilisez EcritureComptable pour obtenir les données
-        ecriture_comptable = EcritureComptable(self.db)
         ecritures = ecriture_comptable.get_stats_by_categorie(
             user_id,
             str(date_debut),
@@ -9585,9 +9584,9 @@ class Contrat:
     def __init__(self, db):
         self.db = db
         
-    def user_has_types_cotisation_or_indemnite(self, user_id: int) -> bool:
-        cotisations = self.cotisations_contrat_model.get_all_by_user(user_id)
-        indemnites = self.indemnites_contrat_model.get_all_by_user(user_id)
+    def user_has_types_cotisation_or_indemnite(self, cotisations_contrat_model, indemnites_contrat_model, user_id: int) -> bool:
+        cotisations = cotisations_contrat_model.get_all_by_user(user_id)
+        indemnites = indemnites_contrat_model.get_all_by_user(user_id)
         return len(cotisations) > 0 or len(indemnites) > 0
 
     def create_or_update(self, data: Dict) -> bool:
@@ -9772,7 +9771,7 @@ class Contrat:
         except Exception as e:
             logger.error(f"Erreur lors de la récupération du contrat pour l'employé {id_employe}: {e}")
             return None
-    def sauvegarder_cotisations_et_indemnites(self, contrat_id: int, user_id: int, data: Dict)-> bool:
+    def sauvegarder_cotisations_et_indemnites(self, cotisations_contrat_model, indemnites_contrat_model, contrat_id: int, user_id: int, data: Dict)-> bool:
         annee = data.get('annee')
         if not annee:
             raise ValueError("L'annee est requise pour sauvegarder cotisations/indemnites")
@@ -9781,7 +9780,7 @@ class Contrat:
             cursor.execute("DELETE FROM cotisations_contrat WHERE contrat_id = %s AND annee = %s", (contrat_id, annee))
             cursor.execute("DELETE FROM indemnites_contrat WHERE contrat_id = %s AND annee = %s", (contrat_id, annee))
             for c in data.get('cotisations', []):
-                self.cotisations_contrat_model.assigner_a_contrat(
+                cotisations_contrat_model.assigner_a_contrat(
                     contrat_id=contrat_id,
                     type_cotisation_id=c['type_id'],
                     taux=c['taux'],
@@ -9789,7 +9788,7 @@ class Contrat:
                     base_calcul=c.get('base', 'brut')
                 )
             for i in data.get('indemnites', []):
-                self.indemnites_contrat_model.assigner_a_contrat(
+                indemnites_contrat_model.assigner_a_contrat(
                     contrat_id=contrat_id,
                     type_indemnite_id=i['type_id'],
                     valeur=i['valeur'],
@@ -9803,9 +9802,7 @@ class Employe:
     def __init__(self, db):
         self.db = db
         self.heure_model = HeureTravail(self.db)
-        self.salaire_model = Salaire(self.db)
-        self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
-        self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
+      
 
     def create(self, data: Dict) -> bool:
         """
@@ -10773,9 +10770,9 @@ class HeureTravail:
         except (ValueError, AttributeError):
             return -1
 
-    def get_h1d_h2f_for_period_with_employe(self,user_id: int, annee: int,mois: Optional[int] = None,semaine: Optional[int] = None, employe_id: Optional[int] = None ) -> List[Dict]:
+    def get_h1d_h2f_for_period_with_employe(self, contrat_model, user_id: int, annee: int,mois: Optional[int] = None,semaine: Optional[int] = None, employe_id: Optional[int] = None ) -> List[Dict]:
         # On récupère d’abord les contrats de l’utilisateur
-        contrats = self.models.contrat_model.get_all_contrats(user_id)
+        contrats = contrat_model.get_all_contrats(user_id)
         if not contrats:
             return []
 
@@ -10925,9 +10922,9 @@ class Salaire:
             logger.error(f"Erreur récupération salaire par mois/année: {e}")
             return []
 
-    def get_cotisations_indemnites_mois(self, user_id: int, annee: int, mois: int) -> Dict:
-        cotis = self.cotisations_contrat_model.get_total_cotisations_par_mois(user_id, annee, mois)
-        indem = self.indemnites_contrat_model.get_total_indemnites_par_mois(user_id, annee, mois)
+    def get_cotisations_indemnites_mois(self, cotisations_contrat_model, indemnites_contrat_model, user_id: int, annee: int, mois: int) -> Dict:
+        cotis = cotisations_contrat_model.get_total_cotisations_par_mois(user_id, annee, mois)
+        indem = indemnites_contrat_model.get_total_indemnites_par_mois(user_id, annee, mois)
 
         # Agréger par employé ou global
         total_cotisations = sum(item['total_cotisations'] for item in cotis)
