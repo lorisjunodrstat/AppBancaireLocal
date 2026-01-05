@@ -1,0 +1,102 @@
+{% extends "accueil.html" %}
+{% block title %}Banque & Transactions - App Bancaire Locale{% endblock %}
+
+{% block head_css %}
+<style>
+  body {
+    background: #0b0f19;
+    color: #e6e8ee;
+    font-family: Inter, sans-serif;
+    line-height: 1.6
+  }
+
+  section {
+    max-width: 1000px;
+    margin: 4rem auto;
+    padding: 0 2rem
+  }
+
+  h1,
+  h2 {
+    letter-spacing: -.02em
+  }
+
+  h1 {
+    font-size: 3rem
+  }
+
+  h2 {
+    margin-top: 3rem
+  }
+
+  .card {
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 16px;
+    padding: 1.8rem;
+    margin-top: 1.5rem
+  }
+
+  ul {
+    margin-left: 1.2rem
+  }
+
+  p,
+  li {
+    color: #a0a4b8
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section>
+  <h1>🏦 Banque & flux financiers</h1>
+  <p>
+    Le module Banque est la <strong>source de vérité financière</strong> du hub.
+    Il centralise vos comptes et alimente automatiquement la comptabilité et les analyses.
+  </p>
+
+  <h2>À quoi sert ce module</h2>
+  <div class="card">
+    <ul>
+      <li>Importer les transactions bancaires</li>
+      <li>Visualiser les flux réels, sans agrégateur externe</li>
+      <li>Relier chaque mouvement à une logique comptable</li>
+    </ul>
+  </div>
+
+  <h2>Comment ça fonctionne</h2>
+  <div class="card">
+    <p>
+      Chaque transaction importée devient un objet structuré :
+      montant, date, compte, catégorie, et lien comptable.
+    </p>
+    <ul>
+      <li>Import CSV ou format bancaire</li>
+      <li>Catégorisation automatique ou manuelle</li>
+      <li>Connexion directe au module Comptabilité</li>
+    </ul>
+  </div>
+
+  <h2>Ce que vous pouvez modifier</h2>
+  <div class="card">
+    <ul>
+      <li>Catégories bancaires</li>
+      <li>Règles de reconnaissance automatique</li>
+      <li>Formats d’import personnalisés</li>
+      <li>Comptes multiples (privé, pro, projets)</li>
+    </ul>
+  </div>
+
+  <h2>Potentiel open-source</h2>
+  <div class="card">
+    <p>
+      Vous pouvez adapter le moteur d’import à votre banque,
+      changer la logique de catégorisation ou connecter d’autres sources de flux.
+    </p>
+  </div>
+</section>
+<div class="cta-section">
+  <a href="/" class="cta-button">← Retour à l’accueil</a>
+</div>
+{% endblock %}

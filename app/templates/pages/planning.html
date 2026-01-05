@@ -1,0 +1,77 @@
+{% extends "accueil.html" %}
+{% block title %}Employés — Mon Hub Financier Suisse{% endblock %}
+
+{% block head_css %}
+<style>
+    body {
+        background: #0b0f19;
+        color: #e6e8ee;
+        font-family: Inter, sans-serif
+    }
+
+    section {
+        max-width: 1000px;
+        margin: 4rem auto;
+        padding: 0 2rem
+    }
+
+    h1 {
+        font-size: 3rem
+    }
+
+    .card {
+        background: rgba(255, 255, 255, .06);
+        border: 1px solid rgba(255, 255, 255, .12);
+        border-radius: 16px;
+        padding: 1.8rem;
+        margin-top: 1.5rem
+    }
+
+    p,
+    li {
+        color: #a0a4b8
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section>
+    <h1>📅 Planning</h1>
+    <p>
+        Un planning cohérent avec vos équipes, vos règles et vos salaires.
+    </p>
+
+    <h2>Fonctionnement</h2>
+    <div class="card">
+        <ul>
+            <li>Création de shifts</li>
+            <li>Validation automatique</li>
+            <li>Respect des contraintes employé</li>
+        </ul>
+    </div>
+
+    <h2>Ce que vous pouvez changer</h2>
+    <div class="card">
+        <ul>
+            <li>Types de shifts</li>
+            <li>Règles de repos</li>
+            <li>Liens avec le calcul salarial</li>
+        </ul>
+    </div>
+
+    <h2>Vision long terme</h2>
+    <div class="card">
+        <p>
+            Le planning devient la source unique de vérité
+            pour les heures, les salaires et la gestion RH.
+        </p>
+    </div>
+</section>
+
+<div class="cta-section">
+    <a href="/" class="cta-button">← Retour à l’accueil</a>
+</div>
+
+
+{% endblock %}

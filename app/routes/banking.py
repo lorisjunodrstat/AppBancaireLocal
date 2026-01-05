@@ -8009,16 +8009,24 @@ def nouveau_contrat():
 
 ## ----- gestion des employés
 
-@bp.route('employes/dashboard')
+@bp.route('/employes/dashboard')
 @login_required
 def dashboard_employes():
     current_user_id = current_user.id
+
+    # Vérifier si l'utilisateur a déjà défini des types de cotisations ou indemnités
+    contrat_model = g.models.contrat_model
+    if not contrat_model.user_has_types_cotisation_or_indemnite(current_user_id):
+        flash("Avant de gérer des employés, veuillez définir vos cotisations et indemnités dans la section Entreprise.", "info")
+        return redirect(url_for('banking.gestion_entreprise'))
+
+    # Sinon, continuer normalement
     employes = g.models.employe_model.get_all_by_user(current_user_id)
     all_employes = len(employes)
     
     maintenant = datetime.now()
-    mois_request = request.form.get('date_dashboard_mois')
-    annee_request = request.form.get('date_dashboard_annee')
+    mois_request = request.args.get('mois')  # ← utiliser args (GET), pas form (POST)
+    annee_request = request.args.get('annee')
     
     if mois_request and annee_request:
         mois = int(mois_request)
@@ -8026,7 +8034,7 @@ def dashboard_employes():
     else:
         mois = maintenant.month
         annee = maintenant.year
-    
+
     heures_total_mois = 0
     salaire_total_mois = 0
     for employe in employes:
@@ -8034,7 +8042,7 @@ def dashboard_employes():
         salaire = g.models.salaire_model.get_salaire_employe_mois(employe['id'], annee, mois)
         heures_total_mois += heures
         salaire_total_mois += salaire
-    
+
     return render_template(
         'employes/dashboard.html',
         today=date.today(),
@@ -8045,6 +8053,114 @@ def dashboard_employes():
         mois=mois,
         annee=annee
     )
+# --- Types de cotisation ---
+@bp.route('/cotisations/types')
+@login_required
+def liste_types_cotisation():
+    current_user_id = current_user.id
+    types = g.models.type_cotisation_model.get_all_by_user(current_user_id)
+    return render_template('cotisations/types_list.html', types=types)
+
+@bp.route('/cotisations/types/nouveau', methods=['GET', 'POST'])
+@bp.route('/cotisations/types/<int:type_id>/editer', methods=['GET', 'POST'])
+@login_required
+def editer_type_cotisation(type_id=None):
+    current_user_id = current_user.id
+    type_cotisation = None
+
+    if type_id:
+        types = g.models.type_cotisation_model.get_all_by_user(current_user_id)
+        type_cotisation = next((t for t in types if t['id'] == type_id), None)
+        if not type_cotisation:
+            abort(404)
+
+    if request.method == 'POST':
+        nom = request.form.get('nom', '').strip()
+        description = request.form.get('description', '').strip()
+        est_obligatoire = bool(request.form.get('est_obligatoire'))
+
+        if not nom:
+            flash("Le nom du type de cotisation est requis.", "error")
+        else:
+            data = {'nom': nom, 'description': description, 'est_obligatoire': est_obligatoire}
+            if type_id:
+                if g.models.type_cotisation_model.update(type_id, current_user_id, data):
+                    flash("Type de cotisation mis à jour.", "success")
+                else:
+                    flash("Aucune modification effectuée.", "warning")
+            else:
+                if g.models.type_cotisation_model.create(current_user_id, nom, description, est_obligatoire):
+                    flash("Nouveau type de cotisation créé.", "success")
+                else:
+                    flash("Erreur lors de la création.", "error")
+            return redirect(url_for('banking.liste_types_cotisation'))
+
+    return render_template('cotisations/type_form.html', type=type_cotisation)
+
+@bp.route('/cotisations/types/<int:type_id>/supprimer', methods=['POST'])
+@login_required
+def supprimer_type_cotisation(type_id):
+    current_user_id = current_user.id
+    if g.models.type_cotisation_model.delete(type_id, current_user_id):
+        flash("Type de cotisation supprimé.", "success")
+    else:
+        flash("Impossible de supprimer ce type.", "error")
+    return redirect(url_for('banking.liste_types_cotisation'))
+
+
+# --- Types d'indemnité ---
+@bp.route('/indemnites/types')
+@login_required
+def liste_types_indemnite():
+    current_user_id = current_user.id
+    types = g.models.type_indemnite_model.get_all_by_user(current_user_id)
+    return render_template('indemnites/types_list.html', types=types)
+
+@bp.route('/indemnites/types/nouveau', methods=['GET', 'POST'])
+@bp.route('/indemnites/types/<int:type_id>/editer', methods=['GET', 'POST'])
+@login_required
+def editer_type_indemnite(type_id=None):
+    current_user_id = current_user.id
+    type_indemnite = None
+
+    if type_id:
+        types = g.models.type_indemnite_model.get_all_by_user(current_user_id)
+        type_indemnite = next((t for t in types if t['id'] == type_id), None)
+        if not type_indemnite:
+            abort(404)
+
+    if request.method == 'POST':
+        nom = request.form.get('nom', '').strip()
+        description = request.form.get('description', '').strip()
+        est_obligatoire = bool(request.form.get('est_obligatoire'))
+
+        if not nom:
+            flash("Le nom du type d'indemnité est requis.", "error")
+        else:
+            data = {'nom': nom, 'description': description, 'est_obligatoire': est_obligatoire}
+            if type_id:
+                if g.models.type_indemnite_model.update(type_id, current_user_id, data):
+                    flash("Type d'indemnité mis à jour.", "success")
+                else:
+                    flash("Aucune modification effectuée.", "warning")
+            else:
+                if g.models.type_indemnite_model.create(current_user_id, nom, description, est_obligatoire):
+                    flash("Nouveau type d'indemnité créé.", "success")
+                else:
+                    flash("Erreur lors de la création.", "error")
+            return redirect(url_for('banking.liste_types_indemnite'))
+
+    return render_template('indemnites/type_form.html', type=type_indemnite)
+
+@bp.route('/indemnites/types/<int:type_id>/supprimer', methods=['POST'])
+@login_required
+def supprimer_type_indemnite(type_id):
+    current_user_id = current_user.id
+    if g.models.type_indemnite_model.delete(type_id, current_user_id):
+        flash("Type d'indemnité supprimé.", "success")
+    else:
+        flash("Impossible de supprimer ce type.", "error")
+    return redirect(url_for('banking.liste_types_indemnite'))
 
 @bp.route('employes/liste')
 @login_required
@@ -8322,7 +8438,34 @@ def planning_employe(employe_id):
 @bp.route('employes/planning-employes')
 @login_required
 def planning_employes():
-    pass
+    user_id = current_user.id
+    date_ref = request.args.get('date', datetime.today().strftime('%Y-%m-%d'))
+    semaine = get_semaine_from_date(date_ref)  # [lundi, mardi, ..., dimanche]
+
+    # Charger équipes + employés
+    equipes = g.models.equipe_model.get_all_by_user(user_id)
+    for equipe in equipes:
+        equipe['membres'] = g.models.employe_model.get_by_equipe(equipe['id'])
+
+    # Charger tous les shifts de la semaine
+    all_shifts = g.models.heure_model.get_shifts_for_week(user_id, semaine[0], semaine[-1])
+    
+    # Indexer par employe → jour → liste shifts
+    shifts_by_employe_jour = defaultdict(lambda: defaultdict(list))
+    for s in all_shifts:
+        s['duree'] = s['heure_fin'] - s['heure_debut']
+        s['valide'] = g.models.planning_validator.est_valide(s)
+        key = s['date'].strftime('%Y-%m-%d')
+        shifts_by_employe_jour[s['employe_id']][key].append(s)
+
+    return render_template(
+        'planning/planning.html',
+        week_dates=semaine,
+        equipes=equipes,
+        shifts_by_employe_jour=shifts_by_employe_jour,
+        prev_week=semaine[0] - timedelta(weeks=1),
+        next_week=semaine[0] + timedelta(weeks=1)
+    )
 @bp.route('/synthese/mensuelle')
 @login_required
 def synthese_mensuelle():

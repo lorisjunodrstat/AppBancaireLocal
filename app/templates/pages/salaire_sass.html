@@ -1,0 +1,76 @@
+{% extends "accueil.html" %}
+{% block title %}Salaire & Heures de Travail{% endblock %}
+
+{% block head_css %}
+<style>
+  body {
+    background: #0b0f19;
+    color: #e6e8ee;
+    font-family: Inter, sans-serif
+  }
+
+  section {
+    max-width: 1000px;
+    margin: 4rem auto;
+    padding: 0 2rem
+  }
+
+  h1 {
+    font-size: 3rem
+  }
+
+  .card {
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 16px;
+    padding: 1.8rem;
+    margin-top: 1.5rem
+  }
+
+  p,
+  li {
+    color: #a0a4b8
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section>
+  <h1>💼 Salaires</h1>
+  <p>
+    Calculer, simuler et comprendre les salaires sans logique opaque.
+  </p>
+
+  <h2>Fonctionnement</h2>
+  <div class="card">
+    <ul>
+      <li>Salaire brut → net</li>
+      <li>AVS, charges sociales</li>
+      <li>Acomptes (10 / 25)</li>
+      <li>Heures réelles vs théoriques</li>
+    </ul>
+  </div>
+
+  <h2>Ce que vous pouvez adapter</h2>
+  <div class="card">
+    <ul>
+      <li>Taux de charges</li>
+      <li>Primes et indemnités</li>
+      <li>Règles de calcul</li>
+      <li>Simulation de scénarios</li>
+    </ul>
+  </div>
+
+  <h2>Valeur open-source</h2>
+  <div class="card">
+    <p>
+      Vous pouvez adapter le moteur à une convention collective
+      ou à un modèle salarial spécifique.
+    </p>
+  </div>
+</section>
+
+<div class="cta-section">
+  <a href="/" class="cta-button">← Retour à l’accueil</a>
+</div>
+{% endblock %}

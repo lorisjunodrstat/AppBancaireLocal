@@ -1,0 +1,77 @@
+{% extends "accueil.html" %}
+{% block title %}Comptabilité & Écritures Comptables{% endblock %}
+
+{% block head_css %}
+<style>
+  body {
+    background: #0b0f19;
+    color: #e6e8ee;
+    font-family: Inter, sans-serif
+  }
+
+  section {
+    max-width: 1000px;
+    margin: 4rem auto;
+    padding: 0 2rem
+  }
+
+  h1 {
+    font-size: 3rem
+  }
+
+  .card {
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 16px;
+    padding: 1.8rem;
+    margin-top: 1.5rem
+  }
+
+  p,
+  li {
+    color: #a0a4b8
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section>
+  <h1>📊 Comptabilité</h1>
+  <p>
+    Une comptabilité lisible, traçable et conforme au cadre suisse.
+  </p>
+
+  <h2>Fonctionnement</h2>
+  <div class="card">
+    <ul>
+      <li>Plan comptable suisse par défaut</li>
+      <li>Écritures générées depuis les flux bancaires</li>
+      <li>Gestion de la TVA</li>
+      <li>Exports pour fiduciaires</li>
+    </ul>
+  </div>
+
+  <h2>Personnalisation</h2>
+  <div class="card">
+    <ul>
+      <li>Plan comptable modifiable</li>
+      <li>Règles d’affectation automatique</li>
+      <li>Comptes TVA personnalisés</li>
+      <li>Formats d’export ajustables</li>
+    </ul>
+  </div>
+
+  <h2>Pourquoi c’est différent</h2>
+  <div class="card">
+    <p>
+      Aucune boîte noire.
+      Chaque écriture est explicable, modifiable et audit-able.
+    </p>
+  </div>
+</section>
+
+
+<div class="cta-section">
+  <a href="/" class="cta-button">← Retour à l’accueil</a>
+</div>
+{% endblock %}

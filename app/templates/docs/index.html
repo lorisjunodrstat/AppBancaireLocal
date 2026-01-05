@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Architecture & principes — Mon Hub Financier Suisse</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    .architecture-flow {
+    text-align: center;
+    }
+    
+    .columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3rem;
+    }
+    
+    .column {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    padding: 2rem 1.2rem;
+    position: relative;
+    }
+    
+    .column::after {
+    content: "↓";
+    position: absolute;
+    bottom: -1.4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #a0a4b8;
+    }
+    
+    .column.final::after {
+    content: "";
+    }
+    
+    .column h3 {
+    margin-bottom: .6rem;
+    }
+    
+    .column p {
+    color: #a0a4b8;
+    font-size: .95rem;
+    }
+</style>
+</head>
+
+<body>
+    <section class="architecture-flow">
+        <h2>Flux de données & architecture</h2>
+
+        <div class="columns">
+            <div class="column">
+                <h3>Flux réels</h3>
+                <p>Banques, heures, événements</p>
+            </div>
+
+            <div class="column">
+                <h3>Banque</h3>
+                <p>Transactions structurées</p>
+            </div>
+
+            <div class="column">
+                <h3>Comptabilité</h3>
+                <p>Écritures & TVA</p>
+            </div>
+
+            <div class="column">
+                <h3>Salaires</h3>
+                <p>Calculs & simulations</p>
+            </div>
+
+            <div class="column final">
+                <h3>Reporting</h3>
+                <p>Vision globale & exports</p>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

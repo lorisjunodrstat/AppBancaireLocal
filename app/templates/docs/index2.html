@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Documentation — Mon Hub Financier Suisse</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root {
+    --bg-main: #0b0f19;
+    --bg-card: rgba(255,255,255,.06);
+    --border-card: rgba(255,255,255,.12);
+    --text-main: #e6e8ee;
+    --text-muted: #a0a4b8;
+    --accent: #4f8cff;
+    --radius: 18px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: radial-gradient(circle at top, #11162a 0%, var(--bg-main) 70%);
+    color: var(--text-main);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.6;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+header {
+    text-align: center;
+    padding: 5rem 2rem 4rem;
+}
+
+header h1 {
+    font-size: clamp(2.4rem, 5vw, 3.2rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+header p {
+    max-width: 760px;
+    margin: 1.5rem auto 0;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+}
+
+section {
+    max-width: 1200px;
+    margin: 0 auto 5rem;
+    padding: 0 2rem;
+}
+
+h2 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 2.5rem;
+}
+
+.modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 2rem;
+}
+
+.module-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius);
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.module-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+
+.module-card h3 {
+    margin-bottom: .6rem;
+    font-size: 1.25rem;
+}
+
+.module-card p {
+    color: var(--text-muted);
+    margin-bottom: 1.2rem;
+}
+
+.module-card span {
+    font-size: .9rem;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.flow {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 3rem;
+}
+
+.flow-step {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 999px;
+    padding: .8rem 1.6rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.flow-arrow {
+    font-size: 1.6rem;
+    color: var(--text-muted);
+    align-self: center;
+}
+
+footer {
+    text-align: center;
+    padding: 3rem 2rem;
+    border-top: 1px solid var(--border-card);
+    color: var(--text-muted);
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Documentation du Hub</h1>
+    <p>
+        Comprendre comment les modules s’articulent,
+        ce qui est personnalisable, et pourquoi le hub est pensé comme une stack
+        <strong>local-first & open-source</strong>.
+    </p>
+</header>
+
+<section>
+    <h2>Les modules</h2>
+
+    <div class="modules">
+
+        <a href="banque.html" class="module-card">
+            <h3>🏦 Banque & flux</h3>
+            <p>
+                Point d’entrée de toutes les données financières.
+                Import des transactions et vision réelle des flux.
+            </p>
+            <span>Voir le module →</span>
+        </a>
+
+        <a href="comptabilite.html" class="module-card">
+            <h3>📊 Comptabilité</h3>
+            <p>
+                Transformation des flux en écritures comptables
+                lisibles, auditables et conformes.
+            </p>
+            <span>Voir le module →</span>
+        </a>
+
+        <a href="salaires.html" class="module-card">
+            <h3>💼 Salaires</h3>
+            <p>
+                Calculs nets, simulations, acomptes
+                et compréhension totale de la rémunération.
+            </p>
+            <span>Voir le module →</span>
+        </a>
+
+        <a href="employes.html" class="module-card">
+            <h3>👥 Employés</h3>
+            <p>
+                Compétences, règles individuelles
+                et lien direct avec planning et salaires.
+            </p>
+            <span>Voir le module →</span>
+        </a>
+
+        <a href="planning.html" class="module-card">
+            <h3>📅 Planning</h3>
+            <p>
+                Organisation du travail basée sur la réalité terrain
+                et validée automatiquement.
+            </p>
+            <span>Voir le module →</span>
+        </a>
+
+    </div>
+</section>
+
+<section>
+    <h2>Comment tout s’articule</h2>
+
+    <div class="flow">
+        <div class="flow-step">Flux réels</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Banque</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Comptabilité</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Salaires</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Reporting</div>
+    </div>
+
+    <p style="text-align:center; max-width:800px; margin:2.5rem auto 0; color:var(--text-muted);">
+        Chaque module s’appuie sur le précédent.
+        Aucune double saisie, aucune magie cachée :
+        la donnée circule de manière explicite et maîtrisée.
+    </p>
+</section>
+
+<footer>
+    &copy; 2026 — Loris Junod<br>
+    Open-source • Local-first • Sans cloud • Sans dépendance
+</footer>
+
+</body>
+</html>

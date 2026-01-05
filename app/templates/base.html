@@ -203,6 +203,30 @@
                         </li>
                     </ul>
                 </li>
+                <!-- Menu EMPLOYE -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle comptabilite-nav" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-calculator me-1"></i>Employés
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <h6 class="dropdown-header"><i class="fas fa-pen-fancy me-2"></i>Gestion des employés</h6>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.dashboard_employes') }}">
+                            Dashboard</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.liste_employe') }}">
+                            Liste des employes</a></li>
+                        </li>
+                    </ul>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <h6 class="dropdown-header"><i class="fas fa-pen-fancy me-2"></i>Planning</h6>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('banking.planning_employes') }}">
+                            Planning des employés</a></li>
+                        </li>
+                    </ul>
+                </li>
 
                 <!-- Menu Comptabilité amélioré -->
                 <li class="nav-item dropdown">

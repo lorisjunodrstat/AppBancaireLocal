@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Architecture technique — Mon Hub Financier Suisse</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{background:#0b0f19;color:#e6e8ee;font-family:Inter,sans-serif;line-height:1.6}
+section{max-width:1000px;margin:4rem auto;padding:0 2rem}
+h1{font-size:3rem;letter-spacing:-.02em}
+h2{margin-top:3rem}
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+border-radius:16px;padding:2rem;margin-top:1.5rem}
+p,li{color:#a0a4b8}
+strong{color:#e6e8ee}
+ul{margin-left:1.2rem}
+code{background:#0f1424;padding:.2rem .4rem;border-radius:6px;color:#c7d2fe}
+</style>
+</head>
+<body>
+
+<section>
+<h1>🏗️ Architecture technique</h1>
+
+<p>
+Le hub repose sur une architecture volontairement simple,
+lisible et modulaire.
+</p>
+
+<h2>Stack principale</h2>
+<div class="card">
+<ul>
+<li><strong>Python</strong> — logique métier</li>
+<li><strong>Flask</strong> — application web</li>
+<li><strong>SQLAlchemy</strong> — modèles et persistance</li>
+<li><strong>Base de données locale</strong> (SQLite / MySQL)</li>
+</ul>
+</div>
+
+<h2>Organisation générale</h2>
+<div class="card">
+<p>
+Le projet est structuré par responsabilité :
+</p>
+<ul>
+<li><code>models/</code> — entités métier (Banque, Comptabilité, Salaires…)</li>
+<li><code>routes/</code> — routes Flask</li>
+<li><code>templates/</code> — interface HTML</li>
+<li><code>static/</code> — styles et assets</li>
+</ul>
+</div>
+
+<h2>Modèles de données</h2>
+<div class="card">
+<p>
+Chaque module repose sur des modèles explicites :
+</p>
+<ul>
+<li>Transactions</li>
+<li>Écritures comptables</li>
+<li>Employés</li>
+<li>Salaires</li>
+<li>Plannings</li>
+</ul>
+<p>
+Les relations entre modèles sont claires et traçables.
+</p>
+</div>
+
+<h2>Flux de données</h2>
+<div class="card">
+<p>
+Une donnée suit toujours le même principe :
+</p>
+<ul>
+<li>Source réelle (transaction, heure, événement)</li>
+<li>Stockage structuré</li>
+<li>Transformation explicite</li>
+<li>Impact comptable / salarial</li>
+</ul>
+</div>
+
+<h2>Pourquoi Flask</h2>
+<div class="card">
+<p>
+Flask permet :
+</p>
+<ul>
+<li>Une lecture immédiate du code</li>
+<li>Une logique métier non cachée</li>
+<li>Une grande liberté d’extension</li>
+</ul>
+</div>
+
+<h2>Contribution & audit</h2>
+<div class="card">
+<p>
+L’architecture facilite :
+</p>
+<ul>
+<li>L’audit du code</li>
+<li>La modification ciblée</li>
+<li>Le fork et l’expérimentation</li>
+</ul>
+<p>
+Aucune partie critique n’est dissimulée derrière un service externe.
+</p>
+</div>
+
+</section>
+</body>
+</html>
