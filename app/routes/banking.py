@@ -248,9 +248,8 @@ def banking_dashboard():
             if compte_detail:
                 les_comptes.append(compte_detail)
 
-        recettes_mois = sum(s.get('total_depenses_mois') or 0 for s in stats)
-        depenses_mois = sum(s.get('total_depenses_mois') or 0 for s in stats)
-
+        recettes_mois = stats.get('total_recettes_mois', 0)
+        depenses_mois = stats.get('total_depenses_mois', 0)
         return render_template('banking/dashboard.html',
                              comptes=comptes,
                              stats=stats,
