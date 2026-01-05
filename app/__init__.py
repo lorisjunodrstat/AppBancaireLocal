@@ -6,7 +6,6 @@ Application Flask - Fichier d'initialisation principal
 
 import os
 import sys
-from . import app
 from flask import Flask, g, redirect, url_for, request_started, request_finished, current_app
 from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
