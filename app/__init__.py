@@ -70,18 +70,26 @@ def load_user(user_id):
     if user_id is None:
         return None
         
-    # IMPORT LOCAL ICI pour casser la boucle circulaire
-    from app.models import DatabaseManager, Utilisateur
-    
-    # On récupère la config
-    config_db = app.config.get('DB_CONFIG')
-    
-    if not config_db:
-        return None
+    try:
+        # IMPORT LOCAL ICI pour casser la boucle circulaire
+        from app.models import Utilisateur, DatabaseManager
+        
+        # On récupère la config
+        config_db = app.config.get('DB_CONFIG')
+        
+        if not config_db:
+            return None
 
-    db_manager = DatabaseManager(config_db)
-    # Cet appel fonctionnera car l'ID est maintenant le 1er argument de Utilisateur()
-    return Utilisateur.get_by_id(user_id, db_manager)
+        db_manager = DatabaseManager(config_db)
+        # Cet appel fonctionnera car l'ID est maintenant le 1er argument de Utilisateur()
+        user = Utilisateur.get_by_id(user_id, db_manager)
+        if hasattr(db_manager, 'close'):
+                db_manager.close()
+                
+        return user
+    except Exception as e:
+        logging.error(f"Erreur dans load_user: {e}")
+        return None
 
 
 
