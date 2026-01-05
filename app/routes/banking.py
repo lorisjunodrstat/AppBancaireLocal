@@ -248,8 +248,8 @@ def banking_dashboard():
             if compte_detail:
                 les_comptes.append(compte_detail)
 
-        recettes_mois = sum(s.get('total_recettes') or 0 for s in stats)
-        depenses_mois = sum(s.get('total_depenses') or 0 for s in stats)
+        recettes_mois = sum(s.get('total_depenses_mois') or 0 for s in stats)
+        depenses_mois = sum(s.get('total_depenses_mois') or 0 for s in stats)
 
         return render_template('banking/dashboard.html',
                              comptes=comptes,
@@ -7601,11 +7601,11 @@ def synthese_hebdomadaire():
 
     if employeur_filtre and id_contrat_filtre:
         stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(
-            user_id, employeur_filtre, int(id_contrat_filtre), annee, seuil_h2f_minutes)
+            user_id, employeur_filtre, int(id_contrat_filtre), annee, seuil_h2f_minutes, heure_model= g.models.heure_model)
         moyenne_hebdo_h2f = stats_h2f['moyennes_hebdo'].get(semaine, 0.0)
         moyenne_mobile_h2f = stats_h2f['moyennes_mobiles'].get(semaine, 0.0)
     else:
-        stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(user_id, None, None, annee, seuil_h2f_minutes)
+        stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(user_id, None, None, annee, seuil_h2f_minutes, heure_model=g.models.heure_model)
         # On récupère la moyenne pour la semaine affichée
         moyenne_hebdo_h2f = stats_h2f['moyennes_hebdo'].get(semaine, 0.0)
         moyenne_mobile_h2f = stats_h2f['moyennes_mobiles'].get(semaine, 0.0)
@@ -7623,11 +7623,10 @@ def synthese_hebdomadaire():
     svg_horaire_data = None
     if id_contrat_exemple and employeur_exemple:
         svg_horaire_data = g.models.synthese_hebdo_model.prepare_svg_data_horaire_jour(
-            user_id, employeur_exemple, id_contrat_exemple, annee, semaine, seuil_h2f_heure
-        )
+            user_id, employeur_exemple, id_contrat_exemple, annee, semaine, seuil_h2f_heure, heure_model=g.models.heure_model)
     elif id_contrat_svg and employeur_svg:
         svg_horaire_data = g.models.synthese_hebdo_model.prepare_svg_data_horaire_jour(
-            user_id, employeur_svg, id_contrat_svg, annee, semaine, seuil_h2f_heure)
+            user_id, employeur_svg, id_contrat_svg, annee, semaine, seuil_h2f_heure, heure_model=g.models.heure_model)
 
     # Si pas de contrat trouvé, svg_horaire_data restera None, gère-le dans ton template.
 
@@ -7781,10 +7780,10 @@ def synthese_mensuelle():
     graphique_h2f_annuel = None
     if employeur and contrat_id:
         graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
-            user_id, employeur, contrat_id, annee, seuil_h2f_minutes, 900, 400)
+            user_id, employeur, contrat_id, annee, seuil_h2f_minutes, 900, 400, synthese_hebdo_model=g.models.synthese_hebdo_model)
     elif synthese_list:
         graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
-            user_id, employeur_exemple, id_contrat_exemple, annee, seuil_h2f_minutes, 900, 400)
+            user_id, employeur_exemple, id_contrat_exemple, annee, seuil_h2f_minutes, 900, 400, synthese_hebdo_model=g.models.synthese_hebdo_model)
     stats_h2f_mois = None
     svg_horaire_mois_data = None
     if mois: # Si un mois est spécifié
@@ -7794,15 +7793,15 @@ def synthese_mensuelle():
 
         if contrat_id and employeur :
             stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(
-                user_id, employeur, contrat_id, annee, mois, seuil_h2f_minutes)
+                user_id, employeur, contrat_id, annee, mois, seuil_h2f_minutes, heure_model=g.models.heure_model)
             svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
-                user_id, employeur, contrat_id, annee, mois)
+                user_id, employeur, contrat_id, annee, mois, heure_model=g.models.heure_model)
         elif id_contrat_exemple and employeur_exemple:
             stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(
-                user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes)
+                user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes, heure_model=g.models.heure_model)
             # --- NOUVEAU : Préparation des données SVG pour le graphique horaire du mois ---
             svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
-                user_id, employeur_exemple, id_contrat_exemple, annee, mois)
+                user_id, employeur_exemple, id_contrat_exemple, annee, mois, heure_model=g.models.heure_model)
             logging.info(f'Voici les données pour {mois} : {svg_horaire_mois_data}')
     # --- NOUVEAU : Graphique hebdomadaire du dépassement de seuil DANS le mois ---
     graphique_h2f_semaines = None
@@ -7811,7 +7810,7 @@ def synthese_mensuelle():
         employeur_exemple = synthese_list[0]['employeur']
         
         donnees_semaines = g.models.synthese_mensuelle_model.calculate_h2f_stats_weekly_for_month(
-            user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes
+            user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes, heure_model=g.models.heure_model
         )
         logging.info(f'voici les données pour {mois}: {donnees_semaines}')
 
@@ -7997,7 +7996,7 @@ def dashboard_employes():
 
     # Vérifier si l'utilisateur a déjà défini des types de cotisations ou indemnités
     contrat_model = g.models.contrat_model
-    if not contrat_model.user_has_types_cotisation_or_indemnite(current_user_id):
+    if not contrat_model.user_has_types_cotisation_or_indemnite(current_user_id, cotisations_contrat_model=g.models.type_cotisation_model, indemnite_contrat_model=g.models.type_indemnite_model):
         flash("Avant de gérer des employés, veuillez définir vos cotisations et indemnités dans la section Entreprise.", "info")
         return redirect(url_for('banking.gestion_entreprise'))
 
@@ -8355,7 +8354,7 @@ def gestion_cotisations_contrat(contrat_id):
                     'valeur': float(val_i[i])
                 })
 
-        g.models.contrat_model.sauvegarder_cotisations_et_indemnites(contrat_id, current_user.id, data)
+        g.models.contrat_model.sauvegarder_cotisations_et_indemnites(contrat_id, current_user.id, data, cotisations_contrat_model=g.models.cotisations_contrat_model, indemnites_contrat_model=g.models.indemnites_contrat_model, indemnites_contrat_model=g.models.indemnites_contrat_model)
         flash("Cotisations et indemnités sauvegardées.", "success")
         return redirect(url_for('banking.gestion_cotisations_contrat', contrat_id=contrat_id, annee=annee))
 
