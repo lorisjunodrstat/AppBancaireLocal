@@ -1,5 +1,6 @@
 # config.py
 import os
+import pymysql
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -14,5 +15,5 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD'),
     'charset': 'utf8mb4',
     'autocommit': True,
-    'cursorclass': 'pymysql.cursors.DictCursor'  # sous forme de chaîne pour éviter dépendance ici
+    'cursorclass': pymysql.cursors.DictCursor  # sous forme de chaîne pour éviter dépendance ici
 }
