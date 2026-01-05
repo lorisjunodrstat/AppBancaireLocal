@@ -70,6 +70,7 @@ def get_comptes_utilisateur(user_id):
     # ---- ROUTES ----
 @bp.route('/')
 def index():
+    print("La route index est appelée !")
     return render_template('home2.html')
      
 
@@ -5817,7 +5818,8 @@ def export_compte_de_resultat():
         response.headers["Content-type"] = "application/pdf"
         return response
 
-@bp.route('/')
+
+@bp.route('/comptabilite/journal-comptable')
 def journal_comptable():
     # Récupérer les années disponibles
     annees = g.models.ecriture_comptable_model.get_annees_disponibles(user_id=1)  # À adapter avec le vrai user_id
