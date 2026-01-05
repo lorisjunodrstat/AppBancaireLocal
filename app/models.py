@@ -6460,7 +6460,7 @@ class EcritureComptable:
 
     def __init__(self, db):
         self.db = db
-        self.categorie_comptable_model = CategorieComptable(self.db)
+
     
     @property
     def upload_folder(self):
@@ -6508,7 +6508,7 @@ class EcritureComptable:
             print("❌ Dossier n'existe pas")
             return False
 
-    def create(self, data: Dict) -> bool:
+    def create(self, categorie_comptable_model, data: Dict) -> bool:
         """Crée une nouvelle écriture comptable"""
         # Validation du lien catégorie ↔ plan comptable du compte
         if data.get('id_contact'):
@@ -6557,8 +6557,8 @@ class EcritureComptable:
                 categorie_id = data['categorie_id']
                 utilisateur_id = data['utilisateur_id']
 
-                if self.categorie_comptable_model:
-                    has_complementaire = self.categorie_comptable_model.has_categorie_complementaire(
+                if categorie_comptable_model:
+                    has_complementaire = categorie_comptable_model.has_categorie_complementaire(
                         categorie_id, utilisateur_id
                     )
                     if has_complementaire:
@@ -8997,16 +8997,15 @@ class TypIndemnite:
 class CotisationContrat:
     def __init__(self, db):
         self.db = db
-        self.employe_model = Employe(self.db)
-        self.bareme_cotisation_model = BaremeCotisation(self.db)
-    def calculer_montant_cotisation(self, type_cotisation_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
+
+    def calculer_montant_cotisation(self, bareme_cotisation_model, type_cotisation_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
         """
         Calcule le montant d'une cotisation :
         - Si barème → utilise le barème avec base_montant (salaire brut ou brut_tot)
         - Sinon → utilise taux_fallback (issu de cotisations_contrat)
         """
-        if self.bareme_cotisation_model.has_bareme(type_cotisation_id):
-            tranches = self.bareme_cotisation_model.get_bareme(type_cotisation_id)
+        if bareme_cotisation_model.has_bareme(type_cotisation_id):
+            tranches = bareme_cotisation_model.get_bareme(type_cotisation_id)
             for tranche in tranches:
                 min_s = tranche['seuil_min']
                 max_s = tranche['seuil_max']
@@ -9064,7 +9063,7 @@ class CotisationContrat:
         except Exception as e:
             logger.error(f"Erreur récupération cotisation contrat {contrat_id} pour annee {annee} : {e}")
             return []
-    def get_total_cotisations_par_mois(self, user_id: int, annee: int, mois: int) -> List[Dict]:
+    def get_total_cotisations_par_mois(self, bareme_cotisation_model, user_id: int, annee: int, mois: int) -> List[Dict]:
         """
         Retourne le détail des cotisations par contrat pour un mois donné.
         Inclut le montant calculé selon la base (brut ou brut_tot) et le taux.
@@ -9120,8 +9119,8 @@ class CotisationContrat:
                     montant = 0.0
 
                     # 1. Vérifier si un barème existe pour ce type
-                    if self.bareme_cotisation_model.has_bareme(type_cotisation_id):
-                        tranches = self.bareme_cotisation_model.get_bareme(type_cotisation_id)
+                    if bareme_cotisation_model.has_bareme(type_cotisation_id):
+                        tranches = bareme_cotisation_model.get_bareme(type_cotisation_id)
                         for tranche in tranches:
                             min_s = tranche['seuil_min']
                             max_s = tranche['seuil_max']
@@ -9232,7 +9231,7 @@ class CotisationContrat:
         }
 
     # Dans la classe CotisationContrat
-    def prepare_svg_cotisations_mensuelles_employe(self, user_id: int, employe_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
+    def prepare_svg_cotisations_mensuelles_employe(self, employe_model, user_id: int, employe_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         montants_mensuels = []
         for mois in range(1, 13):
             total = sum(
@@ -9277,7 +9276,7 @@ class CotisationContrat:
         mois_labels = [f"{m:02d}/{annee}" for m in range(1, 13)]
         
         # Récupérer le nom de l'employé (optionnel, pour le titre)
-        employe = self.employe_model.get_by_id(employe_id, user_id)
+        employe = employe_model.get_by_id(employe_id, user_id)
         employe_nom = f"{employe['prenom']} {employe['nom']}" if employe else "Employé inconnu"
 
         return {
@@ -9303,17 +9302,16 @@ class CotisationContrat:
 class IndemniteContrat:
     def __init__(self, db):
         self.db = db
-        self.employe_model = Employe(self.db)
-        self.bareme_indemnite_model = BaremeIndemnite(db)
 
-    def calculer_montant_indemnite(self, type_indemnite_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
+
+    def calculer_montant_indemnite(self, bareme_indemnite_model, type_indemnite_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
         """
         Calcule le montant d'une indemnité :
         - Si barème → utilise le barème avec base_montant
         - Sinon → utilise taux_fallback (issu de indemnites_contrat)
         """
-        if self.bareme_indemnite_model.has_bareme(type_indemnite_id):
-            tranches = self.bareme_indemnite_model.get_bareme(type_indemnite_id)
+        if bareme_indemnite_model.has_bareme(type_indemnite_id):
+            tranches = bareme_indemnite_model.get_bareme(type_indemnite_id)
             for tranche in tranches:
                 min_s = tranche['seuil_min']
                 max_s = tranche['seuil_max']
@@ -9515,7 +9513,7 @@ class IndemniteContrat:
         }
 
     # Dans la classe CotisationContrat
-    def prepare_svg_indemnites_mensuelles_employe(self, user_id: int, employe_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
+    def prepare_svg_indemnites_mensuelles_employe(self, employe_model, user_id: int, employe_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         montants_mensuels = []
         for mois in range(1, 13):
             total = sum(
@@ -9560,7 +9558,7 @@ class IndemniteContrat:
         mois_labels = [f"{m:02d}/{annee}" for m in range(1, 13)]
         
         # Récupérer le nom de l'employé (optionnel, pour le titre)
-        employe = self.employe_model.get_by_id(employe_id, user_id)
+        employe = employe_model.get_by_id(employe_id, user_id)
         employe_nom = f"{employe['prenom']} {employe['nom']}" if employe else "Employé inconnu"
 
         return {
@@ -9586,9 +9584,7 @@ class IndemniteContrat:
 class Contrat:
     def __init__(self, db):
         self.db = db
-        self.cotisations_contrat_model = CotisationContrat(self.db)
-        self.indemnites_contrat_model = IndemniteContrat(self.db)
-
+        
     def user_has_types_cotisation_or_indemnite(self, user_id: int) -> bool:
         cotisations = self.cotisations_contrat_model.get_all_by_user(user_id)
         indemnites = self.indemnites_contrat_model.get_all_by_user(user_id)
@@ -11415,7 +11411,7 @@ class Salaire:
 class SyntheseHebdomadaire:
     def __init__(self, db):
         self.db = db
-        self.heure_model = HeureTravail(self.db)
+   
     # Dans la classe SyntheseHebdomadaire
     def calculate_for_week_by_contrat(self, user_id: int, annee: int, semaine: int) -> list[dict]:
         try:
@@ -11747,7 +11743,7 @@ class SyntheseHebdomadaire:
             logger.error(f"Erreur employeurs: {e}")
             return []
 
-    def calculate_h2f_stats(self, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
+    def calculate_h2f_stats(self, heure_model, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
         """
         Calcule les statistiques sur h2f pour une année donnée.
         seuil_h2f_minutes: seuil en minutes (ex: 18h = 18*60 min). Défaut à 18h.
@@ -11756,10 +11752,10 @@ class SyntheseHebdomadaire:
         weekly_counts = {} # { semaine: nb_jours_avec_h2f_apres_seuil }
 
         for semaine in range(1, 53): # Semaines de 1 à 52 (ou 53)
-            jours_semaine = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+            jours_semaine = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
             count = 0
             for jour in jours_semaine:
-                h2f_minutes = self.heure_model.time_to_minutes(jour.get('h2f'))
+                h2f_minutes = heure_model.time_to_minutes(jour.get('h2f'))
                 if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
                     count += 1
             weekly_counts[semaine] = count
@@ -11786,7 +11782,7 @@ class SyntheseHebdomadaire:
         }
 
 
-    def prepare_svg_data_horaire_jour(self, user_id: int, employeur: str, id_contrat: int, annee: int, semaine: int, seuil_h2f_heure: float = 18.0, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
+    def prepare_svg_data_horaire_jour(self, heure_model, user_id: int, employeur: str, id_contrat: int, annee: int, semaine: int, seuil_h2f_heure: float = 18.0, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         """
         Prépare les données pour un graphique SVG des horaires de début/fin de journée.
         Axe X: Jours de la semaine (Lun, Mar, Mer, Jeu, Ven, Sam, Dim)
@@ -11794,7 +11790,7 @@ class SyntheseHebdomadaire:
         seuil_h2f_heure: Heure du seuil à afficher (par défaut 18h).
         """
 
-        jours_semaine = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+        jours_semaine = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6  # 6h du matin
@@ -11937,8 +11933,6 @@ class SyntheseHebdomadaire:
 class SyntheseMensuelle:
     def __init__(self, db):
         self.db = db
-        self.heure_model = HeureTravail(self.db)
-        self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
 
 
     def calculate_for_month_by_contrat(self, user_id: int, annee: int, mois: int) -> list[dict]:
@@ -12245,17 +12239,17 @@ class SyntheseMensuelle:
             logger.error(f"Erreur récupération synthèses: {e}")
             return []
 
-    def calculate_h2f_stats_mensuel(self, user_id: int, employeur: str, id_contrat: int,
+    def calculate_h2f_stats_mensuel(self,heure_model, user_id: int, employeur: str, id_contrat: int,
                                     annee: int, mois: int, seuil_h2f_minutes: int = 18 * 60) -> Dict:
         """
         Calcule les statistiques sur h2f pour un mois donné.
         """
         seuil_h2f_minutes = int(round(seuil_h2f_minutes))
 
-        jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+        jours_mois = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
         count = 0
         for jour in jours_mois:
-            h2f_minutes = self.heure_model.time_to_minutes(jour.get('h2f'))
+            h2f_minutes = heure_model.time_to_minutes(jour.get('h2f'))
             if h2f_minutes != -1 and h2f_minutes > seuil_h2f_minutes:
                 count += 1
 
@@ -12268,14 +12262,14 @@ class SyntheseMensuelle:
             'seuil_heure': f"{seuil_int // 60}:{seuil_int % 60:02d}"
         }
 
-    def prepare_svg_data_horaire_mois(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, largeur_svg: int = 1000, hauteur_svg: int = 400) -> Dict:
+    def prepare_svg_data_horaire_mois(self, heure_model, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, largeur_svg: int = 1000, hauteur_svg: int = 400) -> Dict:
         """
         Prépare les données pour un graphique SVG des horaires sur un mois.
         Axe X: Jours du mois (1, 2, 3, ..., 31)
         Axe Y: Heures (6h en haut, 22h en bas)
         """
 
-        jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+        jours_mois = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6
@@ -12384,9 +12378,9 @@ class SyntheseMensuelle:
             'annee': annee
         }
 
-    def prepare_svg_data_h2f_annuel(self, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60, largeur_svg: int = 900, hauteur_svg: int = 400) -> Dict:
+    def prepare_svg_data_h2f_annuel(self, synthese_hebdo_model, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60, largeur_svg: int = 900, hauteur_svg: int = 400) -> Dict:
     # Récupérer les stats hebdomadaires
-        stats = self.synthese_hebdo_model.calculate_h2f_stats(user_id, employeur, id_contrat, annee, seuil_h2f_minutes)
+        stats = synthese_hebdo_model.calculate_h2f_stats(user_id, employeur, id_contrat, annee, seuil_h2f_minutes)
 
         semaines = list(range(1, 53))  # ou 54 si besoin
         depassements = [stats['moyennes_hebdo'].get(s, 0) for s in semaines]
@@ -12438,7 +12432,7 @@ class SyntheseMensuelle:
         }
 
 
-    def calculate_h2f_stats_weekly_for_month(self, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int) -> Dict:
+    def calculate_h2f_stats_weekly_for_month(self, heure_model, user_id: int, employeur: str, id_contrat: int, annee: int, mois: int, seuil_h2f_minutes: int) -> Dict:
         # Bornes du mois
         if mois == 12:
             fin_mois = date(annee + 1, 1, 1) - timedelta(days=1)
@@ -12447,7 +12441,7 @@ class SyntheseMensuelle:
         debut_mois = date(annee, mois, 1)
 
         # Récupérer TOUS les jours du mois
-        tous_les_jours = self.heure_model.get_h1d_h2f_for_period(
+        tous_les_jours = heure_model.get_h1d_h2f_for_period(
             user_id=user_id,
             employeur=employeur,
             id_contrat=id_contrat,
@@ -12484,7 +12478,7 @@ class SyntheseMensuelle:
         for semaine in semaines_sorted:
             count = 0
             for jour in par_semaine[semaine]:
-                h2f_min = self.heure_model.time_to_minutes(jour.get('h2f'))
+                h2f_min = heure_model.time_to_minutes(jour.get('h2f'))
                 if h2f_min != -1 and h2f_min > seuil_h2f_minutes:
                     count += 1
             depassements.append(count)
@@ -12506,8 +12500,7 @@ class SyntheseMensuelle:
 class Equipe:
     def __init__(self, db):
         self.db = db
-        self.employe_model = Employe(self.db)
-        self.heure_model = HeureTravail(self.db)
+
     def create(self, user_id, nom: str) -> int:
         try:
             with self.db.get_cursor() as cursor:
@@ -12545,8 +12538,8 @@ class Equipe:
             logger.error(f"Erreur suppression equipe {id_equipe}: {e}")
             return False
 
-    def ajouter_employe_to_equipe(self, id_equipe: int, employe_id: int, user_id: int) -> bool:
-        employe = self.employe_model.get_by_id(employe_id, user_id)
+    def ajouter_employe_to_equipe(self, employe_model, id_equipe: int, employe_id: int, user_id: int) -> bool:
+        employe = employe_model.get_by_id(employe_id, user_id)
         if not employe:
             return False
         try:
@@ -12633,8 +12626,6 @@ class Equipe:
 class Competence:
     def __init__(self, db):
         self.db = db
-        self.employe_model = Employe(self.db)
-        self.equipe_model = Equipe(self.db)
     def create(self, user_id: int, nom: str) -> int:
         try:
             with self.db.get_cursor(commit=True) as cursor:
@@ -12668,8 +12659,8 @@ class Competence:
         except Exception as e:
             logger.error(f"Erreur suppression compétence {id_competence} : {e}")
             return False
-    def assigner_employe_competence(self, id_competence: int, employe_id: int, user_id:int) -> bool:
-        if not self.employe_model.get_by_id(employe_id, user_id):
+    def assigner_employe_competence(self, employe_model, id_competence: int, employe_id: int, user_id:int) -> bool:
+        if not employe_model.get_by_id(employe_id, user_id):
             return False
         try:
             with self.db.get_cursor(commit=True) as cursor:
@@ -12719,9 +12710,9 @@ class Competence:
         except Exception as e:
             logger.error(f"Erreur récupération employés compétence {id_competence} : {e}")
             return []
-    def definir_competence_requise_equipe(self, user_id: int, equipe_id: int, id_competence: int, quantite_min: int = 1) -> bool:
+    def definir_competence_requise_equipe(self, equipe_model, user_id: int, equipe_id: int, id_competence: int, quantite_min: int = 1) -> bool:
         # Vérifier que l’équipe appartient à l’utilisateur
-        equipes = self.equipe_model.get_all_by_user(user_id)
+        equipes = equipe_model.get_all_by_user(user_id)
         if not any(eq['id'] == equipe_id for eq in equipes):
             return False
         try:
@@ -12753,8 +12744,6 @@ class Competence:
 class Planning:
     def __init__(self, db):
         self.db = db
-        self.employe_model = Employe(self.db)
-        self.equipe_model = Equipe(self.db)
 
     def creer_shift(self, data: Dict)-> bool:
         "Crée un créneau horaire"
@@ -12817,8 +12806,6 @@ class Planning:
 class PlanningRegles:
     def __init__(self, db):
         self.db = db
-        self.equipe_model = Equipe(db)
-        self.competence_model = Competence(db)
 
     def create_regle(self, user_id: int, nom: str, type_regle: str, params: Dict[str, Any]) -> int:
         """
@@ -12897,14 +12884,14 @@ class PlanningRegles:
             logger.error(f"Erreur récup simulés {date_jour} équipe {equipe_id} : {e}")
             return []
 
-    def _valider_competence_min_simulee(self, user_id: int, regle: Dict, debut: date, fin: date) -> List[Dict]:
+    def _valider_competence_min_simulee(self, equipe_model, competence_model, user_id: int, regle: Dict, debut: date, fin: date) -> List[Dict]:
         params = regle['params']
         equipe_id = params.get('equipe_id')
         competence_id = params.get('competence_id')
         quantite_min = params.get('quantite_min', 1)
 
         # Vérifier propriété
-        equipes = self.equipe_model.get_equipes_from_user(user_id)
+        equipes = equipe_model.get_equipes_from_user(user_id)
         if not any(eq['id'] == equipe_id for eq in equipes):
             return []
 
@@ -12914,7 +12901,7 @@ class PlanningRegles:
             employes_presents = self._get_employes_simules_jour(user_id, equipe_id, current)
             employes_qualifies = [
                 e for e in employes_presents
-                if competence_id in [c['id'] for c in self.competence_model.get_competences_employe(e['id'])]
+                if competence_id in [c['id'] for c in competence_model.get_competences_employe(e['id'])]
             ]
             if len(employes_qualifies) < quantite_min:
                 violations.append({
@@ -12928,11 +12915,11 @@ class PlanningRegles:
             current += timedelta(days=1)
         return violations
 
-    def _valider_bilinguisme_simultane_simule(self, user_id: int, regle: Dict, debut: date, fin: date) -> List[Dict]:
+    def _valider_bilinguisme_simultane_simule(self, equipe_model, competence_model,user_id: int, regle: Dict, debut: date, fin: date) -> List[Dict]:
         params = regle['params']
         equipe_id = params.get('equipe_id')
 
-        equipes = self.equipe_model.get_equipes_from_user(user_id)
+        equipes = equipe_model.get_equipes_from_user(user_id)
         if not any(eq['id'] == equipe_id for eq in equipes):
             return []
 
@@ -12945,8 +12932,8 @@ class PlanningRegles:
         current = debut
         while current <= fin:
             employes_presents = self._get_employes_simules_jour(user_id, equipe_id, current)
-            a_fr = any(comp_fr['id'] in [c['id'] for c in self.competence_model.get_competences_employe(e['id'])] for e in employes_presents)
-            a_de = any(comp_de['id'] in [c['id'] for c in self.competence_model.get_competences_employe(e['id'])] for e in employes_presents)
+            a_fr = any(comp_fr['id'] in [c['id'] for c in competence_model.get_competences_employe(e['id'])] for e in employes_presents)
+            a_de = any(comp_de['id'] in [c['id'] for c in competence_model.get_competences_employe(e['id'])] for e in employes_presents)
 
             if not (a_fr and a_de):
                 violations.append({
@@ -13149,41 +13136,111 @@ class Entreprise:
 
 class ModelManager:
     def __init__(self, db):
-        self.db = db
-        self.banque_model = Banque(self.db)
-        self.periode_favorite_model = PeriodeFavorite(self.db)
-        self.compte_model = ComptePrincipal(self.db)
-        self.compte__principal_rapport_model = ComptePrincipalRapport(self.db)
-        self.sous_compte_model = SousCompte(self.db)
-        self.transaction_financiere_model = TransactionFinanciere(self.db)
-        self.categorie_transaction_model = CategorieTransaction(self.db)
-        self.stats_model = StatistiquesBancaires(self.db)
-        self.plan_comptable_model = PlanComptable(self.db)
-        self.categorie_comptable_model = CategorieComptable(self.db)
-        self.ecriture_comptable_model = EcritureComptable(self.db)
-        self.contact_plan_model = ContactPlan(self.db)
-        self.contact_model = Contacts(self.db)
-        self.contact_compte_model = ContactCompte(self.db)
-        self.contact_plan_model = ContactPlan(self.db)
-        self.rapport_model = Rapport(self.db)
+        self._db = db
+        self._cache = {}
+    def _get_model(self, name, cls):
+        if name not in self._cache:
+            self._cache[name] = cls(self._db)
+        return self._cache[name]
+    @property
+    def banque_model(self):
+        return self._get_model('banque', Banque)
+    @property
+    def periode_favorite_model(self):
+        return self._get_model('periode_favorite', PeriodeFavorite)
+    @property       
+    def compte_model(self):
+        return self._get_model('compte', ComptePrincipal)
+    @property
+    def compte__principal_rapport_model(self):
+        return self._get_model('compte__principal_rapport', ComptePrincipalRapport)
+    @property
+    def sous_compte_model(self):
+        return self._get_model('sous_compte', SousCompte)
+    @property
+    def transaction_financiere_model(self):
+        return self._get_model('transaction_financiere', TransactionFinanciere)
+    @property   
+    def categorie_transaction_model(self):
+        return self._get_model('categorie_transaction', CategorieTransaction)
+    @property
+    def stats_model(self):
+        return self._get_model('stats', StatistiquesBancaires)
+    @property
+    def plan_comptable_model(self):
+        return self._get_model('plan_comptable', PlanComptable)
+    @property
+    def categorie_comptable_model(self):
+        return self._get_model('categorie_comptable', CategorieComptable)
+    @property
+    def ecriture_comptable_model(self):
+        return self._get_model('ecriture_comptable', EcritureComptable)
+    @property
+    def contact_plan_model(self):
+        return self._get_model('contact_plan', ContactPlan)
+    @property
+    def contact_model(self):
+        return self._get_model('contact', Contacts)
+    @property
+    def contact_compte_model(self):
+        return self._get_model('contact_compte', ContactCompte)
+    @property
+    def contact_plan_model(self):
+        return self._get_model('contact_plan', ContactPlan)
+    @property
+    def rapport_model(self):
         self.bareme_cotisation_model = BaremeCotisation(self.db)
-        self.bareme_indemnite_model = BaremeIndemnite(self.db)
-        self.type_cotisations_model = TypeCotisation(self.db)
-        self.type_indemnites_model = TypIndemnite(self.db)
-        self.cotisations_contrat_model = CotisationContrat(self.db)
-        self.indemnites_contrat_model = IndemniteContrat(self.db)
-        self.heure_model = HeureTravail(self.db)
-        self.salaire_model = Salaire(self.db)
-        self.synthese_hebdo_model = SyntheseHebdomadaire(self.db)
-        self.synthese_mensuelle_model = SyntheseMensuelle(self.db)
-        self.contrat_model = Contrat(self.db)
-        self.employe_model = Employe(self.db)
-        self.equipe_model = Equipe(self.db)
-        self.competence_model = Competence(self.db)
-        self.planning_model = Planning(self.db)
-        self.planning_regles_model =  PlanningRegles(self.db)
-        self.entreprise_model = Entreprise(self.db)
-        self.parametre_utilisateur_model = ParametreUtilisateur(self.db)
+    @property
+    def bareme_indemnite_model(self):
+        return self._get_model('bareme_indemnite', BaremeIndemnite)
+    @property
+    def type_cotisations_model(self):
+        return self._get_model('type_cotisations', TypeCotisation)
+    @property
+    def type_indemnites_model(self):
+        return self._get_model('type_indemnites', TypIndemnite)
+    @property
+    def cotisations_contrat_model(self):
+        return self._get_model('cotisations_contrat', CotisationContrat)
+    @property
+    def indemnites_contrat_model(self):
+        return self._get_model('indemnites_contrat', IndemniteContrat)
+    @property
+    def heure_model(self):
+        return self._get_model('heure', HeureTravail)
+    @property
+    def salaire_model(self):
+        return self._get_model('salaire', Salaire)
+    @property
+    def synthese_hebdo_model(self):
+        return self._get_model('synthese_hebdo', SyntheseHebdomadaire)
+    @property
+    def synthese_mensuelle_model(self):
+        return self._get_model('synthese_mensuelle', SyntheseMensuelle)
+    @property
+    def contrat_model(self):
+        return self._get_model('contrat', Contrat)
+    @property
+    def employe_model(self):
+        return self._get_model('employe', Employe)
+    @property
+    def equipe_model(self):
+        return self._get_model('equipe', Equipe)
+    @property
+    def competence_model(self):
+        return self._get_model('competence', Competence)
+    @property
+    def planning_model(self):
+        return self._get_model('planning', Planning)
+    @property
+    def planning_regles_model(self):
+        return self._get_model('planning_regles', PlanningRegles)
+    @property
+    def entreprise_model(self):
+        return self._get_model('entreprise', Entreprise)
+    @property
+    def parametre_utilisateur_model(self):
+        return self._get_model('parametre_utilisateur', ParametreUtilisateur)
     def get_user_by_username(self, username):
         """
         Récupère un utilisateur par nom d'utilisateur.
