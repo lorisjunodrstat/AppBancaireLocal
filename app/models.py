@@ -12653,6 +12653,14 @@ class Equipe:
             logger.error(f"Erreur récupération des équipes avec employes de user {user_id}: {e}")
             return []
 
+    def get_all_by_user(self, user_id: int) -> List[Dict]:
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("SELECT * FROM equipes WHERE user_id = %s ORDER BY nom", (user_id,))
+                return cursor.fetchall()
+        except Exception as e:  
+            logger.error(f"Erreur récupération équipes user {user_id}: {e}")
+            return []
 class Competence:
     def __init__(self, db):
         self.db = db
