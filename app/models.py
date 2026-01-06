@@ -9228,6 +9228,24 @@ class CotisationContrat:
             'max_val': max_val,
             'annee': annee
         }
+    def get_all_by_user(self, user_id: int) -> List[Dict]:
+        """Récupère toutes les cotisations pour les contrats d'un utilisateur"""
+        try:
+            with self.db.get_cursor(dictionary=True) as cursor:
+                query = """
+                SELECT cc.*, c.employeur, c.employe_id, tc.nom AS type_cotisation_nom
+                FROM cotisations_contrat cc
+                JOIN contrats c ON cc.contrat_id = c.id
+                JOIN types_cotisation tc ON cc.type_cotisation_id = tc.id
+                WHERE c.user_id = %s
+                ORDER BY c.employeur, tc.nom
+                """
+                cursor.execute(query, (user_id,))
+                rows = cursor.fetchall()
+                return rows
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération des cotisations pour user_id={user_id}: {e}", exc_info=True)
+            return []
 
     # Dans la classe CotisationContrat
     def prepare_svg_cotisations_mensuelles_employe(self, employe_model, user_id: int, employe_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
@@ -9510,7 +9528,24 @@ class IndemniteContrat:
             'max_val': max_val,
             'annee': annee
         }
-
+    def get_all_by_user(self, user_id: int) -> List[Dict]:
+        """Récupère toutes les cotisations pour les contrats d'un utilisateur"""
+        try:
+            with self.db.get_cursor(dictionary=True) as cursor:
+                query = """
+                SELECT cc.*, c.employeur, c.employe_id, ti.nom AS type_indemnite_nom
+                FROM cotisations_contrat cc
+                JOIN contrats c ON cc.contrat_id = c.id
+                JOIN types_indemnite ti ON cc.type_indemnite_id = ti.id
+                WHERE c.user_id = %s
+                ORDER BY c.employeur, ti.nom
+                """
+                cursor.execute(query, (user_id,))
+                rows = cursor.fetchall()
+                return rows
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération des indemnites pour user_id={user_id}: {e}", exc_info=True)
+            return []
     # Dans la classe CotisationContrat
     def prepare_svg_indemnites_mensuelles_employe(self, employe_model, user_id: int, employe_id: int, annee: int, largeur_svg: int = 800, hauteur_svg: int = 400) -> Dict:
         montants_mensuels = []
