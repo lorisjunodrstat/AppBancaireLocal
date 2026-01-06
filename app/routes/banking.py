@@ -74,6 +74,24 @@ def banking_home(): # Nom unique
 @bp.route('/home')
 def banking_homepage(): # Nom unique
     return render_template('home2.html')
+@bp.route('/pages/banques')
+def pages_banque():
+    return render_template('pages/banque.html')
+@bp.route('/pages/comptabilite')
+def pages_comptabilite():
+    return render_template('pages/comptabilite.html')
+
+@bp.route('/pages/salaire')
+def pages_salaire():
+    return render_template('pages/salaire.html')
+@bp.route('/pages/installation')
+def pages_installation():
+    return render_template('pages/installation.html')
+
+@bp.route('/about')
+def about():
+    return render_template('pages/about.html')
+    
 @bp.route('/banques', methods=['GET'])
 @login_required
 def liste_banques():
