@@ -7991,7 +7991,7 @@ def dashboard_employes():
 
     # Vérifier si l'utilisateur a déjà défini des types de cotisations ou indemnités
     contrat_model = g.models.contrat_model
-    if not contrat_model.user_has_types_cotisation_or_indemnite(current_user_id, cotisations_contrat_model=g.models.type_cotisation_model, indemnite_contrat_model=g.models.type_indemnite_model):
+    if not contrat_model.user_has_types_cotisation_or_indemnite(current_user_id, cotisations_contrat_model=g.models.cotisations_contrat_model, indemnite_contrat_model=g.models.indemnite_contrat_model):
         flash("Avant de gérer des employés, veuillez définir vos cotisations et indemnités dans la section Entreprise.", "info")
         return redirect(url_for('banking.gestion_entreprise'))
 
