@@ -207,17 +207,17 @@
         <li class="nav-item">
           <a class="nav-link dropdown-toggle" href="#" role="button">Fonctionnalités</a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="/pages/banque.html">Banque</a></li>
-            <li><a class="dropdown-item" href="/pages/comptabilite.html">Comptabilité</a></li>
-            <li><a class="dropdown-item" href="/pages/salaire.html">Salaire</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('banking.pages_banque')}}">Banque</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('banking.pages_comptabilite')}}">Comptabilité</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('banking.pages_salaire')}}">Salaire</a></li>
             <li>
               <hr class="dropdown-divider" style="margin: 0.25rem 0; border-color: #eee;">
             </li>
-            <li><a class="dropdown-item" href="/pages/installation.html">Installation</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('banking.pages_installation')}}">Installation</a></li>
           </ul>
         </li>
         <li class="nav-item">
-          <a href="/about" class="nav-link">À propos</a>
+          <a href="{{ url_for('banking.about')}}" class="nav-link">À propos</a>
         </li>
         <li class="nav-item">
           <a href="/auth/login" class="nav-link">Se connecter</a>
