@@ -10815,10 +10815,8 @@ class HeureTravail:
 class Salaire:
     def __init__(self, db):
         self.db = db
-        self.heure_model = HeureTravail(self.db)
-        self.cotisations_contrat_model = CotisationContrat(self.db)
-        self.indemnites_contrat_model = IndemniteContrat(self.db)
-        self.employe_model = Employe(self.db)
+
+
 
     def create(self, data: dict) -> bool:
         try:
