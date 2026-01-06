@@ -9584,7 +9584,7 @@ class Contrat:
     def __init__(self, db):
         self.db = db
         
-    def user_has_types_cotisation_or_indemnite(self, cotisations_contrat_model, indemnites_contrat_model, user_id: int) -> bool:
+    def user_has_types_cotisation_or_indemnite(self, user_id: int, cotisations_contrat_model, indemnites_contrat_model) -> bool:
         cotisations = cotisations_contrat_model.get_all_by_user(user_id)
         indemnites = indemnites_contrat_model.get_all_by_user(user_id)
         return len(cotisations) > 0 or len(indemnites) > 0
