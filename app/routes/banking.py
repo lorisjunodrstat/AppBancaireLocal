@@ -6259,10 +6259,45 @@ def generate_days(annee: int, mois: int, semaine: int) -> list[date]:
         _, num_days = monthrange(now.year, now.month)
         return [date(now.year, now.month, day) for day in range(1, num_days + 1)]
 
-def handle_save_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
-    date_str = request.form['save_line']
-    return process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, id_contrat)
-
+#def handle_save_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
+#    date_str = request.form['save_line']
+#    return process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, id_contrat)
+def handle_save_line(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat):
+    date_str = request.form.get('save_line')
+    vacances = request.form.get(f'vacances_{date_str}') == 'on'
+    
+    # Récupérer jusqu'à 4 plages horaires
+    plages = []
+    for i in range(4):  # 4 plages maximum
+        debut = request.form.get(f'plages_{date_str}_{i}_debut')
+        fin = request.form.get(f'plages_{date_str}_{i}_fin')
+        
+        # Ne pas ajouter de plages complètement vides
+        if debut or fin:
+            plages.append({
+                'debut': debut or '',
+                'fin': fin or ''
+            })
+    
+    data = {
+        'date': date_str,
+        'user_id': current_user_id,
+        'employeur': selected_employeur,
+        'id_contrat': id_contrat,
+        'plages': plages,
+        'vacances': vacances,
+        'type_heures': 'reelles' if current_mode == 'reel' else 'simulees'
+    }
+    
+    success = g.models.heure_model.create_or_update(data)
+    if success:
+        flash('Heures enregistrées avec succès', 'success')
+    else:
+        flash('Erreur lors de l\'enregistrement', 'danger')
+    
+    return redirect(url_for('banking.heures_travail',
+                            annee=annee, mois=mois, semaine=semaine,
+                            mode=current_mode, employeur=selected_employeur))
 def handle_reset_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     date_str = request.form['reset_line']
     try:
@@ -6349,23 +6384,65 @@ def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur, id
     #    flash(f"Heures simulées appliquées pour {success_count} jour(s)", "info")
     #return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
-def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
-    days = generate_days(annee, mois, semaine)
-    has_errors = False
+#def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
+#    days = generate_days(annee, mois, semaine)
+#    has_errors = False
+#    
+#    for day in days:
+#        date_str = day.isoformat()
+#        payload = create_day_payload(request, user_id, date_str, employeur, id_contrat)
+#        
+#        if not g.models.heure_model.create_or_update(payload):
+#            has_errors = True
+#            logger.error(f"Erreur traitement jour {date_str}")
+#    
+#    if not has_errors:
+#        flash("Toutes les heures ont été enregistrées avec succès", "success")
+#    
+#    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
+def handle_save_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat):
+    # Extraire toutes les dates uniques
+    dates = set()
+    for key in request.form.keys():
+        if key.startswith('plages_'):
+            parts = key.split('_')
+            if len(parts) >= 2:
+                dates.add(parts[1])  # L'index 1 contient la date
     
-    for day in days:
-        date_str = day.isoformat()
-        payload = create_day_payload(request, user_id, date_str, employeur, id_contrat)
+    for date_str in dates:
+        vacances = request.form.get(f'vacances_{date_str}') == 'on'
         
-        if not g.models.heure_model.create_or_update(payload):
-            has_errors = True
-            logger.error(f"Erreur traitement jour {date_str}")
+        # Récupérer jusqu'à 4 plages horaires pour cette date
+        plages = []
+        for i in range(4):
+            debut_key = f'plages_{date_str}_{i}_debut'
+            fin_key = f'plages_{date_str}_{i}_fin'
+            
+            debut = request.form.get(debut_key)
+            fin = request.form.get(fin_key)
+            
+            if debut or fin:
+                plages.append({
+                    'debut': debut or '',
+                    'fin': fin or ''
+                })
+        
+        data = {
+            'date': date_str,
+            'user_id': current_user_id,
+            'employeur': selected_employeur,
+            'id_contrat': id_contrat,
+            'plages': plages,
+            'vacances': vacances,
+            'type_heures': 'reelles' if current_mode == 'reel' else 'simulees'
+        }
+        
+        g.models.heure_model.create_or_update(data)
     
-    if not has_errors:
-        flash("Toutes les heures ont été enregistrées avec succès", "success")
-    
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
-
+    flash('Toutes les heures ont été enregistrées', 'success')
+    return redirect(url_for('banking.heures_travail',
+                            annee=annee, mois=mois, semaine=semaine,
+                            mode=current_mode, employeur=selected_employeur))
 
 
 def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
@@ -6493,6 +6570,10 @@ def ensure_upload_dir():
 def gestion_entreprise():
     current_user_id = current_user.id
     ensure_upload_dir()
+    entreprise_definie = g.models.entreprise_model.entreprise_exists_for_user(current_user_id)
+    url_creation = None
+    if not entreprise_definie:
+        url_creation = 'banking.dashboard_employe'
 
     if request.method == 'POST':
         data = {
@@ -6545,7 +6626,10 @@ def gestion_entreprise():
         return redirect(url_for('banking.gestion_entreprise'))
 
     entreprise = g.models.entreprise_model.get_or_create_for_user(current_user_id)
-    return render_template('entreprise/gestion.html', entreprise=entreprise)
+    if entreprise_definie is None :
+        return redirect(url_for(url_creation))
+    else:
+        return render_template('entreprise/gestion.html', entreprise=entreprise)
 
 
 ### ---- Routes heures travail pour employées
@@ -8006,16 +8090,33 @@ def nouveau_contrat():
 @login_required
 def dashboard_employes():
     current_user_id = current_user.id
-
+    #Etape 1
+    entreprise_definie = g.models.entreprise_model.entreprise_exists_for_user(current_user_id)
+    if not entreprise_definie:
+        return redirect(url_for('banking.gestion_entreprise'))
+    #Etape 2 
     # Vérifier si l'utilisateur a déjà défini des types de cotisations ou indemnités
     contrat_model = g.models.contrat_model
     if not contrat_model.user_has_types_cotisation_or_indemnite(current_user_id, cotisations_contrat_model=g.models.cotisations_contrat_model, indemnites_contrat_model=g.models.indemnites_contrat_model):
         flash("Avant de gérer des employés, veuillez définir vos cotisations et indemnités dans la section Entreprise.", "info")
         return redirect(url_for('banking.gestion_entreprise'))
+    #Etape 3 
+    cotisations_definies = g.models.cotisations_contrat_model.user_has_types_cotisation(current_user_id)
+    if cotisations_definies is None:
+        return redirect(url_for('banking.editer_type_cotisation'))
+    indemnites_definies = g.models.indemnites_contrat_model.user_has_types_indemnite(current_user_id)
+    if indemnites_definies is None:
+        return redirect(url_for('banking.editer_type_indemnite'))
 
-    # Sinon, continuer normalement
+    # Etape 4
+
     employes = g.models.employe_model.get_all_by_user(current_user_id)
     all_employes = len(employes)
+    if all_employes == 0:
+        return redirect(url_for('banking.create_employe'))
+    has_equipe = g.models.employe_model.get_all_by_user(current_user_id)
+    if has_equipe is None:
+        return redirect(url_for('banking.create'))
     
     maintenant = datetime.now()
     mois_request = request.args.get('mois')  # ← utiliser args (GET), pas form (POST)
@@ -8046,6 +8147,7 @@ def dashboard_employes():
         mois=mois,
         annee=annee
     )
+
 # --- Types de cotisation ---
 @bp.route('/cotisations/types')
 @login_required
@@ -8401,6 +8503,135 @@ def supprimer_employe(employe_id, user_id):
         flash(f"Erreur lors de la suppresion : {str(e)}")
     return redirect(url_for('banking.liste_employes'))
 
+
+### Route class Equipe
+
+@bp.route('/equipe/create', methods = ['GET', 'POST'])
+@login_required
+def create_equipe():
+    current_user_id = current_user.id
+    if request.method == 'POST':
+        try:
+            data = {
+                'user_id': current_user_id,
+                'nom': request.form.get('nom'),
+                'description': request.form.get('description')
+            }
+            mandatory_fields = ('nom',)
+            if not all(field in data and data[field] for field in mandatory_fields):
+                flash("Le nom de l'équipe est obligatoire", "error")
+                return render_template('equipe/create_equipe.html')
+            success = g.models.equipe_model.create(current_user_id, data)
+            if success:
+                flash("Nouvelle équipe créée avec succès", "success")
+                return redirect(url_for('banking.dashboard_employes'))
+            else:
+                flash("Erreur lors de la création de l'équipe avec les données suivantes : {data}",
+                        "error")
+        except Exception as e:
+            logger.error(f"Erreur dans la création equipe : {e}")
+            return redirect(url_for('banking.dashboard_employe'))
+
+@bp.route('/equipe/modifier/<int:id_equipe>', methods=['GET', 'POST'])
+@login_required
+def modifier_equipe(id_equipe):
+    current_user_id = current_user.id
+    equipe = g.models.equipe_model.get_equipe_id(current_user_id, id_equipe)
+    
+    if not equipe:
+        flash("Équipe introuvable ou vous n’avez pas les droits d’accès.", "error")
+        return redirect(url_for('banking.dashboard_employes'))
+
+    if request.method == 'POST':
+        nom = request.form.get('nom', '').strip()
+        description = request.form.get('description', '').strip()
+
+        if not nom:
+            flash("Le nom de l’équipe est obligatoire.", "error")
+            # On reste sur le formulaire avec les valeurs saisies
+            return render_template('equipe/modifier.html', equipe={'id': id_equipe, 'nom': nom, 'description': description})
+
+        try:
+            success = g.models.equipe_model.modifier(current_user_id, id_equipe, nom, description)
+            if success:
+                flash("L’équipe a été modifiée avec succès.", "success")
+                return redirect(url_for('banking.detail_equipe', id_equipe=id_equipe))
+            else:
+                flash("Aucune modification n’a été enregistrée.", "warning")
+                return render_template('equipe/modifier.html', equipe=equipe)
+        except Exception as e:
+            logger.error(f"Erreur lors de la modification de l’équipe {id_equipe} : {e}")
+            flash("Une erreur inattendue s’est produite. Veuillez réessayer.", "error")
+            return render_template('equipe/modifier.html', equipe=equipe)
+
+    # Méthode GET : afficher le formulaire avec les données actuelles
+    return render_template('equipe/modifier.html', equipe=equipe)
+@bp.route('/equipe/supprimer/<int:id_equipe>', methods=['POST'])
+@login_required
+def supprimer_equipe(id_equipe):
+    current_user_id = current_user.id
+    if id_equipe:
+        equipe = g.models.equipe_model.get_equipe_id(current_user_id, id_equipe)
+
+        if equipe:
+            nom_equipe = equipe['nom']
+            success = g.models.equipe_model.supprimer(current_user_id, id_equipe)
+            if success:
+                flash(f"Equipe {nom_equipe} supprime avec succes", 'success')
+                return redirect(url_for('banking.dashboard_employe'))
+            else:
+                flash(f'Echec de suppresion equipe {nom_equipe}', 'error')
+                return redirect(url_for('banking.dashboard_employe'))
+        else:
+            flash(f"Echec de suppression, equipe absente {id_equipe}", "error")
+            return redirect(url_for('banking.dashboard_employe'))
+    else:
+        flash("Donnee manquante pour supprimer equipe", "error")
+        return redirect(url_for('banking.dashboard_employe'))
+
+@bp.route('/equipe/list', methods=['GET'])
+@login_required
+def liste_equipes():
+    current_user_id= current_user.id
+    equipes = g.models.equipe_model.get_all_by_user(current_user_id)
+    return render_template('equipe/liste.html', equipes=equipes)
+
+@bp.route('/equipe/<int:id_equipe>')
+@login_required
+def detail_equipe(id_equipe):
+    equipe = g.models.equipe_model.get_equipe_id(current_user.id, id_equipe)
+    if not equipe:
+        flash("Équipe introuvable", "error")
+        return redirect(url_for('banking.liste_equipes'))
+    membres = g.models.equipe_model.get_employes_from_equipe(current_user.id, id_equipe)
+    return render_template('equipe/detail.html', equipe=equipe, membres=membres)
+
+@bp.route('/equipe/<int:id_equipe>/ajouter_employe', methods=['POST'])
+@login_required
+def ajouter_employe_a_equipe(id_equipe):
+    employe_id = request.form.get('employe_id', type=int)
+    if not employe_id:
+        flash("Employé non spécifié", "error")
+        return redirect(url_for('banking.detail_equipe', id_equipe=id_equipe))
+    success = g.models.equipe_model.ajouter_employe_to_equipe(
+        g.models.employe_model, id_equipe, employe_id, current_user.id
+    )
+    if success:
+        flash("Employé ajouté à l'équipe", "success")
+    else:
+        flash("Impossible d’ajouter l’employé", "error")
+    return redirect(url_for('banking.detail_equipe', id_equipe=id_equipe))
+
+@bp.route('/equipe/<int:id_equipe>/retirer_employe/<int:employe_id>', methods=['POST'])
+@login_required
+def retirer_employe_de_equipe(id_equipe, employe_id):
+    success = g.models.equipe_model.retirer_employe_to_equipe(id_equipe, employe_id)
+    if success:
+        flash("Employé retiré de l’équipe", "success")
+    else:
+        flash("Erreur lors du retrait", "error")
+    return redirect(url_for('banking.detail_equipe', id_equipe=id_equipe))
+### Planning 
 @bp.route('/employes/<int:employe_id>/planning')
 @login_required
 def planning_employe(employe_id):

@@ -808,6 +808,7 @@ class DatabaseManager:
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
                 nom VARCHAR(100) NOT NULL,
+                description VARCHAR(255) NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
                 );"""
@@ -12531,36 +12532,47 @@ class Equipe:
     def __init__(self, db):
         self.db = db
 
-    def create(self, user_id, nom: str) -> int:
+    def create(self, user_id, nom: str, description:str) -> int:
         try:
             with self.db.get_cursor() as cursor:
                 query = """
-                INSERT INTO equipes (user_id, nom, created_at)
-                VALUES (%s, %s, NOW())
+                INSERT INTO equipes (user_id, nom, description, created_at)
+                VALUES (%s, %s, %s, NOW())
                 """
-                cursor.execute(query, (user_id, nom))
+                cursor.execute(query, (user_id, nom, description))
             return cursor.lastrowid
         except Error as e:
             logger.error(f'"erreur création équipe : {e}')
             return None
 
-    def modifier(self, user_id:int, nom: str, id_equipe: int)-> int:
+    def modifier(self, user_id:int, id_equipe: int, nom: str, description: str)-> int:
         try:
             with self.db.get_cursor(commit=True) as cursor:
                 query = """
-                UPDATE equipes
-                SET nom = %s
+                UPDATE equipes 
+                SET nom = %s, description = %s 
                 WHERE id = %s AND user_id = %s
                 """
-                params = (nom, id_equipe, user_id)
+                params = (nom, description, id_equipe, user_id)
                 return cursor.rowcount > 0
         except Error as e:
             logger.error(f"Erreur mise à jour équipe {id_equipe} : {e}")
             return False
+    
+    def get_equipe_id(self, user_id: int, id_equipe: int)-> Dict:
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("SELECT * FROM equipes WHERE user_id = %s AND id = %s", (user_id, id_equipe))
+                equipe = cursor.fetchone()
+                return equipe
+        except Exception as e:
+            logger.error(f"Erreur dans récupération equipe {id_equipe} : {e}")
+            return False
+
     def supprimer(self, user_id: int, id_equipe: int) -> bool:
         try:
             with self.db.get_cursor(commit=True) as cursor:
-                cursor.execute("DELETE FROM Eequipes_competences_requises WHERE equipe_id = %s", (id_equipe,))
+                cursor.execute("DELETE FROM Equipes_competences_requises WHERE equipe_id = %s", (id_equipe,))
                 cursor.execute("DELETE FROM equipes_employes WHERE equipe_id = %s", (id_equipe,))
                 cursor.execute("DELETE FROM equipes WHERE id = %s AND user_id = %s", (id_equipe, user_id))
                 return cursor.rowcount > 0
@@ -12588,7 +12600,7 @@ class Equipe:
             with self.db.get_cursor(commit=True) as cursor:
                 cursor.execute("""
                 DELETE FROM equipes_employes
-                WHERE id_equipe = %s AND employe_id = %s)
+                WHERE id_equipe = %s AND employe_id = %s
                 """, (id_equipe, employe_id))
                 return cursor.rowcount > 0
         except Exception as e:
@@ -12600,12 +12612,12 @@ class Equipe:
             with self.db.get_cursor() as cursor:
                 query = """
                 SELECT e.*
-                FROM employe e
+                FROM employes e
                 JOIN equipes_employes ee ON e.id = ee.employe_id
-                WHERE ee.id_equipe = %s AND e.user_id = %s
+                WHERE e.user_id = %s AND ee.id_equipe = %s
                 ORDER BY e.nom, e.prenom
                 """
-                cursor.execute(query, (id_equipe, user_id))
+                cursor.execute(query, (user_id, id_equipe))
                 return cursor.fetchall()
         except Exception as e:
             logger.error(f"Erreur Récupération employé equipe {id_equipe}: {e}")
@@ -12625,13 +12637,13 @@ class Equipe:
                 query= """
                 SELECT t.*,
                           e.id as employe_id, e.nom as employe_nom, e.prenom as employe_prenom
-                          FROM equipe t
+                          FROM equipes t
                           LEFT JOIN equipes_employes te ON t.id = te.equipe_id
                           LEFT JOIN employes e ON te.employe_id = e.id
                             WHERE t.user_id = %s
                             ORDER BY t.nom, e.nom, e.prenom
                 """
-                cursor.execute(query, (user_id))
+                cursor.execute(query, (user_id,))
                 rows = cursor.fetchall()
                 equipes = {}
                 for row in rows:
@@ -12661,6 +12673,7 @@ class Equipe:
         except Exception as e:  
             logger.error(f"Erreur récupération équipes user {user_id}: {e}")
             return []
+
 class Competence:
     def __init__(self, db):
         self.db = db
@@ -13171,6 +13184,16 @@ class Entreprise:
             cursor.execute("SELECT logo_path FROM entreprise WHERE user_id = %s", (user_id,))
             row = cursor.fetchone()
             return row[0] if row else None
+
+    def entreprise_exists_for_user(self, user_id: int) -> bool:
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute("SELECT 1 FROM entreprise WHERE user_id = %s", (user_id,))
+                return cursor.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Pas d'entreprise pour l'utilisateur {user_id} : {e}")
+            return False
+
 
 class ModelManager:
     def __init__(self, db):

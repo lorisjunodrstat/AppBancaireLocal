@@ -16,7 +16,7 @@
     {% endif %}
     {% endwith %}
 
-    <div class="card mb-4">
+    <div class="card mb-4"> <!--Card pour l'encodage des heures de travail-->
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h5 class="m-0 font-weight-bold">Encodage des heures de travail</h5>
         </div>
@@ -24,15 +24,16 @@
 
             <!-- Formulaire de filtres GET -->
             <form method="GET" class="mb-4">
+                
                 <div class="row">
                     {% if employeurs_unique %}
-                    <div class="col-md-4">
+                    <div class="col-md-4"><!-- Filtre Employeur -->
                         <label for="filter-employeur" class="form-label">Employeur</label>
                         <select class="form-select" id="filter-employeur" name="employeur" aria-describedby="employeurHelp">
                             <option value="">-- Sélectionner --</option>
                             {% for emp in employeurs_unique %}
                             <option value="{{ emp }}" {% if selected_employeur == emp %}selected{% endif %}>
-                                {{ emp }}
+                                {{ emp }} 
                             </option>
                             {% endfor %}
                         </select>
@@ -44,8 +45,8 @@
                     </div>
                     {% endif %}
 
-                    <div class="col-md-2">
-                        <label for="filter-annee" class="form-label">Année</label>
+                    <div class="col-md-2"> <!-- Filtre Annee -->
+                        <label for="filter-annee" class="form-label">Année MM</label>
                         <select class="form-select" id="filter-annee" name="annee" aria-describedby="anneeHelp">
                             {% for y in range(now.year-2, now.year+3) %}
                             <option value="{{ y }}" {% if current_annee==y %}selected{% endif %}>{{ y }}</option>
@@ -53,7 +54,7 @@
                         </select>
                         <small id="anneeHelp" class="form-text text-muted">Sélectionnez l'année</small>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2"> <!-- Filtre Mois -->
                         <label for="filter-mois" class="form-label">Mois</label>
                         <select class="form-select" id="filter-mois" name="mois" aria-describedby="moisHelp">
                             {% for month in range(1, 13) %}
@@ -65,7 +66,7 @@
                         <small id="moisHelp" class="form-text text-muted">Sélectionnez le mois</small>
                     </div>
                         
-                    <div class="col-md-2">
+                    <div class="col-md-2"><!-- Filtre Semaine -->
                         <label for="filter-semaine" class="form-label">Semaine</label>
                         <select class="form-select" id="filter-semaine" name="semaine" aria-describedby="semaineHelp">
                             <option value="0" {% if current_semaine==0 %}selected{% endif %}>Toutes</option>
@@ -77,11 +78,13 @@
                         </select>
                         <small id="semaineHelp" class="form-text text-muted">Sélectionnez la semaine</small>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2"> <!-- Filtre Mode -->
                         <label for="mode-saisie" class="form-label">Mode</label>
                         <select class="form-select" id="mode-saisie" name="mode" aria-describedby="modeHelp">
-                            <option value="reel" {% if current_mode=='reel' %}selected{% endif %}>Heures réelles</option>
-                            <option value="simule" {% if current_mode=='simule' %}selected{% endif %}>Heures simulées</option>
+                            <option value="reel" {% if current_mode=='reel' %}selected{% endif %}>Heures réelles
+                            </option>
+                            <option value="simule" {% if current_mode=='simule' %}selected{% endif %}>Heures simulées
+                            </option>
                         </select>
                         <small id="modeHelp" class="form-text text-muted">Choisissez le mode de saisie</small>
                     </div>
@@ -94,14 +97,14 @@
             </form>
 
             <form method="POST" action="{{ url_for('banking.heures_travail') }}">
+                <!--<input type="hidden" name="action" id="form-action" value="">-->
                 <input type="hidden" name="employeur" value="{{ selected_employeur or '' }}">
                 <input type="hidden" name="annee" value="{{ current_annee }}">
                 <input type="hidden" name="mois" value="{{ current_mois }}">
                 <input type="hidden" name="semaine" value="{{ current_semaine }}">
                 <input type="hidden" name="mode" value="{{ current_mode }}">
                 <input type="hidden" name="id_contrat" value="{{ contrat.id if contrat else '' }}">
-                
-                <div class="mb-3">
+                <div>
                     <button type="submit" name="save_all" class="btn btn-success me-2" aria-label="Tout enregistrer">
                         <i class="fas fa-save me-1" aria-hidden="true"></i> Tout enregistrer
                     </button>
@@ -109,8 +112,8 @@
                         <i class="fas fa-undo me-1" aria-hidden="true"></i> Tout effacer
                     </button>
                 </div>
-
-                <!-- Fonctionnalité de copie -->
+                <!-- === Fonctionnalité de copie (sans JS) === -->
+                <!-- === Fonctionnalité de copie (sans JS) === -->
                 <div class="row mt-3 mb-3 p-3 border rounded bg-light">
                     <h6>Copier des heures</h6>
                 
@@ -145,22 +148,17 @@
                         </small>
                     </div>
                 </div>
-
-                <!-- Table des heures -->
+                <!-- Table -->
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
                         <thead class="table-light">
                             <tr>
                                 <th>Date</th>
                                 <th>Jour</th>
-                                <th>Plage 1 (Début)</th>
-                                <th>Plage 1 (Fin)</th>
-                                <th>Plage 2 (Début)</th>
-                                <th>Plage 2 (Fin)</th>
-                                <th>Plage 3 (Début)</th>
-                                <th>Plage 3 (Fin)</th>
-                                <th>Plage 4 (Début)</th>
-                                <th>Plage 4 (Fin)</th>
+                                <th>Matin (Début)</th>
+                                <th>Matin (Fin)</th>
+                                <th>Après-midi (Début)</th>
+                                <th>Après-midi (Fin)</th>
                                 <th>Total Heures</th>
                                 <th>Vacances</th>
                                 <th class="actions-header">Actions</th>
@@ -168,104 +166,49 @@
                         </thead>
                         <tbody>
                             {% for semaine_num, semaine_data in semaines.items() %}
-                            <tr class="table-secondary">
-                                <td colspan="13" class="text-center fw-bold">Semaine {{ semaine_num }}</td>
+                            <tr>
+                                <td colspan="9" class="text-center">semaine {{ semaine_num }}</td>
                             </tr>
                             {% for jour in semaine_data.jours %}
-                            <tr class="{% if jour.vacances %}table-light vacation-row{% endif %}">
+                            
+                            <tr class="{% if jour.vacances %}vacation-row{% endif %}">
                                 <td>{{ jour.date | format_date }}</td>
                                 <td>{{ jour.nom_jour }}</td>
-                                
-                                <!-- Plage 1 -->
                                 <td>
-                                    <input type="time" 
-                                           class="form-control" 
-                                           name="plages_{{ jour.date }}_0_debut" 
-                                           value="{{ jour.plages[0].debut if jour.plages|length > 0 and jour.plages[0].debut else '' }}"
-                                           aria-label="Plage 1 début {{ jour.date }}">
+                                    <input type="time" class="form-control" name="h1d_{{ jour.date }}"
+                                        value="{{ jour.h1d or '' }}" aria-label="Heure début matin {{ jour.date }}">
                                 </td>
                                 <td>
-                                    <input type="time" 
-                                           class="form-control" 
-                                           name="plages_{{ jour.date }}_0_fin" 
-                                           value="{{ jour.plages[0].fin if jour.plages|length > 0 and jour.plages[0].fin else '' }}"
-                                           aria-label="Plage 1 fin {{ jour.date }}">
-                                </td>
-                                
-                                <!-- Plage 2 -->
-                                <td>
-                                    <input type="time" 
-                                           class="form-control" 
-                                           name="plages_{{ jour.date }}_1_debut" 
-                                           value="{{ jour.plages[1].debut if jour.plages|length > 1 and jour.plages[1].debut else '' }}"
-                                           aria-label="Plage 2 début {{ jour.date }}">
+                                    <input type="time" class="form-control" name="h1f_{{ jour.date }}"
+                                        value="{{ jour.h1f or '' }}" aria-label="Heure fin matin {{ jour.date }}">
                                 </td>
                                 <td>
-                                    <input type="time" 
-                                           class="form-control" 
-                                           name="plages_{{ jour.date }}_1_fin" 
-                                           value="{{ jour.plages[1].fin if jour.plages|length > 1 and jour.plages[1].fin else '' }}"
-                                           aria-label="Plage 2 fin {{ jour.date }}">
+                                    <input type="time" class="form-control" name="h2d_{{ jour.date }}"
+                                        value="{{ jour.h2d or '' }}"
+                                        aria-label="Heure début après-midi {{ jour.date }}">
                                 </td>
-                                
-                                <!-- Plage 3 -->
-                                <td>
-                                    <input type="time" 
-                                           class="form-control" 
-                                           name="plages_{{ jour.date }}_2_debut" 
-                                           value="{{ jour.plages[2].debut if jour.plages|length > 2 and jour.plages[2].debut else '' }}"
-                                           aria-label="Plage 3 début {{ jour.date }}">
+                                <td class="table-{{ 'danger' if jour.h2f >= '18:05' else 'success' }}">
+                                    <input type="time" class="form-control" name="h2f_{{ jour.date }}"
+                                        value="{{ jour.h2f or '' }}" aria-label="Heure fin après-midi {{ jour.date }}">
                                 </td>
-                                <td>
-                                    <input type="time" 
-                                           class="form-control" 
-                                           name="plages_{{ jour.date }}_2_fin" 
-                                           value="{{ jour.plages[2].fin if jour.plages|length > 2 and jour.plages[2].fin else '' }}"
-                                           aria-label="Plage 3 fin {{ jour.date }}">
-                                </td>
-                                
-                                <!-- Plage 4 -->
-                                <td>
-                                    <input type="time" 
-                                           class="form-control" 
-                                           name="plages_{{ jour.date }}_3_debut" 
-                                           value="{{ jour.plages[3].debut if jour.plages|length > 3 and jour.plages[3].debut else '' }}"
-                                           aria-label="Plage 4 début {{ jour.date }}">
-                                </td>
-                                <td>
-                                    <input type="time" 
-                                           class="form-control" 
-                                           name="plages_{{ jour.date }}_3_fin" 
-                                           value="{{ jour.plages[3].fin if jour.plages|length > 3 and jour.plages[3].fin else '' }}"
-                                           aria-label="Plage 4 fin {{ jour.date }}">
-                                </td>
-                                
-                                <!-- Total et Vacances -->
-                                <td class="text-end table-{{ 'danger' if jour.total_h | round(2) >= 8.1 else 'success' }}">
+                                <td class="total-cell text-end table-{{ 'danger' if jour.total_h | round(2) >= 8.1 else 'success' }}">
                                     {{ jour.total_h | round(2) }}
                                 </td>
                                 <td class="text-center">
-                                    <input type="checkbox" 
-                                           class="form-check-input" 
-                                           name="vacances_{{ jour.date }}"
-                                           id="vacances_{{ jour.date }}" 
-                                           {% if jour.vacances %}checked{% endif %}
-                                           aria-label="Vacances {{ jour.date }}">
+                                    <input type="checkbox" class="form-check-input" name="vacances_{{ jour.date }}"
+                                        id="vacances_{{ jour.date }}" {% if jour.vacances %}checked{% endif %}
+                                        aria-label="Vacances {{ jour.date }}">
                                 </td>
                                 <td>
                                     <div class="d-flex">
-                                        <button type="submit" 
-                                                name="save_line" 
-                                                value="{{ jour.date }}"
-                                                class="btn btn-primary btn-sm me-1"
-                                                aria-label="Enregistrer ligne {{ jour.date }}">
+                                        <button type="submit" name="save_line" value="{{ jour.date }}"
+                                            class="btn btn-primary btn-sm me-1"
+                                            aria-label="Enregistrer ligne {{ jour.date }}">
                                             <i class="fas fa-save" aria-hidden="true"></i>
                                         </button>
-                                        <button type="submit" 
-                                                name="reset_line" 
-                                                value="{{ jour.date }}"
-                                                class="btn btn-warning btn-sm"
-                                                aria-label="Réinitialiser ligne {{ jour.date }}">
+                                        <button type="submit" name="reset_line" value="{{ jour.date }}"
+                                            class="btn btn-warning btn-sm"
+                                            aria-label="Réinitialiser ligne {{ jour.date }}">
                                             <i class="fas fa-undo" aria-hidden="true"></i>
                                         </button>
                                     </div>
@@ -273,23 +216,23 @@
                             </tr>
                             {% endfor %}
                             <tr class="table-info">
-                                <td colspan="10" class="text-end fw-bold">Total semaine {{ semaine_num }}:</td>
-                                <td class="text-end">{{ semaine_data.total | round(2) }}</td>
+                                <td colspan="6" class="text-end fw-bold">Total semaine {{ semaine_num }}:</td>
+                                <td class="total-cell text-end">{{ semaine_data.total | round(2) }}</td>
                                 <td colspan="2"></td>
                             </tr>
                             <tr class="table-{{ 'success' if semaine_data.solde >= 0 else 'danger' }}">
-                                <td colspan="10" class="text-end fw-bold">
+                                <td colspan="6" class="text-end fw-bold">
                                     Solde ({{ heures_hebdo_contrat }}h contrat):
                                 </td>
-                                <td class="text-end">{{ semaine_data.solde | round(2) }}</td>
+                                <td class="total-cell text-end">{{ semaine_data.solde | round(2) }}</td>
                                 <td colspan="2"></td>
                             </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="10" class="text-end fw-bold">Total général:</td>
-                                <td class="text-end">{{ total_general | round(2) }}</td>
+                                <td colspan="6" class="text-end fw-bold">Total général:</td>
+                                <td class="total-cell text-end">{{ total_general | round(2) }}</td>
                                 <td colspan="2"></td>
                             </tr>
                         </tfoot>
@@ -316,25 +259,32 @@
     </div>
 </div>
 
-<!-- Formulaire séparé pour ajouter plus de plages si besoin -->
-<form method="POST" action="{{ url_for('banking.heures_travail') }}" class="border-top mt-4 pt-3" style="display: none;" id="plage-extra-form">
-    <input type="hidden" name="employeur" value="{{ selected_employeur or '' }}">
-    <input type="hidden" name="annee" value="{{ current_annee }}">
-    <input type="hidden" name="mois" value="{{ current_mois }}">
-    <input type="hidden" name="semaine" value="{{ current_semaine }}">
-    <input type="hidden" name="mode" value="{{ current_mode }}">
-    <input type="hidden" name="id_contrat" value="{{ contrat.id if contrat else '' }}">
-    
-    <div class="card">
-        <div class="card-header">
-            <h6>Ajouter des plages horaires supplémentaires (si plus de 4 plages nécessaires)</h6>
-        </div>
-        <div class="card-body">
-            <p class="text-muted">
-                Si vous avez besoin de plus de 4 plages horaires pour un jour spécifique, 
-                contactez l'administrateur ou utilisez l'import CSV.
-            </p>
-        </div>
-    </div>
-</form>
+<!-- <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Simulation des heures
+        const simulerBtn = document.getElementById('simuler-btn');
+        if (simulerBtn) {
+            simulerBtn.addEventListener('click', function () {
+                const rows = document.querySelectorAll('tbody tr:not(.table-info):not(.table-success):not(.table-danger)');
+                rows.forEach(row => {
+                    const vacanceCheck = row.querySelector('input[name^="vacances_"]');
+                    if (vacanceCheck && !vacanceCheck.checked) {
+                        const h1d = row.querySelector('input[name^="h1d_"]');
+                        const h1f = row.querySelector('input[name^="h1f_"]');
+                        const h2d = row.querySelector('input[name^="h2d_"]');
+                        const h2f = row.querySelector('input[name^="h2f_"]');
+                        if (h1d) h1d.value = '08:00';
+                        if (h1f) h1f.value = '12:00';
+                        if (h2d) h2d.value = '13:00';
+                        if (h2f) h2f.value = '17:00';
+                    }
+                });
+
+                // Soumettre le formulaire après simulation
+                document.getElementById('form-action').value = 'simuler';
+                document.getElementById('heures-form').submit();
+            });
+        }
+    });
+</script>-->
 {% endblock %}
