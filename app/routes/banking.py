@@ -7679,10 +7679,10 @@ def synthese_hebdomadaire():
     svg_horaire_data = None
     if id_contrat_exemple and employeur_exemple:
         svg_horaire_data = g.models.synthese_hebdo_model.prepare_svg_data_horaire_jour(
-            user_id, employeur_exemple, id_contrat_exemple, annee, semaine, seuil_h2f_heure, heure_model=g.models.heure_model)
+            g.models.heure_model, user_id, employeur_exemple, id_contrat_exemple, annee, semaine, seuil_h2f_heure)
     elif id_contrat_svg and employeur_svg:
         svg_horaire_data = g.models.synthese_hebdo_model.prepare_svg_data_horaire_jour(
-            user_id, employeur_svg, id_contrat_svg, annee, semaine, seuil_h2f_heure, heure_model=g.models.heure_model)
+            g.models.heure_model, user_id, employeur_svg, id_contrat_svg, annee, semaine, seuil_h2f_heure)
 
     # Si pas de contrat trouvé, svg_horaire_data restera None, gère-le dans ton template.
 

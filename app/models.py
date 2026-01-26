@@ -11061,6 +11061,7 @@ class Salaire:
             if user_id is not None and mois is not None:
                 if contrat.get('versement_25', False):
                     acompte_25 = self.calculer_acompte_25(
+                        heure_model=self.heure_model,
                         user_id=user_id,
                         annee=annee,
                         mois=mois,
@@ -11287,6 +11288,7 @@ class Salaire:
             acompte_25_estime = 0.0
             if contrat.get('versement_25', False):
                 acompte_25_estime = self.calculer_acompte_25(
+                    heure_model=self.heure_model,
                     user_id=user_id,
                     annee=annee,
                     mois=mois,
