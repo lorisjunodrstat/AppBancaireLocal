@@ -10998,7 +10998,7 @@ class Salaire:
             return 0.0
 
 
-    def calculer_salaire_net_avec_details(self, cotisations_contrat_model, indemnites_contrat_model, heures_reelles: float, contrat: Dict, contrat_id: int, annee: int, user_id: Optional[int] = None, 
+    def calculer_salaire_net_avec_details(self, heure_model, cotisations_contrat_model, indemnites_contrat_model, heures_reelles: float, contrat: Dict, contrat_id: int, annee: int, user_id: Optional[int] = None, 
                                         mois: Optional[int] = None, jour_estimation: int = 15) -> Dict:
         """
         Calcule le salaire net et retourne tous les détails du calcul pour affichage
@@ -11267,6 +11267,7 @@ class Salaire:
 
             # 1. Calcul du salaire net réel (mois entier)
             result = self.calculer_salaire_net_avec_details(
+                heure_model=heure_model,
                 cotisations_contrat_model=cotisations_contrat_model,
                 indemnites_contrat_model= indemnites_contrat_model,
                 heures_reelles=heures_reelles,
