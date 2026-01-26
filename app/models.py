@@ -9679,13 +9679,6 @@ class IndemniteContrat:
             cursor.execute("SELECT id, nom FROM types_indemnite ORDER BY nom")
             return cursor.fetchall()
 
-    def get_for_contrat_and_annee(self, contrat_id, annee):
-        with self.db.get_cursor(dictionary=True) as cursor:
-            cursor.execute("""
-                SELECT * FROM indemnites_contrat 
-                WHERE contrat_id = %s AND annee = %s
-            """, (contrat_id, annee))
-            return cursor.fetchall()
 class Contrat:
     def __init__(self, db):
         self.db = db
