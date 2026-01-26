@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .navigation {
+            display: flex;
+            gap: 1rem;
+            background-color: #34495e;
+            padding: 0.5rem 1rem;
+        }
+        
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-link:hover {
+            background-color: #4a698a;
+        }
+        
+        .nav-link.active {
+            background-color: #3498db;
+        }
+        
+        .controls {
+            background-color: white;
+            padding: 1rem;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .week-navigation {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .planning-container {
+            overflow-x: auto;
+            padding: 1rem;
+        }
+        
+        .planning-table {
+            min-width: 1200px;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .planning-table th {
+            background-color: #34495e;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .team-header {
+            background-color: #ecf0f1;
+            font-weight: bold;
+            padding: 0.5rem;
+            border-bottom: 2px solid #bdc3c7;
+        }
+        
+        .employee-row {
+            border-bottom: 1px solid #eee;
+        }
+        
+        .employee-cell {
+            padding: 0.5rem 1rem;
+            background-color: #f9f9f9;
+            min-width: 200px;
+            position: sticky;
+            left: 0;
+            background-color: white;
+            z-index: 5;
+        }
+        
+        .day-column {
+            min-width: 150px;
+            vertical-align: top;
+            padding: 0.25rem;
+        }
+        
+        .time-grid {
+            position: relative;
+            height: 800px;
+            border: 1px solid #ddd;
+            background: repeating-linear-gradient(
+                to bottom,
+                #f9f9f9,
+                #f9f9f9 30px,
+                #eee 30px,
+                #eee 60px
+            );
+        }
+        
+        .hour-marker {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 60px;
+            border-top: 1px solid #ddd;
+            padding-left: 5px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .shift-block {
+            position: absolute;
+            background-color: #3498db;
+            color: white;
+            border-radius: 4px;
+            padding: 2px 5px;
+            font-size: 0.8rem;
+            overflow: hidden;
+            cursor: pointer;
+            border-left: 3px solid #2980b9;
+            transition: transform 0.2s;
+        }
+        
+        .shift-block:hover {
+            transform: scale(1.02);
+            z-index: 2;
+        }
+        
+        .shift-block.travail {
+            background-color: #2ecc71;
+            border-left-color: #27ae60;
+        }
+        
+        .shift-block.pause {
+            background-color: #f39c12;
+            border-left-color: #d35400;
+        }
+        
+        .shift-block.conge {
+            background-color: #e74c3c;
+            border-left-color: #c0392b;
+        }
+        
+        .day-footer {
+            text-align: center;
+            padding: 0.5rem;
+            border-top: 1px solid #ddd;
+            background-color: #f8f9fa;
+        }
+        
+        .day-total {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .day-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            border: 1px solid #ddd;
+            background-color: white;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            min-width: 400px;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .flash-messages {
+            padding: 1rem;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📅 Planning des équipes</h1>
+        <div>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Dashboard</a>
+            <a href="{{ url_for('config_planning') }}" class="btn">Configuration</a>
+        </div>
+    </div>
+    
+    <div class="navigation">
+        <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+        <a href="{{ url_for('liste_employes') }}" class="nav-link">Employés</a>
+        <a href="{{ url_for('planning') }}" class="nav-link active">Planning</a>
+        <a href="{{ url_for('gestion_contrats') }}" class="nav-link">Contrats</a>
+    </div>
+    
+    <div class="controls">
+        <div class="week-navigation">
+            {% set prev_week = (datetime.strptime(semaine_ref, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d') %}
+            {% set next_week = (datetime.strptime(semaine_ref, '%Y-%m-%d') + timedelta(days=7)).strftime('%Y-%m-%d') %}
+            
+            <a href="{{ url_for('planning', date=prev_week) }}" class="btn">◀ Semaine précédente</a>
+            <span><strong>Semaine du {{ dates_semaine[0] }} au {{ dates_semaine[-1] }}</strong></span>
+            <a href="{{ url_for('planning', date=next_week) }}" class="btn">Semaine suivante ▶</a>
+            <a href="{{ url_for('planning') }}" class="btn btn-secondary">Aujourd'hui</a>
+        </div>
+        
+        <div>
+            <span>Heures: {{ heures_debut }} - {{ heures_fin }}</span>
+        </div>
+    </div>
+    
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    
+    <div class="planning-container">
+        <table class="planning-table">
+            <thead>
+                <tr>
+                    <th>Équipes / Employés</th>
+                    {% for date in dates_semaine %}
+                        <th>
+                            {{ date }}<br>
+                            <small>{{ ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][loop.index0] }}</small>
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for team in teams %}
+                    <tr>
+                        <td colspan="{{ dates_semaine|length + 1 }}" class="team-header">
+                            🏢 Équipe {{ team.nom }} ({{ team.members|length }} employés)
+                        </td>
+                    </tr>
+                    
+                    {% for member in team.members %}
+                        <tr class="employee-row">
+                            <td class="employee-cell">
+                                👤 {{ member.prenom }} {{ member.nom }}
+                            </td>
+                            
+                            {% for date in dates_semaine %}
+                                <td class="day-column">
+                                    <div class="time-grid" 
+                                         id="grid-{{ member.id }}-{{ date }}"
+                                         data-employe-id="{{ member.id }}"
+                                         data-date="{{ date }}">
+                                        
+                                        <!-- Marqueurs d'heures -->
+                                        {% for heure in heures_affichables %}
+                                            <div class="hour-marker" 
+                                                 style="top: {{ loop.index0 * 60 }}px;">
+                                                {{ heure }}
+                                            </div>
+                                        {% endfor %}
+                                        
+                                        <!-- Blocs de shift existants -->
+                                        {% set emp_shifts = shifts.get(member.id|string, {}) %}
+                                        {% set date_shifts = emp_shifts.get(date, []) %}
+                                        
+                                        {% for shift in date_shifts %}
+                                            {% set debut_minutes = time_to_minutes(shift.heure_debut) %}
+                                            {% set fin_minutes = time_to_minutes(shift.heure_fin) %}
+                                            {% set top_position = ((debut_minutes - time_to_minutes(heures_debut)) / 60) * 60 %}
+                                            {% set height = ((fin_minutes - debut_minutes) / 60) * 60 %}
+                                            
+                                            <div class="shift-block {{ shift.type_shift }}"
+                                                 style="top: {{ top_position }}px; height: {{ height }}px;"
+                                                 title="{{ shift.heure_debut }} - {{ shift.heure_fin }}
+{{ shift.commentaire }}">
+                                                {{ shift.heure_debut[:5] }}-{{ shift.heure_fin[:5] }}
+                                                {% if shift.type_shift != 'travail' %}
+                                                    <br><small>{{ shift.type_shift }}</small>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    
+                    <!-- Ligne vide entre équipes -->
+                    <tr>
+                        <td colspan="{{ dates_semaine|length + 1 }}" style="height: 20px;"></td>
+                    </tr>
+                {% endfor %}
+                
+                <!-- Ligne des totaux et actions -->
+                <tr>
+                    <td class="employee-cell">
+                        <strong>Totaux / Actions</strong>
+                    </td>
+                    
+                    {% for date in dates_semaine %}
+                        <td class="day-column">
+                            <div class="day-footer">
+                                <div class="day-total">
+                                    Total: 
+                                    {% set total_jour = calculate_day_total(date, shifts, heures_debut, heures_fin) %}
+                                    {{ "%.1f"|format(total_jour) }}h
+                                </div>
+                                
+                                <div class="day-actions">
+                                    <button class="action-btn" 
+                                            onclick="openAddShiftModal('{{ date }}')">
+                                        + Ajouter
+                                    </button>
+                                    <button class="action-btn">
+                                        📋 Détails
+                                    </button>
+                                    <button class="action-btn">
+                                        ⚙️ Configurer
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Modal d'ajout de shift -->
+    <div id="addShiftModal" class="modal">
+        <div class="modal-content">
+            <h2>Ajouter un créneau horaire</h2>
+            <form method="POST" action="{{ url_for('add_shift') }}">
+                <input type="hidden" name="date" id="modal-date">
+                
+                <div class="form-group">
+                    <label>Employé:</label>
+                    <select name="employe_id" class="form-control" required>
+                        {% for team in teams %}
+                            <optgroup label="Équipe {{ team.nom }}">
+                                {% for member in team.members %}
+                                    <option value="{{ member.id }}">
+                                        {{ member.prenom }} {{ member.nom }}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Heure de début:</label>
+                    <input type="time" name="heure_debut" class="form-control" 
+                           value="{{ heures_debut }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Heure de fin:</label>
+                    <input type="time" name="heure_fin" class="form-control" 
+                           value="{{ heures_fin }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Type:</label>
+                    <select name="type_shift" class="form-control">
+                        <option value="travail">Travail</option>
+                        <option value="pause">Pause</option>
+                        <option value="conge">Congé</option>
+                        <option value="formation">Formation</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Commentaire:</label>
+                    <textarea name="commentaire" class="form-control" rows="3"></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn">Enregistrer</button>
+                    <button type="button" class="btn btn-secondary" 
+                            onclick="closeModal()">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Fonctions pour gérer le modal (simples, sans framework JS)
+        function openAddShiftModal(date) {
+            document.getElementById('modal-date').value = date;
+            document.getElementById('addShiftModal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('addShiftModal').style.display = 'none';
+        }
+        
+        // Fermer le modal en cliquant en dehors
+        window.onclick = function(event) {
+            const modal = document.getElementById('addShiftModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+        
+        // Gestion des clics sur les blocs de shift
+        document.querySelectorAll('.shift-block').forEach(block => {
+            block.addEventListener('click', function(e) {
+                const shiftInfo = this.getAttribute('title');
+                if (confirm('Que voulez-vous faire avec ce créneau?\n\n' + shiftInfo + 
+                           '\n\nOK: Modifier\nAnnuler: Supprimer')) {
+                    // Logique de modification
+                    console.log('Modifier le shift');
+                } else {
+                    // Logique de suppression
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce créneau?')) {
+                        // Soumettre un formulaire de suppression
+                        console.log('Supprimer le shift');
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

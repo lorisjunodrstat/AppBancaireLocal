@@ -6259,24 +6259,28 @@ def generate_days(annee: int, mois: int, semaine: int) -> list[date]:
         _, num_days = monthrange(now.year, now.month)
         return [date(now.year, now.month, day) for day in range(1, num_days + 1)]
 
-#def handle_save_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
-#    date_str = request.form['save_line']
-#    return process_day(request, user_id, date_str, annee, mois, semaine, mode, employeur, id_contrat)
+
 def handle_save_line(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat):
     date_str = request.form.get('save_line')
+    if not date_str:
+        flash("Date non spécifiée.", "error")
+        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=current_mode, employeur=selected_employeur))
+
+    # Récupérer le contrat pour obtenir employe_id
+    contrat = g.models.contrat_model.get_by_id(id_contrat) if id_contrat else None
+    employe_id = contrat.get('employe_id') if contrat else None
+
     vacances = request.form.get(f'vacances_{date_str}') == 'on'
     
-    # Récupérer jusqu'à 4 plages horaires
     plages = []
-    for i in range(4):  # 4 plages maximum
+    for i in range(4):
         debut = request.form.get(f'plages_{date_str}_{i}_debut')
         fin = request.form.get(f'plages_{date_str}_{i}_fin')
-        
-        # Ne pas ajouter de plages complètement vides
+        # On garde les valeurs telles quelles (str ou None)
         if debut or fin:
             plages.append({
-                'debut': debut or '',
-                'fin': fin or ''
+                'debut': debut,  # peut être '' ou None → _clean_data gère ça
+                'fin': fin
             })
     
     data = {
@@ -6284,6 +6288,7 @@ def handle_save_line(request, current_user_id, annee, mois, semaine, current_mod
         'user_id': current_user_id,
         'employeur': selected_employeur,
         'id_contrat': id_contrat,
+        'employe_id': employe_id,  # ←←← AJOUT CRUCIAL
         'plages': plages,
         'vacances': vacances,
         'type_heures': 'reelles' if current_mode == 'reel' else 'simulees'
@@ -6298,6 +6303,7 @@ def handle_save_line(request, current_user_id, annee, mois, semaine, current_mod
     return redirect(url_for('banking.heures_travail',
                             annee=annee, mois=mois, semaine=semaine,
                             mode=current_mode, employeur=selected_employeur))
+
 def handle_reset_line(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
     date_str = request.form['reset_line']
     try:
@@ -6328,117 +6334,79 @@ def handle_reset_all(request, user_id, annee, mois, semaine, mode, employeur, id
         flash("Toutes les heures ont été réinitialisées", "warning")
     return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 
-def handle_simulation(request, user_id, annee,mois, semaine, mode, employeur, id_contrat):
+def handle_simulation(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat):
+    if not id_contrat:
+        flash("Contrat requis pour la simulation.", "error")
+        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=current_mode, employeur=selected_employeur))
+
+    contrat = g.models.contrat_model.get_by_id(id_contrat)
+    employe_id = contrat.get('employe_id') if contrat else None
+
     days = generate_days(annee, mois, semaine)
-    errors = []
     success_count = 0
     for day in days:
         date_str = day.isoformat()
-        vacances = get_vacances_value(request, date_str)
-        if not vacances:
-                payload = {
-                    'date': date_str,
-                    'user_id': user_id,
-                    'employeur': employeur,
-                    'id_contrat': id_contrat,
-                    'plages': [
-                        {'debut': '08:00', 'fin': '12:00'},
-                        {'debut': '13:00', 'fin': '17:00'}
-                    ],                    
-                    'vacances': False,
-                    'type_heures': 'simulees'
+        payload = {
+            'date': date_str,
+            'user_id': current_user_id,
+            'employeur': selected_employeur,
+            'id_contrat': id_contrat,
+            'employe_id': employe_id,
+            'plages': [
+                {'debut': '08:00', 'fin': '12:00'},
+                {'debut': '13:00', 'fin': '17:00'}
+            ],
+            'vacances': False,
+            'type_heures': 'simulees'
+        }
+        if g.models.heure_model.create_or_update(payload):
+            success_count += 1
 
-                }
-                if g.models.heure_model.create_or_update(payload):
-                    success_count += 1
     if success_count > 0:
-        flash(f'heures simulées appliquées pour {success_count} jours', 'info')
-    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
+        flash(f'Heures simulées appliquées pour {success_count} jours', 'info')
+    return redirect(url_for('banking.heures_travail',
+                            annee=annee, mois=mois, semaine=semaine,
+                            mode=current_mode, employeur=selected_employeur))
 
-
-            #try:
-            #    total_h = g.models.heure_model.calculer_heures('08:00', '12:00', '13:00', '17:00')
-            #    payload = {
-            #        'date': date_str,
-            #        'h1d': '08:00',
-            #        'h1f': '12:00',
-            #        'h2d': '13:00',
-            #        'h2f': '17:00',
-            #        'vacances': False,
-            #        'total_h': total_h,
-            #        'user_id': user_id,
-            #        'employeur': employeur,
-            #        'id_contrat': id_contrat,
-            #        'jour_semaine': day.strftime('%A'),
-            #        'semaine_annee': day.isocalendar()[1],
-            #        'mois': day.month
-            #    }
-            #    g.models.heure_model.create_or_update(payload)
-            #    success_count += 1
-            #except Exception as e:
-            #    logger.error(f"Erreur simulation jour {date_str}: {str(e)}")
-            #    errors.append(format_date(date_str))
-    #if errors:
-    #    flash(f"Erreur simulation pour les jours: {', '.join(errors)}", "error")
-    #if success_count > 0:
-    #    flash(f"Heures simulées appliquées pour {success_count} jour(s)", "info")
-    #return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
-
-#def handle_save_all(request, user_id, annee, mois, semaine, mode, employeur, id_contrat):
-#    days = generate_days(annee, mois, semaine)
-#    has_errors = False
-#    
-#    for day in days:
-#        date_str = day.isoformat()
-#        payload = create_day_payload(request, user_id, date_str, employeur, id_contrat)
-#        
-#        if not g.models.heure_model.create_or_update(payload):
-#            has_errors = True
-#            logger.error(f"Erreur traitement jour {date_str}")
-#    
-#    if not has_errors:
-#        flash("Toutes les heures ont été enregistrées avec succès", "success")
-#    
-#    return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat))
 def handle_save_all(request, current_user_id, annee, mois, semaine, current_mode, selected_employeur, id_contrat):
+    if not id_contrat:
+        flash("Contrat non spécifié.", "error")
+        return redirect(url_for('banking.heures_travail', annee=annee, mois=mois, semaine=semaine, mode=current_mode, employeur=selected_employeur))
+
+    contrat = g.models.contrat_model.get_by_id(id_contrat)
+    employe_id = contrat.get('employe_id') if contrat else None
+
     # Extraire toutes les dates uniques
     dates = set()
     for key in request.form.keys():
         if key.startswith('plages_'):
             parts = key.split('_')
             if len(parts) >= 2:
-                dates.add(parts[1])  # L'index 1 contient la date
-    
+                dates.add(parts[1])
+
     for date_str in dates:
         vacances = request.form.get(f'vacances_{date_str}') == 'on'
-        
-        # Récupérer jusqu'à 4 plages horaires pour cette date
         plages = []
         for i in range(4):
             debut_key = f'plages_{date_str}_{i}_debut'
             fin_key = f'plages_{date_str}_{i}_fin'
-            
             debut = request.form.get(debut_key)
             fin = request.form.get(fin_key)
-            
             if debut or fin:
-                plages.append({
-                    'debut': debut or '',
-                    'fin': fin or ''
-                })
-        
+                plages.append({'debut': debut, 'fin': fin})
+
         data = {
             'date': date_str,
             'user_id': current_user_id,
             'employeur': selected_employeur,
             'id_contrat': id_contrat,
+            'employe_id': employe_id,
             'plages': plages,
             'vacances': vacances,
             'type_heures': 'reelles' if current_mode == 'reel' else 'simulees'
         }
-        
         g.models.heure_model.create_or_update(data)
-    
+
     flash('Toutes les heures ont été enregistrées', 'success')
     return redirect(url_for('banking.heures_travail',
                             annee=annee, mois=mois, semaine=semaine,
@@ -6448,20 +6416,12 @@ def handle_save_all(request, current_user_id, annee, mois, semaine, current_mode
 def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
     source = request.form.get('source_date')
     target = request.form.get('target_date')
-    
-    if not source:
-        flash("Veuillez indiquer une date source.", "error")
-        return redirect(request.url)
-    if not target:
-        flash("Veuillez indiquer une date cible.", "error")
+    if not source or not target or not id_contrat:
+        flash("Dates ou contrat manquant.", "error")
         return redirect(request.url)
 
-    try:
-        target_date = date.fromisoformat(target)
-        source_date = date.fromisoformat(source)  # optionnel, mais bon pour cohérence
-    except ValueError:
-        flash("Format de date invalide. Utilisez le sélecteur de date.", "error")
-        return redirect(request.url)
+    contrat = g.models.contrat_model.get_by_id(id_contrat)
+    employe_id = contrat.get('employe_id') if contrat else None
 
     src_data = g.models.heure_model.get_by_date(source, user_id, employeur, id_contrat)
     if not src_data:
@@ -6473,14 +6433,10 @@ def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
         'user_id': user_id,
         'employeur': employeur,
         'id_contrat': id_contrat,
+        'employe_id': employe_id,
         'plages': src_data.get('plages', []),
-        #'h1d': src_data.get('h1d'),
-        #'h1f': src_data.get('h1f'),
-        #'h2d': src_data.get('h2d'),
-        #'h2f': src_data.get('h2f'),
         'vacances': src_data.get('vacances', False),
         'type_heures': src_data.get('type_heures', 'reelles')
-        #'total_h': src_data.get('total_h', 0.0)
     }
 
     if g.models.heure_model.create_or_update(payload):
@@ -6488,21 +6444,18 @@ def handle_copier_jour(request, user_id, mode, employeur, id_contrat):
     else:
         flash(f"Échec de la copie vers le {format_date(target)}.", "error")
 
-    return redirect(url_for(
-        'banking.heures_travail',
-        annee=target_date.year,
-        mois=target_date.month,
-        semaine=0,
-        mode=mode,
-        employeur=employeur
-    ))
+    return redirect(url_for('banking.heures_travail',
+                            annee=date.fromisoformat(target).year,
+                            mois=date.fromisoformat(target).month,
+                            semaine=0,
+                            mode=mode,
+                            employeur=employeur))
 
 def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
     src_start = request.form.get('source_week_start')
     tgt_start = request.form.get('target_week_start')
-    
-    if not src_start or not tgt_start:
-        flash("Veuillez indiquer les lundis des semaines source et cible.", "error")
+    if not src_start or not tgt_start or not id_contrat:
+        flash("Dates ou contrat manquant.", "error")
         return redirect(request.url)
 
     try:
@@ -6511,8 +6464,11 @@ def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
             flash("La date cible doit être un lundi.", "error")
             return redirect(request.url)
     except ValueError:
-        flash("Date cible invalide. Utilisez AAAA-MM-JJ.", "error")
+        flash("Date cible invalide.", "error")
         return redirect(request.url)
+
+    contrat = g.models.contrat_model.get_by_id(id_contrat)
+    employe_id = contrat.get('employe_id') if contrat else None
 
     copied = 0
     for i in range(7):
@@ -6528,32 +6484,22 @@ def handle_copier_semaine(request, user_id, mode, employeur, id_contrat):
             'user_id': user_id,
             'employeur': employeur,
             'id_contrat': id_contrat,
+            'employe_id': employe_id,
             'plages': src_data.get('plages', []),
-            #'h1d': src_data.get('h1d'),
-            #'h1f': src_data.get('h1f'),
-            #'h2d': src_data.get('h2d'),
-            #'h2f': src_data.get('h2f'),
             'vacances': src_data.get('vacances', False),
             'type_heures': src_data.get('type_heures', 'reelles')
-            #'total_h': src_data.get('total_h', 0.0)
         }
 
         if g.models.heure_model.create_or_update(payload):
             copied += 1
 
     flash(f"{copied} jour(s) copié(s) vers la semaine du {tgt_monday.strftime('%d/%m/%Y')}.", "success")
-
-    return redirect(url_for(
-        'banking.heures_travail',
-        annee=tgt_monday.year,
-        mois=0,
-        semaine=tgt_monday.isocalendar()[1],
-        mode=mode,
-        employeur=employeur
-    ))
-
-    ### Détail entreprise
-
+    return redirect(url_for('banking.heures_travail',
+                            annee=tgt_monday.year,
+                            mois=0,
+                            semaine=tgt_monday.isocalendar()[1],
+                            mode=mode,
+                            employeur=employeur))
 # Constantes
 UPLOAD_FOLDER_LOGOS = 'static/uploads/logos'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}

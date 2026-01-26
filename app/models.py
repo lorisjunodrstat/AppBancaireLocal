@@ -8937,14 +8937,14 @@ class TypeCotisation:
     def delete(self, type_id:int, user_id:int)-> bool:
         try:
             with self.db.get_cursor() as cursor:
-                cursor.execute("DELETE FROM types_cotisations WHERE id = %s AND user_id = %s",
+                cursor.execute("DELETE FROM types_cotisation WHERE id = %s AND user_id = %s",
                     (type_id, user_id))
                 return cursor.rowcount > 0
         except Exception as e:
             logger.error(f"Erreur suppression type cotisation: {e}")
             return False
 
-class TypIndemnite:
+class TypeIndemnite:
     def __init__(self, db):
         self.db = db
     def create(self, user_id: int, nom: str, description: str ="", est_obligatoire: bool = False)-> int:
@@ -9626,13 +9626,28 @@ class Contrat:
         return len(cotisations) > 0 or len(indemnites) > 0
 
     def create_or_update(self, data: Dict) -> bool:
+        required_fields = {'user_id', 'employeur', 'heures_hebdo', 'date_debut'}
+        if not required_fields.issubset(data.keys()):
+            logger.error("Champs requis manquants pour créer/mettre à jour un contrat. Données reçues: {}")
+            return None
         try:
             with self.db.get_cursor() as cursor:
+                user_id = int(data['user_id'])
+                employe_id = int(data['employe_id']) if data.get('employe_id') is not None else None
+                employeur = str(data['employeur']).strip()
+                heures_hebdo = float(data['heures_hebdo'])
+                date_debut = data['date_debut']
+                date_fin = data.get('date_fin') or None  # NULL si non fourni
+                salaire_horaire = float(data.get('salaire_horaire', 24.05))
+                jour_estimation_salaire = int(data.get('jour_estimation_salaire', 15))
+                versement_10 = bool(data.get('versement_10', True))
+                versement_25 = bool(data.get('versement_25', True))
                 if 'id' in data and data['id']:
                     # Mise à jour
                     query = """
-                        UPDATE contrats
-                        SET
+                        UPDATE contrats SET
+                            user_id = %s,
+                            employe_id = %s,
                             employeur = %s,
                             heures_hebdo = %s,
                             date_debut = %s,
@@ -9640,78 +9655,33 @@ class Contrat:
                             salaire_horaire = %s,
                             jour_estimation_salaire = %s,
                             versement_10 = %s,
-                            versement_25 = %s,
-                            indemnite_vacances_tx = %s,
-                            indemnite_jours_feries_tx = %s,
-                            indemnite_jour_conges_tx = %s,
-                            indemnite_repas_tx = %s,
-                            indemnite_retenues_tx = %s,
-                            cotisation_avs_tx = %s,
-                            cotisation_ac_tx = %s,
-                            cotisation_accident_n_prof_tx = %s,
-                            cotisation_assurance_indemnite_maladie_tx = %s,
-                            cotisation_cap_tx = %s,
-                            salaire_brut_mensuel = %s,
-                            heures_prevues_mensuelles = %s
-                        WHERE id = %s;
+                            versement_25 = %s
+                        WHERE id = %s
                     """
                     params = (
-                        data['employeur'],
-                        data['heures_hebdo'],
-                        data['date_debut'],
-                        data.get('date_fin'),
-                        data.get('salaire_horaire', 24.05),
-                        data.get('jour_estimation_salaire', 15),
-                        bool(data.get('versement_10', True)),
-                        bool(data.get('versement_25', True)),
-                        data.get('indemnite_vacances_tx', 0),
-                        data.get('indemnite_jours_feries_tx', 0),
-                        data.get('indemnite_jour_conges_tx', 0),
-                        data.get('indemnite_repas_tx', 0),
-                        data.get('indemnite_retenues_tx', 0),
-                        data.get('cotisation_avs_tx', 0),
-                        data.get('cotisation_ac_tx', 0),
-                        data.get('cotisation_accident_n_prof_tx', 0),
-                        data.get('cotisation_assurance_indemnite_maladie_tx', 0),
-                        data.get('cotisation_cap_tx', 0),
-                        data.get('salaire_brut_mensuel'),
-                        data.get('heures_prevues_mensuelles'),
+                        user_id, employe_id, employeur, heures_hebdo,
+                        date_debut, date_fin, salaire_horaire,
+                        jour_estimation_salaire, versement_10, versement_25,
                         data['id']
-                    )
+                        )
+                    cursor.execute(query, params)
+                    contrat_id = data['id']
                 else:
-                    # Insertion
                     query = """
-                    INSERT INTO contrats
-                    (user_id, employeur, heures_hebdo, date_debut, date_fin,
-                    salaire_horaire, jour_estimation_salaire, versement_10, versement_25,
-                    indemnite_vacances_tx, indemnite_jours_feries_tx, indemnite_jour_conges_tx,
-                    indemnite_repas_tx, indemnite_retenues_tx,
-                    cotisation_avs_tx, cotisation_ac_tx, cotisation_accident_n_prof_tx,
-                    cotisation_assurance_indemnite_maladie_tx, cotisation_cap_tx, salaire_brut_mensuel, heures_prevues_mensuelles)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-                    """
+                    INSERT INTO contrats (
+                        user_id, employe_id, employeur, heures_hebdo,
+                        date_debut, date_fin, salaire_horaire,
+                        jour_estimation_salaire, versement_10, versement_25
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
                     params = (
-                        data['user_id'], data['employeur'], data['heures_hebdo'], data['date_debut'], data.get('date_fin'),
-                        data.get('salaire_horaire', 24.05),
-                        data.get('jour_estimation_salaire', 15),
-                        bool(data.get('versement_10', True)),
-                        bool(data.get('versement_25', True)),
-                        data.get('indemnite_vacances_tx', 0),
-                        data.get('indemnite_jours_feries_tx', 0),
-                        data.get('indemnite_jour_conges_tx', 0),
-                        data.get('indemnite_repas_tx', 0),
-                        data.get('indemnite_retenues_tx', 0),
-                        data.get('cotisation_avs_tx', 0),
-                        data.get('cotisation_ac_tx', 0),
-                        data.get('cotisation_accident_n_prof_tx', 0),
-                        data.get('cotisation_assurance_indemnite_maladie_tx', 0),
-                        data.get('cotisation_cap_tx', 0),
-                        data.get('salaire_brut_mensuel'),
-                        data.get('heures_prevues_mensuelles')
+                    user_id, employe_id, employeur, heures_hebdo,
+                    date_debut, date_fin, salaire_horaire,
+                    jour_estimation_salaire, versement_10, versement_25
                     )
-
-                cursor.execute(query, params)
-                return True
+                    cursor.execute(query, params)
+                    contrat_id = cursor.lastrowid
+            return contrat_id
 
         except Exception as e:
             logger.error(f"Erreur lors de la création/mise à jour du contrat: {e}")
@@ -9734,6 +9704,14 @@ class Contrat:
             logger.error(f"Erreur lors de la récupération du contrat: {e}")
             return None
 
+    def get_by_id(self, contrat_id: int) -> Optional[Dict]:
+        try:
+            with self.db.get_cursor(dictionary=True) as cursor:
+                cursor.execute("SELECT * FROM contrats WHERE id = %s", (contrat_id,))
+                return cursor.fetchone()
+        except Exception as e:
+            logger.error(f"Erreur get_by_id contrat {contrat_id}: {e}")
+            return None
     def get_all_contrats(self, user_id: int) -> List[Dict]:
         """Liste tous les contrats de l'utilisateur, du plus récent au plus ancien."""
         try:
@@ -9807,6 +9785,7 @@ class Contrat:
         except Exception as e:
             logger.error(f"Erreur lors de la récupération du contrat pour l'employé {id_employe}: {e}")
             return None
+    
     def sauvegarder_cotisations_et_indemnites(self, cotisations_contrat_model, indemnites_contrat_model, contrat_id: int, user_id: int, data: Dict)-> bool:
         annee = data.get('annee')
         if not annee:
@@ -10077,13 +10056,23 @@ class HeureTravail:
             cursor.execute(
                 """
                 SELECT * FROM heures_travail
-                WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s
-                    AND employe_id IS NOT DISTINCT FROM %s AND type_heure_heures = %s
+                WHERE date = %s 
+                    AND user_id = %s 
+                    AND employeur = %s 
+                    AND id_contrat = %s
+                    AND (
+                        (employe_id IS NULL AND %s IS NULL)
+                        OR (employe_id = %s) 
+                    AND type_heures = %s
                 """,
-                (date_obj, cleaned_data['date'], cleaned_data['user_id'],
-                cleaned_data['employeur'], cleaned_data['id_contrat'],
-                cleaned_data['employe_id'], cleaned_data['type_heures'])
-            )
+                date_obj,
+                cleaned_data['user_id'],
+                cleaned_data['employeur'],
+                cleaned_data['id_contrat'],
+                cleaned_data['employe_id'],
+                cleaned_data['employe_id'],
+                cleaned_data['type_heures']
+            ))
             existing = cursor.fetchone()
             if existing:
                 heure_travail_id = existing['id']
@@ -10109,7 +10098,7 @@ class HeureTravail:
                     vacances = %(vacances)s,
                     jour_semaine = %(jour_semaine)s,
                     semaine_annee = %(semaine_annee)s,
-                    mois = %(mois)s,
+                    mois = %(mois)s
                     WHERE id = %(id)s
                 """, {**values, 'id': heure_travail_id})
             else:
@@ -10183,21 +10172,16 @@ class HeureTravail:
     def _update_plages_horaires(self, cursor, heure_travail_id: int, plages: List[Dict]) -> None:
         """Met à jour les plages horaires associées à un enregistrement de travail"""
         try:
-    #        with self.db.get_cursor() as inner_cursor:
-    #            query_delete = "DELETE FROM plages_horaires WHERE heure_travail_id = %s"
-    #            inner_cursor.execute(query_delete, (heure_travail_id,))
             cursor.execute("DELETE FROM plages_horaires WHERE heure_travail_id = %s", (heure_travail_id,))
-            with self.db.get_cursor() as inner_cursor:
-                for index, plage in enumerate(plages):
-                    if plage.get('debut') and plage.get('fin'):
-                        query_insert = """
+            for index, plage in enumerate(plages):
+                if plage.get('debut') and plage.get('fin'):
+                    cursor.execute("""
                         INSERT INTO plages_horaires (heure_travail_id, ordre, debut, fin)
                         VALUES (%s, %s, %s, %s)
-                        """
-                        inner_cursor.execute(query_insert, (heure_travail_id, index + 1, plage['debut'], plage['fin']))
+                    """, (heure_travail_id, index + 1, plage['debut'], plage['fin']))
         except Exception as e:
             logger.error(f"Erreur _update_plages_horaires: {str(e)}")
-            return False
+            raise  # Pour propager l’erreur dans la transaction
 
     def _clean_data(self, data: dict) -> dict:
         cleaned = data.copy()
@@ -13259,7 +13243,7 @@ class ModelManager:
         return self._get_model('type_cotisations', TypeCotisation)
     @property
     def type_indemnites_model(self):
-        return self._get_model('type_indemnites', TypIndemnite)
+        return self._get_model('type_indemnites', TypeIndemnite)
     @property
     def cotisations_contrat_model(self):
         return self._get_model('cotisations_contrat', CotisationContrat)
