@@ -8076,7 +8076,80 @@ def nouveau_contrat():
 
     return render_template('salaires/nouveau_contrat.html', today=date.today(), contrat=contrat)
 
-## ----- gestion des employés
+@bp.route('/contrat/<int:contrat_id>/annee/<int:annee>', methods=['GET', 'POST'])
+@login_required
+def gestion_cotisations_indemnites(contrat_id, annee):
+    current_user_id = current_user.id
+    
+    # Vérifier que le contrat appartient à l'utilisateur
+    contrat = g.models.contrat_model.get_by_id(contrat_id)
+    if not contrat or contrat['user_id'] != current_user_id:
+        flash("Contrat non trouvé ou non autorisé.", "danger")
+        return redirect(url_for('banking.gestion_contrat'))
+
+    if request.method == 'POST':
+        # Récupérer les données du formulaire
+        data = {
+            'cotisations': [],
+            'indemnites': []
+        }
+        
+        # Cotisations
+        for tc in g.models.cotisations_contrat_model.get_all_types():
+            taux = request.form.get(f'cotis_{tc["id"]}_taux')
+            base = request.form.get(f'cotis_{tc["id"]}_base', 'brut')
+            if taux is not None:
+                data['cotisations'].append({
+                    'type_id': tc['id'],
+                    'taux': float(taux) if taux else 0.0,
+                    'base': base
+                })
+        
+        # Indemnités
+        for ti in g.models.indemnites_contrat_model.get_all_types():
+            valeur = request.form.get(f'indem_{ti["id"]}_valeur')
+            if valeur is not None:
+                data['indemnites'].append({
+                    'type_id': ti['id'],
+                    'valeur': float(valeur) if valeur else 0.0
+                })
+
+        # Sauvegarder via le modèle Contrat
+        success = g.models.contrat_model.sauvegarder_cotisations_et_indemnites(
+            cotisations_contrat_model=g.models.cotisations_contrat_model,
+            indemnites_contrat_model=g.models.indemnites_contrat_model,
+            contrat_id=contrat_id,
+            user_id=current_user_id,
+            data={'annee': annee, **data}
+        )
+        
+        if success:
+            flash(f'Cotisations et indemnités enregistrées pour {annee}.', 'success')
+        else:
+            flash('Erreur lors de la sauvegarde.', 'danger')
+        
+        return redirect(url_for('banking.gestion_cotisations_indemnites', contrat_id=contrat_id, annee=annee))
+
+    # En GET : charger les données existantes
+    cotisations_actuelles = g.models.cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
+    indemnites_actuelles = g.models.indemnites_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
+    
+    # Transformer en dict pour le template
+    cotis_dict = {item['type_cotisation_id']: item for item in cotisations_actuelles}
+    indem_dict = {item['type_indemnite_id']: item for item in indemnites_actuelles}
+
+    return render_template(
+        'salaires/gestion_cotisations_indemnites.html',
+        contrat=contrat,
+        annee=annee,
+        types_cotisation=g.models.cotisations_contrat_model.get_all_types(),
+        types_indemnite=g.models.indemnites_contrat_model.get_all_types(),
+        cotis_dict=cotis_dict,
+        indem_dict=indem_dict
+    )
+
+
+# # ----- gestion des employés
 
 @bp.route('/employes/dashboard')
 @login_required
