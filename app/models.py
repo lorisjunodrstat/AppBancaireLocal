@@ -11768,7 +11768,7 @@ class SyntheseHebdomadaire:
         weekly_counts = {} # { semaine: nb_jours_avec_h2f_apres_seuil }
 
         for semaine in range(1, 53): # Semaines de 1 à 52 (ou 53)
-            jours_semaine = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+            jours_semaine = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
             count = 0
             for jour in jours_semaine:
                 h2f_minutes = heure_model.time_to_minutes(jour.get('h2f'))
