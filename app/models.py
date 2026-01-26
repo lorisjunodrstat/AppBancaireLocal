@@ -11215,19 +11215,19 @@ class Salaire:
             return cursor.fetchall()
 
     def calculer_acompte_25(self, heure_model, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
-        heures = self.heure_model.get_heures_periode(
+        heures = heure_model.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         )
         # Protection contre les valeurs négatives ou None
         heures = max(0.0, heures or 0.0)
         return round(max(0.0, heures or 0.0) * salaire_horaire, 2)
 
-    def calculer_acompte_10(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
-        if not self.heure_model:
+    def calculer_acompte_10(self, heure_model, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
+        if not heure_model:
             raise ValueError("HeureTravail manager non initialisé")
 
-        heures_total = self.heure_model.get_total_heures_mois(user_id, employeur, id_contrat, annee, mois)
-        heures_avant = self.heure_model.get_heures_periode(
+        heures_total = heure_model.get_total_heures_mois(user_id, employeur, id_contrat, annee, mois)
+        heures_avant = heure_model.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         ) or 0.0
 
@@ -11249,7 +11249,7 @@ class Salaire:
         logger.info(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         logger.error(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         return result
-    def recalculer_salaire(self, cotisations_contrat_model, indemnites_contrat_model, salaire_id: int, contrat: Dict) -> bool:
+    def recalculer_salaire(self, heure_model, cotisations_contrat_model, indemnites_contrat_model, salaire_id: int, contrat: Dict) -> bool:
         try:
             salaire = self.get_by_id(salaire_id)
             if not salaire:
@@ -11267,8 +11267,8 @@ class Salaire:
 
             # 1. Calcul du salaire net réel (mois entier)
             result = self.calculer_salaire_net_avec_details(
-                cotisations_contrat_model=self.cotisations_contrat_model,
-                indemnites_contrat_model=self.indemnites_contrat_model,
+                cotisations_contrat_model=cotisations_contrat_model,
+                indemnites_contrat_model= indemnites_contrat_model,
                 heures_reelles=heures_reelles,
                 contrat=contrat,
                 contrat_id=id_contrat,
@@ -11288,7 +11288,7 @@ class Salaire:
             acompte_25_estime = 0.0
             if contrat.get('versement_25', False):
                 acompte_25_estime = self.calculer_acompte_25(
-                    heure_model=self.heure_model,
+                    heure_model=heure_model,
                     user_id=user_id,
                     annee=annee,
                     mois=mois,
@@ -11321,6 +11321,7 @@ class Salaire:
         except Exception as e:
             logger.error(f"Erreur recalcul salaire ID {salaire_id}: {e}", exc_info=True)
             return False
+    
     #def recalculer_salaire(self, salaire_id: int, contrat: Dict) -> bool:
     #    """
     #    Recalcule les champs dérivés d’un salaire existant à partir du contrat et des heures réelles.
@@ -11805,7 +11806,7 @@ class SyntheseHebdomadaire:
         seuil_h2f_heure: Heure du seuil à afficher (par défaut 18h).
         """
 
-        jours_semaine = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+        jours_semaine = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6  # 6h du matin
@@ -12261,7 +12262,7 @@ class SyntheseMensuelle:
         """
         seuil_h2f_minutes = int(round(seuil_h2f_minutes))
 
-        jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+        jours_mois = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
         count = 0
         for jour in jours_mois:
             h2f_minutes = heure_model.time_to_minutes(jour.get('h2f'))
@@ -12284,7 +12285,7 @@ class SyntheseMensuelle:
         Axe Y: Heures (6h en haut, 22h en bas)
         """
 
-        jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+        jours_mois = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6
@@ -12313,8 +12314,8 @@ class SyntheseMensuelle:
                 continue
             jour_du_mois = date_obj.day
 
-            h1d_minutes = self.heure_model.time_to_minutes(jour_data.get('h1d'))
-            h2f_minutes = self.heure_model.time_to_minutes(jour_data.get('h2f'))
+            h1d_minutes = heure_model.time_to_minutes(jour_data.get('h1d'))
+            h2f_minutes = heure_model.time_to_minutes(jour_data.get('h2f'))
 
             # Coordonnée X basée sur le jour du mois
             # On suppose que le mois a au maximum 31 jours
@@ -12456,7 +12457,7 @@ class SyntheseMensuelle:
         debut_mois = date(annee, mois, 1)
 
         # Récupérer TOUS les jours du mois
-        tous_les_jours = self.heure_model.get_h1d_h2f_for_period(
+        tous_les_jours = heure_model.get_h1d_h2f_for_period(
             user_id=user_id,
             employeur=employeur,
             id_contrat=id_contrat,
