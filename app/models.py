@@ -10064,7 +10064,7 @@ class HeureTravail:
                         (employe_id IS NULL AND %s IS NULL)
                         OR (employe_id = %s) 
                     AND type_heures = %s
-                """,
+                """,(
                 date_obj,
                 cleaned_data['user_id'],
                 cleaned_data['employeur'],
@@ -10072,7 +10072,7 @@ class HeureTravail:
                 cleaned_data['employe_id'],
                 cleaned_data['employe_id'],
                 cleaned_data['type_heures']
-            )
+            ))
             existing = cursor.fetchone()
             if existing:
                 heure_travail_id = existing['id']
