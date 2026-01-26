@@ -11276,6 +11276,7 @@ class Salaire:
                 heure_model=heure_model,
                 cotisations_contrat_model=cotisations_contrat_model,
                 indemnites_contrat_model= indemnites_contrat_model,
+                bareme_indemnite_model=bareme_indemnite_model,
                 heures_reelles=heures_reelles,
                 contrat=contrat,
                 contrat_id=id_contrat,
