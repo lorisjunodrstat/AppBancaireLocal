@@ -6040,25 +6040,44 @@ def heures_travail():
             jour_data = jour_data_default
         if 'plages' in jour_data and isinstance(jour_data['plages'], list):
             for plage in jour_data['plages']:
-                if isinstance(plage, dict):
-                    for key in ('debut', 'fin'):
-                        val = plage.get(key)
-                        if val is None:
+                if not isinstance(plage, dict):
+                    continue
+                for key in ('debut', 'fin'):
+                    val = plage.get(key)
+                    if val is None:
+                        plage[key] = ''
+                        continue
+
+                    # Cas 1 : objet time (datetime.time)
+                    if hasattr(val, 'hour') and hasattr(val, 'minute'):
+                        plage[key] = f"{val.hour:02d}:{val.minute:02d}"
+                    # Cas 2 : timedelta (durée, ex: 7:55:00)
+                    elif hasattr(val, 'total_seconds'):
+                        total_sec = int(val.total_seconds())
+                        hours = total_sec // 3600
+                        minutes = (total_sec % 3600) // 60
+                        # Normaliser les heures négatives ou > 24 (rare)
+                        hours = hours % 24
+                        plage[key] = f"{hours:02d}:{minutes:02d}"
+                    # Cas 3 : chaîne (ex: '7:55', '09:30:00', '13:20')
+                    elif isinstance(val, str):
+                        s = val.strip()
+                        if not s:
                             plage[key] = ''
-                        elif hasattr(val, 'hour') and hasattr(val, 'minute'):
-                            # C'est un objet time → formater en HH:MM
-                            plage[key] = f"{val.hour:02d}:{val.minute:02d}"
-                        elif isinstance(val, str):
-                            # C'est une chaîne → normaliser en HH:MM
-                            try:
-                                parts = val.strip().split(':')
-                                h = int(parts[0])
-                                m = int(parts[1]) if len(parts) > 1 else 0
-                                plage[key] = f"{h:02d}:{m:02d}"
-                            except (ValueError, IndexError):
-                                plage[key] = ''
-                        else:
+                            continue
+                        # Supprimer les secondes si présentes
+                        if s.count(':') == 2:
+                            s = ':'.join(s.split(':')[:2])  # garder HH:MM
+                        # Gérer '7:55' → '07:55'
+                        parts = s.split(':')
+                        try:
+                            h = int(parts[0])
+                            m = int(parts[1]) if len(parts) > 1 else 0
+                            plage[key] = f"{h:02d}:{m:02d}"
+                        except (ValueError, IndexError):
                             plage[key] = ''
+                    else:
+                        plage[key] = ''
                     #if 'debut' in plage and plage['debut'] is not None:
                     #    if hasattr(plage['debut'], 'strftime'):
                     #        plage['debut'] = plage['debut'].strftime('%H:%M')
