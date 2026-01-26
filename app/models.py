@@ -11849,8 +11849,8 @@ class SyntheseHebdomadaire:
             if jour_semaine_numero < 1 or jour_semaine_numero > 7:
                 continue # Ignorer les jours en dehors de Lundi-Dimanche si nécessaire
 
-            h1d_minutes = self.heure_model.time_to_minutes(jour_data.get('h1d'))
-            h2f_minutes = self.heure_model.time_to_minutes(jour_data.get('h2f'))
+            h1d_minutes = heure_model.time_to_minutes(jour_data.get('h1d'))
+            h2f_minutes = heure_model.time_to_minutes(jour_data.get('h2f'))
 
             # Calcul des coordonnées X pour la colonne du jour
             x_jour_debut = margin_x + (jour_semaine_numero - 1) * (plot_width / 7)
