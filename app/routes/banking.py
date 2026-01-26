@@ -6765,6 +6765,7 @@ def salaire_pdf(mois: int, annee: int):
         g.models.heure_model,
         g.models.cotisations_contrat_model,
         g.models.indemnites_contrat_model,
+        g.models.bareme_indemnite_model,
         heures_reelles=heures_reelles,
         contrat=contrat,
         contrat_id=contrat['id'],
@@ -6870,6 +6871,7 @@ def salaire_employe_pdf(employe_id: int, annee: int, mois: int):
         g.models.heure_model,
         g.models.cotisations_contrat_model,
         g.models.indemnites_contrat_model,
+        g.models.bareme_indemnite_model,
         heures_reelles=heures_reelles,
         contrat=contrat,
         contrat_id=contrat['id'],
@@ -6969,6 +6971,7 @@ def employe_salaire_view():
                 heure_model=g.models.heure_model,
                 cotisations_contrat_model=g.models.cotisations_contrat_model,
                 indemnites_contrat_model=g.models.indemnites_contrat_model,
+                bareme_indemnite_model=g.models.bareme_indemnite_model,
                 heures_reelles=heures_reelles,
                 contrat=contrat,
                 contrat_id=id_contrat,
@@ -7189,6 +7192,7 @@ def salaires():
                     g.models.heure_model,
                     g.models.cotisations_contrat_model,
                     g.models.indemnites_contrat_model,
+                    g.models.bareme_indemnite_model,
                     heures_reelles=heures_reelles,
                     contrat=contrat,
                     contrat_id=id_contrat,
@@ -7448,7 +7452,9 @@ def details_calcul_salaire():
         resultats = g.models.salaire_model.calculer_salaire_net_avec_details(
             g.models.heure_model,
             g.models.cotisations_contrat_model,
-            g.models.indemnites_contrat_model,heures_reelles,
+            g.models.indemnites_contrat_model,
+            g.models.bareme_indemnite_model,
+            heures_reelles,
             contrat, user_id=current_user_id, annee=annee, mois=mois)
         
         # Ajout du mois et de l'année aux résultats
@@ -7618,7 +7624,7 @@ def recalculer_salaires():
 
     count = 0
     for sal in salaires:
-        if g.models.salaire_model.recalculer_salaire(g.models.heure_model, g.models.cotisations_contrat_model, g.models.indemnites_contrat_model, sal['id'], contrat):
+        if g.models.salaire_model.recalculer_salaire(g.models.heure_model, g.models.cotisations_contrat_model, g.models.indemnites_contrat_model, g.models.bareme_indemnite_model, sal['id'], contrat):
             count += 1
             logging.info(f'salaire corrigé : {salaires} - {sal}')
 
