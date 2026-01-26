@@ -9385,7 +9385,7 @@ class IndemniteContrat:
             logger.error(f"Erreur récupération indemnite contrat {contrat_id} pour annee {annee} : {e}")
             return []
 
-    def get_total_indemnites_par_mois(self, user_id: int, annee: int, mois: int) -> List[Dict]:
+    def get_total_indemnites_par_mois(self, bareme_indemnite_model, user_id: int, annee: int, mois: int) -> List[Dict]:
         """
         Retourne le détail des indemnités par contrat pour un mois donné.
         Inclut le montant calculé selon la base (brut ou brut_tot).
