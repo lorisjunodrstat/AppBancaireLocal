@@ -10998,7 +10998,7 @@ class Salaire:
             return 0.0
 
 
-    def calculer_salaire_net_avec_details(self, heures_reelles: float, contrat: Dict, contrat_id: int, annee: int, user_id: Optional[int] = None, 
+    def calculer_salaire_net_avec_details(self, cotisations_contrat_model, indemnites_contrat_model, heures_reelles: float, contrat: Dict, contrat_id: int, annee: int, user_id: Optional[int] = None, 
                                         mois: Optional[int] = None, jour_estimation: int = 15) -> Dict:
         """
         Calcule le salaire net et retourne tous les détails du calcul pour affichage
@@ -11214,9 +11214,6 @@ class Salaire:
             return cursor.fetchall()
 
     def calculer_acompte_25(self, heure_model, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
-        if not self.heure_model:
-            raise ValueError("HeureTravail manager non initialisé")
-
         heures = self.heure_model.get_heures_periode(
             user_id, employeur, id_contrat, annee, mois, 1, jour_estimation
         )
@@ -11251,7 +11248,7 @@ class Salaire:
         logger.info(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         logger.error(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         return result
-    def recalculer_salaire(self, salaire_id: int, contrat: Dict) -> bool:
+    def recalculer_salaire(self, cotisations_contrat_model, indemnites_contrat_model, salaire_id: int, contrat: Dict) -> bool:
         try:
             salaire = self.get_by_id(salaire_id)
             if not salaire:
@@ -11269,6 +11266,8 @@ class Salaire:
 
             # 1. Calcul du salaire net réel (mois entier)
             result = self.calculer_salaire_net_avec_details(
+                cotisations_contrat_model=self.cotisations_contrat_model,
+                indemnites_contrat_model=self.indemnites_contrat_model,
                 heures_reelles=heures_reelles,
                 contrat=contrat,
                 contrat_id=id_contrat,

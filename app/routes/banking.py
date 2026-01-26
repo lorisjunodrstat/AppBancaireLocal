@@ -6762,6 +6762,8 @@ def salaire_pdf(mois: int, annee: int):
     salaire_data = salaires_db[0] if salaires_db else None
 
     result = g.models.salaire_model.calculer_salaire_net_avec_details(
+        g.models.cotisations_contrat_model,
+        g.models.indemnites_contrat_model,
         heures_reelles=heures_reelles,
         contrat=contrat,
         contrat_id=contrat['id'],
@@ -6864,6 +6866,8 @@ def salaire_employe_pdf(employe_id: int, annee: int, mois: int):
     employeur = contrat['employeur']
     heures_reelles = g.models.heure_model.get_total_heures_mois(user_id, employeur, contrat['id'], annee, mois) or 0.0
     result = g.models.salaire_model.calculer_salaire_net_avec_details(
+        g.models.cotisations_contrat_model,
+        g.models.indemnites_contrat_model,
         heures_reelles=heures_reelles,
         contrat=contrat,
         contrat_id=contrat['id'],
@@ -6960,6 +6964,8 @@ def employe_salaire_view():
         if heures_reelles > 0:
             # 1. Salaire net + détails
             result = g.models.salaire_model.calculer_salaire_net_avec_details(
+                g.models.cotisations_contrat_model,
+                g.models.indemnites_contrat_model,
                 heures_reelles=heures_reelles,
                 contrat=contrat,
                 contrat_id=id_contrat,
@@ -7176,6 +7182,8 @@ def salaires():
             if heures_reelles > 0:
                 # 1. Salaire net + détails (via nouvelles tables)
                 result = g.models.salaire_model.calculer_salaire_net_avec_details(
+                    g.models.cotisations_contrat_model,
+                    g.models.indemnites_contrat_model,
                     heures_reelles=heures_reelles,
                     contrat=contrat,
                     contrat_id=id_contrat,
@@ -7431,7 +7439,8 @@ def details_calcul_salaire():
         heures_reelles = g.models.heure_model.get_total_heures_mois(current_user_id, employeur, contrat['id'], annee, mois) or 0.0
         
         # Calcul avec détails
-        resultats = g.models.salaire_model.calculer_salaire_net_avec_details(heures_reelles, 
+        resultats = g.models.salaire_model.calculer_salaire_net_avec_details(g.models.cotisations_contrat_model,
+        g.models.indemnites_contrat_model,heures_reelles, 
                                                                             contrat, user_id=current_user_id, annee=annee, mois=mois)
         
         # Ajout du mois et de l'année aux résultats
