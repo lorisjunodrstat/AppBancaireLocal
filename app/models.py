@@ -11061,7 +11061,7 @@ class Salaire:
             if user_id is not None and mois is not None:
                 if contrat.get('versement_25', False):
                     acompte_25 = self.calculer_acompte_25(
-                        heure_model=self.heure_model,
+                        heure_model=heure_model,
                         user_id=user_id,
                         annee=annee,
                         mois=mois,
@@ -11257,7 +11257,12 @@ class Salaire:
                 return False
 
             heures_reelles = salaire.get('heures_reelles') or 0.0
-            salaire_horaire = float(contrat.get('salaire_horaire', 27.12))
+            salaire_horaire_raw = contrat.get('salaire_horaire')
+            if salaire_horaire_raw is None:
+                logger.warning(f"Salaire horaire manquant pour contrat {contrat.get('id')}")
+                salaire_horaire = 27.12
+            else:
+                salaire_horaire = float(salaire_horaire_raw)
             user_id = salaire['user_id']
             employeur = salaire['employeur']
             id_contrat = salaire['id_contrat']
@@ -12395,8 +12400,9 @@ class SyntheseMensuelle:
             'annee': annee
         }
 
-    def prepare_svg_data_h2f_annuel(self, synthese_hebdo_model, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60, largeur_svg: int = 900, hauteur_svg: int = 400) -> Dict:
+    def prepare_svg_data_h2f_annuel(self, synthese_hebdo_model, heure_model, user_id: int, employeur: str, id_contrat: int, annee: int, seuil_h2f_minutes: int = 18 * 60, largeur_svg: int = 900, hauteur_svg: int = 400) -> Dict:
     # Récupérer les stats hebdomadaires
+
         stats = synthese_hebdo_model.calculate_h2f_stats(heure_model, user_id, employeur, id_contrat, annee, seuil_h2f_minutes)
 
         semaines = list(range(1, 53))  # ou 54 si besoin
