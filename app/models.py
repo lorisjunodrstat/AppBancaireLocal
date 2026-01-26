@@ -10062,7 +10062,8 @@ class HeureTravail:
                     AND id_contrat = %s
                     AND (
                         (employe_id IS NULL AND %s IS NULL)
-                        OR (employe_id = %s) 
+                        OR (employe_id = %s)
+                        ) 
                     AND type_heures = %s
                 """,(
                 date_obj,
