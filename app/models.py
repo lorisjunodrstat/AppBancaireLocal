@@ -10271,8 +10271,22 @@ class HeureTravail:
 
     def calculer_total_heures(self, heure_travail_id: int, cursor)-> float:
         """Calcule le total des heures à partir des plages"""
-        def time_to_seconds(t: time) -> int:
-            return t.hour * 3600 + t.minute * 60 + t.second
+        def time_to_seconds(val) -> int:
+            if val is None:
+                return 0
+            if isinstance(val, timedelta):
+                # timedelta.total_seconds() donne la durée en secondes
+                return int(val.total_seconds())
+            elif hasattr(val, 'hour') and hasattr(val, 'minute'):
+                # C'est un objet time
+                return val.hour * 3600 + val.minute * 60 + getattr(val, 'second', 0)
+            else:
+                # Cas de secours (chaîne ?)
+                try:
+                    t = datetime.strptime(str(val), '%H:%M:%S').time()
+                    return t.hour * 3600 + t.minute * 60
+                except:
+                    return 0
         query = """
             SELECT debut, fin
             FROM plages_horaires
