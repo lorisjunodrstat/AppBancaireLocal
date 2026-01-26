@@ -9000,30 +9000,45 @@ class CotisationContrat:
     def __init__(self, db):
         self.db = db
 
-    def calculer_montant_cotisation(self, bareme_cotisation_model, type_cotisation_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
+    def calculer_montant_cotisation(self, bareme_cotisation_model, type_cotisation_id: int, base_montant, taux_fallback = 0.0):
         """
-        Calcule le montant d'une cotisation :
-        - Si barème → utilise le barème avec base_montant (salaire brut ou brut_tot)
-        - Sinon → utilise taux_fallback (issu de cotisations_contrat)
+        Calcule le montant d'une cotisation.
+        Retourne un float.
         """
+        from decimal import Decimal, ROUND_HALF_UP
+
+        def to_decimal(val) -> Decimal:
+            if val is None:
+                return Decimal('0')
+            if isinstance(val, Decimal):
+                return val
+            return Decimal(str(val))
+        base = to_decimal(base_montant)
+        taux = to_decimal(taux_fallback)
+
         if bareme_cotisation_model.has_bareme(type_cotisation_id):
             tranches = bareme_cotisation_model.get_bareme(type_cotisation_id)
             for tranche in tranches:
-                min_s = tranche['seuil_min']
+                min_s = to_decimal(tranche['seuil_min'])
                 max_s = tranche['seuil_max']
-                if base_montant >= min_s and (max_s is None or base_montant <= max_s):
+                if max_s is not None:
+                    max_s = to_decimal(max_s)
+                
+                if base >= min_s and (max_s is None or base <= max_s):
                     if tranche['type_valeur'] == 'fixe':
-                        return float(tranche['montant_fixe'])
+                        montant = to_decimal(tranche['montant_fixe'])
                     else:
-                        return float(base_montant * (tranche['taux'] / 100))
+                        taux_tranche = to_decimal(tranche['taux'])
+                        montant = (base * taux_tranche / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    return float(montant)
             return 0.0
         else:
             # Ancien comportement
-            if taux_fallback >= 10:
-                return float(taux_fallback)  # montant fixe
+            if taux >= Decimal('10'):
+                montant = taux  # montant fixe
             else:
-                return float(base_montant * (taux_fallback / 100))
-            
+                montant = (base * taux / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            return float(montant)     
     def assigner_a_contrat(self, contrat_id: int, type_cotisation_id: int, taux:float, annee: int, base_calcul : str = "brut")-> bool:
         try:
             with self.db.get_cursor() as cursor:
@@ -9340,26 +9355,43 @@ class IndemniteContrat:
     def __init__(self, db):
         self.db = db
 
-    def calculer_montant_indemnite(self, bareme_indemnite_model, type_indemnite_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
+    def calculer_montant_indemnite(self, bareme_indemnite_model, type_indemnite_id: int, base_montant, taux_fallback = 0.0):
         """
-        Calcule le montant d'une indemnité :
-        - Si barème → utilise le barème avec base_montant
-        - Sinon → utilise taux_fallback (issu de indemnites_contrat)
+        Calcule le montant d'une indemnité.
+        base_montant et taux_fallback peuvent être float ou Decimal.
+        Retourne un float (pour compatibilité avec l'interface).
         """
+        from decimal import Decimal, ROUND_HALF_UP
+
+        def to_decimal(val) -> Decimal:
+            if val is None:
+                return Decimal('0')
+            if isinstance(val, Decimal):
+                return val
+            return Decimal(str(val))
+        base = to_decimal(base_montant)
+        taux = to_decimal(taux_fallback)
+
         if bareme_indemnite_model.has_bareme(type_indemnite_id):
             tranches = bareme_indemnite_model.get_bareme(type_indemnite_id)
             for tranche in tranches:
-                min_s = tranche['seuil_min']
+                min_s = to_decimal(tranche['seuil_min'])
                 max_s = tranche['seuil_max']
-                if base_montant >= min_s and (max_s is None or base_montant <= max_s):
+                if max_s is not None:
+                    max_s = to_decimal(max_s)
+                
+                if base >= min_s and (max_s is None or base <= max_s):
                     if tranche['type_valeur'] == 'fixe':
-                        return float(tranche['montant_fixe'])
+                        montant = to_decimal(tranche['montant_fixe'])
                     else:
-                        return float(base_montant * (tranche['taux'] / 100))
+                        taux_tranche = to_decimal(tranche['taux'])
+                        montant = (base * taux_tranche / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    return float(montant)
             return 0.0
         else:
             # Ancien comportement : toujours en % du brut
-            return float(base_montant * (taux_fallback / 100))
+            montant = (base * taux / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            return float(montant)
     
     def assigner_a_contrat(self, contrat_id: int, type_indemnite_id: int, taux:float, annee: int, base_calcul : str = "brut")-> bool:
         try:
@@ -9410,6 +9442,14 @@ class IndemniteContrat:
         Attention : cette version utilise uniquement le salaire BRUT comme base.
         Pour une version complète avec brut_tot, il faudrait charger aussi les cotisations → à implémenter dans Salaire.
         """
+        from decimal import Decimal, ROUND_HALF_UP
+
+        def to_decimal(val) -> Decimal:
+            if val is None:
+                return Decimal('0')
+            if isinstance(val, Decimal):
+                return val
+            return Decimal(str(val))
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
                 # Étape 1 : récupérer toutes les indemnités définies pour l'année
@@ -9445,9 +9485,9 @@ class IndemniteContrat:
                 result = []
                 for item in indemnites:
                     contrat_id = item['contrat_id']
-                    heures = heures_par_contrat.get(contrat_id, 0.0)
-                    salaire_horaire = float(item['salaire_horaire'])
-                    brut = heures * salaire_horaire
+                    heures = to_decimal(heures_par_contrat.get(contrat_id, 0))
+                    salaire_horaire = to_decimal(item['salaire_horaire'])
+                    brut = (heures * salaire_horaire).quantize(Decimal('0.01'))
                     montant = self.calculer_montant_indemnite(
                         bareme_indemnite_model=bareme_indemnite_model,
                         type_indemnite_id=item['type_indemnite_id'],
@@ -11045,10 +11085,20 @@ class Salaire:
                 }
 
            # Conversion du salaire horaire
-            salaire_horaire = float(contrat.get('salaire_horaire', 24.05))
-            salaire_brut = round(heures_reelles * salaire_horaire, 2)
+            from decimal import Decimal, ROUND_HALF_UP
 
-             # Récupérer cotisations et indemnités dynamiques
+            # Conversion sécurisée en Decimal
+            def to_decimal(val):
+                if val is None:
+                    return Decimal('0')
+                if isinstance(val, Decimal):
+                    return val
+                return Decimal(str(val))
+
+            salaire_horaire = to_decimal(contrat.get('salaire_horaire', '24.05'))
+            heures_reelles_dec = to_decimal(heures_reelles)
+            salaire_brut = (heures_reelles_dec * salaire_horaire).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                        # Récupérer cotisations et indemnités dynamiques
             cotisations_contrat = cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
             indemnites_contrat = indemnites_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
             logger.info(f'Cotisations pour contrat {contrat_id}, année {annee}: {cotisations_contrat}')
