@@ -9037,6 +9037,7 @@ class CotisationContrat:
         except Exception as e:
             logger.error(f"Erreur assignation cotisation : {e}")
             return False
+    
     def get_for_contrat(self, contrat_id: int)-> List[Dict]:
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
@@ -9051,6 +9052,8 @@ class CotisationContrat:
         except Exception as e:
             logger.error(f"Erreur récupération cotisation contrat : {e}")
             return []
+    
+
     def get_for_contrat_and_annee(self, contrat_id: int, annee: int) -> List[Dict]:
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
@@ -9065,6 +9068,7 @@ class CotisationContrat:
         except Exception as e:
             logger.error(f"Erreur récupération cotisation contrat {contrat_id} pour annee {annee} : {e}")
             return []
+    
     def get_total_cotisations_par_mois(self, bareme_cotisation_model, user_id: int, annee: int, mois: int) -> List[Dict]:
         """
         Retourne le détail des cotisations par contrat pour un mois donné.
@@ -11047,7 +11051,8 @@ class Salaire:
              # Récupérer cotisations et indemnités dynamiques
             cotisations_contrat = cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
             indemnites_contrat = indemnites_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
-
+            logger.info(f'Cotisations pour contrat {contrat_id}, année {annee}: {cotisations_contrat}')
+            logger.info(f'Indemnites pour contrat {contrat_id}, année {annee}: {indemnites_contrat}')
             # Calcul des indemnités
             indemnites_detail = {}
             total_indemnites = 0.0
@@ -11058,6 +11063,7 @@ class Salaire:
                     base_montant=salaire_brut,
                     taux_fallback=item['taux']
                 )
+                logger.info(f"Calcul des indemnités {item['nom_indemnite']}: taux={item['taux']}, montant={montant}")
             salaire_brut_tot = round(salaire_brut + total_indemnites, 2)
 
 
@@ -11072,6 +11078,7 @@ class Salaire:
                     base_montant=base_montant,
                     taux_fallback=item['taux']
                 )
+                logger.info(f'Calcul cotisation {item["nom_cotisation"]}: base={base} ({base_montant}), taux={item["taux"]}, montant={montant}')
                 montant = round(montant, 2)
                 total_cotisations += montant
                 cotisations_detail[item['nom_cotisation']] = {
