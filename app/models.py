@@ -10072,7 +10072,7 @@ class HeureTravail:
                 cleaned_data['employe_id'],
                 cleaned_data['employe_id'],
                 cleaned_data['type_heures']
-            ))
+            )
             existing = cursor.fetchone()
             if existing:
                 heure_travail_id = existing['id']
