@@ -10295,32 +10295,32 @@ class HeureTravail:
     def get_by_date(self, date_str: str, user_id: int, employeur: str, id_contrat: int) -> Optional[Dict]:
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
-                query = """
-                    SELECT ht.*,
-                        JSON_ARRAYAGG(
-                            JSON_OBJECT('ordre', ph.ordre, 'debut', ph.debut, 'fin', ph.fin)
-                        ) AS plages
-                    FROM heures_travail ht
-                    LEFT JOIN plages_horaires ph ON ht.id = ph.heure_travail_id
-                    WHERE ht.date = %s AND ht.user_id = %s AND ht.employeur = %s AND ht.id_contrat = %s
-                    GROUP BY ht.id
-                """
-                cursor.execute(query, (date_str, user_id, employeur, id_contrat))
-                jour = cursor.fetchone()
-
-                if not jour:
+                # 1. Récupérer l'enregistrement principal
+                cursor.execute("""
+                    SELECT * FROM heures_travail
+                    WHERE date = %s AND user_id = %s AND employeur = %s AND id_contrat = %s
+                """, (date_str, user_id, employeur, id_contrat))
+                row = cursor.fetchone()
+                
+                if not row:
                     return None
 
-                plages_json = jour.get('plages')
-                if plages_json and plages_json != 'null':
-                    try:
-                        jour['plages'] = json.loads(plages_json)
-                    except (json.JSONDecodeError, TypeError):
-                        jour['plages'] = []
-                else:
-                    jour['plages'] = []
+                # 2. Récupérer les plages associées
+                cursor.execute("""
+                    SELECT debut, fin
+                    FROM plages_horaires
+                    WHERE heure_travail_id = %s
+                    ORDER BY ordre
+                """, (row['id'],))
+                plages = []
+                for plage in cursor.fetchall():
+                    plages.append({
+                        'debut': plage['debut'],  # objet datetime.time
+                        'fin': plage['fin']       # objet datetime.time
+                    })
 
-                return jour
+                row['plages'] = plages
+                return row
 
         except Exception as e:
             logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
