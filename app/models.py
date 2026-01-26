@@ -11213,7 +11213,7 @@ class Salaire:
             cursor.execute(query, tuple(params))
             return cursor.fetchall()
 
-    def calculer_acompte_25(self, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
+    def calculer_acompte_25(self, heure_model, user_id: int, annee: int, mois: int, salaire_horaire: float, employeur: str, id_contrat: int, jour_estimation: int = 15) -> float:
         if not self.heure_model:
             raise ValueError("HeureTravail manager non initialisé")
 
