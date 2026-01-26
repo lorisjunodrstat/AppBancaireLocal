@@ -10378,7 +10378,6 @@ class HeureTravail:
                 for jour in jours:
                     if jour['plages'] and jour['plages'][0] is not None:
                         try:
-                            import json
                             jour['plages'] = json.loads(jour['plages'])
                             for plage in jour['plages']:
                                 for field in ['debut', 'fin']:
