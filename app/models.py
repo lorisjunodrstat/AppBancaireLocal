@@ -11101,6 +11101,7 @@ class Salaire:
                         # Récupérer cotisations et indemnités dynamiques
             cotisations_contrat = cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
             indemnites_contrat = indemnites_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
+            logger.info(f"DEBUG indemnites_contrat: {indemnites_contrat}")
             logger.info(f'Cotisations pour contrat {contrat_id}, année {annee}: {cotisations_contrat}')
             logger.info(f'Indemnites pour contrat {contrat_id}, année {annee}: {indemnites_contrat}')
             # Calcul des indemnités
