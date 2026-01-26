@@ -7827,10 +7827,26 @@ def synthese_mensuelle():
     graphique_h2f_annuel = None
     if employeur and contrat_id:
         graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
-            user_id, employeur, contrat_id, annee, seuil_h2f_minutes, 900, 400, synthese_hebdo_model=g.models.synthese_hebdo_model)
+            synthese_hebdo_model=g.models.synthese_hebdo_model,
+            user_id=user_id,
+            employeur=employeur,
+            id_contrat=contrat_id,
+            annee=annee,
+            seuil_h2f_minutes=seuil_h2f_minutes,
+            largeur_svg=900,
+            hauteur_svg=400
+        )
     elif synthese_list:
         graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
-            user_id, employeur_exemple, id_contrat_exemple, annee, seuil_h2f_minutes, 900, 400, synthese_hebdo_model=g.models.synthese_hebdo_model)
+            synthese_hebdo_model=g.models.synthese_hebdo_model,
+            user_id=user_id,
+            employeur=employeur_exemple,
+            id_contrat=id_contrat_exemple,
+            annee=annee,
+            seuil_h2f_minutes=seuil_h2f_minutes,
+            largeur_svg=900,
+            hauteur_svg=400
+        )
     stats_h2f_mois = None
     svg_horaire_mois_data = None
     if mois: # Si un mois est spécifié
