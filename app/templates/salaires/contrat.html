@@ -169,8 +169,20 @@
     <div class="card mt-4">
         <div class="card-header py-3">
             <h5 class="m-0 font-weight-bold">Historique des contrats</h5>
+            <!-- Bouton Modifier -->
+            <button type="button" class="btn btn-sm btn-primary" onclick="loadContractToForm({{ contrat.id }})"
+                data-bs-toggle="tooltip" title="Modifier ce contrat">
+                <i class="fas fa-edit"></i>
+            </button>
+            <!-- Nouveau bouton : Gérer les cotisations/indemnités -->
+            <a href="{{ url_for('banking.gestion_cotisations_indemnites', contrat_id=contrat.id, annee=today.year) }}"
+                class="btn btn-sm btn-info" title="Gérer les taux pour cette année">
+                <i class="fas fa-percentage"></i>
+            </a>
+            
         </div>
         <div class="card-body">
+
             <div class="table-responsive">
                 <table class="table table-bordered">
                     <thead class="table-light">

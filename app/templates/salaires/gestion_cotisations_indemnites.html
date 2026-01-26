@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h5>Gestion des cotisations et indemnités</h5>
+            <p>Contrat : {{ contrat.employeur }} ({{ annee }})</p>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <h6>Cotisations (en %)</h6>
+                <div class="row g-3 mb-4">
+                    {% for tc in types_cotisation %}
+                    <div class="col-md-4">
+                        <label class="form-label">{{ tc.nom }}</label>
+                        <input type="number" step="0.01" class="form-control" 
+                               name="cotis_{{ tc.id }}_taux"
+                               value="{{ cotis_dict[tc.id].taux if tc.id in cotis_dict else '' }}">
+                        <select class="form-select mt-1" name="cotis_{{ tc.id }}_base">
+                            <option value="brut" {% if not (tc.id in cotis_dict) or cotis_dict[tc.id].base_calcul == 'brut' %}selected{% endif %}>Base : Brut</option>
+                            <option value="brut_tot" {% if tc.id in cotis_dict and cotis_dict[tc.id].base_calcul == 'brut_tot' %}selected{% endif %}>Base : Brut + Indemnités</option>
+                        </select>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <h6>Indemnités (en %)</h6>
+                <div class="row g-3">
+                    {% for ti in types_indemnite %}
+                    <div class="col-md-4">
+                        <label class="form-label">{{ ti.nom }}</label>
+                        <input type="number" step="0.01" class="form-control" 
+                               name="indem_{{ ti.id }}_valeur"
+                               value="{{ indem_dict[ti.id].valeur if ti.id in indem_dict else '' }}">
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    <a href="{{ url_for('banking.gestion_contrat') }}" class="btn btn-secondary">Retour</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

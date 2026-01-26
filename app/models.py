@@ -8378,6 +8378,8 @@ class EcritureComptable:
         fichier_info = self.get_fichier(ecriture_id, user_id)
         return fichier_info['chemin_complet'] if fichier_info else None
 
+    
+
 class ContactPlan:
     def __init__(self, db):
         self.db = db
@@ -9317,10 +9319,22 @@ class CotisationContrat:
             'type': 'cotisations_employe'
         }
 
+    def get_all_types(self):
+        with self.db.get_cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT id, nom FROM types_cotisation ORDER BY nom")
+            return cursor.fetchall()
+
+    def get_for_contrat_and_annee(self, contrat_id, annee):
+        with self.db.get_cursor(dictionary=True) as cursor:
+            cursor.execute("""
+                SELECT * FROM cotisations_contrat 
+                WHERE contrat_id = %s AND annee = %s
+            """, (contrat_id, annee))
+            return cursor.fetchall()
+
 class IndemniteContrat:
     def __init__(self, db):
         self.db = db
-
 
     def calculer_montant_indemnite(self, bareme_indemnite_model, type_indemnite_id: int, base_montant: float, taux_fallback: float = 0.0) -> float:
         """
@@ -9616,7 +9630,18 @@ class IndemniteContrat:
             'employe_nom': employe_nom,
             'type': 'cotisations_employe'
         }
-    
+    def get_all_types(self):
+        with self.db.get_cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT id, nom FROM types_indemnite ORDER BY nom")
+            return cursor.fetchall()
+
+    def get_for_contrat_and_annee(self, contrat_id, annee):
+        with self.db.get_cursor(dictionary=True) as cursor:
+            cursor.execute("""
+                SELECT * FROM indemnites_contrat 
+                WHERE contrat_id = %s AND annee = %s
+            """, (contrat_id, annee))
+            return cursor.fetchall()
 class Contrat:
     def __init__(self, db):
         self.db = db
@@ -11028,6 +11053,7 @@ class Salaire:
             total_indemnites = 0.0
             for item in indemnites_contrat:
                 montant = indemnites_contrat_model.calculer_montant_indemnite(
+                    bareme_indemnite_model=bareme_indemnite_model,
                     type_indemnite_id=item['type_indemnite_id'],
                     base_montant=salaire_brut,
                     taux_fallback=item['taux']
