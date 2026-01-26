@@ -11019,14 +11019,14 @@ class Salaire:
             salaire_brut = round(heures_reelles * salaire_horaire, 2)
 
              # Récupérer cotisations et indemnités dynamiques
-            cotisations_contrat = self.cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
-            indemnites_contrat = self.indemnites_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
+            cotisations_contrat = cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
+            indemnites_contrat = indemnites_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
 
             # Calcul des indemnités
             indemnites_detail = {}
             total_indemnites = 0.0
             for item in indemnites_contrat:
-                montant = self.indemnites_contrat_model.calculer_montant_indemnite(
+                montant = indemnites_contrat_model.calculer_montant_indemnite(
                     type_indemnite_id=item['type_indemnite_id'],
                     base_montant=salaire_brut,
                     taux_fallback=item['taux']
@@ -11040,7 +11040,7 @@ class Salaire:
             for item in cotisations_contrat:
                 base = item.get('base_calcul', 'brut')
                 base_montant = salaire_brut_tot if base == 'brut_tot' else salaire_brut
-                montant = self.cotisations_contrat_model.calculer_montant_cotisation(
+                montant = cotisations_contrat_model.calculer_montant_cotisation(
                     type_cotisation_id=item['type_cotisation_id'],
                     base_montant=base_montant,
                     taux_fallback=item['taux']
