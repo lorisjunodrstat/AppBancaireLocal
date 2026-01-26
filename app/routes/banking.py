@@ -7841,6 +7841,7 @@ def synthese_mensuelle():
     if employeur and contrat_id:
         graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
             synthese_hebdo_model=g.models.synthese_hebdo_model,
+            heure_model=g.models.heure_model,
             user_id=user_id,
             employeur=employeur,
             id_contrat=contrat_id,
@@ -7852,6 +7853,7 @@ def synthese_mensuelle():
     elif synthese_list:
         graphique_h2f_annuel = g.models.synthese_mensuelle_model.prepare_svg_data_h2f_annuel(
             synthese_hebdo_model=g.models.synthese_hebdo_model,
+            heure_model=g.models.heure_model,
             user_id=user_id,
             employeur=employeur_exemple,
             id_contrat=id_contrat_exemple,
