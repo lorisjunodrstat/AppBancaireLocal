@@ -10313,7 +10313,7 @@ class HeureTravail:
 
                     if jour['plages'] and jour['plages'][0] is not None:
                         try:
-                            import json
+
                             jour['plages'] = json.loads(jour['plages'])
                             for plage in jour['plages']:
                                 if plage.get('debut') and hasattr(plage['debut'], 'total_seconds'):
