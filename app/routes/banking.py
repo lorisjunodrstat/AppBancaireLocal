@@ -6085,7 +6085,8 @@ def heures_travail():
     logging.debug(f"banking 3043 DEBUG: Total général des heures: {total_general}")
     semaines = dict(sorted(semaines.items()))
     logging.debug(f"banking 3045 DEBUG: Semaines préparées pour le rendu: {semaines.keys()}")
-
+    
+    logging.debug(f"Exemple de jour_data: {semaines[list(semaines.keys())[0]]['jours'][0] if semaines else 'AUCUN'}")
     return render_template('salaires/heures_travail.html',
                         semaines=semaines,
                         total_general=total_general,
