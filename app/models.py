@@ -10172,16 +10172,21 @@ class HeureTravail:
     def _update_plages_horaires(self, cursor, heure_travail_id: int, plages: List[Dict]) -> None:
         """Met à jour les plages horaires associées à un enregistrement de travail"""
         try:
+            # 1. Supprimer les anciennes plages
             cursor.execute("DELETE FROM plages_horaires WHERE heure_travail_id = %s", (heure_travail_id,))
+
+            # 2. Insérer les nouvelles plages
             for index, plage in enumerate(plages):
-                if plage.get('debut') and plage.get('fin'):
+                debut = plage.get('debut')
+                fin = plage.get('fin')
+                if debut and fin:
                     cursor.execute("""
                         INSERT INTO plages_horaires (heure_travail_id, ordre, debut, fin)
                         VALUES (%s, %s, %s, %s)
-                    """, (heure_travail_id, index + 1, plage['debut'], plage['fin']))
+                    """, (heure_travail_id, index + 1, debut, fin))
         except Exception as e:
             logger.error(f"Erreur _update_plages_horaires: {str(e)}")
-            raise  # Pour propager l’erreur dans la transaction
+            raise
 
     def _clean_data(self, data: dict) -> dict:
         cleaned = data.copy()
@@ -10287,60 +10292,40 @@ class HeureTravail:
                 total += (fin_seconds - debut_seconds) / 3600
         return round(total,2)
 
-    def get_by_date(self, date_str: str, user_id: int, employeur: str, id_contrat: int)-> Optional[Dict]:
-        """ récupère les données avec plages horaires"""
+    def get_by_date(self, date_str: str, user_id: int, employeur: str, id_contrat: int) -> Optional[Dict]:
         try:
-            with self.db.get_cursor() as cursor:
+            with self.db.get_cursor(dictionary=True) as cursor:
                 query = """
-                SELECT ht.*,
-                    JSON_ARRAYAGG(
-                    JSON_OBJECT('ordre', ph.ordre, 'debut', ph.debut, 'fin', ph.fin)) as plages
+                    SELECT ht.*,
+                        JSON_ARRAYAGG(
+                            JSON_OBJECT('ordre', ph.ordre, 'debut', ph.debut, 'fin', ph.fin)
+                        ) AS plages
                     FROM heures_travail ht
                     LEFT JOIN plages_horaires ph ON ht.id = ph.heure_travail_id
                     WHERE ht.date = %s AND ht.user_id = %s AND ht.employeur = %s AND ht.id_contrat = %s
                     GROUP BY ht.id
                 """
-                logger.debug(f"[get_by_date] Query: {query} avec params: ({date_str}, {user_id}, {employeur}, {id_contrat})")
                 cursor.execute(query, (date_str, user_id, employeur, id_contrat))
                 jour = cursor.fetchone()
 
-                if jour:
-                    plages_json = jour.get('plages')
-                    if plages_json and plages_json != 'null':
+                if not jour:
+                    return None
+
+                plages_json = jour.get('plages')
+                if plages_json and plages_json != 'null':
+                    try:
                         jour['plages'] = json.loads(plages_json)
-                    else:
+                    except (json.JSONDecodeError, TypeError):
                         jour['plages'] = []
-
-                    if jour['plages'] and jour['plages'][0] is not None:
-                        try:
-
-                            jour['plages'] = json.loads(jour['plages'])
-                            for plage in jour['plages']:
-                                if plage.get('debut') and hasattr(plage['debut'], 'total_seconds'):
-                                    total_seconds = plage['debut'].total_seconds
-                                    hours = int(total_seconds // 3600)
-                                    minutes = int((total_seconds % 3600) // 60)
-                                    plage['debut'] = f"{hours:02d}:{minutes:02d}"
-                                if plage.get('fin') and hasattr(plage['fin'], 'total_seconds'):
-                                    total_seconds = plage['fin'].total_seconds
-                                    hours = int(total_seconds // 3600)
-                                    minutes = int((total_seconds % 3600) // 60)
-                                    plage['fin'] = f"{hours:02d}:{minutes:02d}"
-                        except Exception as e:
-                            logger.error(f"Erreur parsing plages horaires JSON: {str(e)}")
-                            jour['plages'] = []
-                    else:
-                        jour['plages']= []
-                    logger.debug(f"[get_by_date] Données trouvées avec {len(jour['plages'])} plages")
+                else:
+                    jour['plages'] = []
 
                 return jour
-        except Exception as e:
-            logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
 
         except Exception as e:
             logger.error(f"Erreur get_by_date pour {date_str}: {str(e)}")
             return None
-
+        
     def get_jour_travail(self, mois:int, semaine:int, user_id: int, employeur: str, id_contrat: int) -> List[Dict]:
         """ récupère les jours de travauk avec plages"""
         try:
