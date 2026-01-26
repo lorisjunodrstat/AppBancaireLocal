@@ -6964,8 +6964,9 @@ def employe_salaire_view():
         if heures_reelles > 0:
             # 1. Salaire net + détails
             result = g.models.salaire_model.calculer_salaire_net_avec_details(
-                g.models.cotisations_contrat_model,
-                g.models.indemnites_contrat_model,
+                heure_model=g.models.heure_model,
+                cotisations_contrat_model=g.models.cotisations_contrat_model,
+                indemnites_contrat_model=g.models.indemnites_contrat_model,
                 heures_reelles=heures_reelles,
                 contrat=contrat,
                 contrat_id=id_contrat,
@@ -6981,7 +6982,8 @@ def employe_salaire_view():
             # 2. Acompte 25 = heures(1–15)
             acompte_25_estime = 0.0
             if contrat.get('versement_25'):
-                acompte_25_estime = g.models.salaire_model.calculer_acompte_25(
+                heure_model=g.models.heure_model
+                acompte_25_estime = g.models.salaire_model.calculer_acompte_25(heure_model,
                     user_id, annee, m, salaire_horaire, employeur, id_contrat, jour_estimation
                 )
                 acompte_25_estime = round(acompte_25_estime, 2)
@@ -7199,7 +7201,8 @@ def salaires():
                 # 2. Acompte 25 = heures(1–15) × salaire_horaire
                 acompte_25_estime = 0.0
                 if contrat.get('versement_25'):
-                    acompte_25_estime = g.models.salaire_model.calculer_acompte_25(
+                    heure_model = g.models.heure_model
+                    acompte_25_estime = g.models.salaire_model.calculer_acompte_25(heure_model,
                         current_user_id, annee, m, salaire_horaire, employeur, id_contrat, jour_estimation
                     )
                     acompte_25_estime = round(acompte_25_estime, 2)
@@ -7549,7 +7552,8 @@ def update_salaire():
         acompte_25_estime = 0.0
         acompte_10_estime = 0.0
         if contrat.get('versement_25'):
-            acompte_25_estime = g.models.salaire_model.calculer_acompte_25(
+            heure_model = g.models.heure_model
+            acompte_25_estime = g.models.salaire_model.calculer_acompte_25(heure_model,
                 current_user_id, annee, mois, salaire_horaire, employeur, id_contrat, jour_estimation
             )
         if contrat.get('versement_10'):
