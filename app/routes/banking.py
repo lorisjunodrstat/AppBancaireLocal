@@ -7648,11 +7648,11 @@ def synthese_hebdomadaire():
 
     if employeur_filtre and id_contrat_filtre:
         stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(
-            user_id, employeur_filtre, int(id_contrat_filtre), annee, seuil_h2f_minutes, heure_model= g.models.heure_model)
+            g.models.heure_model, user_id, employeur_filtre, int(id_contrat_filtre), annee, seuil_h2f_minutes)
         moyenne_hebdo_h2f = stats_h2f['moyennes_hebdo'].get(semaine, 0.0)
         moyenne_mobile_h2f = stats_h2f['moyennes_mobiles'].get(semaine, 0.0)
     else:
-        stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(user_id, None, None, annee, seuil_h2f_minutes, heure_model=g.models.heure_model)
+        stats_h2f = g.models.synthese_hebdo_model.calculate_h2f_stats(g.models.heure_model, user_id, None, None, annee, seuil_h2f_minutes)
         # On récupère la moyenne pour la semaine affichée
         moyenne_hebdo_h2f = stats_h2f['moyennes_hebdo'].get(semaine, 0.0)
         moyenne_mobile_h2f = stats_h2f['moyennes_mobiles'].get(semaine, 0.0)
