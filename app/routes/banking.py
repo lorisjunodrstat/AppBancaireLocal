@@ -7877,8 +7877,8 @@ def synthese_mensuelle():
         if contrat_id and employeur :
             stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(g.models.heure_model,
                 user_id, employeur, contrat_id, annee, mois, seuil_h2f_minutes)
-            svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
-                user_id, employeur, contrat_id, annee, mois, heure_model=g.models.heure_model)
+            svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(g.models.heure_model,
+                user_id, employeur, contrat_id, annee, mois, )
         elif id_contrat_exemple and employeur_exemple:
             stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(g.models.heure_model,
                 user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes)
