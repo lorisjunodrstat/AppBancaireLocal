@@ -5914,9 +5914,13 @@ def api_compte_resultat():
 # --- Routes heures et salaires ---
 
 def time_to_str(t) -> str:
-    """Convertit un objet datetime.time en 'HH:MM'"""
+    """Convertit un objet datetime.time ou une chaîne en 'HH:MM'"""
     if t is None:
         return ''
+    if isinstance(t, str):
+        # Déjà au bon format ou presque
+        return t.strip()
+    # Sinon, on suppose que c'est un objet time
     return t.strftime('%H:%M')
 
 @bp.route('/heures-travail', methods=['GET', 'POST'])
@@ -6036,10 +6040,17 @@ def heures_travail():
             jour_data = jour_data_default
         if 'plages' in jour_data and isinstance(jour_data['plages'], list):
             for plage in jour_data['plages']:
-                if 'debut' in plage and plage['debut'] is not None:
-                    plage['debut'] = time_to_str(plage['debut'])
-                if 'fin' in plage and plage['fin'] is not None:
-                    plage['fin'] = time_to_str(plage['fin'])
+                if isinstance(plage, dict):
+                    if 'debut' in plage and plage['debut'] is not None:
+                        if hasattr(plage['debut'], 'strftime'):
+                            plage['debut'] = plage['debut'].strftime('%H:%M')
+                        else:
+                            plage['debut'] = str(plage['debut']).strip()
+                    if 'fin' in plage and plage['fin'] is not None:
+                        if hasattr(plage['fin'], 'strftime'):
+                            plage['fin'] = plage['fin'].strftime('%H:%M')
+                        else:
+                            plage['fin'] = str(plage['fin']).strip()
         logging.debug(f"banking 3012 DEBUG: Données pour le {date_str}: {jour_data}")
         # CORRECTION : Toujours recalculer total_h pour assurer la cohérence
         #if not jour_data['vacances'] and any([jour_data['h1d'], jour_data['h1f'], jour_data['h2d'], jour_data['h2f']]):
