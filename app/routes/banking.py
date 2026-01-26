@@ -6041,16 +6041,34 @@ def heures_travail():
         if 'plages' in jour_data and isinstance(jour_data['plages'], list):
             for plage in jour_data['plages']:
                 if isinstance(plage, dict):
-                    if 'debut' in plage and plage['debut'] is not None:
-                        if hasattr(plage['debut'], 'strftime'):
-                            plage['debut'] = plage['debut'].strftime('%H:%M')
+                    for key in ('debut', 'fin'):
+                        val = plage.get(key)
+                        if val is None:
+                            plage[key] = ''
+                        elif hasattr(val, 'hour') and hasattr(val, 'minute'):
+                            # C'est un objet time → formater en HH:MM
+                            plage[key] = f"{val.hour:02d}:{val.minute:02d}"
+                        elif isinstance(val, str):
+                            # C'est une chaîne → normaliser en HH:MM
+                            try:
+                                parts = val.strip().split(':')
+                                h = int(parts[0])
+                                m = int(parts[1]) if len(parts) > 1 else 0
+                                plage[key] = f"{h:02d}:{m:02d}"
+                            except (ValueError, IndexError):
+                                plage[key] = ''
                         else:
-                            plage['debut'] = str(plage['debut']).strip()
-                    if 'fin' in plage and plage['fin'] is not None:
-                        if hasattr(plage['fin'], 'strftime'):
-                            plage['fin'] = plage['fin'].strftime('%H:%M')
-                        else:
-                            plage['fin'] = str(plage['fin']).strip()
+                            plage[key] = ''
+                    #if 'debut' in plage and plage['debut'] is not None:
+                    #    if hasattr(plage['debut'], 'strftime'):
+                    #        plage['debut'] = plage['debut'].strftime('%H:%M')
+                    #    else:
+                    #        plage['debut'] = str(plage['debut']).strip()
+                    #if 'fin' in plage and plage['fin'] is not None:
+                    #    if hasattr(plage['fin'], 'strftime'):
+                    #        plage['fin'] = plage['fin'].strftime('%H:%M')
+                    #    else:
+                    #        plage['fin'] = str(plage['fin']).strip()
         logging.debug(f"banking 3012 DEBUG: Données pour le {date_str}: {jour_data}")
         # CORRECTION : Toujours recalculer total_h pour assurer la cohérence
         #if not jour_data['vacances'] and any([jour_data['h1d'], jour_data['h1f'], jour_data['h2d'], jour_data['h2f']]):
@@ -6085,7 +6103,7 @@ def heures_travail():
     logging.debug(f"banking 3043 DEBUG: Total général des heures: {total_general}")
     semaines = dict(sorted(semaines.items()))
     logging.debug(f"banking 3045 DEBUG: Semaines préparées pour le rendu: {semaines.keys()}")
-    
+
     logging.debug(f"Exemple de jour_data: {semaines[list(semaines.keys())[0]]['jours'][0] if semaines else 'AUCUN'}")
     return render_template('salaires/heures_travail.html',
                         semaines=semaines,
