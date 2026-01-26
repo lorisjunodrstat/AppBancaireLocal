@@ -5913,6 +5913,12 @@ def api_compte_resultat():
 
 # --- Routes heures et salaires ---
 
+def time_to_str(t) -> str:
+    """Convertit un objet datetime.time en 'HH:MM'"""
+    if t is None:
+        return ''
+    return t.strftime('%H:%M')
+
 @bp.route('/heures-travail', methods=['GET', 'POST'])
 @login_required
 def heures_travail():
@@ -6028,6 +6034,12 @@ def heures_travail():
             jour_data = g.models.heure_model.get_by_date(date_str, current_user_id, selected_employeur, contrat['id']) or jour_data_default 
         else:
             jour_data = jour_data_default
+        if 'plages' in jour_data and isinstance(jour_data['plages'], list):
+            for plage in jour_data['plages']:
+                if 'debut' in plage and plage['debut'] is not None:
+                    plage['debut'] = time_to_str(plage['debut'])
+                if 'fin' in plage and plage['fin'] is not None:
+                    plage['fin'] = time_to_str(plage['fin'])
         logging.debug(f"banking 3012 DEBUG: Données pour le {date_str}: {jour_data}")
         # CORRECTION : Toujours recalculer total_h pour assurer la cohérence
         #if not jour_data['vacances'] and any([jour_data['h1d'], jour_data['h1f'], jour_data['h2d'], jour_data['h2f']]):
@@ -6107,42 +6119,7 @@ def get_vacances_value(request, date_str):
     """Fonction utilitaire pour récupérer la valeur des vacances de manière cohérente"""
     return request.form.get(f'vacances_{date_str}') == 'on'
 
-#def validate_day_data(request, date_str):
-#    errors = []
-#    
-#    h1d = request.form.get(f'h1d_{date_str}', '').strip()
-#    h1f = request.form.get(f'h1f_{date_str}', '').strip()
-#    h2d = request.form.get(f'h2d_{date_str}', '').strip()
-#    h2f = request.form.get(f'h2f_{date_str}', '').strip()
-#    
-    # Validation format des heures
-#    for field_name, time_str in [('h1d', h1d), ('h1f', h1f), ('h2d', h2d), ('h2f', h2f)]:
-#        if not is_valid_time(time_str):
-#            errors.append(f"Format d'heure invalide pour {field_name}: '{time_str}'")
-    
-    # MODIFICATION : Permettre les demi-journées et heures simples
-    # Ne pas bloquer si seulement une période est remplie
-#    if not errors:
-#        # Vérifier la cohérence par période
-#        if (h1d and not h1f) or (not h1d and h1f):
-#            errors.append("Heure de début et fin de matin incohérentes")
-#        if (h2d and not h2f) or (not h2d and h2f):
-#            errors.append("Heure de début et fin d'après-midi incohérentes")
-            
-        # Vérifier l'ordre chronologique si les deux périodes sont présentes
-#        if h1d and h1f and h2d and h2f:
-#            try:
-#                t1d = datetime.strptime(h1d, '%H:%M').time()
-#                t1f = datetime.strptime(h1f, '%H:%M').time()
-#                t2d = datetime.strptime(h2d, '%H:%M').time()
-#                t2f = datetime.strptime(h2f, '%H:%M').time()
-                
-#                if not (t1d <= t1f and t1f <= t2d and t2d <= t2f):
-#                    errors.append("L'ordre chronologique des heures n'est pas respecté")
-#            except ValueError:
-#                pass
-#    
-#    return errors
+
 
 def create_day_payload(request, user_id, date_str, employeur, id_contrat):
     """Crée le payload pour une journée en gérant correctement les valeurs vides"""
@@ -6158,28 +6135,7 @@ def create_day_payload(request, user_id, date_str, employeur, id_contrat):
             plages.append({'debut': debut, 'fin': fin})
     vacances = get_vacances_value(request, date_str)
 
-    #h1d = get_time_field('h1d')
-    #h1f = get_time_field('h1f')
-    #h2d = get_time_field('h2d')
-    #h2f = get_time_field('h2f')
-    #vacances = get_vacances_value(request, date_str)
-    
-    # Conversion des valeurs temporelles vides en None
-    #time_fields = [h1d, h1f, h2d, h2f]
-    #for i, value in enumerate(time_fields):
-    #    if value == '':
-    #        time_fields[i] = None
-    
-    # Calcul du total uniquement si nécessaire
-    #total_h = 0.0
-    #if not vacances and any(time_fields):
-        # Utilisation de la méthode statique pour éviter l'instanciation inutile
-    #    total_h = HeureTravail.calculer_heures_static(
-    #        h1d or '', 
-    #        h1f or '',
-    #        h2d or '',
-    #        h2f or ''
-    #    )
+
     
     return {
         'date': date_str,
@@ -6276,10 +6232,9 @@ def handle_save_line(request, current_user_id, annee, mois, semaine, current_mod
     for i in range(4):
         debut = request.form.get(f'plages_{date_str}_{i}_debut')
         fin = request.form.get(f'plages_{date_str}_{i}_fin')
-        # On garde les valeurs telles quelles (str ou None)
         if debut or fin:
             plages.append({
-                'debut': debut,  # peut être '' ou None → _clean_data gère ça
+                'debut': debut,  
                 'fin': fin
             })
     
@@ -6288,7 +6243,7 @@ def handle_save_line(request, current_user_id, annee, mois, semaine, current_mod
         'user_id': current_user_id,
         'employeur': selected_employeur,
         'id_contrat': id_contrat,
-        'employe_id': employe_id,  # ←←← AJOUT CRUCIAL
+        'employe_id': employe_id, 
         'plages': plages,
         'vacances': vacances,
         'type_heures': 'reelles' if current_mode == 'reel' else 'simulees'
