@@ -7868,16 +7868,16 @@ def synthese_mensuelle():
         employeur_exemple = synthese_list[0]['employeur'] if synthese_list else None
 
         if contrat_id and employeur :
-            stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(
-                user_id, employeur, contrat_id, annee, mois, seuil_h2f_minutes, heure_model=g.models.heure_model)
+            stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(g.models.heure_model,
+                user_id, employeur, contrat_id, annee, mois, seuil_h2f_minutes)
             svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
                 user_id, employeur, contrat_id, annee, mois, heure_model=g.models.heure_model)
         elif id_contrat_exemple and employeur_exemple:
-            stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(
-                user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes, heure_model=g.models.heure_model)
+            stats_h2f_mois = g.models.synthese_mensuelle_model.calculate_h2f_stats_mensuel(g.models.heure_model,
+                user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes)
             # --- NOUVEAU : Préparation des données SVG pour le graphique horaire du mois ---
-            svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(
-                user_id, employeur_exemple, id_contrat_exemple, annee, mois, heure_model=g.models.heure_model)
+            svg_horaire_mois_data = g.models.synthese_mensuelle_model.prepare_svg_data_horaire_mois(g.models.heure_model, 
+                user_id, employeur_exemple, id_contrat_exemple, annee, mois)
             logging.info(f'Voici les données pour {mois} : {svg_horaire_mois_data}')
     # --- NOUVEAU : Graphique hebdomadaire du dépassement de seuil DANS le mois ---
     graphique_h2f_semaines = None
@@ -7885,8 +7885,8 @@ def synthese_mensuelle():
         id_contrat_exemple = synthese_list[0]['id_contrat']
         employeur_exemple = synthese_list[0]['employeur']
         
-        donnees_semaines = g.models.synthese_mensuelle_model.calculate_h2f_stats_weekly_for_month(
-            user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes, heure_model=g.models.heure_model
+        donnees_semaines = g.models.synthese_mensuelle_model.calculate_h2f_stats_weekly_for_month(g.models.heure_model, 
+            user_id, employeur_exemple, id_contrat_exemple, annee, mois, seuil_h2f_minutes
         )
         logging.info(f'voici les données pour {mois}: {donnees_semaines}')
 
