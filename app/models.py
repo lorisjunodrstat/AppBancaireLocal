@@ -11767,7 +11767,7 @@ class SyntheseHebdomadaire:
         weekly_counts = {} # { semaine: nb_jours_avec_h2f_apres_seuil }
 
         for semaine in range(1, 53): # Semaines de 1 à 52 (ou 53)
-            jours_semaine = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+            jours_semaine = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
             count = 0
             for jour in jours_semaine:
                 h2f_minutes = heure_model.time_to_minutes(jour.get('h2f'))
@@ -11805,7 +11805,7 @@ class SyntheseHebdomadaire:
         seuil_h2f_heure: Heure du seuil à afficher (par défaut 18h).
         """
 
-        jours_semaine = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
+        jours_semaine = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, semaine=semaine)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6  # 6h du matin
@@ -12261,7 +12261,7 @@ class SyntheseMensuelle:
         """
         seuil_h2f_minutes = int(round(seuil_h2f_minutes))
 
-        jours_mois = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+        jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
         count = 0
         for jour in jours_mois:
             h2f_minutes = heure_model.time_to_minutes(jour.get('h2f'))
@@ -12284,7 +12284,7 @@ class SyntheseMensuelle:
         Axe Y: Heures (6h en haut, 22h en bas)
         """
 
-        jours_mois = heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
+        jours_mois = self.heure_model.get_h1d_h2f_for_period(user_id, employeur, id_contrat, annee, mois=mois)
 
         # Constantes pour la conversion des heures en pixels
         heure_debut_affichage = 6
@@ -12456,7 +12456,7 @@ class SyntheseMensuelle:
         debut_mois = date(annee, mois, 1)
 
         # Récupérer TOUS les jours du mois
-        tous_les_jours = heure_model.get_h1d_h2f_for_period(
+        tous_les_jours = self.heure_model.get_h1d_h2f_for_period(
             user_id=user_id,
             employeur=employeur,
             id_contrat=id_contrat,
