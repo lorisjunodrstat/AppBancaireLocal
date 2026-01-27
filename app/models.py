@@ -11099,7 +11099,7 @@ class Salaire:
             logger.info(f'Indemnites pour contrat {contrat_id}, année {annee}: {indemnites_contrat}')
             # Calcul des indemnités
             indemnites_detail = {}
-            total_indemnites = 0.0
+            total_indemnites = Decimal('0')
             for item in indemnites_contrat:
                 montant = indemnites_contrat_model.calculer_montant_indemnite(
                     bareme_indemnite_model=bareme_indemnite_model,
@@ -11107,13 +11107,20 @@ class Salaire:
                     base_montant=salaire_brut,
                     taux_fallback=item['taux']
                 )
+                montant_decimal = to_decimal(montant)
+                total_indemnites += montant_decimal
+                indemnites_detail[item['nom_indemnite']] = {
+                    'taux': item['taux'],
+                    'montant': montant_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
+                    'base': item.get('base_calcul', 'brut')
+                }
                 logger.info(f"Calcul des indemnités {item['nom_indemnite']}: taux={item['taux']}, montant={montant}")
-            salaire_brut_tot = round(salaire_brut + total_indemnites, 2)
+            salaire_brut_tot = (salaire_brut + total_indemnites).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
             # Calcul des cotisations
             cotisations_detail = {}
-            total_cotisations = 0.0
+            total_cotisations = Decimal('0')
             for item in cotisations_contrat:
                 base = item.get('base_calcul', 'brut')
                 base_montant = salaire_brut_tot if base == 'brut_tot' else salaire_brut
@@ -11123,19 +11130,19 @@ class Salaire:
                     taux_fallback=item['taux']
                 )
                 logger.info(f'Calcul cotisation {item["nom_cotisation"]}: base={base} ({base_montant}), taux={item["taux"]}, montant={montant}')
-                montant = round(montant, 2)
-                total_cotisations += montant
+                montant_decimal = to_decimal(montant)
+                montant_arrondi = montant_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                total_cotisations += montant_arrondi
                 cotisations_detail[item['nom_cotisation']] = {
                     'taux': item['taux'],
                     'montant': montant,
                     'base': base
                 }
 
-            salaire_net = round(salaire_brut_tot - total_cotisations, 2)
-
+            salaire_net = (salaire_brut_tot - total_cotisations).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 # Acomptes
             versements = {}
-            total_versements = 0.0
+            total_versements = Decimal('0')
             if user_id is not None and mois is not None:
                 if contrat.get('versement_25', False):
                     acompte_25 = self.calculer_acompte_25(
@@ -11148,13 +11155,14 @@ class Salaire:
                         id_contrat=contrat_id,
                         jour_estimation=contrat.get('jour_estimation_salaire', 15)
                     )
+                    acompte_25_decimal = to_decimal(acompte_25)
                     versements['acompte_25'] = {
                         'nom': 'Acompte du 25',
                         'actif': True,
-                        'montant': round(acompte_25, 2),
+                        'montant': acompte_25_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
                         'taux': 25
                     }
-                    total_versements += acompte_25
+                    total_versements += acompte_25_decimal   
 
                 if contrat.get('versement_10', False):
                     acompte_10 = self.calculer_acompte_10(
@@ -11166,36 +11174,53 @@ class Salaire:
                         id_contrat=contrat_id,
                         jour_estimation=contrat.get('jour_estimation_salaire', 15)
                     )
+                    acompte_10_decimal = to_decimal(acompte_10)
                     versements['acompte_10'] = {
                         'nom': 'Acompte du 10',
                         'actif': True,
-                        'montant': round(acompte_10, 2),
+                        'montant': acompte_10_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
                         'taux': 10
                     }
-                    total_versements += acompte_10
+                    total_versements += acompte_10_decimal
 
+            salaire_net_final = salaire_net - total_versements
+        
             return {
-                'salaire_net': salaire_net,
+                'salaire_net': float(salaire_net_final.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)),
                 'erreur': None,
                 'details': {
-                    'heures_reelles': heures_reelles,
-                    'salaire_horaire': salaire_horaire,
-                    'salaire_brut': salaire_brut,
-                    'indemnites': indemnites_detail,
-                    'total_indemnites': total_indemnites,
-                    'cotisations': cotisations_detail,
-                    'total_cotisations': total_cotisations,
-                    'versements': versements,
-                    'total_versements': total_versements,
-                    'brut_tot': salaire_brut_tot,
+                    'heures_reelles': float(heures_reelles_dec),
+                    'salaire_horaire': float(salaire_horaire),
+                    'salaire_brut': float(salaire_brut),
+                    'indemnites': {k: {
+                        'taux': float(v['taux']),
+                        'montant': float(v['montant']),
+                        'base': v['base']
+                    } for k, v in indemnites_detail.items()},
+                    'total_indemnites': float(total_indemnites),
+                    'cotisations': {k: {
+                        'taux': float(v['taux']),
+                        'montant': float(v['montant']),
+                        'base': v['base']
+                    } for k, v in cotisations_detail.items()},
+                    'total_cotisations': float(total_cotisations),
+                    'versements': {k: {
+                        'nom': v['nom'],
+                        'actif': v['actif'],
+                        'montant': float(v['montant']),
+                        'taux': v['taux']
+                    } for k, v in versements.items()},
+                    'total_versements': float(total_versements),
+                    'brut_tot': float(salaire_brut_tot),
                     'calcul_final': {
-                        'brut': salaire_brut,
-                        'plus_indemnites': salaire_brut_tot,
-                        'moins_cotisations': salaire_net,
-                        'moins_versements': round(salaire_net - total_versements, 2)
+                        'brut': float(salaire_brut),
+                        'plus_indemnites': float(salaire_brut_tot),
+                        'moins_cotisations': float(salaire_net),
+                        'moins_versements': float(salaire_net_final.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
                     }
                 }
             }
+            
 
         except Exception as e:
             logger.error(f"Erreur dans calculer_salaire_net_avec_details: {str(e)}")
