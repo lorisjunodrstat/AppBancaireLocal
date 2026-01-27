@@ -6766,6 +6766,7 @@ def salaire_pdf(mois: int, annee: int):
         g.models.cotisations_contrat_model,
         g.models.indemnites_contrat_model,
         g.models.bareme_indemnite_model,
+        g.models.bareme_cotisation_model,
         heures_reelles=heures_reelles,
         contrat=contrat,
         contrat_id=contrat['id'],

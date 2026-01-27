@@ -11061,7 +11061,7 @@ class Salaire:
             return 0.0
 
 
-    def calculer_salaire_net_avec_details(self, heure_model, cotisations_contrat_model, indemnites_contrat_model,bareme_indemnite_model, heures_reelles: float, contrat: Dict, contrat_id: int, annee: int, user_id: Optional[int] = None, 
+    def calculer_salaire_net_avec_details(self, heure_model, cotisations_contrat_model, indemnites_contrat_model,bareme_indemnite_model, bareme_cotisation_model, heures_reelles: float, contrat: Dict, contrat_id: int, annee: int, user_id: Optional[int] = None, 
                                         mois: Optional[int] = None, jour_estimation: int = 15) -> Dict:
         """
         Calcule le salaire net et retourne tous les détails du calcul pour affichage
