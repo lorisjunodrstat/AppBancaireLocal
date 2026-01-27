@@ -13347,10 +13347,13 @@ class ModelManager:
         return self._get_model('contact_plan', ContactPlan)
     @property
     def rapport_model(self):
-        self.bareme_cotisation_model = BaremeCotisation(self.db)
+        return self._get_model('rapport', Rapport)
     @property
     def bareme_indemnite_model(self):
         return self._get_model('bareme_indemnite', BaremeIndemnite)
+    @property
+    def bareme_cotisation_model(self):
+        return self._get_model('bareme_cotisation', BaremeCotisation)
     @property
     def type_cotisations_model(self):
         return self._get_model('type_cotisations', TypeCotisation)
