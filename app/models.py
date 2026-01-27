@@ -11124,7 +11124,7 @@ class Salaire:
             for item in cotisations_contrat:
                 base = item.get('base_calcul', 'brut')
                 base_montant = salaire_brut_tot if base == 'brut_tot' else salaire_brut
-                montant = cotisations_contrat_model.calculer_montant_cotisation(
+                montant = cotisations_contrat_model.calculer_montant_cotisation(bareme_cotisation_model,
                     type_cotisation_id=item['type_cotisation_id'],
                     base_montant=base_montant,
                     taux_fallback=item['taux']
