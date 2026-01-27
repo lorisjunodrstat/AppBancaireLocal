@@ -6873,6 +6873,7 @@ def salaire_employe_pdf(employe_id: int, annee: int, mois: int):
         g.models.cotisations_contrat_model,
         g.models.indemnites_contrat_model,
         g.models.bareme_indemnite_model,
+        g.models.bareme_cotisation_model,
         heures_reelles=heures_reelles,
         contrat=contrat,
         contrat_id=contrat['id'],
@@ -6973,6 +6974,7 @@ def employe_salaire_view():
                 cotisations_contrat_model=g.models.cotisations_contrat_model,
                 indemnites_contrat_model=g.models.indemnites_contrat_model,
                 bareme_indemnite_model=g.models.bareme_indemnite_model,
+                bareme_cotisation_model=g.models.bareme_cotisation_model,
                 heures_reelles=heures_reelles,
                 contrat=contrat,
                 contrat_id=id_contrat,
@@ -7194,6 +7196,7 @@ def salaires():
                     g.models.cotisations_contrat_model,
                     g.models.indemnites_contrat_model,
                     g.models.bareme_indemnite_model,
+                    g.models.bareme_cotisation_model,
                     heures_reelles=heures_reelles,
                     contrat=contrat,
                     contrat_id=id_contrat,
@@ -7455,6 +7458,7 @@ def details_calcul_salaire():
             g.models.cotisations_contrat_model,
             g.models.indemnites_contrat_model,
             g.models.bareme_indemnite_model,
+            g.models.bareme_cotisation_model,
             heures_reelles,
             contrat, user_id=current_user_id, annee=annee, mois=mois)
         
