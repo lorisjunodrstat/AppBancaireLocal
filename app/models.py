@@ -11352,7 +11352,7 @@ class Salaire:
         logger.info(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         logger.error(f"calculer_acompte_10 → heures_apres={heures_apres}, result={result}")
         return result
-    def recalculer_salaire(self, heure_model, cotisations_contrat_model, indemnites_contrat_model, bareme_indemnite_model, salaire_id: int, contrat: Dict) -> bool:
+    def recalculer_salaire(self, heure_model, cotisations_contrat_model, indemnites_contrat_model, bareme_indemnite_model, bareme_cotisation_model, salaire_id: int, contrat: Dict) -> bool:
         try:
             salaire = self.get_by_id(salaire_id)
             if not salaire:
@@ -11379,6 +11379,7 @@ class Salaire:
                 cotisations_contrat_model=cotisations_contrat_model,
                 indemnites_contrat_model= indemnites_contrat_model,
                 bareme_indemnite_model=bareme_indemnite_model,
+                bareme_cotisation_model=bareme_cotisation_model,
                 heures_reelles=heures_reelles,
                 contrat=contrat,
                 contrat_id=id_contrat,
