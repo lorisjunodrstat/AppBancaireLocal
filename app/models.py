@@ -770,7 +770,7 @@ class DatabaseManager:
                 create_baremes_cotisation_table_query = """
                 CREATE TABLE IF NOT EXISTS baremes_cotisation (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                type_coti_id INT NOT NULL,
+                type_cotisation_id INT NOT NULL,
                 seuil_min DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                 seuil_max DECIMAL(10,2) DEFAULT NULL,
                 montant_fixe DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -778,7 +778,7 @@ class DatabaseManager:
                 type_valeur ENUM('taux','fixe') NOT NULL DEFAULT 'fixe',
                 ordre INT NOT NULL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (type_indemnite_id) REFERENCES types_indemnite(id) ON DELETE CASCADE
+                FOREIGN KEY (type_coti_id) REFERENCES types_cotisation(id) ON DELETE CASCADE
                  );"""
                 cursor.execute(create_baremes_cotisation_table_query)
 
@@ -8934,7 +8934,7 @@ class TypeCotisation:
                 FROM types_cotisation
                 WHERE user_id = %s
                 ORDER BY nom"""
-                cursor.execute(query, (user_id))
+                cursor.execute(query, (user_id,))
                 return cursor.fetchall
         except Exception as e:
             logger.error(f"Erreur récupération types_cotisation : {e}")
@@ -8984,7 +8984,7 @@ class TypeIndemnite:
                 FROM types_indemnite
                 WHERE user_id = %s
                 ORDER BY nom"""
-                cursor.execute(query, (user_id))
+                cursor.execute(query, (user_id,))
                 return cursor.fetchall
         except Exception as e:
             logger.error(f"Erreur récupération types_indemnite : {e}")
@@ -10068,6 +10068,7 @@ class Employe:
         except Exception as e:
             logger.error(f'Erreur recalcul salaire mois {annee}-{mois} : {e}')
             return False
+    
     def get_contrats_actifs(self) -> list:
         """
         Récupère les contrats actifs pour un employé
@@ -11139,18 +11140,19 @@ class Salaire:
             for item in cotisations_contrat:
                 base = item.get('base_calcul', 'brut')
                 base_montant = salaire_brut_tot if base == 'brut_tot' else salaire_brut
+                nom_cotisation = item.get('nom_cotisation', f"cotisation_{item.get('type_cotisation_id', 'inconnue')}")
                 montant = cotisations_contrat_model.calculer_montant_cotisation(bareme_cotisation_model,
                     type_cotisation_id=item['type_cotisation_id'],
                     base_montant=base_montant,
                     taux_fallback=item['taux']
                 )
-                logger.info(f'Calcul cotisation {item["nom_cotisation"]}: base={base} ({base_montant}), taux={item["taux"]}, montant={montant}')
+                logger.info(f'Calcul cotisation {nom_cotisation}: base={base} ({base_montant}), taux={item["taux"]}, montant={montant}')
                 montant_decimal = to_decimal(montant)
                 montant_arrondi = montant_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                 total_cotisations += montant_arrondi
-                cotisations_detail[item['nom_cotisation']] = {
+                cotisations_detail[nom_cotisation] = {
                     'taux': item['taux'],
-                    'montant': montant,
+                    'montant': float(montant_arrondi),
                     'base': base
                 }
 
