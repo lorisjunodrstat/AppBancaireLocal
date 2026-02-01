@@ -8768,6 +8768,72 @@ def planning_employe(employe_id):
         annee=annee,
         mois=mois
     )
+@bp.route('/employes/planning-hebdomadaire')
+@login_required
+def planning_hebdomadaire():
+    current_user_id = current_user.id
+    
+    # Récupérer la date de référence
+    date_str = request.args.get('date', datetime.today().strftime('%Y-%m-%d'))
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        date_obj = datetime.today().date()
+    
+    # Calculer la semaine (lundi à dimanche)
+    lundi = date_obj - timedelta(days=date_obj.weekday())
+    week_dates = [lundi + timedelta(days=i) for i in range(7)]
+    
+    # Récupérer tous les employés
+    employes = g.models.employe_model.get_all_by_user(current_user_id)
+    
+    if not employes:
+        flash("Vous n'avez pas encore d'employés.", "info")
+        return redirect(url_for('banking.create_employe'))
+    
+    # Récupérer les shifts de la semaine
+    start_date = week_dates[0].strftime('%Y-%m-%d')
+    end_date = week_dates[-1].strftime('%Y-%m-%d')
+    
+    all_shifts = g.models.heure_model.get_shifts_for_week(current_user_id, start_date, end_date)
+    
+    # Organiser les données
+    shifts_by_employe_jour = defaultdict(lambda: defaultdict(list))
+    totals = defaultdict(lambda: defaultdict(float))
+    
+    for shift in all_shifts:
+        employe_id = shift.get('employe_id')
+        if not employe_id:
+            continue
+            
+        date_key = shift['date'].strftime('%Y-%m-%d') if hasattr(shift['date'], 'strftime') else shift['date']
+        
+        # Calculer la durée
+        if shift.get('heure_debut') and shift.get('heure_fin'):
+            try:
+                debut = datetime.strptime(str(shift['heure_debut']), '%H:%M')
+                fin = datetime.strptime(str(shift['heure_fin']), '%H:%M')
+                shift['duree'] = (fin - debut).total_seconds() / 3600
+            except (ValueError, TypeError):
+                shift['duree'] = shift.get('total_h', 0.0)
+        else:
+            shift['duree'] = shift.get('total_h', 0.0)
+        
+        # Ajouter au total de la journée
+        totals[employe_id][date_key] += shift['duree']
+        
+        # Ajouter à la liste des shifts
+        shifts_by_employe_jour[employe_id][date_key].append(shift)
+    
+    return render_template(
+        'planning/planning_hebdomadaire.html',
+        week_dates=week_dates,
+        employes=employes,
+        shifts_by_employe_jour=shifts_by_employe_jour,
+        totals=totals,
+        prev_week=(lundi - timedelta(days=7)).strftime('%Y-%m-%d'),
+        next_week=(lundi + timedelta(days=7)).strftime('%Y-%m-%d')
+    )
 def get_semaine_from_date(date_str: str):
     """
     Retourne les 7 jours de la semaine (lundi à dimanche)
