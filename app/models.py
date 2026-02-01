@@ -11152,7 +11152,7 @@ class Salaire:
                 total_cotisations += montant_arrondi
                 cotisations_detail[nom_cotisation] = {
                     'taux': item['taux'],
-                    'montant': float(montant_arrondi),
+                    'montant': montant_arrondi,
                     'base': base
                 }
 
