@@ -1,5 +1,5 @@
-{{ extends "base.html" }}
-{{ block "head_css"}}
+{ extends "base.html" }
+{% block "head_css"%}
 
 <style>
     .dashboard-alerts {
@@ -13,10 +13,10 @@
   border-radius: 8px;
 }
 </style>
-{{ endblock }}
-{{ block "title" }}Dashboard Employés{{ endblock }}
+{% endblock %}
+{% block "title" %}Dashboard Employés{% endblock %}
 
-{{ block "content" }}
+{% block "content" %}
 
 <h2>Dashboard Employés</h2>
 
@@ -116,4 +116,4 @@
 </ul>
 {% endif %}
 
-{{ endblock }}
+{% endblock %}
