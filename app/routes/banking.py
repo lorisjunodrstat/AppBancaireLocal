@@ -8801,7 +8801,7 @@ def planning_employes():
         shifts_by_employe_jour[s['employe_id']][key].append(s)
 
     return render_template(
-        'planning/planning.html',
+        'employes/planning_employe.html',
         week_dates=semaine,
         equipes=equipes,
         shifts_by_employe_jour=shifts_by_employe_jour,
