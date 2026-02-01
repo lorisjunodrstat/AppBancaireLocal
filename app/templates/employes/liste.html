@@ -1,9 +1,8 @@
-{{ extends "base.html" }}
+{% extends "base.html" %}
 
-{{ block "title" }}Liste des employés{{ endblock }}
+{% block "title" %}Liste des employés{% endblock %}
 
-{{ block "content" }}
-
+{% block "content" %}
 <h2>Liste des employés</h2>
 <a href="{{ url_for('banking.create_employe') }}">+ Nouvel employé</a>
 
@@ -36,4 +35,4 @@
         {% endfor %}
     </tbody>
 </table>
-{{ endblock }}
+{% endblock %}

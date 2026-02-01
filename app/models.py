@@ -9877,8 +9877,7 @@ class Contrat:
             with self.db.get_cursor(dictionary=True) as cursor:
                 query = """
                 SELECT c.* FROM contrats c
-                JOIN employes e ON c.id = e.id_contrat
-                WHERE c.user_id = %s AND e.id_employe = %s
+                WHERE c.user_id = %s AND c.employe_id = %s 
                 LIMIT 1
                 """
                 cursor.execute(query, (user_id, id_employe))
@@ -10932,6 +10931,29 @@ class HeureTravail:
             for row in rows:
                 self._convert_timedelta_fields(row, ['h1d', 'h2f'])
             return rows
+    def get_shifts_for_week(self, user_id: int, start_date: str, end_date: str) -> List[Dict]:
+        """
+        Récupère tous les shifts (plages horaires) pour une semaine donnée
+        """
+        try:
+            with self.db.get_cursor(dictionary=True) as cursor:
+                query = """
+                SELECT ht.*, 
+                    ph.debut as plage_debut, 
+                    ph.fin as plage_fin,
+                    e.prenom, e.nom
+                FROM heures_travail ht
+                LEFT JOIN plages_horaires ph ON ht.id = ph.heure_travail_id
+                LEFT JOIN employes e ON ht.employe_id = e.id
+                WHERE ht.user_id = %s 
+                AND ht.date BETWEEN %s AND %s
+                ORDER BY ht.date, ph.ordre
+                """
+                cursor.execute(query, (user_id, start_date, end_date))
+                return cursor.fetchall()
+        except Exception as e:
+            logger.error(f"Erreur get_shifts_for_week: {e}")
+            return []
 
 class Salaire:
     def __init__(self, db):
@@ -11563,22 +11585,19 @@ class Salaire:
     #        return False
 
     def get_salaire_employe_mois(self, employe_id: int, annee: int, mois: int) -> float:
-        """
-        Récupère le salaire total d'un employé pour un mois donné
-        Retourne 0.0 si aucun salaire trouvé
-        """
         try:
             with self.db.get_cursor() as cursor:
-                # COALESCE retourne 0 si SUM retourne NULL
                 cursor.execute("""
-                    SELECT COALESCE(SUM(salaire_net), 0.0) 
+                    SELECT COALESCE(SUM(salaire_net), 0) 
                     FROM salaires
                     WHERE employe_id = %s AND annee = %s AND mois = %s
                 """, (employe_id, annee, mois))
                 
                 result = cursor.fetchone()
-                return float(result[0]) if result else 0.0
-                
+                # Vérification robuste
+                if result is None or result[0] is None:
+                    return 0.0
+                return float(result[0])
         except Exception as e:
             logger.error(f"Erreur get_salaire_employe_mois: {e}")
             return 0.0
