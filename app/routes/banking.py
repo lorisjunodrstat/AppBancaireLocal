@@ -8956,24 +8956,111 @@ def planning_reset_semaine():
 @login_required
 def planning_modifier_jour():
     user_id = current_user.id
-    date_str = request.form['date']
-    employe_id = request.form['employe_id']
-    # ... autres params
     
-    data = g.models.heure_model.get_by_date(date_str, user_id, request.form['employeur'], int(request.form['id_contrat']))
-    if not data:
+    # Récupérer les données du formulaire avec validation
+    date_str = request.form.get('date')
+    employeur = request.form.get('employeur')
+    id_contrat_str = request.form.get('id_contrat', '')
+    employe_id = request.form.get('employe_id')
+    
+    # Valider les données obligatoires
+    if not all([date_str, employeur, employe_id]):
+        flash('Données manquantes. Veuillez remplir tous les champs obligatoires.', 'error')
+        return redirect(request.referrer or url_for('banking.planning_employes'))
+    
+    # Gérer id_contrat qui peut être vide
+    try:
+        id_contrat = int(id_contrat_str) if id_contrat_str else 0
+    except ValueError:
+        id_contrat = 0
+        flash('ID contrat invalide, utilisation de la valeur par défaut.', 'warning')
+    
+    # Récupérer les paramètres pour la redirection
+    annee = request.form.get('annee', '')
+    mois = request.form.get('mois', '')
+    semaine = request.form.get('semaine', '')
+    mode = request.form.get('mode', 'planning')
+    
+    # Récupérer les données existantes pour ce jour
+    try:
+        # Essayer avec l'ancienne méthode si elle existe
+        data = g.models.heure_model.get_by_date(date_str, user_id, employeur, id_contrat)
+    except AttributeError:
+        # Si la méthode n'existe pas, créer un dictionnaire vide
         data = {'plages': [], 'vacances': False}
+    except Exception as e:
+        logger.error(f"Erreur récupération données jour: {e}")
+        data = {'plages': [], 'vacances': False}
+    
+    # Récupérer les informations de l'employé
+    try:
+        employe = g.models.employe_model.get_by_id(int(employe_id), user_id)
+        if not employe:
+            flash(f"Employé ID {employe_id} non trouvé.", 'error')
+            employe = {'id': employe_id, 'nom': 'Inconnu', 'prenom': ''}
+    except Exception as e:
+        logger.error(f"Erreur récupération employé: {e}")
+        employe = {'id': employe_id, 'nom': 'Inconnu', 'prenom': ''}
+    
+    # Formater la date pour l'affichage
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        date_display = date_obj.strftime('%A %d %B %Y').capitalize()
+    except ValueError:
+        date_display = date_str
+    
+    # Récupérer les shifts existants pour cet employé à cette date
+    shifts_employe = []
+    try:
+        # Si vous avez une méthode pour récupérer les shifts par employé et date
+        if hasattr(g.models, 'heure_model') and hasattr(g.models.heure_model, 'get_shifts_by_employe_date'):
+            shifts_employe = g.models.heure_model.get_shifts_by_employe_date(
+                user_id=user_id,
+                employe_id=int(employe_id),
+                date_str=date_str
+            )
+        elif hasattr(g.models, 'planning'):
+            # Utiliser la classe Planning
+            shifts_data = g.models.planning.get_shifts_for_period(
+                user_id=user_id,
+                date_debut=date_str,
+                date_fin=date_str
+            )
+            shifts_employe = shifts_data.get(int(employe_id), {}).get(date_str, [])
+    except Exception as e:
+        logger.error(f"Erreur récupération shifts employé: {e}")
+    
+    # Calculer le total des heures pour la journée
+    total_heures = 0
+    for shift in shifts_employe:
+        if 'duree' in shift:
+            total_heures += shift['duree']
+        elif 'heure_debut' in shift and 'heure_fin' in shift:
+            try:
+                debut = datetime.strptime(str(shift['heure_debut']), '%H:%M')
+                fin = datetime.strptime(str(shift['heure_fin']), '%H:%M')
+                total_heures += (fin - debut).total_seconds() / 3600
+            except (ValueError, TypeError):
+                pass
+    
+    # Récupérer les types de shifts disponibles
+    types_shifts = ['travail', 'pause', 'formation', 'réunion', 'télétravail', 'autre']
     
     return render_template('planning/form_modifier_jour.html',
         date=date_str,
+        date_display=date_display,
         employe_id=employe_id,
+        employe=employe,
+        employeur=employeur,
+        id_contrat=id_contrat,
         data=data,
-        annee=request.form['annee'],
-        mois=request.form['mois'],
-        semaine=request.form['semaine'],
-        mode='planning',
-        employeur=request.form['employeur'],
-        id_contrat=request.form['id_contrat']
+        shifts=shifts_employe,
+        total_heures=total_heures,
+        types_shifts=types_shifts,
+        annee=annee,
+        mois=mois,
+        semaine=semaine,
+        mode=mode
     )
 
 # Sauvegarder jour → crée/écrase avec type_heures='simulees'
@@ -9012,6 +9099,49 @@ def planning_sauvegarder_jour():
         mode='planning',
         employeur=employeur,
         id_contrat=id_contrat
+    ))
+
+@bp.route('/planning/ajouter_shift', methods=['POST'])
+@login_required
+def planning_ajouter_shift():
+    user_id = current_user.id
+    data = {
+        'employe_id': request.form.get('employe_id'),
+        'date': request.form.get('date'),
+        'heure_debut': request.form.get('heure_debut'),
+        'heure_fin': request.form.get('heure_fin'),
+        'type_shift': request.form.get('type_shift', 'travail'),
+        'commentaire': request.form.get('commentaire', '')
+    }
+    
+    # Validation des données
+    if not all([data['employe_id'], data['date'], data['heure_debut'], data['heure_fin']]):
+        flash('Données manquantes', 'error')
+        return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
+    
+    try:
+        # Utiliser votre classe Planning pour créer le shift
+        if hasattr(g.models, 'planning'):
+            success = g.models.planning.creer_shift(data)
+        else:
+            # Fallback si la classe Planning n'existe pas
+            success = g.models.heure_model.creer_shift_simple(data)
+        
+        if success:
+            flash('Shift ajouté avec succès', 'success')
+        else:
+            flash('Erreur lors de l\'ajout du shift', 'error')
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+    
+    # Redirection avec les paramètres
+    return redirect(url_for('banking.planning_hebdomadaire',
+        annee=request.form.get('annee'),
+        mois=request.form.get('mois'),
+        semaine=request.form.get('semaine'),
+        mode=request.form.get('mode'),
+        employeur=request.form.get('employeur'),
+        id_contrat=request.form.get('id_contrat') or ''
     ))
 @bp.route('/synthese/mensuelle')
 @login_required
