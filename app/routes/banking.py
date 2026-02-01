@@ -9185,34 +9185,98 @@ def planning_ajouter_shift():
     
     try:
         # Récupérer les données du formulaire
-        data = {
-            'employe_id': request.form.get('employe_id'),
-            'date': request.form.get('date'),
-            'heure_debut': request.form.get('heure_debut'),
-            'heure_fin': request.form.get('heure_fin'),
-            'type_shift': request.form.get('type_shift', 'travail'),
-            'commentaire': request.form.get('commentaire', '')
-        }
+        employe_id = request.form.get('employe_id')
+        date_str = request.form.get('date')
+        heure_debut = request.form.get('heure_debut')
+        heure_fin = request.form.get('heure_fin')
+        type_shift = request.form.get('type_shift', 'travail')
+        commentaire = request.form.get('commentaire', '')
+        employeur = request.form.get('employeur', '')
+        id_contrat_str = request.form.get('id_contrat', '0')
         
-        # Validation des données
+        # Validation des données obligatoires
         required_fields = ['employe_id', 'date', 'heure_debut', 'heure_fin']
         for field in required_fields:
-            if not data[field]:
+            value = request.form.get(field)
+            if not value:
                 flash(f'Champ "{field}" manquant', 'error')
                 return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
         
-        # Ajouter l'user_id
-        data['user_id'] = user_id
+        # Gérer id_contrat
+        try:
+            id_contrat = int(id_contrat_str) if id_contrat_str else 0
+        except ValueError:
+            id_contrat = 0
         
-        # Utiliser votre classe Planning si elle existe
-        if hasattr(g.models, 'planning'):
-            success = g.models.planning.creer_shift(data)
-        else:
-            # Alternative : utiliser votre modèle d'heures
-            success = g.models.heure_model.creer_shift_simple(data)
+        # Préparer les données pour create_or_update
+        data = {
+            'user_id': user_id,
+            'employe_id': employe_id,
+            'date': date_str,
+            'employeur': employeur,
+            'id_contrat': id_contrat,
+            'type_heures': 'simulees',  # Important pour le planning
+            'plages': [{
+                'debut': heure_debut,
+                'fin': heure_fin
+            }]
+        }
+        
+        # Ajouter un commentaire si fourni (peut nécessiter un champ supplémentaire dans votre DB)
+        if commentaire:
+            # Si vous avez un champ pour commentaire, l'ajouter ici
+            # data['commentaire'] = commentaire
+            pass
+        
+        # Vérifier si un enregistrement existe déjà pour cette date et cet employé
+        try:
+            # Vérifier via get_shifts_for_week
+            start_date = date_str
+            end_date = date_str
+            existing_shifts = g.models.heure_model.get_shifts_for_week(user_id, start_date, end_date)
+            
+            existing_record = None
+            for shift in existing_shifts:
+                if str(shift.get('employe_id')) == str(employe_id):
+                    existing_record = shift
+                    break
+            
+            if existing_record:
+                # Mise à jour de l'existant : ajouter une nouvelle plage
+                # Récupérer les plages existantes
+                heure_travail_id = existing_record.get('id')
+                if heure_travail_id:
+                    # Récupérer les plages actuelles
+                    with g.models.db.get_cursor(dictionary=True) as cursor:
+                        cursor.execute("""
+                            SELECT debut, fin FROM plages_horaires 
+                            WHERE heure_travail_id = %s ORDER BY ordre
+                        """, (heure_travail_id,))
+                        existing_plages = cursor.fetchall()
+                        
+                        # Ajouter la nouvelle plage
+                        data['plages'] = []
+                        for plage in existing_plages:
+                            data['plages'].append({
+                                'debut': plage['debut'],
+                                'fin': plage['fin']
+                            })
+                        
+                        # Ajouter la nouvelle plage
+                        data['plages'].append({
+                            'debut': heure_debut,
+                            'fin': heure_fin
+                        })
+            
+        except Exception as e:
+            logger.error(f"Erreur vérification enregistrement existant: {e}")
+            # Continuer avec la création normale
+        
+        # Utiliser create_or_update qui existe réellement
+        success = g.models.heure_model.create_or_update(data)
         
         if success:
-            flash(f'Shift ajouté avec succès ({data["heure_debut"]} - {data["heure_fin"]})', 'success')
+            flash(f'Shift ajouté avec succès ({heure_debut} - {heure_fin})', 'success')
         else:
             flash('Erreur lors de l\'ajout du shift', 'error')
             
@@ -9221,7 +9285,16 @@ def planning_ajouter_shift():
         flash(f'Erreur: {str(e)}', 'error')
     
     # Redirection vers la page planning
-    return redirect(url_for('banking.planning_hebdomadaire'))
+    return redirect(url_for('banking.planning_hebdomadaire',
+        date=request.form.get('date', ''),
+        annee=request.form.get('annee', ''),
+        mois=request.form.get('mois', ''),
+        semaine=request.form.get('semaine', ''),
+        mode=request.form.get('mode', 'planning'),
+        employeur=request.form.get('employeur', ''),
+        id_contrat=request.form.get('id_contrat', '')
+    ))
+
 @bp.route('/synthese/mensuelle')
 @login_required
 def synthese_mensuelle_employes():
