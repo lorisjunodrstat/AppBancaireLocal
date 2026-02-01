@@ -6,32 +6,15 @@
 <h2>Planning — Semaine du {{ week_dates[0].strftime('%d/%m/%Y') }} au {{ week_dates[-1].strftime('%d/%m/%Y') }}</h2>
 
 <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
-    <!-- Simuler semaine - afficher seulement si les paramètres nécessaires existent -->
-    {% if annee is defined and mois is defined and semaine is defined and mode is defined and employeur is defined %}
-    <form method="post" action="{{ url_for('banking.planning_simulation_semaine') }}">
-        <input type="hidden" name="annee" value="{{ annee }}">
-        <input type="hidden" name="mois" value="{{ mois }}">
-        <input type="hidden" name="semaine" value="{{ semaine }}">
-        <input type="hidden" name="mode" value="{{ mode }}">
-        <input type="hidden" name="employeur" value="{{ employeur }}">
-        <input type="hidden" name="id_contrat" value="{{ id_contrat or '' }}">
-        <button type="submit" class="btn btn-info btn-sm">Simuler semaine</button>
-    </form>
-    {% endif %}
+    <!-- Bouton pour ouvrir le modal de simulation -->
+    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalSimulation">
+        Simuler semaine
+    </button>
 
-    <!-- Réinitialiser semaine - afficher seulement si les paramètres nécessaires existent -->
-    {% if annee is defined and mois is defined and semaine is defined and mode is defined and employeur is defined %}
-    <form method="post" action="{{ url_for('banking.planning_reset_semaine') }}"
-        onsubmit="return confirm('Réinitialiser toute la semaine ?')">
-        <input type="hidden" name="annee" value="{{ annee }}">
-        <input type="hidden" name="mois" value="{{ mois }}">
-        <input type="hidden" name="semaine" value="{{ semaine }}">
-        <input type="hidden" name="mode" value="{{ mode }}">
-        <input type="hidden" name="employeur" value="{{ employeur }}">
-        <input type="hidden" name="id_contrat" value="{{ id_contrat or '' }}">
-        <button type="submit" class="btn btn-warning btn-sm">Réinitialiser semaine</button>
-    </form>
-    {% endif %}
+    <!-- Bouton pour ouvrir le modal de réinitialisation -->
+    <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalReset">
+        Réinitialiser semaine
+    </button>
 </div>
 
 {% if not employes %}
@@ -94,6 +77,13 @@
                     </div>
                     <div style="font-size: 0.8em; color: #666;">
                         {{ employe.equipe_nom|default('') }}
+                    </div>
+                    <!-- Bouton pour voir le planning de cet employé -->
+                    <div style="margin-top: 5px;">
+                        <a href="{{ url_for('banking.planning_employe', employe_id=employe.id) }}"
+                            class="btn btn-sm btn-outline-primary" style="font-size: 0.7em;">
+                            Voir planning
+                        </a>
                     </div>
                 </td>
 
@@ -163,7 +153,7 @@
                     "></div>
 {% endif %}
 
-<!-- Lien pour modifier le planning -->
+<!-- Bouton pour ajouter/modifier un shift -->
 <div style="
                         position: absolute;
                         top: 0;
@@ -173,27 +163,33 @@
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        opacity: 0;
-                        transition: opacity 0.2s;
                         z-index: 2;
-                    " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
-    <a href="{{ url_for('banking.planning_modifier_jour') }}?employe_id={{ employe.id }}&date={{ day_key }}&heure={{ hour }}&annee={{ annee|default('') }}&mois={{ mois|default('') }}&semaine={{ semaine|default('') }}&mode={{ mode|default('') }}&employeur={{ employeur|default('') }}&id_contrat={{ id_contrat|default('') }}"
-        style="
-                                background: rgba(0,0,0,0.1);
-                                border: 1px solid rgba(0,0,0,0.2);
-                                border-radius: 50%;
-                                width: 20px;
-                                height: 20px;
-                                font-size: 0.8em;
-                                cursor: pointer;
-                                color: #333;
-                                text-decoration: none;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                           " title="Modifier le planning à {{ hour }}h">
-        +
-    </a>
+                    ">
+    <!-- Formulaire pour modifier la journée -->
+    <form method="post" action="{{ url_for('banking.planning_modifier_jour') }}"
+        style="display: inline; margin: 0; padding: 0;">
+        <input type="hidden" name="employe_id" value="{{ employe.id }}">
+        <input type="hidden" name="date" value="{{ day_key }}">
+        <input type="hidden" name="employeur" value="">
+        <input type="hidden" name="id_contrat" value="">
+        <input type="hidden" name="annee" value="">
+        <input type="hidden" name="mois" value="">
+        <input type="hidden" name="semaine" value="">
+        <input type="hidden" name="mode" value="planning">
+        <button type="submit" style="
+                                        background: rgba(0,0,0,0.1);
+                                        border: 1px solid rgba(0,0,0,0.2);
+                                        border-radius: 50%;
+                                        width: 20px;
+                                        height: 20px;
+                                        font-size: 0.8em;
+                                        cursor: pointer;
+                                        color: #333;
+                                        opacity: 0.5;
+                                    " title="Modifier le planning à {{ hour }}h">
+            +
+        </button>
+    </form>
 </div>
 </td>
 {% endfor %}
@@ -206,6 +202,49 @@
     {% else %}
     <span style="color: #999;">-</span>
     {% endif %}
+
+    <!-- Boutons d'actions pour la journée -->
+    <div style="margin-top: 2px; display: flex; gap: 2px; justify-content: center;">
+        <!-- Modifier la journée -->
+        <form method="post" action="{{ url_for('banking.planning_modifier_jour') }}" style="display: inline;">
+            <input type="hidden" name="employe_id" value="{{ employe.id }}">
+            <input type="hidden" name="date" value="{{ day_key }}">
+            <input type="hidden" name="employeur" value="">
+            <input type="hidden" name="id_contrat" value="">
+            <input type="hidden" name="annee" value="">
+            <input type="hidden" name="mois" value="">
+            <input type="hidden" name="semaine" value="">
+            <input type="hidden" name="mode" value="planning">
+            <button type="submit" class="btn btn-sm btn-outline-secondary" style="padding: 0 4px; font-size: 0.7em;"
+                title="Modifier la journée">
+                ✏️
+            </button>
+        </form>
+
+        <!-- Copier la journée -->
+        <button type="button" class="btn btn-sm btn-outline-info" style="padding: 0 4px; font-size: 0.7em;"
+            data-bs-toggle="modal" data-bs-target="#modalCopierJour" data-employe-id="{{ employe.id }}"
+            data-date="{{ day_key }}" title="Copier cette journée">
+            📋
+        </button>
+
+        <!-- Supprimer la journée -->
+        <form method="post" action="{{ url_for('banking.planning_supprimer_jour') }}" style="display: inline;"
+            onsubmit="return confirm('Supprimer la journée du {{ day_key }} pour {{ employe.prenom }} {{ employe.nom }} ?')">
+            <input type="hidden" name="employe_id" value="{{ employe.id }}">
+            <input type="hidden" name="date" value="{{ day_key }}">
+            <input type="hidden" name="employeur" value="">
+            <input type="hidden" name="id_contrat" value="">
+            <input type="hidden" name="annee" value="">
+            <input type="hidden" name="mois" value="">
+            <input type="hidden" name="semaine" value="">
+            <input type="hidden" name="mode" value="planning">
+            <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 0 4px; font-size: 0.7em;"
+                title="Supprimer la journée">
+                🗑️
+            </button>
+        </form>
+    </div>
 </td>
 {% endfor %}
 </tr>
@@ -254,6 +293,56 @@
 </table>
 </div>
 
+<!-- Formulaire d'ajout rapide de shift -->
+<div style="margin-top: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
+    <h5>Ajout rapide de shift</h5>
+    <form method="post" action="{{ url_for('banking.planning_ajouter_shift') }}" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Employé :</label>
+            <select class="form-select" name="employe_id" required>
+                <option value="">Sélectionner un employé</option>
+                {% for employe in employes %}
+                <option value="{{ employe.id }}">{{ employe.prenom }} {{ employe.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label class="form-label">Date :</label>
+            <input type="date" class="form-control" name="date" value="{{ week_dates[0].strftime('%Y-%m-%d') }}"
+                required>
+        </div>
+
+        <div class="col-md-2">
+            <label class="form-label">Heure début :</label>
+            <input type="time" class="form-control" name="heure_debut" value="09:00" required>
+        </div>
+
+        <div class="col-md-2">
+            <label class="form-label">Heure fin :</label>
+            <input type="time" class="form-control" name="heure_fin" value="17:00" required>
+        </div>
+
+        <div class="col-md-2">
+            <label class="form-label">Type :</label>
+            <select class="form-select" name="type_shift">
+                <option value="travail">Travail</option>
+                <option value="pause">Pause</option>
+                <option value="formation">Formation</option>
+                <option value="réunion">Réunion</option>
+                <option value="télétravail">Télétravail</option>
+                <option value="autre">Autre</option>
+            </select>
+        </div>
+
+        <div class="col-md-12 mt-3">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Ajouter le shift
+            </button>
+        </div>
+    </form>
+</div>
+
 <!-- Légende -->
 <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; border: 1px solid #ddd;">
     <h5 style="margin-top: 0;">Légende :</h5>
@@ -296,12 +385,203 @@
     </div>
 </div>
 
-<!-- Actions -->
-<div style="margin-top: 20px;">
-    <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
+<!-- Navigation entre semaines -->
+<div style="margin-top: 20px; display: flex; justify-content: space-between;">
+    <a href="{{ url_for('banking.planning_hebdomadaire', date=prev_week) }}" class="btn btn-outline-primary">
+        <i class="bi bi-chevron-left"></i> Semaine précédente
+    </a>
+
+    <button type="button" class="btn btn-secondary" onclick="window.print()">
         <i class="bi bi-printer"></i> Imprimer le planning
     </button>
+
+    <a href="{{ url_for('banking.planning_hebdomadaire', date=next_week) }}" class="btn btn-outline-primary">
+        Semaine suivante <i class="bi bi-chevron-right"></i>
+    </a>
 </div>
+
 {% endif %}
+
+<!-- MODALS -->
+
+<!-- Modal pour la simulation de semaine -->
+<div class="modal fade" id="modalSimulation" tabindex="-1" aria-labelledby="modalSimulationLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('banking.planning_simulation_semaine') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalSimulationLabel">Simuler la semaine</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Voulez-vous simuler cette semaine de planning ?</p>
+                    <div class="mb-3">
+                        <label for="simulation_employeur" class="form-label">Employeur :</label>
+                        <input type="text" class="form-control" id="simulation_employeur" name="employeur" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="simulation_id_contrat" class="form-label">ID Contrat :</label>
+                        <input type="number" class="form-control" id="simulation_id_contrat" name="id_contrat" required>
+                    </div>
+                    <input type="hidden" name="annee" value="{{ week_dates[0].year }}">
+                    <input type="hidden" name="mois" value="{{ week_dates[0].month }}">
+                    <input type="hidden" name="semaine" value="{{ week_dates[0].isocalendar()[1] }}">
+                    <input type="hidden" name="mode" value="planning">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Simuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour réinitialiser la semaine -->
+<div class="modal fade" id="modalReset" tabindex="-1" aria-labelledby="modalResetLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('banking.planning_reset_semaine') }}"
+                onsubmit="return confirm('Êtes-vous sûr de vouloir réinitialiser toute la semaine ? Cette action est irréversible.');">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalResetLabel">Réinitialiser la semaine</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger">
+                        <strong>Attention !</strong> Cette action va supprimer tous les shifts de la semaine
+                        du {{ week_dates[0].strftime('%d/%m/%Y') }} au {{ week_dates[-1].strftime('%d/%m/%Y') }}.
+                    </p>
+                    <p>Cette action est irréversible.</p>
+                    <div class="mb-3">
+                        <label for="reset_employeur" class="form-label">Employeur :</label>
+                        <input type="text" class="form-control" id="reset_employeur" name="employeur" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reset_id_contrat" class="form-label">ID Contrat :</label>
+                        <input type="number" class="form-control" id="reset_id_contrat" name="id_contrat" required>
+                    </div>
+                    <input type="hidden" name="annee" value="{{ week_dates[0].year }}">
+                    <input type="hidden" name="mois" value="{{ week_dates[0].month }}">
+                    <input type="hidden" name="semaine" value="{{ week_dates[0].isocalendar()[1] }}">
+                    <input type="hidden" name="mode" value="planning">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">Réinitialiser</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour copier une journée -->
+<div class="modal fade" id="modalCopierJour" tabindex="-1" aria-labelledby="modalCopierJourLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('banking.planning_copier_jour') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalCopierJourLabel">Copier une journée</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="copier_date_source" class="form-label">Date source :</label>
+                        <input type="date" class="form-control" id="copier_date_source" name="source_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="copier_employe_id" class="form-label">ID Employé :</label>
+                        <input type="number" class="form-control" id="copier_employe_id" name="employe_id" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="copier_date_cible" class="form-label">Date cible :</label>
+                        <input type="date" class="form-control" id="copier_date_cible" name="target_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="copier_employeur" class="form-label">Employeur :</label>
+                        <input type="text" class="form-control" id="copier_employeur" name="employeur" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="copier_id_contrat" class="form-label">ID Contrat :</label>
+                        <input type="number" class="form-control" id="copier_id_contrat" name="id_contrat" required>
+                    </div>
+                    <input type="hidden" name="annee" value="{{ week_dates[0].year }}">
+                    <input type="hidden" name="mois" value="{{ week_dates[0].month }}">
+                    <input type="hidden" name="semaine" value="{{ week_dates[0].isocalendar()[1] }}">
+                    <input type="hidden" name="mode" value="planning">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Copier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour ajouter un shift avec plus d'options -->
+<div class="modal fade" id="modalAjoutShift" tabindex="-1" aria-labelledby="modalAjoutShiftLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('banking.planning_ajouter_shift') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAjoutShiftLabel">Ajouter un créneau horaire</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="ajout_employe_id" class="form-label">Employé :</label>
+                        <select class="form-select" id="ajout_employe_id" name="employe_id" required>
+                            <option value="">Sélectionner un employé</option>
+                            {% for employe in employes %}
+                            <option value="{{ employe.id }}">{{ employe.prenom }} {{ employe.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ajout_date" class="form-label">Date :</label>
+                        <input type="date" class="form-control" id="ajout_date" name="date"
+                            value="{{ week_dates[0].strftime('%Y-%m-%d') }}" required>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="ajout_heure_debut" class="form-label">Heure début :</label>
+                            <input type="time" class="form-control" id="ajout_heure_debut" name="heure_debut"
+                                value="09:00" required step="300">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ajout_heure_fin" class="form-label">Heure fin :</label>
+                            <input type="time" class="form-control" id="ajout_heure_fin" name="heure_fin" value="17:00"
+                                required step="300">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ajout_type_shift" class="form-label">Type de shift :</label>
+                        <select class="form-select" id="ajout_type_shift" name="type_shift">
+                            <option value="travail">Travail</option>
+                            <option value="pause">Pause</option>
+                            <option value="formation">Formation</option>
+                            <option value="réunion">Réunion</option>
+                            <option value="télétravail">Télétravail</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ajout_commentaire" class="form-label">Commentaire :</label>
+                        <textarea class="form-control" id="ajout_commentaire" name="commentaire" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Ajouter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
