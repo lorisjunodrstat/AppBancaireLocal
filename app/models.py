@@ -10732,6 +10732,64 @@ class HeureTravail:
             """, (employe_id, annee, mois))
             return cursor.fetchall()
 
+    def creer_shift(self, data: Dict) -> bool:
+        """Crée un shift (enregistrement avec employe_id)"""
+        try:
+            # S'assurer que c'est pour le planning
+            data['type_heures'] = 'simulees'
+            
+            # Appeler la méthode existante create_or_update
+            return self.create_or_update(data)
+        except Exception as e:
+            logger.error(f"Erreur creer_shift: {e}")
+            return False
+    
+    def get_shifts_by_employe_date(self, user_id: int, employe_id: int, date_str: str) -> List[Dict]:
+        """Récupère les shifts d'un employé à une date spécifique"""
+        try:
+            with self.db.get_cursor(dictionary=True) as cursor:
+                query = """
+                SELECT ht.*, 
+                    ph.debut as plage_debut, 
+                    ph.fin as plage_fin,
+                    ph.ordre
+                FROM heures_travail ht
+                LEFT JOIN plages_horaires ph ON ht.id = ph.heure_travail_id
+                WHERE ht.user_id = %s 
+                AND ht.employe_id = %s 
+                AND ht.date = %s
+                AND ht.type_heures = 'simulees'
+                ORDER BY ph.ordre
+                """
+                cursor.execute(query, (user_id, employe_id, date_str))
+                return cursor.fetchall()
+        except Exception as e:
+            logger.error(f"Erreur get_shifts_by_employe_date: {e}")
+            return []
+    
+    def delete_shifts_for_employe_date(self, user_id: int, employe_id: int, date_str: str) -> bool:
+        """Supprime tous les shifts d'un employé à une date"""
+        try:
+            with self.db.get_cursor(commit=True) as cursor:
+                # Récupérer les IDs des enregistrements
+                cursor.execute("""
+                    SELECT id FROM heures_travail 
+                    WHERE user_id = %s AND employe_id = %s AND date = %s
+                    AND type_heures = 'simulees'
+                """, (user_id, employe_id, date_str))
+                
+                records = cursor.fetchall()
+                
+                for record in records:
+                    # Supprimer les plages horaires
+                    cursor.execute("DELETE FROM plages_horaires WHERE heure_travail_id = %s", (record['id'],))
+                    # Supprimer l'enregistrement principal
+                    cursor.execute("DELETE FROM heures_travail WHERE id = %s", (record['id'],))
+                
+                return True
+        except Exception as e:
+            logger.error(f"Erreur delete_shifts_for_employe_date: {e}")
+            return False
     @staticmethod
     def calculer_heures_static(h1d: str, h1f: str, h2d: str, h2f: str) -> float:
         """Version statique de calculer_heures pour utilisation hors instance"""
