@@ -6,17 +6,7 @@
 
 <h2>Planning — Semaine du {{ week_dates[0].strftime('%d/%m/%Y') }} au {{ week_dates[-1].strftime('%d/%m/%Y') }}</h2>
 
-<div style="margin-bottom: 1rem;">
-    <a href="{{ url_for('banking.planning_employes', 
-      date=(week_dates[0] - timedelta(days=7)).strftime('%Y-%m-%d')) }}" class="btn btn-sm btn-outline-secondary">◀
-        Semaine précédente</a>
-    |
-    <a href="{{ url_for('banking.planning_employes', 
-      date=(week_dates[0] + timedelta(days=7)).strftime('%Y-%m-%d')) }}"
-        class="btn btn-sm btn-outline-secondary">Semaine suivante ▶</a>
-</div>
-
-<div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+<div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
     <form method="post" action="{{ url_for('banking.planning_simulation_semaine') }}">
         <input type="hidden" name="annee" value="{{ annee }}">
         <input type="hidden" name="mois" value="{{ mois }}">
@@ -55,14 +45,13 @@
             Employé
         </div>
 
-        <!-- 7 colonnes : un jour par colonne -->
         {% for day in week_dates %}
         {% set day_key = day.strftime('%Y-%m-%d') %}
         {% set shifts = shifts_by_employe_jour.get(employe.id, {}).get(day_key, []) %}
         {% set total_jour = totals.get(employe.id, {}).get(day_key, 0) %}
 
         <div style="flex: 1; min-width: 120px; padding: 4px; border: 1px solid #eee; position: relative;">
-            <!-- En-tête jour -->
+            <!-- En-tête -->
             <div style="font-weight: bold; text-align: center; margin-bottom: 4px;">
                 {{ day.strftime('%a %d') }}
             </div>
@@ -73,9 +62,9 @@
                 <div
                     style="height: 15px; border-bottom: 1px solid #f0f0f0; color: #999; text-align: right; padding-right: 2px;">
                     {{ h }}h
-                    <!-- Affichage d’un shift s’il commence à cette heure -->
+                    <!-- Affichage des shifts -->
                     {% for shift in shifts %}
-                    {% if shift.debut and shift.fin and h == shift.debut|round %}
+                    {% if shift.debut and shift.fin and h == shift.debut|int %}
                     <div style="
                           position: absolute;
                           top: 0;
@@ -105,7 +94,7 @@
                 <div><strong>{{ "%.1f"|format(total_jour) }} h</strong></div>
                 {% endif %}
 
-                <!-- Actions : en colonne à droite dans la cellule -->
+                <!-- Actions : modifier / copier / supprimer -->
                 <div
                     style="position: absolute; top: 4px; right: 4px; display: flex; flex-direction: column; gap: 2px; font-size: 0.8em;">
                     <!-- Modifier -->
@@ -122,7 +111,7 @@
                             style="padding: 1px 4px; background: #d4edda; border: 1px solid #ccc; font-size: 0.8em;">✏️</button>
                     </form>
 
-                    <!-- Copier -->
+                    <!-- Copier vers un autre jour -->
                     <form method="post" action="{{ url_for('banking.planning_copier_jour') }}" style="margin: 0;">
                         <input type="hidden" name="source_date" value="{{ day_key }}">
                         <input type="hidden" name="employe_id" value="{{ employe.id }}">
@@ -132,16 +121,14 @@
                         <input type="hidden" name="mode" value="{{ mode }}">
                         <input type="hidden" name="employeur" value="{{ employeur }}">
                         <input type="hidden" name="id_contrat" value="{{ id_contrat }}">
-                        <label>
-                            <input type="date" name="target_date" required style="font-size: 0.7em; width: 80px;">
-                        </label>
+                        <label><input type="date" name="target_date" required
+                                style="font-size: 0.7em; width: 80px;"></label>
                         <button type="submit"
                             style="padding: 1px 4px; background: #e9ecef; border: 1px solid #ccc; font-size: 0.8em;">📋</button>
                     </form>
 
                     <!-- Supprimer -->
-                    <form method="post" action="{{ url_for('banking.planning_supprimer_jour') }}" style="margin: 0;"
-                        onsubmit="return confirm('Supprimer ce jour ?')">
+                    <form method="post" action="{{ url_for('banking.planning_supprimer_jour') }}" style="margin: 0;">
                         <input type="hidden" name="employe_id" value="{{ employe.id }}">
                         <input type="hidden" name="date" value="{{ day_key }}">
                         <input type="hidden" name="annee" value="{{ annee }}">
@@ -151,7 +138,8 @@
                         <input type="hidden" name="employeur" value="{{ employeur }}">
                         <input type="hidden" name="id_contrat" value="{{ id_contrat }}">
                         <button type="submit"
-                            style="padding: 1px 4px; background: #f8d7da; border: 1px solid #ccc; color: #721c24; font-size: 0.8em;">🗑️</button>
+                            style="padding: 1px 4px; background: #f8d7da; border: 1px solid #ccc; color: #721c24; font-size: 0.8em;"
+                            onclick="return confirm('Supprimer ce jour ?')">🗑️</button>
                     </form>
                 </div>
             </div>
@@ -161,4 +149,6 @@
 </div>
 {% endfor %}
 {% endif %}
+
 {% endblock %}
+
