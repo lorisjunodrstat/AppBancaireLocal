@@ -8347,6 +8347,7 @@ def create_employe():
                 'user_id': current_user_id,
                 'nom': request.form.get('nom'),
                 'prenom': request.form.get('prenom'),
+                'genre': request.form.get('genre'),
                 'email': request.form.get('email'),
                 'telephone': request.form.get('telephone'),
                 'rue': request.form.get('rue'),
