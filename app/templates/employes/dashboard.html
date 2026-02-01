@@ -1,23 +1,31 @@
 {% extends "base.html" %}
-{% block "head_css" %}
 
+{% block head_css %}
 <style>
     .dashboard-alerts {
-  margin: 1.5rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.dashboard-alerts .alert {
-  padding: 1rem;
-  border-radius: 8px;
-}
+        margin: 1.5rem 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .dashboard-alerts .alert {
+        padding: 1rem;
+        border-radius: 8px;
+    }
+
+    .dashboard-actions {
+        margin: 2rem 0;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
 </style>
 {% endblock %}
-{% block "title" %}Dashboard Employés{% endblock %}
 
-{% block "content" %}
+{% block title %}Dashboard Employés{% endblock %}
 
+{% block content %}
 <h2>Dashboard Employés</h2>
 
 <!-- === CARTES D'ALERTE === -->
@@ -27,18 +35,20 @@
         <strong>⚠️ Aucune cotisation définie</strong><br>
         Commencez par définir vos types de cotisations (ex: AVS, LPP, AC…).
         <br>
-        <a href="{{ url_for('banking.liste_types_cotisation') }}" class="btn btn-sm btn-primary">Configurer les
-            cotisations</a>
+        <a href="{{ url_for('banking.liste_types_cotisation') }}" class="btn btn-sm btn-primary">
+            Configurer les cotisations
+        </a>
     </div>
     {% endif %}
 
     {% if not types_indemnite %}
     <div class="alert alert-warning">
         <strong>⚠️ Aucune indemnité définie</strong><br>
-        Définissez vos types d’indemnités (ex: repas, vacances, jours fériés…).
+        Définissez vos types d'indemnités (ex: repas, vacances, jours fériés…).
         <br>
-        <a href="{{ url_for('banking.liste_types_indemnite') }}" class="btn btn-sm btn-primary">Configurer les
-            indemnités</a>
+        <a href="{{ url_for('banking.liste_types_indemnite') }}" class="btn btn-sm btn-primary">
+            Configurer les indemnités
+        </a>
     </div>
     {% endif %}
 
@@ -49,9 +59,11 @@
         <br>
         {% if employes %}
         <a href="{{ url_for('banking.creer_contrat_employe', employe_id=employes[0].id) }}"
-            class="btn btn-sm btn-success">Créer un contrat</a>
+            class="btn btn-sm btn-success">
+            Créer un contrat
+        </a>
         {% else %}
-        <em>(Créez d’abord un employé)</em>
+        <em>(Créez d'abord un employé)</em>
         {% endif %}
     </div>
     {% endif %}
@@ -61,7 +73,9 @@
         <strong>👤 Aucun employé enregistré</strong><br>
         Ajoutez votre premier employé pour commencer la gestion RH.
         <br>
-        <a href="{{ url_for('banking.create_employe') }}" class="btn btn-sm btn-success">Ajouter un employé</a>
+        <a href="{{ url_for('banking.create_employe') }}" class="btn btn-sm btn-success">
+            Ajouter un employé
+        </a>
     </div>
     {% endif %}
 </div>
@@ -73,29 +87,30 @@
 <p>Heures totales : {{ "%.2f"|format(heures_total_mois) }} h</p>
 <p>Salaire total : {{ "%.2f"|format(salaire_total_mois) }} CHF</p>
 
+<!-- CORRECTION : changer les noms des champs -->
 <form method="get" style="margin: 1rem 0;">
     <label>Mois :
-        <select name="date_dashboard_mois">
+        <select name="mois"> <!-- ← CORRECTION : "mois" pas "date_dashboard_mois" -->
             {% for m in range(1,13) %}
             <option value="{{ m }}" {% if m==mois %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
         </select>
     </label>
     <label>Année :
-        <input type="number" name="date_dashboard_annee" value="{{ annee }}" min="2020" max="2030">
+        <input type="number" name="annee" value="{{ annee }}" min="2020" max="2030">
+        <!-- ← CORRECTION : "annee" pas "date_dashboard_annee" -->
     </label>
     <button type="submit" class="btn btn-secondary">Actualiser</button>
 </form>
 {% endif %}
 
 <!-- === ACTIONS RAPIDES === -->
-<div class="dashboard-actions" style="margin: 2rem 0; display: flex; gap: 1rem; flex-wrap: wrap;">
+<div class="dashboard-actions">
     {% if employes %}
     <a href="{{ url_for('banking.planning_employes') }}" class="btn btn-outline-secondary">📊 Planning global</a>
     <a href="{{ url_for('banking.synthese_mensuelle') }}" class="btn btn-outline-secondary">📈 Synthèse mensuelle</a>
     {% endif %}
-    <a href="{{ url_for('banking.liste_employe', user_id=current_user.id) }}" class="btn btn-outline-primary">👥 Liste
-        des employés</a>
+    <a href="{{ url_for('banking.liste_employe') }}" class="btn btn-outline-primary">👥 Liste des employés</a>
     <a href="{{ url_for('banking.gestion_entreprise') }}" class="btn btn-outline-primary">🏢 Informations entreprise</a>
 </div>
 
@@ -105,7 +120,7 @@
 <ul>
     {% for e in employes %}
     <li>
-        <a href="{{ url_for('banking.detail_employe', employe_id=e.id, user_id=current_user.id) }}">
+        <a href="{{ url_for('banking.detail_employe', employe_id=e.id) }}">
             {{ e.prenom }} {{ e.nom }}
         </a>
         {% if e.id_contrat %}

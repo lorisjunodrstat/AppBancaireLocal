@@ -8182,7 +8182,9 @@ def dashboard_employes():
     # Note: ces méthodes doivent retourner True/False, pas None
     cotisations_definies = g.models.cotisations_contrat_model.user_has_types_cotisation(current_user_id)
     indemnites_definies = g.models.indemnites_contrat_model.user_has_types_indemnite(current_user_id)
-    
+    types_cotisation = g.models.cotisations_contrat_model.user_has_types_cotisation(current_user_id)
+    types_indemnite = g.models.indemnites_contrat_model.user_has_types_indemnite(current_user_id)
+    contrats = g.models.contrat_model.get_all_contrats(current_user_id) 
     if not cotisations_definies:
         flash("Veuillez définir au moins un type de cotisation.", "info")
         return redirect(url_for('banking.editer_type_cotisation'))
@@ -8223,6 +8225,8 @@ def dashboard_employes():
         salaire = g.models.salaire_model.get_salaire_employe_mois(employe['id'], annee, mois)
         heures_total_mois += heures
         salaire_total_mois += salaire
+        contrat = g.models.contrat_model.get_contrat_for_employe(current_user_id, employe['id'])
+        employe['id_contrat'] = contrat['id'] if contrat else None
     
     # Calculer le nombre total d'employés
     all_employes = len(employes)
@@ -8234,6 +8238,9 @@ def dashboard_employes():
         heures_total_mois=round(heures_total_mois, 2),
         salaire_total_mois=round(salaire_total_mois, 2),
         employes=employes,
+        types_cotisation=types_cotisation,
+        types_indemnite=types_indemnite,   
+        contrats=contrats,
         mois=mois,
         annee=annee
     )
