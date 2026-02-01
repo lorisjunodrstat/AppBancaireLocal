@@ -9935,7 +9935,7 @@ class Employe:
         - genre
         - date_de_naissance
         """
-        required = ('user_id', 'nom', 'prenom', 'genre', 'date_de_naissance')
+        required = {'user_id', 'nom', 'prenom', 'genre', 'date_de_naissance'}
         if not required.issubset(data.keys()):
             raise ValueError("Champs manquants : 'user_id', 'nom', 'prenom', 'genre', 'date_de_naissance', requis")
         try:
