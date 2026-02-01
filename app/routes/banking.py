@@ -8903,6 +8903,7 @@ def planning_employes():
         next_week=semaine[0] + timedelta(weeks=1),
         has_validation=has_planning_regles
     )
+
 @bp.route('/planning/supprimer_jour', methods=['POST'])
 @login_required
 def planning_supprimer_jour():
@@ -8912,24 +8913,64 @@ def planning_supprimer_jour():
         date_str = request.form.get('date')
         employeur = request.form.get('employeur', '')
         id_contrat_str = request.form.get('id_contrat', '0')
+        employe_id = request.form.get('employe_id')
         
-        if not date_str:
-            flash('Date manquante', 'error')
+        # Valider les données obligatoires
+        if not all([date_str, employe_id]):
+            flash('Date ou ID employé manquant', 'error')
             return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
         
+        # Gérer id_contrat
         try:
             id_contrat = int(id_contrat_str) if id_contrat_str else 0
         except ValueError:
             id_contrat = 0
         
-        success = g.models.heure_model.delete_by_date(date_str, user_id, employeur, id_contrat)
-        flash("Jour supprimé." if success else "Rien à supprimer.", "warning" if success else "error")
+        # Note: delete_by_date de HeureTravail ne gère pas employe_id
+        # Nous devons donc gérer la suppression manuellement
+        
+        with g.models.db.get_cursor(commit=True) as cursor:
+            # 1. Trouver l'enregistrement pour cet employé à cette date
+            cursor.execute("""
+                SELECT id FROM heures_travail 
+                WHERE date = %s 
+                AND user_id = %s 
+                AND employe_id = %s
+                AND employeur = %s 
+                AND id_contrat = %s
+            """, (date_str, user_id, employe_id, employeur, id_contrat))
+            
+            record = cursor.fetchone()
+            
+            if record:
+                # 2. Supprimer d'abord les plages horaires
+                cursor.execute("DELETE FROM plages_horaires WHERE heure_travail_id = %s", (record['id'],))
+                
+                # 3. Supprimer l'enregistrement principal
+                cursor.execute("DELETE FROM heures_travail WHERE id = %s", (record['id'],))
+                
+                flash(f"Journée du {date_str} supprimée pour l'employé.", "success")
+                success = True
+            else:
+                flash("Aucun enregistrement trouvé pour cette date et cet employé.", "warning")
+                success = False
         
     except Exception as e:
         logger.error(f"Erreur suppression jour: {e}")
-        flash('Erreur lors de la suppression', 'error')
+        flash(f'Erreur lors de la suppression: {str(e)}', 'error')
+        success = False
     
-    return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
+    # Rediriger vers la page planning hebdomadaire
+    return redirect(url_for('banking.planning_hebdomadaire',
+        date=request.form.get('date', ''),
+        annee=request.form.get('annee', ''),
+        mois=request.form.get('mois', ''),
+        semaine=request.form.get('semaine', ''),
+        mode=request.form.get('mode', 'planning'),
+        employeur=request.form.get('employeur', ''),
+        id_contrat=request.form.get('id_contrat', '')
+    ))
+
 # Exemple : copier → réutilise TON handle_copier_jour
 @bp.route('/planning/copier_jour', methods=['POST'])
 @login_required
@@ -8974,14 +9015,14 @@ def planning_modifier_jour():
     
     # Récupérer les données du formulaire avec validation
     date_str = request.form.get('date')
-    employeur = request.form.get('employeur')
-    id_contrat_str = request.form.get('id_contrat', '')
+    employeur = request.form.get('employeur', '')
+    id_contrat_str = request.form.get('id_contrat', '0')
     employe_id = request.form.get('employe_id')
     
     # Valider les données obligatoires
-    if not all([date_str, employeur, employe_id]):
+    if not all([date_str, employe_id]):
         flash('Données manquantes. Veuillez remplir tous les champs obligatoires.', 'error')
-        return redirect(request.referrer or url_for('banking.planning_employes'))
+        return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
     
     # Gérer id_contrat qui peut être vide
     try:
@@ -8996,13 +9037,36 @@ def planning_modifier_jour():
     semaine = request.form.get('semaine', '')
     mode = request.form.get('mode', 'planning')
     
-    # Récupérer les données existantes pour ce jour
+    # Récupérer les données existantes pour ce jour et cet employé
+    data = {'plages': [], 'vacances': False}
+    
+    # Pour récupérer les données existantes, nous devons chercher dans la base
+    # Comme get_by_date ne gère pas employe_id, nous allons chercher manuellement
     try:
-        # Essayer avec l'ancienne méthode si elle existe
-        data = g.models.heure_model.get_by_date(date_str, user_id, employeur, id_contrat)
-    except AttributeError:
-        # Si la méthode n'existe pas, créer un dictionnaire vide
-        data = {'plages': [], 'vacances': False}
+        # Récupérer tous les enregistrements pour cette date
+        start_date = date_str
+        end_date = date_str
+        
+        # Utiliser get_shifts_for_week qui existe dans HeureTravail
+        all_shifts = g.models.heure_model.get_shifts_for_week(user_id, start_date, end_date)
+        
+        # Filtrer pour cet employé
+        shifts_employe = []
+        for shift in all_shifts:
+            if str(shift.get('employe_id')) == str(employe_id):
+                # Extraire les informations de plage
+                if shift.get('plage_debut') and shift.get('plage_fin'):
+                    shifts_employe.append({
+                        'plage_debut': shift['plage_debut'],
+                        'plage_fin': shift['plage_fin'],
+                        'type_shift': shift.get('type_heures', 'travail'),
+                        'commentaire': shift.get('commentaire', '')
+                    })
+        
+        # Si nous avons des shifts, les organiser pour l'affichage
+        if shifts_employe:
+            data['plages'] = shifts_employe
+    
     except Exception as e:
         logger.error(f"Erreur récupération données jour: {e}")
         data = {'plages': [], 'vacances': False}
@@ -9024,39 +9088,37 @@ def planning_modifier_jour():
     except ValueError:
         date_display = date_str
     
-    # Récupérer les shifts existants pour cet employé à cette date
-    shifts_employe = []
-    try:
-        # Si vous avez une méthode pour récupérer les shifts par employé et date
-        if hasattr(g.models, 'heure_model') and hasattr(g.models.heure_model, 'get_shifts_by_employe_date'):
-            shifts_employe = g.models.heure_model.get_shifts_by_employe_date(
-                user_id=user_id,
-                employe_id=int(employe_id),
-                date_str=date_str
-            )
-        elif hasattr(g.models, 'planning'):
-            # Utiliser la classe Planning
-            shifts_data = g.models.planning.get_shifts_for_period(
-                user_id=user_id,
-                date_debut=date_str,
-                date_fin=date_str
-            )
-            shifts_employe = shifts_data.get(int(employe_id), {}).get(date_str, [])
-    except Exception as e:
-        logger.error(f"Erreur récupération shifts employé: {e}")
-    
     # Calculer le total des heures pour la journée
     total_heures = 0
-    for shift in shifts_employe:
-        if 'duree' in shift:
-            total_heures += shift['duree']
-        elif 'heure_debut' in shift and 'heure_fin' in shift:
-            try:
-                debut = datetime.strptime(str(shift['heure_debut']), '%H:%M')
-                fin = datetime.strptime(str(shift['heure_fin']), '%H:%M')
-                total_heures += (fin - debut).total_seconds() / 3600
-            except (ValueError, TypeError):
-                pass
+    if 'plages' in data and data['plages']:
+        for plage in data['plages']:
+            if plage.get('plage_debut') and plage.get('plage_fin'):
+                try:
+                    # Convertir les timedelta en strings si nécessaire
+                    debut_str = plage['plage_debut']
+                    fin_str = plage['plage_fin']
+                    
+                    # Si c'est un timedelta, le convertir
+                    if hasattr(debut_str, 'total_seconds'):
+                        total_seconds = debut_str.total_seconds()
+                        hours = int(total_seconds // 3600)
+                        minutes = int((total_seconds % 3600) // 60)
+                        debut_str = f"{hours:02d}:{minutes:02d}"
+                    
+                    if hasattr(fin_str, 'total_seconds'):
+                        total_seconds = fin_str.total_seconds()
+                        hours = int(total_seconds // 3600)
+                        minutes = int((total_seconds % 3600) // 60)
+                        fin_str = f"{hours:02d}:{minutes:02d}"
+                    
+                    # Calculer la durée
+                    if debut_str and fin_str:
+                        debut = datetime.strptime(str(debut_str), '%H:%M')
+                        fin = datetime.strptime(str(fin_str), '%H:%M')
+                        total_heures += (fin - debut).total_seconds() / 3600
+                except (ValueError, TypeError, AttributeError) as e:
+                    logger.error(f"Erreur calcul durée: {e}")
+                    pass
     
     # Récupérer les types de shifts disponibles
     types_shifts = ['travail', 'pause', 'formation', 'réunion', 'télétravail', 'autre']
@@ -9069,15 +9131,15 @@ def planning_modifier_jour():
         employeur=employeur,
         id_contrat=id_contrat,
         data=data,
-        shifts=shifts_employe,
+        shifts=data['plages'],  # Utiliser les plages comme shifts
         total_heures=total_heures,
         types_shifts=types_shifts,
         annee=annee,
         mois=mois,
         semaine=semaine,
-        mode=mode
+        mode=mode,
+        current_user_id=user_id
     )
-
 # Sauvegarder jour → crée/écrase avec type_heures='simulees'
 @bp.route('/planning/sauvegarder_jour', methods=['POST'])
 @login_required
