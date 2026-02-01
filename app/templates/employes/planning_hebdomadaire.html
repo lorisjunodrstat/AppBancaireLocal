@@ -34,124 +34,284 @@
         href="{{ url_for('banking.liste_employe', user_id=current_user.id) }}">Ajouter un employé</a>.
 </div>
 {% else %}
-<!-- Tableau avec employés en colonnes et heures en lignes -->
-<div style="overflow-x: auto;">
-    <table style="border-collapse: collapse; width: 100%;">
+<!-- Tableau horizontal : employés en lignes, heures en colonnes -->
+<div style="overflow-x: auto; margin-top: 20px;">
+    <table style="border-collapse: collapse; width: 100%; min-width: 1200px;">
         <thead>
             <tr>
+                <!-- Colonne fixe pour les noms d'employés -->
                 <th
-                    style="width: 100px; padding: 8px; background: #f8f9fa; border: 1px solid #ddd; text-align: center;">
-                    Heure
+                    style="width: 200px; padding: 12px; background: #f8f9fa; border: 1px solid #ddd; text-align: left; position: sticky; left: 0; z-index: 10;">
+                    Employés
                 </th>
+
+                <!-- Heures de la journée (6h à 23h) pour chaque jour -->
                 {% for day in week_dates %}
-                <th style="padding: 8px; background: #f8f9fa; border: 1px solid #ddd; text-align: center;">
-                    {{ day.strftime('%a %d') }}
+                <th colspan="19" style="padding: 8px; background: #e9ecef; border: 1px solid #ddd; text-align: center;">
+                    <div style="font-weight: bold; font-size: 1.1em;">{{ day.strftime('%A %d/%m') }}</div>
+                    <div style="font-size: 0.9em; color: #666;">{{ day.strftime('%Y') }}</div>
+                </th>
+                {% endfor %}
+            </tr>
+
+            <!-- Ligne d'en-tête pour les heures -->
+            <tr>
+                <th style="background: #f8f9fa; border: 1px solid #ddd; position: sticky; left: 0; z-index: 10;"></th>
+
+                {% for day in week_dates %}
+                {% for hour in range(6, 24) %}
+                <th
+                    style="width: 30px; padding: 4px; background: #f0f0f0; border: 1px solid #ddd; text-align: center; font-size: 0.8em;">
+                    {{ hour }}h
+                </th>
+                {% endfor %}
+                <!-- Total du jour -->
+                <th
+                    style="width: 50px; padding: 4px; background: #e0e0e0; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 0.8em;">
+                    Total
                 </th>
                 {% endfor %}
             </tr>
         </thead>
+
         <tbody>
-            {% for hour in range(6, 24) %}
-            <tr>
+            {% for employe in employes %}
+            <tr style="background: {% if loop.index % 2 == 0 %}#f9f9f9{% else %}#ffffff{% endif %};">
+                <!-- Nom de l'employé (colonne fixe) -->
                 <td
-                    style="padding: 4px; border: 1px solid #eee; text-align: center; background: #f9f9f9; font-size: 0.9em;">
-                    <strong>{{ hour }}h</strong>
+                    style="padding: 8px; border: 1px solid #ddd; position: sticky; left: 0; background: {% if loop.index % 2 == 0 %}#f9f9f9{% else %}#ffffff{% endif %}; z-index: 5;">
+                    <div style="font-weight: bold;">
+                        {{ employe.prenom }} {{ employe.nom }}
+                    </div>
+                    <div style="font-size: 0.8em; color: #666;">
+                        {{ employe.poste|default('') }}
+                    </div>
+                    <div style="font-size: 0.8em; color: #666;">
+                        {{ employe.equipe_nom|default('') }}
+                    </div>
                 </td>
 
                 {% for day in week_dates %}
                 {% set day_key = day.strftime('%Y-%m-%d') %}
-                <td style="padding: 2px; border: 1px solid #eee; min-height: 60px; vertical-align: top;">
-                    <!-- Pour chaque employé, afficher ses shifts à cette heure -->
-                    {% for employe in employes %}
-                    {% set shifts = shifts_by_employe_jour.get(employe.id, {}).get(day_key, []) %}
+                {% set shifts = shifts_by_employe_jour.get(employe.id, {}).get(day_key, []) %}
+
+                <!-- Cellules pour chaque heure (6h-23h) -->
+                {% for hour in range(6, 24) %}
+                <td style="padding: 0; border: 1px solid #eee; height: 40px; position: relative;">
+                    {% set hour_has_shift = false %}
 
                     {% for shift in shifts %}
-                    {% if shift.debut and shift.fin %}
-                    {% set shift_start = shift.debut|int %}
-                    {% set shift_end = shift.fin|int %}
+                    {% if shift.heure_debut and shift.heure_fin %}
+                    {% set shift_start = shift.heure_debut|int if shift.heure_debut is number else
+                    shift.heure_debut.split(':')[0]|int %}
+                    {% set shift_end = shift.heure_fin|int if shift.heure_fin is number else
+                    shift.heure_fin.split(':')[0]|int %}
 
-                    {% if hour >= shift_start and hour < shift_end %} <div style="
-                        margin: 1px 0;
-                        padding: 2px 4px;
-                        background: {% if shift.type == 'pause' %}#9E9E9E{% elif shift.valide|default(true) %}#4CAF50{% else %}#F44336{% endif %};
-                        color: white;
-                        border-radius: 3px;
-                        font-size: 0.8em;
-                        font-weight: bold;
-                        cursor: pointer;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                    " title="{{ employe.prenom }} {{ employe.nom }}: {{ shift.debut }}h-{{ shift.fin }}h
-Type: {{ shift.type|default('shift') }}
-{% if shift.commentaire %}Commentaire: {{ shift.commentaire }}{% endif %}">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>{{ employe.prenom[:1] }}.{{ employe.nom[:3] }}</span>
-                            <span>{{ shift.debut }}h-{{ shift.fin }}h</span>
+                    {% if hour >= shift_start and hour < shift_end %} {% set hour_has_shift=true %} <div style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: {% if shift.type_shift == 'pause' %}#9E9E9E
+                                      {% elif shift.type_shift == 'formation' %}#2196F3
+                                      {% elif shift.type_shift == 'réunion' %}#FF9800
+                                      {% elif shift.type_shift == 'télétravail' %}#9C27B0
+                                      {% elif shift.valide|default(true) %}#4CAF50
+                                      {% else %}#F44336{% endif %};
+                            opacity: 0.8;
+                            border-radius: 2px;
+                            z-index: 1;
+                        " title="{{ shift.type_shift|default('travail')|capitalize }}: {{ shift.heure_debut }} - {{ shift.heure_fin }}
+{{ shift.commentaire|default('') }}">
+                        <!-- Heure de début -->
+                        {% if hour == shift_start %}
+                        <div
+                            style="position: absolute; top: 2px; left: 2px; font-size: 0.7em; color: white; font-weight: bold;">
+                            {{ shift.heure_debut }}
                         </div>
-                        {% if shift.commentaire %}
-                        <div style="font-size: 0.7em; font-style: italic;">{{ shift.commentaire[:20] }}{% if
-                            shift.commentaire|length > 20 %}...{% endif %}</div>
+                        {% endif %}
+
+                        <!-- Heure de fin -->
+                        {% if hour == shift_end - 1 %}
+                        <div
+                            style="position: absolute; bottom: 2px; right: 2px; font-size: 0.7em; color: white; font-weight: bold;">
+                            {{ shift.heure_fin }}
+                        </div>
                         {% endif %}
 </div>
 {% endif %}
 {% endif %}
 {% endfor %}
 
-{% endfor %}
+<!-- Si pas de shift, afficher un fond clair -->
+{% if not hour_has_shift %}
+<div style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: #f9f9f9;
+                    "></div>
+{% endif %}
 
-<!-- Actions pour ajouter un shift -->
-<div style="margin-top: 2px;">
+<!-- Bouton pour ajouter un shift à cette heure -->
+<div style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        opacity: 0;
+                        transition: opacity 0.2s;
+                        z-index: 2;
+                    " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
     <form method="post" action="{{ url_for('banking.planning_ajouter_shift') }}" style="display: inline;">
         <input type="hidden" name="date" value="{{ day_key }}">
-        <input type="hidden" name="heure_debut" value="{{ hour }}">
-        <input type="hidden" name="heure_fin" value="{{ hour + 1 }}">
-        <input type="hidden" name="employe_id" value="">
+        <input type="hidden" name="heure_debut" value="{{ '%02d:00' % hour }}">
+        <input type="hidden" name="heure_fin" value="{{ '%02d:00' % (hour + 1) }}">
+        <input type="hidden" name="employe_id" value="{{ employe.id }}">
         <input type="hidden" name="annee" value="{{ annee }}">
         <input type="hidden" name="mois" value="{{ mois }}">
         <input type="hidden" name="semaine" value="{{ semaine }}">
         <input type="hidden" name="mode" value="{{ mode }}">
         <input type="hidden" name="employeur" value="{{ employeur }}">
         <input type="hidden" name="id_contrat" value="{{ id_contrat or '' }}">
-        <button type="submit" style="font-size: 0.7em; padding: 1px 3px; opacity: 0.5;"
-            title="Ajouter un shift à {{ hour }}h">
+        <button type="submit" style="
+                                        background: rgba(0,0,0,0.1);
+                                        border: 1px solid rgba(0,0,0,0.2);
+                                        border-radius: 50%;
+                                        width: 20px;
+                                        height: 20px;
+                                        font-size: 0.8em;
+                                        cursor: pointer;
+                                        color: #333;
+                                    " title="Ajouter un shift à {{ hour }}h">
             +
         </button>
     </form>
 </div>
 </td>
 {% endfor %}
+
+<!-- Cellule Total du jour -->
+<td style="padding: 4px; border: 1px solid #ddd; text-align: center; font-weight: bold; background: #f0f0f0;">
+    {% set total_jour = totals.get(employe.id, {}).get(day_key, 0) %}
+    {% if total_jour > 0 %}
+    <span style="color: #1976D2;">{{ "%.1f"|format(total_jour) }}h</span>
+    {% else %}
+    <span style="color: #999;">-</span>
+    {% endif %}
+</td>
+{% endfor %}
 </tr>
 {% endfor %}
+
+<!-- Ligne pour le total par heure -->
+<tr style="background: #e3f2fd; font-weight: bold;">
+    <td style="padding: 8px; border: 1px solid #ddd; position: sticky; left: 0; z-index: 5;">
+        Total par heure
+    </td>
+
+    {% for day in week_dates %}
+    {% set day_key = day.strftime('%Y-%m-%d') %}
+
+    {% for hour in range(6, 24) %}
+    <td style="padding: 4px; border: 1px solid #ddd; text-align: center; font-size: 0.9em;">
+        {% set count_employes = 0 %}
+        {% for employe in employes %}
+        {% set shifts = shifts_by_employe_jour.get(employe.id, {}).get(day_key, []) %}
+        {% for shift in shifts %}
+        {% if shift.heure_debut and shift.heure_fin %}
+        {% set shift_start = shift.heure_debut|int if shift.heure_debut is number else
+        shift.heure_debut.split(':')[0]|int %}
+        {% set shift_end = shift.heure_fin|int if shift.heure_fin is number else shift.heure_fin.split(':')[0]|int %}
+        {% if hour >= shift_start and hour < shift_end %} {% set count_employes=count_employes + 1 %} {% endif %} {%
+            endif %} {% endfor %} {% endfor %} {% if count_employes> 0 %}
+            <span style="color: #1976D2;">{{ count_employes }}</span>
+            {% else %}
+            <span style="color: #999;">0</span>
+            {% endif %}
+    </td>
+    {% endfor %}
+
+    <!-- Total général du jour -->
+    <td style="padding: 4px; border: 1px solid #ddd; text-align: center; background: #bbdefb;">
+        {% set total_general_jour = 0 %}
+        {% for employe in employes %}
+        {% set total_general_jour = total_general_jour + totals.get(employe.id, {}).get(day_key, 0) %}
+        {% endfor %}
+        <span style="color: #0D47A1;">{{ "%.1f"|format(total_general_jour) }}h</span>
+    </td>
+    {% endfor %}
+</tr>
 </tbody>
 </table>
 </div>
 
 <!-- Légende -->
-<div style="margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-    <h5>Légende :</h5>
-    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-        <div><span style="display: inline-block; width: 20px; height: 10px; background: #4CAF50;"></span> Shift valide
+<div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; border: 1px solid #ddd;">
+    <h5 style="margin-top: 0;">Légende :</h5>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <div>
+            <span
+                style="display: inline-block; width: 20px; height: 20px; background: #4CAF50; margin-right: 8px; vertical-align: middle; border-radius: 2px;"></span>
+            Travail
         </div>
-        <div><span style="display: inline-block; width: 20px; height: 10px; background: #F44336;"></span> Shift non
-            valide</div>
-        <div><span style="display: inline-block; width: 20px; height: 10px; background: #9E9E9E;"></span> Pause</div>
+        <div>
+            <span
+                style="display: inline-block; width: 20px; height: 20px; background: #9E9E9E; margin-right: 8px; vertical-align: middle; border-radius: 2px;"></span>
+            Pause
+        </div>
+        <div>
+            <span
+                style="display: inline-block; width: 20px; height: 20px; background: #2196F3; margin-right: 8px; vertical-align: middle; border-radius: 2px;"></span>
+            Formation
+        </div>
+        <div>
+            <span
+                style="display: inline-block; width: 20px; height: 20px; background: #FF9800; margin-right: 8px; vertical-align: middle; border-radius: 2px;"></span>
+            Réunion
+        </div>
+        <div>
+            <span
+                style="display: inline-block; width: 20px; height: 20px; background: #9C27B0; margin-right: 8px; vertical-align: middle; border-radius: 2px;"></span>
+            Télétravail
+        </div>
+        <div>
+            <span
+                style="display: inline-block; width: 20px; height: 20px; background: #F44336; margin-right: 8px; vertical-align: middle; border-radius: 2px;"></span>
+            Non valide
+        </div>
+        <div>
+            <span
+                style="display: inline-block; width: 20px; height: 20px; background: #f9f9f9; margin-right: 8px; vertical-align: middle; border-radius: 2px; border: 1px solid #ddd;"></span>
+            Disponible
+        </div>
     </div>
 </div>
 
-<!-- Liste des employés -->
-<div style="margin-top: 30px;">
-    <h4>Employés :</h4>
-    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-        {% for employe in employes %}
-        <div style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
-            <strong>{{ employe.prenom }} {{ employe.nom }}</strong>
-            <div style="font-size: 0.8em; color: #666;">
-                Heures totales semaine : {{ totals.get(employe.id, {}).total_semaine|default(0)|round(1) }}h
-            </div>
-        </div>
-        {% endfor %}
-    </div>
+<!-- Actions rapides -->
+<div style="margin-top: 20px; display: flex; gap: 10px;">
+    <form method="post" action="{{ url_for('banking.planning_ajouter_shift_journee') }}" style="display: inline;">
+        <input type="hidden" name="annee" value="{{ annee }}">
+        <input type="hidden" name="mois" value="{{ mois }}">
+        <input type="hidden" name="semaine" value="{{ semaine }}">
+        <input type="hidden" name="mode" value="{{ mode }}">
+        <input type="hidden" name="employeur" value="{{ employeur }}">
+        <input type="hidden" name="id_contrat" value="{{ id_contrat or '' }}">
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle"></i> Ajouter une journée type
+        </button>
+    </form>
+
+    <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
+        <i class="bi bi-printer"></i> Imprimer le planning
+    </button>
 </div>
 {% endif %}
 
