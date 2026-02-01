@@ -8586,19 +8586,31 @@ def gestion_cotisations_contrat(contrat_id):
         indem_actuelles=indem_actuelles
     )
 
-@bp.route('/employes/<int_employe_id>/supprimer_employe', methods = ['POST'])
+@bp.route('/employes/<int:employe_id>/supprimer_employe', methods = ['POST'])
 @login_required
-def supprimer_employe(employe_id, user_id):
+def supprimer_employe(employe_id):
     try:
-        success = g.models.employe_model.delete(employe_id, user_id)
+        current_user_id = current_user.id
+        
+        # Vérifier que l'employé appartient bien à l'utilisateur
+        employe = g.models.employe_model.get_by_id(employe_id, current_user_id)
+        if not employe:
+            flash("Employé non trouvé ou vous n'avez pas les permissions", "error")
+            return redirect(url_for('banking.liste_employe'))
+        
+        # Supprimer l'employé
+        success = g.models.employe_model.delete(employe_id, current_user_id)
+        
         if success:
-            flash("Employé supprimer avec succès", "success")
+            flash("Employé supprimé avec succès", "success")
         else:
-            flash("Erreur lors de la suppression de l'employe", "error")
+            flash("Erreur lors de la suppression de l'employé", "error")
+            
     except Exception as e:
-        logging.error(f'Erreur lors de la suppression employe {employe_id} : {e}')
-        flash(f"Erreur lors de la suppresion : {str(e)}")
-    return redirect(url_for('banking.liste_employes'))
+        logging.error(f'Erreur lors de la suppression employé {employe_id} : {e}')
+        flash(f"Erreur lors de la suppression : {str(e)}", "error")
+        
+    return redirect(url_for('banking.liste_employe'))
 
 
 ### Route class Equipe
