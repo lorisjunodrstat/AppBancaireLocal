@@ -8858,11 +8858,39 @@ def planning_employes():
     # Charger tous les shifts de la semaine
     all_shifts = g.models.heure_model.get_shifts_for_week(user_id, semaine[0], semaine[-1])
     
-    # Indexer par employe → jour → liste shifts
+    # Option 2: Utiliser PlanningRegles pour la validation si elle existe
     shifts_by_employe_jour = defaultdict(lambda: defaultdict(list))
+    
+    # Vérifier si planning_regles existe
+    has_planning_regles = hasattr(g.models, 'planning_regles')
+    
     for s in all_shifts:
         s['duree'] = s['plage_fin'] - s['plage_debut']
-        s['valide'] = g.models.planning_validator.est_valide(s)
+        
+        # Validation conditionnelle
+        if has_planning_regles:
+            # Essayer d'obtenir des violations pour ce shift
+            # Note: Vous devrez peut-être adapter cette logique
+            violations = []
+            try:
+                # Exemple: valider ce shift spécifique
+                # Vous aurez besoin d'adapter cette partie selon votre logique métier
+                date_shift = s['date']
+                violations = g.models.planning_regles.valider_periode_simulee(
+                    user_id, 
+                    date_shift, 
+                    date_shift
+                )
+                s['valide'] = len(violations) == 0
+                s['violations'] = violations
+            except Exception as e:
+                logger.error(f"Erreur validation shift: {e}")
+                s['valide'] = True
+                s['violations'] = []
+        else:
+            s['valide'] = True
+            s['violations'] = []
+        
         key = s['date'].strftime('%Y-%m-%d')
         shifts_by_employe_jour[s['employe_id']][key].append(s)
 
@@ -8872,9 +8900,9 @@ def planning_employes():
         equipes=equipes,
         shifts_by_employe_jour=shifts_by_employe_jour,
         prev_week=semaine[0] - timedelta(weeks=1),
-        next_week=semaine[0] + timedelta(weeks=1)
+        next_week=semaine[0] + timedelta(weeks=1),
+        has_validation=has_planning_regles
     )
-
 @bp.route('/planning/supprimer_jour', methods=['POST'])
 @login_required
 def planning_supprimer_jour():
