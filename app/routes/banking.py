@@ -8362,7 +8362,7 @@ def create_employe():
             success = g.models.employe_model.create(data)
             if success:
                 flash("Nouvel employà créé avec succès", "success")
-                return redirect(url_for('liste_employe'))
+                return redirect(url_for('banking.liste_employe'))
             else: 
                 flash("Erreur lors de la création de l'employe avec les données suivantes : {data}", "error")
                 return render_template('employes/creer_employe.html', form_data=data)
