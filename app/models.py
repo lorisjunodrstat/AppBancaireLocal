@@ -11078,13 +11078,11 @@ class Salaire:
 
 
     def calculer_salaire_net_avec_details(self, heure_model, cotisations_contrat_model, indemnites_contrat_model,bareme_indemnite_model, bareme_cotisation_model, heures_reelles: float, contrat: Dict, contrat_id: int, annee: int, user_id: Optional[int] = None, 
-                                        mois: Optional[int] = None, jour_estimation: int = 15) -> Dict:
+                                    mois: Optional[int] = None, jour_estimation: int = 15) -> Dict:
         """
         Calcule le salaire net et retourne tous les détails du calcul pour affichage
         avec des noms explicites pour chaque élément
-        cotisations_contrat = g.models.cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
         """
-    
         try:
             if not contrat or heures_reelles <= 0:
                 return {
@@ -11093,7 +11091,6 @@ class Salaire:
                     'details': {}
                 }
 
-           # Conversion du salaire horaire
             from decimal import Decimal, ROUND_HALF_UP
 
             # Conversion sécurisée en Decimal
@@ -11104,23 +11101,33 @@ class Salaire:
                     return val
                 return Decimal(str(val))
 
+            # Conversion en float pour les fonctions qui ne supportent pas Decimal
+            def to_float(val):
+                if isinstance(val, Decimal):
+                    return float(val)
+                return float(val) if val is not None else 0.0
+
             salaire_horaire = to_decimal(contrat.get('salaire_horaire', '24.05'))
             heures_reelles_dec = to_decimal(heures_reelles)
             salaire_brut = (heures_reelles_dec * salaire_horaire).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                        # Récupérer cotisations et indemnités dynamiques
+            
+            # Récupérer cotisations et indemnités dynamiques
             cotisations_contrat = cotisations_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
             indemnites_contrat = indemnites_contrat_model.get_for_contrat_and_annee(contrat_id, annee)
             logger.info(f"DEBUG indemnites_contrat: {indemnites_contrat}")
             logger.info(f'Cotisations pour contrat {contrat_id}, année {annee}: {cotisations_contrat}')
             logger.info(f'Indemnites pour contrat {contrat_id}, année {annee}: {indemnites_contrat}')
+            
             # Calcul des indemnités
             indemnites_detail = {}
             total_indemnites = Decimal('0')
             for item in indemnites_contrat:
+                # Convertir base_montant en float pour la compatibilité
+                base_montant_float = to_float(salaire_brut)
                 montant = indemnites_contrat_model.calculer_montant_indemnite(
                     bareme_indemnite_model=bareme_indemnite_model,
                     type_indemnite_id=item['type_indemnite_id'],
-                    base_montant=salaire_brut,
+                    base_montant=base_montant_float,  # ← Convertir en float ici
                     taux_fallback=item['taux']
                 )
                 montant_decimal = to_decimal(montant)
@@ -11131,22 +11138,26 @@ class Salaire:
                     'base': item.get('base_calcul', 'brut')
                 }
                 logger.info(f"Calcul des indemnités {item['nom_indemnite']}: taux={item['taux']}, montant={montant}")
+            
             salaire_brut_tot = (salaire_brut + total_indemnites).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
 
             # Calcul des cotisations
             cotisations_detail = {}
             total_cotisations = Decimal('0')
             for item in cotisations_contrat:
                 base = item.get('base_calcul', 'brut')
-                base_montant = salaire_brut_tot if base == 'brut_tot' else salaire_brut
+                base_montant_decimal = salaire_brut_tot if base == 'brut_tot' else salaire_brut
+                # Convertir en float pour la compatibilité avec calculer_montant_cotisation
+                base_montant_float = to_float(base_montant_decimal)
+                
                 nom_cotisation = item.get('nom_cotisation', f"cotisation_{item.get('type_cotisation_id', 'inconnue')}")
-                montant = cotisations_contrat_model.calculer_montant_cotisation(bareme_cotisation_model,
+                montant = cotisations_contrat_model.calculer_montant_cotisation(
+                    bareme_cotisation_model,
                     type_cotisation_id=item['type_cotisation_id'],
-                    base_montant=base_montant,
+                    base_montant=base_montant_float,  # ← Convertir en float ici aussi
                     taux_fallback=item['taux']
                 )
-                logger.info(f'Calcul cotisation {nom_cotisation}: base={base} ({base_montant}), taux={item["taux"]}, montant={montant}')
+                logger.info(f'Calcul cotisation {nom_cotisation}: base={base} ({base_montant_decimal}), taux={item["taux"]}, montant={montant}')
                 montant_decimal = to_decimal(montant)
                 montant_arrondi = montant_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                 total_cotisations += montant_arrondi
@@ -11157,17 +11168,20 @@ class Salaire:
                 }
 
             salaire_net = (salaire_brut_tot - total_cotisations).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-# Acomptes
+            
+            # Acomptes
             versements = {}
             total_versements = Decimal('0')
             if user_id is not None and mois is not None:
                 if contrat.get('versement_25', False):
+                    # Convertir salaire_horaire en float pour calculer_acompte_25
+                    salaire_horaire_float = to_float(salaire_horaire)
                     acompte_25 = self.calculer_acompte_25(
                         heure_model=heure_model,
                         user_id=user_id,
                         annee=annee,
                         mois=mois,
-                        salaire_horaire=salaire_horaire,
+                        salaire_horaire=salaire_horaire_float,  # ← Convertir en float
                         employeur=contrat['employeur'],
                         id_contrat=contrat_id,
                         jour_estimation=contrat.get('jour_estimation_salaire', 15)
@@ -11182,11 +11196,13 @@ class Salaire:
                     total_versements += acompte_25_decimal   
 
                 if contrat.get('versement_10', False):
+                    # Convertir salaire_horaire en float pour calculer_acompte_10
+                    salaire_horaire_float = to_float(salaire_horaire)
                     acompte_10 = self.calculer_acompte_10(
                         user_id=user_id,
                         annee=annee,
                         mois=mois,
-                        salaire_horaire=salaire_horaire,
+                        salaire_horaire=salaire_horaire_float,  # ← Convertir en float
                         employeur=contrat['employeur'],
                         id_contrat=contrat_id,
                         jour_estimation=contrat.get('jour_estimation_salaire', 15)
@@ -11238,15 +11254,13 @@ class Salaire:
                 }
             }
             
-
-        except Exception as e:
-            logger.error(f"Erreur dans calculer_salaire_net_avec_details: {str(e)}")
-            return {
-                'salaire_net': 0.0,
-                'erreur': str(e),
-                'details': {}
-            }
-    
+    except Exception as e:
+        logger.error(f"Erreur dans calculer_salaire_net_avec_details: {str(e)}")
+        return {
+            'salaire_net': 0.0,
+            'erreur': str(e),
+            'details': {}
+        }
     def calculer_differences(self, salaire_calcule: float, salaire_verse: float) -> Tuple[float, float]:
         if salaire_verse is None:
             return 0.0, 0.0
