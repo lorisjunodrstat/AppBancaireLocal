@@ -8795,7 +8795,7 @@ def planning_employes():
     # Indexer par employe → jour → liste shifts
     shifts_by_employe_jour = defaultdict(lambda: defaultdict(list))
     for s in all_shifts:
-        s['duree'] = s['heure_fin'] - s['heure_debut']
+        s['duree'] = s['plage_fin'] - s['plage_debut']
         s['valide'] = g.models.planning_validator.est_valide(s)
         key = s['date'].strftime('%Y-%m-%d')
         shifts_by_employe_jour[s['employe_id']][key].append(s)
