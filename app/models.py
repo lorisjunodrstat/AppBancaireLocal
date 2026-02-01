@@ -9366,6 +9366,18 @@ class CotisationContrat:
             """, (contrat_id, annee))
             return cursor.fetchall()
 
+    def user_has_types_cotisation(self, user_id: int) -> bool:
+        """Vérifie si l'utilisateur a défini des types de cotisations"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM types_cotisation WHERE user_id = %s LIMIT 1", 
+                    (user_id,)
+                )
+                return cursor.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Erreur vérification types cotisation user {user_id}: {e}")
+            return False
 class IndemniteContrat:
     def __init__(self, db):
         self.db = db
@@ -9608,10 +9620,10 @@ class IndemniteContrat:
         try:
             with self.db.get_cursor(dictionary=True) as cursor:
                 query = """
-                SELECT cc.*, c.employeur, c.employe_id, ti.nom AS type_indemnite_nom
-                FROM cotisations_contrat cc
-                JOIN contrats c ON cc.contrat_id = c.id
-                JOIN types_indemnite ti ON cc.type_indemnite_id = ti.id
+                SELECT ic.*, c.employeur, c.employe_id, ti.nom AS type_indemnite_nom
+                FROM indemnites_contrat ic  # ← Table CORRIGÉE : indemnites_contrat, pas cotisations_contrat
+                JOIN contrats c ON ic.contrat_id = c.id
+                JOIN types_indemnite ti ON ic.type_indemnite_id = ti.id  # ← CORRECT
                 WHERE c.user_id = %s
                 ORDER BY c.employeur, ti.nom
                 """
@@ -9693,7 +9705,18 @@ class IndemniteContrat:
         with self.db.get_cursor(dictionary=True) as cursor:
             cursor.execute("SELECT id, nom FROM types_indemnite ORDER BY nom")
             return cursor.fetchall()
-
+    def user_has_types_indemnite(self, user_id: int) -> bool:
+        """Vérifie si l'utilisateur a défini des types de cotisations"""
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM types_indemnite WHERE user_id = %s LIMIT 1", 
+                    (user_id,)
+                )
+                return cursor.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Erreur vérification types indemnité user {user_id}: {e}")
+            return False
 class Contrat:
     def __init__(self, db):
         self.db = db
