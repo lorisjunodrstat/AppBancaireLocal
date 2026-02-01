@@ -11199,6 +11199,7 @@ class Salaire:
                     # Convertir salaire_horaire en float pour calculer_acompte_10
                     salaire_horaire_float = to_float(salaire_horaire)
                     acompte_10 = self.calculer_acompte_10(
+                        heure_model=heure_model,
                         user_id=user_id,
                         annee=annee,
                         mois=mois,
