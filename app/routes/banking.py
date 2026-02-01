@@ -9123,7 +9123,7 @@ def planning_modifier_jour():
     # Récupérer les types de shifts disponibles
     types_shifts = ['travail', 'pause', 'formation', 'réunion', 'télétravail', 'autre']
     
-    return render_template('planning/form_modifier_jour.html',
+    return render_template('employes/form_modifier_jour.html',
         date=date_str,
         date_display=date_display,
         employe_id=employe_id,
