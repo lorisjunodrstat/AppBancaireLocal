@@ -11254,13 +11254,13 @@ class Salaire:
                 }
             }
             
-    except Exception as e:
-        logger.error(f"Erreur dans calculer_salaire_net_avec_details: {str(e)}")
-        return {
-            'salaire_net': 0.0,
-            'erreur': str(e),
-            'details': {}
-        }
+        except Exception as e:
+            logger.error(f"Erreur dans calculer_salaire_net_avec_details: {str(e)}")
+            return {
+                'salaire_net': 0.0,
+                'erreur': str(e),
+                'details': {}
+            }
     def calculer_differences(self, salaire_calcule: float, salaire_verse: float) -> Tuple[float, float]:
         if salaire_verse is None:
             return 0.0, 0.0
