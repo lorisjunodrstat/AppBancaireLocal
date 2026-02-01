@@ -8762,7 +8762,7 @@ def planning_employe(employe_id):
     )
 
     return render_template(
-        'planning/planning_employe.html',
+        'employes/planning_employe.html',
         employe=employe,
         heures=heures,
         annee=annee,
