@@ -6,7 +6,8 @@
 <h2>Planning — Semaine du {{ week_dates[0].strftime('%d/%m/%Y') }} au {{ week_dates[-1].strftime('%d/%m/%Y') }}</h2>
 
 <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
-    {% if 'planning_simulation_semaine' in get_view_functions() %}
+    <!-- Simuler semaine - afficher seulement si les paramètres nécessaires existent -->
+    {% if annee is defined and mois is defined and semaine is defined and mode is defined and employeur is defined %}
     <form method="post" action="{{ url_for('banking.planning_simulation_semaine') }}">
         <input type="hidden" name="annee" value="{{ annee }}">
         <input type="hidden" name="mois" value="{{ mois }}">
@@ -18,7 +19,8 @@
     </form>
     {% endif %}
 
-    {% if 'planning_reset_semaine' in get_view_functions() %}
+    <!-- Réinitialiser semaine - afficher seulement si les paramètres nécessaires existent -->
+    {% if annee is defined and mois is defined and semaine is defined and mode is defined and employeur is defined %}
     <form method="post" action="{{ url_for('banking.planning_reset_semaine') }}"
         onsubmit="return confirm('Réinitialiser toute la semaine ?')">
         <input type="hidden" name="annee" value="{{ annee }}">
@@ -107,9 +109,10 @@
                     {% for shift in shifts %}
                     {% if shift.heure_debut and shift.heure_fin %}
                     {% set shift_start = shift.heure_debut|int if shift.heure_debut is number else
-                    shift.heure_debut.split(':')[0]|int %}
+                    (shift.heure_debut.split(':')[0]|int if ':' in shift.heure_debut|string else shift.heure_debut|int)
+                    %}
                     {% set shift_end = shift.heure_fin|int if shift.heure_fin is number else
-                    shift.heure_fin.split(':')[0]|int %}
+                    (shift.heure_fin.split(':')[0]|int if ':' in shift.heure_fin|string else shift.heure_fin|int) %}
 
                     {% if hour >= shift_start and hour < shift_end %} {% set hour_has_shift=true %} <div style="
                             position: absolute;
@@ -160,7 +163,7 @@
                     "></div>
 {% endif %}
 
-<!-- Bouton pour ajouter un shift à cette heure -->
+<!-- Lien pour modifier le planning -->
 <div style="
                         position: absolute;
                         top: 0;
@@ -174,8 +177,7 @@
                         transition: opacity 0.2s;
                         z-index: 2;
                     " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
-    {% if 'planning_modifier_jour' in get_view_functions() %}
-    <a href="{{ url_for('banking.planning_modifier_jour') }}?employe_id={{ employe.id }}&date={{ day_key }}&heure={{ hour }}"
+    <a href="{{ url_for('banking.planning_modifier_jour') }}?employe_id={{ employe.id }}&date={{ day_key }}&heure={{ hour }}&annee={{ annee|default('') }}&mois={{ mois|default('') }}&semaine={{ semaine|default('') }}&mode={{ mode|default('') }}&employeur={{ employeur|default('') }}&id_contrat={{ id_contrat|default('') }}"
         style="
                                 background: rgba(0,0,0,0.1);
                                 border: 1px solid rgba(0,0,0,0.2);
@@ -192,7 +194,6 @@
                            " title="Modifier le planning à {{ hour }}h">
         +
     </a>
-    {% endif %}
 </div>
 </td>
 {% endfor %}
@@ -213,7 +214,7 @@
 <!-- Ligne pour le total par heure -->
 <tr style="background: #e3f2fd; font-weight: bold;">
     <td style="padding: 8px; border: 1px solid #ddd; position: sticky; left: 0; z-index: 5;">
-        Total par heure
+        Employés présents
     </td>
 
     {% for day in week_dates %}
@@ -227,8 +228,9 @@
         {% for shift in shifts %}
         {% if shift.heure_debut and shift.heure_fin %}
         {% set shift_start = shift.heure_debut|int if shift.heure_debut is number else
-        shift.heure_debut.split(':')[0]|int %}
-        {% set shift_end = shift.heure_fin|int if shift.heure_fin is number else shift.heure_fin.split(':')[0]|int %}
+        (shift.heure_debut.split(':')[0]|int if ':' in shift.heure_debut|string else shift.heure_debut|int) %}
+        {% set shift_end = shift.heure_fin|int if shift.heure_fin is number else (shift.heure_fin.split(':')[0]|int if
+        ':' in shift.heure_fin|string else shift.heure_fin|int) %}
         {% if hour >= shift_start and hour < shift_end %} {% set count_employes=count_employes + 1 %} {% endif %} {%
             endif %} {% endfor %} {% endfor %} {% if count_employes> 0 %}
             <span style="color: #1976D2;">{{ count_employes }}</span>
