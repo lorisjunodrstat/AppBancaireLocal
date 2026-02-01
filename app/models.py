@@ -7381,7 +7381,13 @@ class EcritureComptable:
             return True
         except ValueError:
             return False
-
+    @staticmethod
+    def _validate_date(date_str: str) -> bool:
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return True
+        except ValueError:
+            return False
     def _fetch_ecritures_by_type(self, user_id: int, date_from: str, date_to: str, type_ecriture: str) -> List[Dict]:
         with self.db.get_cursor() as cursor:
             cursor.execute("""
@@ -11653,9 +11659,11 @@ class Salaire:
                 
                 result = cursor.fetchone()
                 # Vérification robuste
-                if result is None or result[0] is None:
+                if result is None or 'total_salaire' not in result:
                     return 0.0
-                return float(result[0])
+            
+                total = result['total_salaire']
+                return float(total) if total is not None else 0.0
         except Exception as e:
             logger.error(f"Erreur get_salaire_employe_mois: {e}")
             return 0.0
