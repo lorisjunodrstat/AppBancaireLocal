@@ -8160,64 +8160,83 @@ def gestion_cotisations_indemnites(contrat_id, annee):
 @login_required
 def dashboard_employes():
     current_user_id = current_user.id
-    #Etape 1
-    entreprise_definie = g.models.entreprise_model.entreprise_exists_for_user(current_user_id)
-    if not entreprise_definie:
-        return redirect(url_for('banking.gestion_entreprise'))
-    #Etape 2 
-    # Vérifier si l'utilisateur a déjà défini des types de cotisations ou indemnités
-    contrat_model = g.models.contrat_model
-    if not contrat_model.user_has_types_cotisation_or_indemnite(current_user_id, cotisations_contrat_model=g.models.cotisations_contrat_model, indemnites_contrat_model=g.models.indemnites_contrat_model):
-        flash("Avant de gérer des employés, veuillez définir vos cotisations et indemnités dans la section Entreprise.", "info")
-        return redirect(url_for('banking.gestion_entreprise'))
-    #Etape 3 
-    cotisations_definies = g.models.cotisations_contrat_model.user_has_types_cotisation(current_user_id)
-    if cotisations_definies is None:
-        return redirect(url_for('banking.editer_type_cotisation'))
-    indemnites_definies = g.models.indemnites_contrat_model.user_has_types_indemnite(current_user_id)
-    if indemnites_definies is None:
-        return redirect(url_for('banking.editer_type_indemnite'))
-
-    # Etape 4
-
-    employes = g.models.employe_model.get_all_by_user(current_user_id)
-    all_employes = len(employes)
-    if all_employes == 0:
-        return redirect(url_for('banking.create_employe'))
-    has_equipe = g.models.employe_model.get_all_by_user(current_user_id)
-    if has_equipe is None:
-        return redirect(url_for('banking.create'))
     
+    # Étape 1: Vérifier si l'entreprise est définie
+    if not g.models.entreprise_model.entreprise_exists_for_user(current_user_id):
+        flash("Veuillez d'abord définir les informations de votre entreprise.", "info")
+        return redirect(url_for('banking.gestion_entreprise'))
+    
+    # Étape 2: Vérifier les types de cotisations et indemnités
+    contrat_model = g.models.contrat_model
+    has_cotisations_indemnites = contrat_model.user_has_types_cotisation_or_indemnite(
+        current_user_id, 
+        cotisations_contrat_model=g.models.cotisations_contrat_model, 
+        indemnites_contrat_model=g.models.indemnites_contrat_model
+    )
+    
+    if not has_cotisations_indemnites:
+        flash("Avant de gérer des employés, veuillez définir vos cotisations et indemnités.", "info")
+        return redirect(url_for('banking.gestion_entreprise'))
+    
+    # Étape 3: Vérifier spécifiquement les types définis
+    # Note: ces méthodes doivent retourner True/False, pas None
+    cotisations_definies = g.models.cotisations_contrat_model.user_has_types_cotisation(current_user_id)
+    indemnites_definies = g.models.indemnites_contrat_model.user_has_types_indemnite(current_user_id)
+    
+    if not cotisations_definies:
+        flash("Veuillez définir au moins un type de cotisation.", "info")
+        return redirect(url_for('banking.editer_type_cotisation'))
+    
+    if not indemnites_definies:
+        flash("Veuillez définir au moins un type d'indemnité.", "info")
+        return redirect(url_for('banking.editer_type_indemnite'))
+    
+    # Étape 4: Vérifier les employés
+    employes = g.models.employe_model.get_all_by_user(current_user_id)
+    
+    if not employes:  # Liste vide
+        flash("Vous n'avez pas encore d'employés. Créez votre premier employé.", "info")
+        return redirect(url_for('banking.create_employe'))
+    
+    # Récupérer le mois et l'année
     maintenant = datetime.now()
-    mois_request = request.args.get('mois')  # ← utiliser args (GET), pas form (POST)
+    mois_request = request.args.get('mois')
     annee_request = request.args.get('annee')
     
     if mois_request and annee_request:
-        mois = int(mois_request)
-        annee = int(annee_request)
+        try:
+            mois = int(mois_request)
+            annee = int(annee_request)
+        except (ValueError, TypeError):
+            mois = maintenant.month
+            annee = maintenant.year
     else:
         mois = maintenant.month
         annee = maintenant.year
-
-    heures_total_mois = 0
-    salaire_total_mois = 0
+    
+    # Calculer les totaux
+    heures_total_mois = 0.0
+    salaire_total_mois = 0.0
+    
     for employe in employes:
         heures = g.models.heure_model.get_heures_employe_mois(employe['id'], annee, mois)
         salaire = g.models.salaire_model.get_salaire_employe_mois(employe['id'], annee, mois)
         heures_total_mois += heures
         salaire_total_mois += salaire
-
+    
+    # Calculer le nombre total d'employés
+    all_employes = len(employes)
+    
     return render_template(
         'employes/dashboard.html',
         today=date.today(),
         all_employes=all_employes,
-        heures_total_mois=heures_total_mois,
-        salaire_total_mois=salaire_total_mois,
+        heures_total_mois=round(heures_total_mois, 2),
+        salaire_total_mois=round(salaire_total_mois, 2),
         employes=employes,
         mois=mois,
         annee=annee
     )
-
 # --- Types de cotisation ---
 @bp.route('/cotisations/types')
 @login_required

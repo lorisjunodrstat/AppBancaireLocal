@@ -11563,18 +11563,25 @@ class Salaire:
     #        return False
 
     def get_salaire_employe_mois(self, employe_id: int, annee: int, mois: int) -> float:
+        """
+        Récupère le salaire total d'un employé pour un mois donné
+        Retourne 0.0 si aucun salaire trouvé
+        """
         try:
             with self.db.get_cursor() as cursor:
+                # COALESCE retourne 0 si SUM retourne NULL
                 cursor.execute("""
-                    SELECT SUM(salaire_net) FROM salaires
+                    SELECT COALESCE(SUM(salaire_net), 0.0) 
+                    FROM salaires
                     WHERE employe_id = %s AND annee = %s AND mois = %s
                 """, (employe_id, annee, mois))
-                row = cursor.fetchone()
-                return float(row[0]) if row and row[0] else 0.0
+                
+                result = cursor.fetchone()
+                return float(result[0]) if result else 0.0
+                
         except Exception as e:
             logger.error(f"Erreur get_salaire_employe_mois: {e}")
             return 0.0
-
     def get_by_user_and_month_with_employe(self,user_id: int,annee: int,mois: int,employe_id: Optional[int] = None) -> List[Dict]:
         clause = "AND employe_id = %s" if employe_id is not None else "AND employe_id IS NULL"
         params = [user_id, annee, mois]
