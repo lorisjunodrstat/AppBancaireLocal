@@ -7573,7 +7573,7 @@ def update_salaire():
                 current_user_id, annee, mois, salaire_horaire, employeur, id_contrat, jour_estimation
             )
         if contrat.get('versement_10'):
-            acompte_10_estime = g.models.salaire_model.calculer_acompte_10(
+            acompte_10_estime = g.models.salaire_model.calculer_acompte_10(heure_model,
                 current_user_id, annee, mois, salaire_horaire, employeur, id_contrat, jour_estimation
             )
 
