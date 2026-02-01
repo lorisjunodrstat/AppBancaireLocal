@@ -8907,14 +8907,29 @@ def planning_employes():
 @login_required
 def planning_supprimer_jour():
     user_id = current_user.id
-    date_str = request.form['date']
-    employeur = request.form['employeur']
-    id_contrat = int(request.form['id_contrat'])
     
-    success = g.models.heure_model.delete_by_date(date_str, user_id, employeur, id_contrat)
-    flash("Jour supprimé." if success else "Rien à supprimer.", "warning")
-    return redirect(request.referrer or url_for('banking.planning_employes'))
-
+    try:
+        date_str = request.form.get('date')
+        employeur = request.form.get('employeur', '')
+        id_contrat_str = request.form.get('id_contrat', '0')
+        
+        if not date_str:
+            flash('Date manquante', 'error')
+            return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
+        
+        try:
+            id_contrat = int(id_contrat_str) if id_contrat_str else 0
+        except ValueError:
+            id_contrat = 0
+        
+        success = g.models.heure_model.delete_by_date(date_str, user_id, employeur, id_contrat)
+        flash("Jour supprimé." if success else "Rien à supprimer.", "warning" if success else "error")
+        
+    except Exception as e:
+        logger.error(f"Erreur suppression jour: {e}")
+        flash('Erreur lors de la suppression', 'error')
+    
+    return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
 # Exemple : copier → réutilise TON handle_copier_jour
 @bp.route('/planning/copier_jour', methods=['POST'])
 @login_required
@@ -9105,44 +9120,46 @@ def planning_sauvegarder_jour():
 @login_required
 def planning_ajouter_shift():
     user_id = current_user.id
-    data = {
-        'employe_id': request.form.get('employe_id'),
-        'date': request.form.get('date'),
-        'heure_debut': request.form.get('heure_debut'),
-        'heure_fin': request.form.get('heure_fin'),
-        'type_shift': request.form.get('type_shift', 'travail'),
-        'commentaire': request.form.get('commentaire', '')
-    }
-    
-    # Validation des données
-    if not all([data['employe_id'], data['date'], data['heure_debut'], data['heure_fin']]):
-        flash('Données manquantes', 'error')
-        return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
     
     try:
-        # Utiliser votre classe Planning pour créer le shift
+        # Récupérer les données du formulaire
+        data = {
+            'employe_id': request.form.get('employe_id'),
+            'date': request.form.get('date'),
+            'heure_debut': request.form.get('heure_debut'),
+            'heure_fin': request.form.get('heure_fin'),
+            'type_shift': request.form.get('type_shift', 'travail'),
+            'commentaire': request.form.get('commentaire', '')
+        }
+        
+        # Validation des données
+        required_fields = ['employe_id', 'date', 'heure_debut', 'heure_fin']
+        for field in required_fields:
+            if not data[field]:
+                flash(f'Champ "{field}" manquant', 'error')
+                return redirect(request.referrer or url_for('banking.planning_hebdomadaire'))
+        
+        # Ajouter l'user_id
+        data['user_id'] = user_id
+        
+        # Utiliser votre classe Planning si elle existe
         if hasattr(g.models, 'planning'):
             success = g.models.planning.creer_shift(data)
         else:
-            # Fallback si la classe Planning n'existe pas
+            # Alternative : utiliser votre modèle d'heures
             success = g.models.heure_model.creer_shift_simple(data)
         
         if success:
-            flash('Shift ajouté avec succès', 'success')
+            flash(f'Shift ajouté avec succès ({data["heure_debut"]} - {data["heure_fin"]})', 'success')
         else:
             flash('Erreur lors de l\'ajout du shift', 'error')
+            
     except Exception as e:
+        logger.error(f"Erreur ajout shift: {e}")
         flash(f'Erreur: {str(e)}', 'error')
     
-    # Redirection avec les paramètres
-    return redirect(url_for('banking.planning_hebdomadaire',
-        annee=request.form.get('annee'),
-        mois=request.form.get('mois'),
-        semaine=request.form.get('semaine'),
-        mode=request.form.get('mode'),
-        employeur=request.form.get('employeur'),
-        id_contrat=request.form.get('id_contrat') or ''
-    ))
+    # Redirection vers la page planning
+    return redirect(url_for('banking.planning_hebdomadaire'))
 @bp.route('/synthese/mensuelle')
 @login_required
 def synthese_mensuelle_employes():
