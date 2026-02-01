@@ -7629,7 +7629,7 @@ def recalculer_salaires():
 
     count = 0
     for sal in salaires:
-        if g.models.salaire_model.recalculer_salaire(g.models.heure_model, g.models.cotisations_contrat_model, g.models.indemnites_contrat_model, g.models.bareme_indemnite_model, sal['id'], contrat):
+        if g.models.salaire_model.recalculer_salaire(g.models.heure_model, g.models.cotisations_contrat_model, g.models.indemnites_contrat_model, g.models.bareme_indemnite_model,g.models.bareme_cotisation_model, sal['id'], contrat):
             count += 1
             logging.info(f'salaire corrigé : {salaires} - {sal}')
 

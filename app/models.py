@@ -766,6 +766,21 @@ class DatabaseManager:
                 FOREIGN KEY (type_indemnite_id) REFERENCES types_indemnite(id) ON DELETE CASCADE
                  );"""
                 cursor.execute(create_baremes_indemnite_table_query)
+                # baremes_cotisation
+                create_baremes_cotisation_table_query = """
+                CREATE TABLE IF NOT EXISTS baremes_cotisation (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                type_coti_id INT NOT NULL,
+                seuil_min DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                seuil_max DECIMAL(10,2) DEFAULT NULL,
+                montant_fixe DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                taux DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+                type_valeur ENUM('taux','fixe') NOT NULL DEFAULT 'fixe',
+                ordre INT NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (type_indemnite_id) REFERENCES types_indemnite(id) ON DELETE CASCADE
+                 );"""
+                cursor.execute(create_baremes_cotisation_table_query)
 
                 #plages_horaires
                 create_plages_horaires_table_query = """
