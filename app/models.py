@@ -11276,9 +11276,7 @@ class Salaire:
                 base_montant_float = to_float(base_montant_decimal)
                 
                 # CORRECTION : Récupérer le nom correctement
-                type_cotisation_id = item.get('type_cotisation_id')
-                info_type = type_cotisation_noms.get(type_cotisation_id, {})
-                nom_cotisation = info_type.get('nom', f"Cotisation {type_cotisation_id}")
+                nom_cotisation = item.get('nom_cotisation', f"Cotisation {item.get('type_cotisation_id', 'inconnue')}")
                 montant = cotisations_contrat_model.calculer_montant_cotisation(
                     bareme_cotisation_model,
                     type_cotisation_id=item['type_cotisation_id'],
