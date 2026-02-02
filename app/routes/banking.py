@@ -6301,7 +6301,7 @@ def handle_save_line(request, current_user_id, annee, mois, semaine, current_mod
     success = g.models.heure_model.create_or_update(data)
     logging.debug(f"banking 3112 DEBUG: Sauvegarde ligne pour {date_str} avec {data} avec succès={success}")
     if success:
-        flash('Heures enregistrées avec succès', 'success')
+        flash('Heures enregistrées avec succès avec {data}', 'success')
     else:
         flash(f'Erreur lors de l\'enregistrement avec {data}', 'danger')
     

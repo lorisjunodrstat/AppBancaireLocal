@@ -10155,18 +10155,22 @@ class HeureTravail:
             if not data or not isinstance(data, dict):
                 logger.error(f"_execute_create_or_update: data est None ou invalide: {data}")
                 return False
+                
             cleaned_data = self._clean_data(data)
+            
             if not cleaned_data or not isinstance(cleaned_data, dict):
                 logger.error(f"_execute_create_or_update: cleaned_data est None ou invalide: {cleaned_data}")
                 return False
+                
             required_fields = ['date', 'user_id', 'employeur', 'type_heures']
             missing_fields = [field for field in required_fields if field not in cleaned_data]
             if missing_fields:
                 logger.error(f"_execute_create_or_update: Champs manquants dans cleaned_data: {missing_fields}")
                 return False
+                
             try:
                 date_obj = datetime.fromisoformat(cleaned_data['date']).date()
-            except(ValueError, TypeError) as e:
+            except (ValueError, TypeError) as e:
                 logger.error(f"_execute_create_or_update: Format de date invalide pour {cleaned_data['date']}: {str(e)}")
                 return False
 
@@ -10183,7 +10187,7 @@ class HeureTravail:
                         OR (employe_id = %s)
                         ) 
                     AND type_heures = %s
-                """,(
+                """, (
                 date_obj,
                 cleaned_data['user_id'],
                 cleaned_data['employeur'],
@@ -10193,23 +10197,26 @@ class HeureTravail:
                 cleaned_data['type_heures']
             ))
             existing = cursor.fetchone()
+            
             if existing:
                 heure_travail_id = existing['id']
             else:
                 heure_travail_id = None
+                
             # Préparer les valeurs avec fallback
             values = {
                 'date': date_obj,
                 'user_id': cleaned_data['user_id'],
-                'employe_id' : cleaned_data['employe_id'],
+                'employe_id': cleaned_data['employe_id'],
                 'employeur': cleaned_data['employeur'],
                 'id_contrat': cleaned_data.get('id_contrat'),
                 'vacances': cleaned_data.get('vacances', False),
                 'type_heures': cleaned_data['type_heures'],
                 'jour_semaine': date_obj.strftime('%A'),
                 'semaine_annee': date_obj.isocalendar()[1],
-                'mois': date_obj.month  # Calculé plus tard
+                'mois': date_obj.month
             }
+            
             if heure_travail_id:
                 cursor.execute("""
                 UPDATE heures_travail
@@ -10218,86 +10225,41 @@ class HeureTravail:
                     jour_semaine = %(jour_semaine)s,
                     semaine_annee = %(semaine_annee)s,
                     mois = %(mois)s
-                    WHERE id = %(id)s
+                WHERE id = %(id)s
                 """, {**values, 'id': heure_travail_id})
             else:
                 cursor.execute("""
-                            INSERT INTO heures_travail
-                            (date, user_id, employe_id, employeur, id_contrat, type_heures, vacances, jour_semaine, semaine_annee, mois)
-                            VALUES (%(date)s, %(user_id)s, %(employe_id)s, %(employeur)s, %(id_contrat)s, %(type_heures)s, %(vacances)s, %(jour_semaine)s, %(semaine_annee)s, %(mois)s)
-                            """, values)
+                INSERT INTO heures_travail
+                (date, user_id, employe_id, employeur, id_contrat, type_heures, vacances, jour_semaine, semaine_annee, mois)
+                VALUES (%(date)s, %(user_id)s, %(employe_id)s, %(employeur)s, %(id_contrat)s, %(type_heures)s, %(vacances)s, %(jour_semaine)s, %(semaine_annee)s, %(mois)s)
+                """, values)
                 heure_travail_id = cursor.lastrowid
+            
+            # Gestion des plages horaires
             plages = cleaned_data.get('plages')
             if plages is not None:
                 self._update_plages_horaires(cursor, heure_travail_id, plages)
+            
+            # Calcul du total des heures
             try:
                 total_h = self.calculer_total_heures(heure_travail_id, cursor)
-            #self._update_plages_horaires(cursor, heure_travail_id, cleaned_data.get('plages', []))
-            
                 cursor.execute(
                     """
                     UPDATE heures_travail SET total_h = %s WHERE id = %s
-                    """,(total_h, heure_travail_id)
+                    """, (total_h, heure_travail_id)
                 )
             except Exception as calc_error:
                 logger.warning(f"Impossible de calculer le total des heures: {calc_error}")
-            # Continuer malgré l'erreur de calcul
-                logger.info(f"cursor executed create_or_update for heure_travail_id {heure_travail_id} with data: {cleaned_data}")
-                return True
+                # Continuer malgré l'erreur de calcul
+            
+            # ✅ LOG CORRECTEMENT PLACÉ - HORS DU BLOC EXCEPT
+            logger.info(f"create_or_update réussi pour heure_travail_id {heure_travail_id} avec données: {cleaned_data}")
+            return True
             
         except Exception as e:
-            logger.error(f"Erreur _execute_create_or_update: {str(e)}")
+            logger.error(f"Erreur _execute_create_or_update: {str(e)}", exc_info=True)
             return False
-
-            # Gestion des champs horaires avec protection
-            #for field in ['h1d', 'h1f', 'h2d', 'h2f']:
-            #    if field in cleaned_data:
-            #        values[field] = cleaned_data[field]
-            #    elif existing:
-            #        values[field] = existing.get(field)
-            #    else:
-            #        values[field] = None
-
-            # Calculer le total
-            #values['total_h'] = self.calculer_heures(
-            #    values.get('h1d'),
-            #    values.get('h1f'),
-            #    values.get('h2d'),
-            #    values.get('h2f')
-            #)
-
-            # Requête UPSERT unique
-            #upsert_query = """
-            #INSERT INTO heures_travail
-            #(date, user_id, employe_id, employeur, id_contrat, h1d, h1f, h2d, h2f, total_h, type_heures, vacances, jour_semaine, semaine_annee, mois)
-            #VALUES (%(date)s, %(user_id)s, %(employe_id)s, %(employeur)s, %(id_contrat)s, %(h1d)s, %(h1f)s, %(h2d)s, %(h2f)s, %(total_h)s, %(type_heures)s, %(vacances)s, %(jour_semaine)s, %(semaine_annee)s, %(mois)s)
-            #ON DUPLICATE KEY UPDATE
-            #    h1d = COALESCE(VALUES(h1d), h1d),
-            #    h1f = COALESCE(VALUES(h1f), h1f),
-            #    h2d = COALESCE(VALUES(h2d), h2d),
-            #    h2f = COALESCE(VALUES(h2f), h2f),
-            #    total_h = VALUES(total_h),
-            #    type_heures = VALUES(type_heures),         -- ✅
-            #    vacances = COALESCE(VALUES(vacances), vacances),
-            #    jour_semaine = VALUES(jour_semaine),
-            #    semaine_annee = VALUES(semaine_annee),
-            #    mois = VALUES(mois);
-            #"""
-
-            # Ajouter les métadonnées calculées
-            #values.update({
-            #    'jour_semaine': date_obj.strftime('%A'),
-            #    'semaine_annee': date_obj.isocalendar()[1],
-            #    'mois': date_obj.month
-            #})
-
-            #cursor.execute(upsert_query, values)
-            #return True
-
-        #except Exception as e:
-        #    logger.error(f"Erreur _execute_create_or_update: {str(e)}")
-        #    return False
-
+        
     def _update_plages_horaires(self, cursor, heure_travail_id: int, plages: List[Dict]) -> None:
         """Met à jour les plages horaires associées à un enregistrement de travail"""
         try:
@@ -10318,24 +10280,37 @@ class HeureTravail:
             raise
 
     def _clean_data(self, data: dict) -> dict:
+        """Nettoie et valide les données avant traitement - version sécurisée sans exceptions"""
+        # Vérification initiale des données
+        if not data or not isinstance(data, dict):
+            logger.error(f"_clean_data: données invalides reçues (type: {type(data)}): {data}")
+            return {}
+        
         cleaned = data.copy()
-
-        if 'plages' in cleaned:
+        
+        # Nettoyage des plages horaires au format moderne [{'debut': '08:00', 'fin': '12:00'}, ...]
+        if 'plages' in cleaned and isinstance(cleaned['plages'], list):
             plages_nettoyees = []
             for plage in cleaned['plages']:
+                if not isinstance(plage, dict):
+                    continue
                 plage_clean = {
                     'debut': str(plage.get('debut', '')).strip() or None,
                     'fin': str(plage.get('fin', '')).strip() or None
                 }
+                # Ne garder la plage que si au moins un champ est rempli
                 if plage_clean['debut'] or plage_clean['fin']:
                     plages_nettoyees.append(plage_clean)
             cleaned['plages'] = plages_nettoyees
-        if 'plages' not in cleaned or not cleaned['plages']:
+        else:
+            # Conversion depuis l'ancien format h1d/h1f/h2d/h2f si présent
             cleaned['plages'] = []
             time_fields = ['h1d', 'h1f', 'h2d', 'h2f']
             field_values = {}
             for field in time_fields:
-                field_values[field] = str(cleaned.get(field, '')).strip() or None
+                val = cleaned.get(field)
+                field_values[field] = str(val).strip() if val else None
+            
             if field_values['h1d'] or field_values['h1f']:
                 cleaned['plages'].append({
                     'debut': field_values['h1d'],
@@ -10344,68 +10319,69 @@ class HeureTravail:
             if field_values['h2d'] or field_values['h2f']:
                 cleaned['plages'].append({
                     'debut': field_values['h2d'],
-                    'fin' : field_values['h2f']
+                    'fin': field_values['h2f']
                 })
+        
+        # Normalisation du champ 'vacances'
         if 'vacances' in cleaned:
             cleaned['vacances'] = bool(cleaned['vacances'])
-        if 'employe_id' in cleaned:
-            if cleaned['employe_id'] is not None:
+        else:
+            cleaned['vacances'] = False
+        
+        # Normalisation du champ 'employe_id'
+        if 'employe_id' in cleaned and cleaned['employe_id'] is not None:
+            try:
                 cleaned['employe_id'] = int(cleaned['employe_id'])
+            except (ValueError, TypeError):
+                logger.warning(f"_clean_data: employe_id invalide '{cleaned['employe_id']}', mis à None")
+                cleaned['employe_id'] = None
         else:
             cleaned['employe_id'] = None
-        cleaned['type_heures'] = cleaned.get('type_heures', 'reelles')
+        
+        # Normalisation du champ 'type_heures'
+        cleaned['type_heures'] = str(cleaned.get('type_heures', 'reelles')).strip().lower()
         if cleaned['type_heures'] not in ('reelles', 'simulees'):
+            logger.warning(f"_clean_data: type_heures invalide '{cleaned['type_heures']}', corrigé en 'reelles'")
             cleaned['type_heures'] = 'reelles'
+        
+        # ✅ VALIDATION SÉCURISÉE DES CHAMPS OBLIGATOIRES (sans lever d'exception)
         required_fields = ['user_id', 'date', 'employeur', 'id_contrat']
+        missing_fields = []
+        
         for field in required_fields:
             if field not in cleaned or cleaned[field] is None or cleaned[field] == '':
-                raise ValueError(f"{field} manquant dans les données")
+                logger.error(f"_clean_data: champ obligatoire manquant ou vide: '{field}'")
+                missing_fields.append(field)
         
-        # CORRECTION : id_contrat est requis mais peut être 0
-        if 'id_contrat' not in cleaned:
-            raise ValueError("id_contrat manquant dans les données")
+        if missing_fields:
+            logger.error(f"_clean_data: échec de validation - champs manquants: {missing_fields}")
+            return {}  # Retourner un dict vide pour signaler l'échec
         
-        # S'assurer que id_contrat est un entier (même 0)
+        # Conversion sécurisée de id_contrat en entier
         try:
-            cleaned['id_contrat'] = int(cleaned['id_contrat']) if cleaned['id_contrat'] is not None else 0
+            cleaned['id_contrat'] = int(cleaned['id_contrat'])
         except (ValueError, TypeError):
-            cleaned['id_contrat'] = 0
-
-        # Nettoyer uniquement les champs time présents
-        #time_fields = ['h1d', 'h1f', 'h2d', 'h2f']
-        #for field in time_fields:
-        #    if field in cleaned:
-        #        value = str(cleaned[field]).strip()
-        #        cleaned[field] = value if value else None
-
-        # Normaliser le champ vacances si présent
-        #if 'vacances' in cleaned:
-        #    cleaned['vacances'] = bool(cleaned['vacances'])
-        #if 'employe_id' in cleaned:
-        # Accepte None ou un entier
-        #    if cleaned['employe_id'] is not None:
-        #        cleaned['employe_id'] = int(cleaned['employe_id'])
-        #else:
-        #    cleaned['employe_id'] = None
-
-        # type_heures : 'reelles' ou 'simulees'
-        #cleaned['type_heures'] = cleaned.get('type_heures', 'reelles')
-        #if cleaned['type_heures'] not in ('reelles', 'simulees'):
-        #    cleaned['type_heures'] = 'reelles'
-
-        # Validation des champs obligatoires
-        #if 'user_id' not in cleaned or cleaned['user_id'] is None:
-        #    raise ValueError("user_id manquant dans les données")
-
-        #if 'date' not in cleaned or not cleaned['date']:
-        #    raise ValueError("date manquante dans les données")
-        #if 'employeur' not in cleaned or not cleaned['employeur']:
-        #    raise ValueError("employeur manquant dans les données")
-        #if 'id_contrat' not in cleaned or cleaned['id_contrat'] is None:
-        #    raise ValueError("id_contrat manquant dans les données")
-
-        #return cleaned
-
+            logger.error(f"_clean_data: id_contrat invalide '{cleaned.get('id_contrat')}', ne peut pas convertir en entier")
+            return {}
+        
+        # Conversion sécurisée de user_id en entier
+        try:
+            cleaned['user_id'] = int(cleaned['user_id'])
+        except (ValueError, TypeError):
+            logger.error(f"_clean_data: user_id invalide '{cleaned.get('user_id')}', ne peut pas convertir en entier")
+            return {}
+        
+        # Nettoyage final de la date (s'assurer que c'est une chaîne ISO)
+        if not isinstance(cleaned['date'], str):
+            try:
+                cleaned['date'] = str(cleaned['date'])
+            except:
+                logger.error(f"_clean_data: date invalide '{cleaned.get('date')}'")
+                return {}
+        
+        logger.debug(f"_clean_data: données nettoyées avec succès: {cleaned}")
+        return cleaned
+    
     def calculer_total_heures(self, heure_travail_id: int, cursor)-> float:
         """Calcule le total des heures à partir des plages"""
         def time_to_seconds(val) -> int:
