@@ -6299,6 +6299,7 @@ def handle_save_line(request, current_user_id, annee, mois, semaine, current_mod
     }
     
     success = g.models.heure_model.create_or_update(data)
+    logging.debug(f"banking 3112 DEBUG: Sauvegarde ligne pour {date_str} avec {data} avec succès={success}")
     if success:
         flash('Heures enregistrées avec succès', 'success')
     else:
@@ -7205,6 +7206,18 @@ def salaires():
                     mois=m,
                     jour_estimation=jour_estimation
                 )
+                print("=== STRUCTURE DES DONNÉES ===")
+                print(f"Keys de result: {result.keys()}")
+                print(f"Keys de details: {result.get('details', {}).keys()}")
+                print(f"Indemnités: {result.get('details', {}).get('indemnites', {})}")
+                print(f"Cotisations: {result.get('details', {}).get('cotisations', {})}")
+                # Vérifiez les indemnités configurées
+                indemnites_contrat = g.models.indemnites_contrat_model.get_by_contrat(id_contrat)
+                print(f"Indemnités contrat: {indemnites_contrat}")
+
+                # Vérifiez les cotisations configurées  
+                cotisations_contrat = g.models.cotisations_contrat_model.get_by_contrat(id_contrat)
+                print(f"Cotisations contrat: {cotisations_contrat}")
                 salaire_net = result.get('salaire_net', 0.0)
                 salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
                 details = result
@@ -9206,7 +9219,7 @@ def planning_ajouter_shift():
         
         # Gérer id_contrat
         try:
-            id_contrat = int(id_contrat_str) if id_contrat_str else 0
+            id_contrat = int(id_contrat_str) if id_contrat_str and id_contrat_str != '' else 0
         except ValueError:
             id_contrat = 0
             flash('ID contrat invalide, utilisation de la valeur par défaut (0)', 'warning')
@@ -9245,6 +9258,7 @@ def planning_ajouter_shift():
     
     # Redirection vers la page planning
     return redirect(url_for('banking.planning_hebdomadaire'))
+
 @bp.route('/synthese/mensuelle')
 @login_required
 def synthese_mensuelle_employes():
