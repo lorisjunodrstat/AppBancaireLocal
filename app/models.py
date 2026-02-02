@@ -10152,8 +10152,23 @@ class HeureTravail:
     def _execute_create_or_update(self, data: dict, cursor) -> bool:
         """Logique centrale de création/mise à jour"""
         try:
+            if not data or not isinstance(data, dict):
+                logger.error(f"_execute_create_or_update: data est None ou invalide: {data}")
+                return False
             cleaned_data = self._clean_data(data)
-            date_obj = datetime.fromisoformat(cleaned_data['date']).date()
+            if not cleaned_data or not isinstance(cleaned_data, dict):
+                logger.error(f"_execute_create_or_update: cleaned_data est None ou invalide: {cleaned_data}")
+                return False
+            required_fields = ['date', 'user_id', 'employeur', 'type_heures']
+            missing_fields = [field for field in required_fields if field not in cleaned_data]
+            if missing_fields:
+                logger.error(f"_execute_create_or_update: Champs manquants dans cleaned_data: {missing_fields}")
+                return False
+            try:
+                date_obj = datetime.fromisoformat(cleaned_data['date']).date()
+            except(ValueError, TypeError) as e:
+                logger.error(f"_execute_create_or_update: Format de date invalide pour {cleaned_data['date']}: {str(e)}")
+                return False
 
             # Vérifier si l'enregistrement existe déjà
             cursor.execute(
@@ -10212,15 +10227,20 @@ class HeureTravail:
                             VALUES (%(date)s, %(user_id)s, %(employe_id)s, %(employeur)s, %(id_contrat)s, %(type_heures)s, %(vacances)s, %(jour_semaine)s, %(semaine_annee)s, %(mois)s)
                             """, values)
                 heure_travail_id = cursor.lastrowid
-            self._update_plages_horaires(cursor, heure_travail_id, cleaned_data.get('plages', []))
-            total_h = self.calculer_total_heures(heure_travail_id, cursor)
-            cursor.execute(
-                """
-                UPDATE heures_travail SET total_h = %s WHERE id = %s
-                """,(total_h, heure_travail_id)
-            )
-            logger.info(f"cursor executed create_or_update for heure_travail_id {heure_travail_id} with data: {cleaned_data}")
-            return True
+            plages = cleaned_data.get('plages')
+            if plages is not None:
+                self._update_plages_horaires(cursor, heure_travail_id, plages)
+            try:
+                total_h = self.calculer_total_heures(heure_travail_id, cursor)
+            #self._update_plages_horaires(cursor, heure_travail_id, cleaned_data.get('plages', []))
+            
+                cursor.execute(
+                    """
+                    UPDATE heures_travail SET total_h = %s WHERE id = %s
+                    """,(total_h, heure_travail_id)
+                )
+                logger.info(f"cursor executed create_or_update for heure_travail_id {heure_travail_id} with data: {cleaned_data}")
+                return True
         except Exception as e:
             logger.error(f"Erreur _execute_create_or_update: {str(e)}")
             return False
