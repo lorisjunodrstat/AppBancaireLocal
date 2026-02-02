@@ -10337,9 +10337,18 @@ class HeureTravail:
             cleaned['type_heures'] = 'reelles'
         required_fields = ['user_id', 'date', 'employeur', 'id_contrat']
         for field in required_fields:
-            if field not in cleaned or not cleaned[field]:
+            if field not in cleaned or cleaned[field] is None or cleaned[field] == '':
                 raise ValueError(f"{field} manquant dans les données")
-        return cleaned
+        
+        # CORRECTION : id_contrat est requis mais peut être 0
+        if 'id_contrat' not in cleaned:
+            raise ValueError("id_contrat manquant dans les données")
+        
+        # S'assurer que id_contrat est un entier (même 0)
+        try:
+            cleaned['id_contrat'] = int(cleaned['id_contrat']) if cleaned['id_contrat'] is not None else 0
+        except (ValueError, TypeError):
+            cleaned['id_contrat'] = 0
 
         # Nettoyer uniquement les champs time présents
         #time_fields = ['h1d', 'h1f', 'h2d', 'h2f']
