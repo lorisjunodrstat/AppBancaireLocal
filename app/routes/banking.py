@@ -7212,11 +7212,11 @@ def salaires():
                 print(f"Indemnités: {result.get('details', {}).get('indemnites', {})}")
                 print(f"Cotisations: {result.get('details', {}).get('cotisations', {})}")
                 # Vérifiez les indemnités configurées
-                indemnites_contrat = g.models.indemnites_contrat_model.get_by_contrat(id_contrat)
+                indemnites_contrat = g.models.indemnites_contrat_model.get_for_contrat(id_contrat)
                 print(f"Indemnités contrat: {indemnites_contrat}")
 
                 # Vérifiez les cotisations configurées  
-                cotisations_contrat = g.models.cotisations_contrat_model.get_by_contrat(id_contrat)
+                cotisations_contrat = g.models.cotisations_contrat_model.get_for_contrat(id_contrat)
                 print(f"Cotisations contrat: {cotisations_contrat}")
                 salaire_net = result.get('salaire_net', 0.0)
                 salaire_calcule = result.get('details', {}).get('salaire_brut', 0.0)
