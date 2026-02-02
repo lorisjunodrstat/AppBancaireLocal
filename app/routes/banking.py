@@ -6303,7 +6303,7 @@ def handle_save_line(request, current_user_id, annee, mois, semaine, current_mod
     if success:
         flash('Heures enregistrées avec succès', 'success')
     else:
-        flash('Erreur lors de l\'enregistrement', 'danger')
+        flash(f'Erreur lors de l\'enregistrement avec {data}', 'danger')
     
     return redirect(url_for('banking.heures_travail',
                             annee=annee, mois=mois, semaine=semaine,
