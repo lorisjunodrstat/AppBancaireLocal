@@ -10239,8 +10239,12 @@ class HeureTravail:
                     UPDATE heures_travail SET total_h = %s WHERE id = %s
                     """,(total_h, heure_travail_id)
                 )
+            except Exception as calc_error:
+                logger.warning(f"Impossible de calculer le total des heures: {calc_error}")
+            # Continuer malgré l'erreur de calcul
                 logger.info(f"cursor executed create_or_update for heure_travail_id {heure_travail_id} with data: {cleaned_data}")
                 return True
+            
         except Exception as e:
             logger.error(f"Erreur _execute_create_or_update: {str(e)}")
             return False
