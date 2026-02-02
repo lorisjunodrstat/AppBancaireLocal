@@ -691,8 +691,12 @@
                     </div>
                     <div class="card-body">
                         {% set indemnites = details_calcul.get('indemnites', {}) %}
+                        {% if not indemnites or indemnites is string %}
+                        {% set indemnites = {} %}
+                        {% endif %}
+                
                         {% set has_active_indemnites = false %}
-
+                
                         {% for key, info in indemnites.items() %}
                         {% if info.actif and info.montant > 0 %}
                         {% set has_active_indemnites = true %}
@@ -700,19 +704,21 @@
                             <div class="col-md-7">
                                 <div class="calcul-ligne">
                                     <i class="fas fa-gift me-2"></i>
-                                    <span>{{ info.nom }}</span>
+                                    <span>{{ info.nom if info.nom else key }}</span>
                                 </div>
                             </div>
                             <div class="col-md-2 text-center">
-                                <span class="text-muted small">({{ "%.2f"|format(info.get('taux', 0)) }}%)</span>
+                                <span class="text-muted small">
+                                    ({{ "%.2f"|format(info.get('taux', 0) or 0) }}%)
+                                </span>
                             </div>
                             <div class="col-md-3 text-end">
-                                <span class="text-success">+ {{ "%.2f"|format(info.get('montant', 0)) }} CHF</span>
+                                <span class="text-success">+ {{ "%.2f"|format(info.get('montant', 0) or 0) }} CHF</span>
                             </div>
                         </div>
                         {% endif %}
                         {% endfor %}
-
+                
                         {% if not has_active_indemnites %}
                         <div class="text-center text-muted">
                             <i class="fas fa-info-circle me-2"></i>
@@ -728,7 +734,7 @@
                             </div>
                             <div class="col-md-3 text-end">
                                 <span class="fw-bold text-success">+ {{
-                                    "%.2f"|format(details_calcul.get('total_indemnites', 0)) }} CHF</span>
+                                    "%.2f"|format(details_calcul.get('total_indemnites', 0) or 0) }} CHF</span>
                             </div>
                         </div>
                         {% endif %}
@@ -738,36 +744,39 @@
                 <!-- Section cotisations -->
                 <div class="detail-calcul-section card mb-4">
                     <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="fas fa-minus-circle me-2"></i> Cotisations sociales (déduites du
-                            salaire)</h5>
+                        <h5 class="mb-0"><i class="fas fa-minus-circle me-2"></i> Cotisations sociales (déduites du salaire)</h5>
                     </div>
                     <div class="card-body">
                         {% set cotisations = details_calcul.get('cotisations', {}) %}
+                        {% if not cotisations or cotisations is string %}
+                        {% set cotisations = {} %}
+                        {% endif %}
+                
                         {% set has_active_cotisations = false %}
-
+                
                         {% for key, info in cotisations.items() %}
-                        {% if info.montant > 0 %}
+                        {% if info.montant and info.montant > 0 %}
                         {% set has_active_cotisations = true %}
                         <div class="row mb-3">
                             <div class="col-md-7">
                                 <div class="calcul-ligne">
                                     <i class="fas fa-university me-2"></i>
-                                    <span>{{ info.nom }}</span>
+                                    <span>{{ info.nom if info.nom else key }}</span>
                                 </div>
                             </div>
                             <div class="col-md-2 text-center">
                                 <span class="text-muted small">
-                                    ({{ "%.2f"|format(info.taux|default(0)) }}{{ ' CHF' if info.taux|default(0) >= 10
-                                    else '%' }})
+                                    ({{ "%.2f"|format(info.get('taux', 0) or 0) }}{{ ' CHF' if (info.get('taux', 0) or 0) >= 10 else '%'
+                                    }})
                                 </span>
                             </div>
                             <div class="col-md-3 text-end">
-                                <span class="text-danger">- {{ "%.2f"|format(info.get('montant', 0)) }} CHF</span>
+                                <span class="text-danger">- {{ "%.2f"|format(info.get('montant', 0) or 0) }} CHF</span>
                             </div>
                         </div>
                         {% endif %}
                         {% endfor %}
-
+                
                         {% if not has_active_cotisations %}
                         <div class="text-center text-muted">
                             <i class="fas fa-info-circle me-2"></i>
@@ -783,7 +792,7 @@
                             </div>
                             <div class="col-md-3 text-end">
                                 <span class="fw-bold text-danger">- {{
-                                    "%.2f"|format(details_calcul.get('total_cotisations', 0)) }} CHF</span>
+                                    "%.2f"|format(details_calcul.get('total_cotisations', 0) or 0) }} CHF</span>
                             </div>
                         </div>
                         {% endif %}
