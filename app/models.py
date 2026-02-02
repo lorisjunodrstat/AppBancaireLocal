@@ -10142,8 +10142,10 @@ class HeureTravail:
             try:
                 with self.db.get_cursor(commit=True) as new_cursor:
                     success = self._execute_create_or_update(data, new_cursor)
+                    logger.info(f"create_or_update executed with success: {success} avec {data}")
                     return success
             except Exception as e:
+                logger.info(f"create_or_update executed with: {success} avec {data}")
                 logger.error(f"Impossible d'obtenir une connexion ou erreur d'exécution: {str(e)}")
                 return False
 
@@ -10217,6 +10219,7 @@ class HeureTravail:
                 UPDATE heures_travail SET total_h = %s WHERE id = %s
                 """,(total_h, heure_travail_id)
             )
+            logger.info(f"cursor executed create_or_update for heure_travail_id {heure_travail_id} with data: {cleaned_data}")
             return True
         except Exception as e:
             logger.error(f"Erreur _execute_create_or_update: {str(e)}")
