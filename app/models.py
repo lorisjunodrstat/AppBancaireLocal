@@ -9100,6 +9100,7 @@ class CotisationContrat:
                 WHERE cc.contrat_id = %s AND cc.annee = %s
                 """
                 cursor.execute(query,(contrat_id, annee))
+
                 return cursor.fetchall()
         except Exception as e:
             logger.error(f"Erreur récupération cotisation contrat {contrat_id} pour annee {annee} : {e}")
@@ -9364,13 +9365,6 @@ class CotisationContrat:
             cursor.execute("SELECT id, nom FROM types_cotisation ORDER BY nom")
             return cursor.fetchall()
 
-    def get_for_contrat_and_annee(self, contrat_id, annee):
-        with self.db.get_cursor(dictionary=True) as cursor:
-            cursor.execute("""
-                SELECT * FROM cotisations_contrat 
-                WHERE contrat_id = %s AND annee = %s
-            """, (contrat_id, annee))
-            return cursor.fetchall()
 
     def user_has_types_cotisation(self, user_id: int) -> bool:
         """Vérifie si l'utilisateur a défini des types de cotisations"""
