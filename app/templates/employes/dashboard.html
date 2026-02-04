@@ -82,26 +82,40 @@
 
 <!-- === RÉSUMÉ MENSUEL === -->
 {% if employes %}
-<p>Nombre total d'employés : {{ all_employes }}</p>
-<p>Mois : {{ mois }} / {{ annee }}</p>
-<p>Heures totales : {{ "%.2f"|format(heures_total_mois) }} h</p>
-<p>Salaire total : {{ "%.2f"|format(salaire_total_mois) }} CHF</p>
+<div class="card" style="padding: 1rem; margin-bottom: 2rem;">
+    <div class="card-header">
+        <h3>Résumé du mois</h3>
+    </div>
+    <div class="card-body">
+        <p>Nombre total d'employés : <strong>{{ all_employes }}</strong></p>
+        <p>Mois : <strong>{{ mois }}</strong> / {{ annee }}</p>
+        <p>Heures totales : <strong>{{ "%.2f"|format(heures_total_mois) }} h</strong></p>
+        <p>Salaire total : <strong>{{ "%.2f"|format(salaire_total_mois) }} CHF</strong></p>
+    </div>
+</div>
 
 <!-- CORRECTION : changer les noms des champs -->
-<form method="get" style="margin: 1rem 0;">
-    <label>Mois :
-        <select name="mois"> <!-- ← CORRECTION : "mois" pas "date_dashboard_mois" -->
-            {% for m in range(1,13) %}
-            <option value="{{ m }}" {% if m==mois %}selected{% endif %}>{{ m }}</option>
-            {% endfor %}
-        </select>
-    </label>
-    <label>Année :
-        <input type="number" name="annee" value="{{ annee }}" min="2020" max="2030">
-        <!-- ← CORRECTION : "annee" pas "date_dashboard_annee" -->
-    </label>
-    <button type="submit" class="btn btn-secondary">Actualiser</button>
-</form>
+ <div class="card">
+    <div class="card-header">
+        <h3>Filtrer par mois et année</h3>
+    </div>
+    <div class="card-body">
+        <form method="get" style="margin: 1rem 0;">
+            <label>Mois :
+                <select name="mois"> <!-- ← CORRECTION : "mois" pas "date_dashboard_mois" -->
+                    {% for m in range(1,13) %}
+                    <option value="{{ m }}" {% if m==mois %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Année :
+                <input type="number" name="annee" value="{{ annee }}" min="2020" max="2030">
+                <!-- ← CORRECTION : "annee" pas "date_dashboard_annee" -->
+            </label>
+            <button type="submit" class="btn btn-secondary">Actualiser</button>
+        </form>
+    </div>
+</div>
 {% endif %}
 
 <!-- === ACTIONS RAPIDES === -->

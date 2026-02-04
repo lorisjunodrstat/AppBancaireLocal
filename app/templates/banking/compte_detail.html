@@ -1039,19 +1039,122 @@
                         </div>
 
                         <!-- Pagination -->
-                        {% if mouvements|length >= 20 %}
-                        <nav aria-label="Page navigation">
+                        <!-- 🔥 Sélecteur d'éléments par page -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <strong>{{ total_mouvements }} mouvement{{ 's' if total_mouvements > 1 else '' }}</strong>
+                            </div>
+                            <div>
+                                <label for="per_page_select" class="form-label mb-0 me-2">Afficher :</label>
+                                <select id="per_page_select" class="form-select d-inline-block w-auto"
+                                    onchange="window.location.href=this.value">
+                                    {% for val in [10, 20, 50, 100] %}
+                                    <option value="{{ url_for('banking.banking_compte_detail', compte_id=compte.id, 
+                                                               page=1, 
+                                                               per_page=val,
+                                                               sort=sort,
+                                                               filter_type=filter_type,
+                                                               filter_min_amount=filter_min_amount,
+                                                               filter_max_amount=filter_max_amount,
+                                                               search=search_query,
+                                                               filter_categorie=filter_categorie,
+                                                               periode=periode_selectionnee,
+                                                               date_debut=date_debut_selected,
+                                                               date_fin=date_fin_selected,
+                                                               mois_select=mois_selected,
+                                                               annee_select=annee_selected) }}" {% if per_page==val %}selected{% endif %}>
+                                        {{ val }} par page
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- 🔥 PAGINATION DYNAMIQUE -->
+                        {% if total_pages > 1 %}
+                        <nav aria-label="Pagination des mouvements" class="mt-4">
                             <ul class="pagination justify-content-center">
-                                <li class="page-item disabled">
-                                    <a class="page-link" href="#" tabindex="-1">Précédent</a>
+                                <!-- Bouton Précédent -->
+                                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id, 
+                                                      page=page-1, 
+                                                      per_page=per_page,
+                                                      sort=sort,
+                                                      filter_type=filter_type,
+                                                      filter_min_amount=filter_min_amount,
+                                                      filter_max_amount=filter_max_amount,
+                                                      search=search_query,
+                                                      filter_categorie=filter_categorie,
+                                                      periode=periode_selectionnee,
+                                                      date_debut=date_debut_selected,
+                                                      date_fin=date_fin_selected,
+                                                      mois_select=mois_selected,
+                                                      annee_select=annee_selected) }}" tabindex="-1">
+                                        <span aria-hidden="true">&laquo;</span> Précédent
+                                    </a>
                                 </li>
-                                <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                                <li class="page-item"><a class="page-link" href="#">2</a></li>
-                                <li class="page-item"><a class="page-link" href="#">3</a></li>
-                                <li class="page-item">
-                                    <a class="page-link" href="#">Suivant</a>
+                        
+                                <!-- Pages numérotées avec ellipsis -->
+                                {% for p in range(1, total_pages + 1) %}
+                                {% if p == page %}
+                                <!-- Page active -->
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ p }} <span class="sr-only">(current)</span></span>
                                 </li>
+                                {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %} <!-- Pages visibles : première,
+                                    dernière, et autour de la page active -->
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id, 
+                                                              page=p, 
+                                                              per_page=per_page,
+                                                              sort=sort,
+                                                              filter_type=filter_type,
+                                                              filter_min_amount=filter_min_amount,
+                                                              filter_max_amount=filter_max_amount,
+                                                              search=search_query,
+                                                              filter_categorie=filter_categorie,
+                                                              periode=periode_selectionnee,
+                                                              date_debut=date_debut_selected,
+                                                              date_fin=date_fin_selected,
+                                                              mois_select=mois_selected,
+                                                              annee_select=annee_selected) }}">
+                                            {{ p }}
+                                        </a>
+                                    </li>
+                                    {% elif p == page - 3 or p == page + 3 %}
+                                    <!-- Ellipsis -->
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                        
+                                    <!-- Bouton Suivant -->
+                                    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                                        <a class="page-link" href="{{ url_for('banking.banking_compte_detail', compte_id=compte.id, 
+                                                      page=page+1, 
+                                                      per_page=per_page,
+                                                      sort=sort,
+                                                      filter_type=filter_type,
+                                                      filter_min_amount=filter_min_amount,
+                                                      filter_max_amount=filter_max_amount,
+                                                      search=search_query,
+                                                      filter_categorie=filter_categorie,
+                                                      periode=periode_selectionnee,
+                                                      date_debut=date_debut_selected,
+                                                      date_fin=date_fin_selected,
+                                                      mois_select=mois_selected,
+                                                      annee_select=annee_selected) }}">
+                                            Suivant <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
                             </ul>
+                        
+                            <!-- Info sur la pagination -->
+                            <div class="text-center text-muted small mt-2">
+                                Page {{ page }} sur {{ total_pages }} •
+                                {{ total_mouvements }} mouvement{{ 's' if total_mouvements > 1 else '' }} au total
+                            </div>
                         </nav>
                         {% endif %}
 

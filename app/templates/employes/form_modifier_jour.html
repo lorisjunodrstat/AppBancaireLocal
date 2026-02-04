@@ -1,50 +1,64 @@
 {{ extends "base.html" }}
 
-{{ block "title" }}Modifier le jour {{ date }}{{ endblock }}
+{{ block title }}Modifier le jour {{ date }}{{ endblock }}
 
-{{ block "content" }}
-
-<h2>Modifier le jour {{ date }}</h2>
-
-<form method="post" action="{{ url_for('banking.planning_sauvegarder_jour') }}">
-  <input type="hidden" name="date" value="{{ date }}">
-  <input type="hidden" name="employe_id" value="{{ employe_id }}">
-  <input type="hidden" name="annee" value="{{ annee }}">
-  <input type="hidden" name="mois" value="{{ mois }}">
-  <input type="hidden" name="semaine" value="{{ semaine }}">
-  <input type="hidden" name="mode" value="{{ mode }}">
-  <input type="hidden" name="employeur" value="{{ employeur }}">
-  <input type="hidden" name="id_contrat" value="{{ id_contrat }}">
-
-  <div class="mb-3">
-    <label>
-      <input type="checkbox" name="vacances" {% if data.vacances %}checked{% endif %}>
-      Journée de vacances
-    </label>
+{{ block content }}
+<div class="container-fluid">
+  <div class="row mb-3">
+    <div class="col">
+      <a href="{{ url_for('banking.planning_employes', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat) }}">← Retour au planning des employés</a>
+    </div>
   </div>
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title">Modifier le jour {{ date }} pour {{ employe_nom }}</h5>
+    </div>
+    <div class="card-body">
+      <p>Modifier les informations de planning pour cet employé.</p>
+      <h2>Modifier le jour {{ date }}</h2>
 
-  <h4>Plages horaires</h4>
+      <form method="post" action="{{ url_for('banking.planning_sauvegarder_jour') }}">
+        <input type="hidden" name="date" value="{{ date }}">
+        <input type="hidden" name="employe_id" value="{{ employe_id }}">
+        <input type="hidden" name="annee" value="{{ annee }}">
+        <input type="hidden" name="mois" value="{{ mois }}">
+        <input type="hidden" name="semaine" value="{{ semaine }}">
+        <input type="hidden" name="mode" value="{{ mode }}">
+        <input type="hidden" name="employeur" value="{{ employeur }}">
+        <input type="hidden" name="id_contrat" value="{{ id_contrat }}">
 
-  <!-- Plage 1 -->
-  <div class="mb-2">
-    <label>Plage 1 :</label>
-    <input type="time" name="plage1_debut" value="{{ data.plages[0].debut if data.plages|length > 0 else '' }}" style="width: 100px;">
-    →
-    <input type="time" name="plage1_fin" value="{{ data.plages[0].fin if data.plages|length > 0 else '' }}" style="width: 100px;">
+        <div class="mb-3">
+          <label>
+            <input type="checkbox" name="vacances" {% if data.vacances %}checked{% endif %}>
+            Journée de vacances
+          </label>
+        </div>
+
+        <h4>Plages horaires</h4>
+
+        <!-- Plage 1 -->
+        <div class="mb-2">
+          <label>Plage 1 :</label>
+          <input type="time" name="plage1_debut" value="{{ data.plages[0].debut if data.plages|length > 0 else '' }}" style="width: 100px;">
+          →
+          <input type="time" name="plage1_fin" value="{{ data.plages[0].fin if data.plages|length > 0 else '' }}" style="width: 100px;">
+        </div>
+
+        <!-- Plage 2 -->
+        <div class="mb-2">
+          <label>Plage 2 :</label>
+          <input type="time" name="plage2_debut" value="{{ data.plages[1].debut if data.plages|length > 1 else '' }}" style="width: 100px;">
+          →
+          <input type="time" name="plage2_fin" value="{{ data.plages[1].fin if data.plages|length > 1 else '' }}" style="width: 100px;">
+        </div>
+
+        <div class="mt-3">
+          <button type="submit" class="btn btn-success">Sauvegarder</button>
+          <a href="{{ url_for('banking.planning_employes', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat) }}" class="btn btn-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
   </div>
-
-  <!-- Plage 2 -->
-  <div class="mb-2">
-    <label>Plage 2 :</label>
-    <input type="time" name="plage2_debut" value="{{ data.plages[1].debut if data.plages|length > 1 else '' }}" style="width: 100px;">
-    →
-    <input type="time" name="plage2_fin" value="{{ data.plages[1].fin if data.plages|length > 1 else '' }}" style="width: 100px;">
-  </div>
-
-  <div class="mt-3">
-    <button type="submit" class="btn btn-success">Sauvegarder</button>
-    <a href="{{ url_for('banking.planning_employes', annee=annee, mois=mois, semaine=semaine, mode=mode, employeur=employeur, id_contrat=id_contrat) }}" class="btn btn-secondary">Annuler</a>
-  </div>
-</form>
+</div>
 
 {{ endblock }}

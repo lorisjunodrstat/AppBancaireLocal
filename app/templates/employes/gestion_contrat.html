@@ -1,5 +1,40 @@
-{{ extends "base.html" }}
+{% extends "base.html" %}
 
-{{ block content }}
+{% block content %}
+<div class="container-fluid">
+  <div class="row mb-3">
+    <div class="col">
+      <a href="{{ url_for('banking.liste_employe') }}">← Retour à la liste des employés</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title">Gestion des Contrats</h5>
+    </div>
+    <div class="card-body">
+      <h2>Contrats de l'employé {{ employe.prenom }} {{ employe.nom }}</h2>
+      <a href="{{ url_for('banking.ajouter_contrat', employe_id=employe.id) }}" class="btn btn-primary">Ajouter un contrat</a>
+      <table class="table mt-3">
+        <thead><tr><th>Employeur</th><th>Date de début</th><th>Date de fin</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for c in contrats %}
+          <tr>
+            <td>{{ c.employeur }}</td>
+            <td>{{ c.date_debut }}</td>
+            <td>{{ c.date_fin or 'Actif' }}</td>
+            <td>
+              <a href="{{ url_for('banking.modifier_contrat', contrat_id=c.id) }}">Modifier</a> |
+              <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" formaction="{{ url_for('banking.supprimer_contrat', contrat_id=c.id) }}">Supprimer</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
-{{ endblock }}
+{% endblock %}

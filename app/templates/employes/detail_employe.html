@@ -1,21 +1,36 @@
 {{ extends "base.html" }}
 
-{{ block "title" }}Détail de l'employé{{ endblock }}
+{{ block title }}Détail de l'employé{{ endblock }}
 
-{{ block "content" }}
-<h2>Détail de {{ employe.prenom }} {{ employe.nom }}</h2>
-<p>Email : {{ employe.email or '' }}</p>
-<p>Téléphone : {{ employe.telephone or '' }}</p>
-<p>AVS : {{ employe.No_AVS }}</p>
+{{ block content }}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <a href="{{ url_for('banking.liste_employe') }}">← Retour à la liste des employés</a>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Informations Employé</h5>
+        </div>
+        <div class="card-body">
+            <h2>Détail de {{ employe.prenom }} {{ employe.nom }}</h2>
+            <p>Email : {{ employe.email or '' }}</p>
+            <p>Téléphone : {{ employe.telephone or '' }}</p>
+            <p>AVS : {{ employe.No_AVS }}</p>
 
-<h3>Contrats</h3>
-<ul>
-    {% for c in employe.contrats %}
-    <li>Employeur : {{ c.employeur }}, du {{ c.date_debut }}{% if c.date_fin %} au {{ c.date_fin }}{% endif %}</li>
-    {% else %}
-    <li>Aucun contrat</li>
-    {% endfor %}
-</ul>
+            <h3>Contrats</h3>
+            <ul>
+                {% for c in employe.contrats %}
+                <li>Employeur : {{ c.employeur }}, du {{ c.date_debut }}{% if c.date_fin %} au {{ c.date_fin }}{% endif %}</li>
+                {% else %}
+                <li>Aucun contrat</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
 
 <a href="{{ url_for('banking.liste_employe') }}">← Retour</a>
 

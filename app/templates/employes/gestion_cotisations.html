@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Gestion des Cotisations{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <a href="{{ url_for('banking.liste_employe') }}">← Retour à la liste des employés</a>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Gestion des Cotisations</h5>
+        </div>
+        <div class="card-body">
+            <h2>Cotisations de l'employé {{ employe.prenom }} {{ employe.nom }}</h2>
+            <a href="{{ url_for('banking.ajouter_cotisation', employe_id=employe.id) }}" class="btn btn-primary">Ajouter une cotisation</a>
+            <table class="table mt-3">
+                <thead><tr><th>Type de Cotisation</th><th>Montant</th><th>Date de Début</th><th>Date de Fin</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for c in cotisations %}
+                    <tr>
+                        <td>{{ c.type_cotisation.nom }}</td>
+                        <td>{{ c.montant }}</td>
+                        <td>{{ c.date_debut }}</td>
+                        <td>{{ c.date_fin or 'Actif' }}</td>
+                        <td>
+                            <a href="{{ url_for('banking.modifier_cotisation', cotisation_id=c.id) }}">Modifier</a> |
+                            <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer ?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" formaction="{{ url_for('banking.supprimer_cotisation', cotisation_id=c.id) }}">Supprimer</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,24 +1,38 @@
 {{ extends "base.html" }}
-{{ block "title" }}{% if type %}Modifier{% else %}Nouveau{% endif %} Type de Cotisation{{ endblock }}
-{{ block "content" }}
-<h2>{% if type %}Modifier le type « {{ type.nom }} »{% else %}Nouveau type de cotisation{% endif %}</h2>
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="mb-3">
-    <label>Nom <small>(ex: AVS, LPP, etc.)</small></label>
-    <input type="text" name="nom" value="{{ type.nom if type else '' }}" class="form-control" required>
+{{ block title }}{% if type %}Modifier{% else %}Nouveau{% endif %} Type de Cotisation{{ endblock }}
+{{ block content }}
+<div class="container-fluid">
+  <div class="row mb-3">
+    <div class="col">
+      <a href="{{ url_for('banking.liste_types_cotisation') }}">← Retour à la liste des types de cotisations</a>
+    </div>
   </div>
-  <div class="mb-3">
-    <label>Description <small>(optionnel)</small></label>
-    <textarea name="description" class="form-control">{{ type.description if type else '' }}</textarea>
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title">{% if type %}Modifier le type de cotisation{% else %}Nouveau type de cotisation{% endif %}</h5>
+    </div>
+    <div class="card-body">
+      <h2>{% if type %}Modifier le type « {{ type.nom }} »{% else %}Nouveau type de cotisation{% endif %}</h2>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label>Nom <small>(ex: AVS, LPP, etc.)</small></label>
+          <input type="text" name="nom" value="{{ type.nom if type else '' }}" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label>Description <small>(optionnel)</small></label>
+          <textarea name="description" class="form-control">{{ type.description if type else '' }}</textarea>
+        </div>
+        <div class="mb-3">
+          <label>
+            <input type="checkbox" name="est_obligatoire" {% if type and type.est_obligatoire %}checked{% endif %}>
+            Obligatoire (ex: AVS, AC, etc.)
+          </label>
+        </div>
+        <button type="submit" class="btn btn-success">Enregistrer</button>
+        <a href="{{ url_for('banking.liste_types_cotisation') }}" class="btn btn-secondary">Annuler</a>
+      </form>
+    </div>
   </div>
-  <div class="mb-3">
-    <label>
-      <input type="checkbox" name="est_obligatoire" {% if type and type.est_obligatoire %}checked{% endif %}>
-      Obligatoire (ex: AVS, AC, etc.)
-    </label>
-  </div>
-  <button type="submit" class="btn btn-success">Enregistrer</button>
-  <a href="{{ url_for('banking.liste_types_cotisation') }}" class="btn btn-secondary">Annuler</a>
-</form>
+</div>
 {{ endblock }}

@@ -432,7 +432,15 @@ def banking_compte_detail(compte_id):
         except ValueError:
             # Si la conversion en entier échoue, on ignore le filtre
             pass
-
+    if sort == 'date_desc':
+        filtred_mouvements.sort(
+            key=lambda x: x['date_transaction'] if isinstance(x['date_transaction'], datetime) 
+            else datetime.strptime(str(x['date_transaction']), '%Y-%m-%d %H:%M:%S'),
+            reverse=True)
+    else:  # date_asc par défaut
+        filtred_mouvements.sort(
+            key=lambda x: x['date_transaction'] if isinstance(x['date_transaction'], datetime) 
+            else datetime.strptime(str(x['date_transaction']), '%Y-%m-%d %H:%M:%S'))
     # Correction des totaux - utilisation des statistiques plutôt que du calcul manuel
     total_recettes = Decimal(str(stats_compte.get('total_entrees', 0))) if stats_compte else Decimal('0')
     total_depenses = Decimal(str(stats_compte.get('total_sorties', 0))) if stats_compte else Decimal('0')

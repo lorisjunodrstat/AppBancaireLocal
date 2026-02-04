@@ -1,25 +1,39 @@
 {{ extends "base.html" }}
-{{ block "title" }}Types de Cotisations{{ endblock }}
-{{ block "content" }}
-<h2>Types de Cotisations</h2>
-<a href="{{ url_for('banking.editer_type_cotisation') }}" class="btn btn-primary">Nouveau type</a>
-<table class="table mt-3">
-  <thead><tr><th>Nom</th><th>Description</th><th>Obligatoire</th><th>Actions</th></tr></thead>
-  <tbody>
-    {% for t in types %}
-    <tr>
-      <td>{{ t.nom }}</td>
-      <td>{{ t.description or '' }}</td>
-      <td>{% if t.est_obligatoire %}Oui{% endif %}</td>
-      <td>
-        <a href="{{ url_for('banking.editer_type_cotisation', type_id=t.id) }}">Éditer</a> |
-        <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer ?')">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" formaction="{{ url_for('banking.supprimer_type_cotisation', type_id=t.id) }}">Supprimer</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{{ block title }}Types de Cotisations{{ endblock }}
+{{ block content }}
+<div class="container-fluid">
+  <div class="row mb-3">
+    <div class="col">
+      <a href="{{ url_for('banking.index') }}">← Retour au tableau de bord</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title">Liste des Types de Cotisations</h5>
+    </div>
+    <div class="card-body">
+      <h2>Types de Cotisations</h2>
+      <a href="{{ url_for('banking.editer_type_cotisation') }}" class="btn btn-primary">Nouveau type</a>
+      <table class="table mt-3">
+        <thead><tr><th>Nom</th><th>Description</th><th>Obligatoire</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for t in types %}
+          <tr>
+            <td>{{ t.nom }}</td>
+            <td>{{ t.description or '' }}</td>
+            <td>{% if t.est_obligatoire %}Oui{% endif %}</td>
+            <td>
+              <a href="{{ url_for('banking.editer_type_cotisation', type_id=t.id) }}">Éditer</a> |
+              <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" formaction="{{ url_for('banking.supprimer_type_cotisation', type_id=t.id) }}">Supprimer</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {{ endblock }}
