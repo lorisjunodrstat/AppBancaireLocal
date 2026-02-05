@@ -290,7 +290,13 @@ def banking_compte_detail(compte_id):
     if pf:
         date_debut_str = pf['date_debut'].strftime('%Y-%m-%d')
         date_fin_str = pf['date_fin'].strftime('%Y-%m-%d')
+     # Paramètres de pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)  # Nombre d'éléments par page
+    max_per_page = 100  # Limite maximale par sécurité
     
+    if per_page > max_per_page:
+        per_page = max_per_page
     # Paramètre de filtrage et tri
     sort = request.args.get('sort', 'date_desc')
     filter_type = request.args.get('filter_type', 'tous')
@@ -441,6 +447,21 @@ def banking_compte_detail(compte_id):
         filtred_mouvements.sort(
             key=lambda x: x['date_transaction'] if isinstance(x['date_transaction'], datetime) 
             else datetime.strptime(str(x['date_transaction']), '%Y-%m-%d %H:%M:%S'))
+    # 🔥 PAGINATION : Calculer les données de pagination
+    total_mouvements = len(filtred_mouvements)
+    total_pages = (total_mouvements + per_page - 1) // per_page
+    
+    # S'assurer que la page est dans les limites
+    if page < 1:
+        page = 1
+    elif page > total_pages and total_pages > 0:
+        page = total_pages
+    
+    # Pagination des résultats
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    mouvements_page = filtred_mouvements[start_idx:end_idx]
+    
     # Correction des totaux - utilisation des statistiques plutôt que du calcul manuel
     total_recettes = Decimal(str(stats_compte.get('total_entrees', 0))) if stats_compte else Decimal('0')
     total_depenses = Decimal(str(stats_compte.get('total_sorties', 0))) if stats_compte else Decimal('0')
@@ -533,7 +554,7 @@ def banking_compte_detail(compte_id):
                         compte=compte,
                         liste_categories=liste_categories,
                         sous_comptes=sous_comptes,
-                        mouvements=filtred_mouvements,
+                        mouvements=mouvements_page,
                         filtred_mouvements=filtred_mouvements,
                         solde_total=solde_total,
                         tresorerie_data=tresorerie_data,
@@ -555,8 +576,11 @@ def banking_compte_detail(compte_id):
                         sort=sort,
                         pf=pf,
                         categories_par_transaction=categories_par_transaction,
-                        toutes_categories=toutes_categories)  # 🔥 NOUVEAU : Passer les catégories
-
+                        toutes_categories=toutes_categories,
+                        page=page,
+                        per_page=per_page,
+                        total_mouvements=total_mouvements,
+                        total_pages=total_pages)  
 
 
 @bp.route('/banking/compte/<int:compte_id>/rapport')
@@ -8446,12 +8470,11 @@ def modifier_employe(employe_id, user_id):
                 return redirect(url_for('liste_employes'))
             else:
                 flash("Erreur lors de la mise à jour des informations de l'employé", "error")
-                return render_template('employes/modifier_employe.html', employe=employe, form_data=data)
+                return render_template('employes/modifier_employe.html', employe=employe, user_id=user_id, form_data=data)
         except Exception as e:
             logging.error(f"Erreur lors de la mise à jour de l'employé: {e}")
             flash(f'Erreur lors de la mise à jour : {str(e)}', 'error')
-            return render_template('employes/modifier_employe.html', employe=employe)
-
+            return render_template('employes/modifier_employe.html', employe=employe, user_id=user_id, form_data=data)
 @bp.route('/employes/detail_employe/<int:employe_id>', methods=['GET'])
 @login_required
 def detail_employe(employe_id):
