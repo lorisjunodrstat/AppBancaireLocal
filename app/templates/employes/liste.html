@@ -37,10 +37,10 @@
                     <td>
                         <a href="{{ url_for('banking.detail_employe', employe_id=e.id, user_id=current_user.id) }}">Détail</a>
                         <a
-                            href="{{ url_for('banking.modifier_employe', employe_id=e.id, user_id=current_user.id) }}">Modifier</a>
+                            href="{{ url_for('banking.modifier_employe', employe_id=e.id, user_id=current_user.id) }}"><i class="fa-brands fa-bootstrap"></i></a>
                         <form method="post" action="{{ url_for('banking.supprimer_employe', employe_id=e.id) }}"
                             style="display:inline;">
-                            <button type="submit" onclick="return confirm('Confirmer ?')">Supprimer</button>
+                            <button type="submit" onclick="return confirm('Confirmer ?')"><i class="fa-sharp fa-light fa-ban"></i></button>
                         </form>
                     </td>
                 </tr>
