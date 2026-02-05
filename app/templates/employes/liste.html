@@ -35,12 +35,12 @@
                     <td>{{ e.prenom }}</td>
                     <td>{{ e.email or '' }}</td>
                     <td>
-                        <a href="{{ url_for('banking.detail_employe', employe_id=e.id, user_id=current_user.id) }}"><i class="fa-thin fa-circle-info"></i></a>
+                        <a href="{{ url_for('banking.detail_employe', employe_id=e.id, user_id=current_user.id) }}"><i class="fa-solid fa-circle-info"></i>></a>
                         <a
-                            href="{{ url_for('banking.modifier_employe', employe_id=e.id, user_id=current_user.id) }}"><i class="fa-sharp fa-light fa-comment-pen"></i></a>
+                            href="{{ url_for('banking.modifier_employe', employe_id=e.id, user_id=current_user.id) }}"><i class="fa-solid fa-pen"></i></a>
                         <form method="post" action="{{ url_for('banking.supprimer_employe', employe_id=e.id) }}"
                             style="display:inline;">
-                            <button type="submit" onclick="return confirm('Confirmer ?')"><i class="fa-sharp fa-light fa-ban"></i></button>
+                            <button type="submit" onclick="return confirm('Confirmer ?')"><i class="fa-solid fa-delete-left"></i></button>
                         </form>
                     </td>
                 </tr>
