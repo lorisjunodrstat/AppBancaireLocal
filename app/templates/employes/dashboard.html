@@ -82,67 +82,82 @@
 
 <!-- === RÉSUMÉ MENSUEL === -->
 {% if employes %}
-<div class="card" style="padding: 1rem; margin-bottom: 2rem;">
-    <div class="card-header">
-        <h3>Résumé du mois</h3>
+<div class="container-fluid mt-4">
+    <div class="card" style="padding: 1rem; margin-bottom: 2rem;">
+        <div class="card-header">
+            <h3>Résumé du mois</h3>
+        </div>
+        <div class="card-body">
+            <p>Nombre total d'employés : <strong>{{ all_employes }}</strong></p>
+            <p>Mois : <strong>{{ mois }}</strong> / {{ annee }}</p>
+            <p>Heures totales : <strong>{{ "%.2f"|format(heures_total_mois) }} h</strong></p>
+            <p>Salaire total : <strong>{{ "%.2f"|format(salaire_total_mois) }} CHF</strong></p>
+        </div>
     </div>
-    <div class="card-body">
-        <p>Nombre total d'employés : <strong>{{ all_employes }}</strong></p>
-        <p>Mois : <strong>{{ mois }}</strong> / {{ annee }}</p>
-        <p>Heures totales : <strong>{{ "%.2f"|format(heures_total_mois) }} h</strong></p>
-        <p>Salaire total : <strong>{{ "%.2f"|format(salaire_total_mois) }} CHF</strong></p>
-    </div>
-</div>
 
-<!-- CORRECTION : changer les noms des champs -->
- <div class="card">
-    <div class="card-header">
-        <h3>Filtrer par mois et année</h3>
+    <!-- CORRECTION : changer les noms des champs -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Filtrer par mois et année</h3>
+        </div>
+        <div class="card-body">
+            <form method="get" style="margin: 1rem 0;">
+                <label>Mois :
+                    <select name="mois"> <!-- ← CORRECTION : "mois" pas "date_dashboard_mois" -->
+                        {% for m in range(1,13) %}
+                        <option value="{{ m }}" {% if m==mois %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Année :
+                    <input type="number" name="annee" value="{{ annee }}" min="2020" max="2030">
+                    <!-- ← CORRECTION : "annee" pas "date_dashboard_annee" -->
+                </label>
+                <button type="submit" class="btn btn-secondary">Actualiser</button>
+            </form>
+        </div>
     </div>
-    <div class="card-body">
-        <form method="get" style="margin: 1rem 0;">
-            <label>Mois :
-                <select name="mois"> <!-- ← CORRECTION : "mois" pas "date_dashboard_mois" -->
-                    {% for m in range(1,13) %}
-                    <option value="{{ m }}" {% if m==mois %}selected{% endif %}>{{ m }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>Année :
-                <input type="number" name="annee" value="{{ annee }}" min="2020" max="2030">
-                <!-- ← CORRECTION : "annee" pas "date_dashboard_annee" -->
-            </label>
-            <button type="submit" class="btn btn-secondary">Actualiser</button>
-        </form>
-    </div>
-</div>
-{% endif %}
-
-<!-- === ACTIONS RAPIDES === -->
-<div class="dashboard-actions">
-    {% if employes %}
-    <a href="{{ url_for('banking.planning_employes') }}" class="btn btn-outline-secondary">📊 Planning global</a>
-    <a href="{{ url_for('banking.synthese_mensuelle') }}" class="btn btn-outline-secondary">📈 Synthèse mensuelle</a>
     {% endif %}
-    <a href="{{ url_for('banking.liste_employe') }}" class="btn btn-outline-primary">👥 Liste des employés</a>
-    <a href="{{ url_for('banking.gestion_entreprise') }}" class="btn btn-outline-primary">🏢 Informations entreprise</a>
-</div>
 
-<!-- === LISTE DES EMPLOYÉS === -->
-{% if employes %}
-<h3>Liste des employés</h3>
-<ul>
-    {% for e in employes %}
-    <li>
-        <a href="{{ url_for('banking.detail_employe', employe_id=e.id) }}">
-            {{ e.prenom }} {{ e.nom }}
-        </a>
-        {% if e.id_contrat %}
-        <small>(contrat #{{ e.id_contrat }})</small>
-        {% endif %}
-    </li>
-    {% endfor %}
-</ul>
-{% endif %}
+    <!-- === ACTIONS RAPIDES === -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Actions rapides</h3>
+        </div>
+        <div class="card-body">
+            <div class="dashboard-actions">
+                {% if employes %}
+                <a href="{{ url_for('banking.planning_employes') }}" class="btn btn-outline-secondary">📊 Planning global</a>
+                <a href="{{ url_for('banking.synthese_mensuelle') }}" class="btn btn-outline-secondary">📈 Synthèse mensuelle</a>
+                {% endif %}
+                <a href="{{ url_for('banking.liste_employe') }}" class="btn btn-outline-primary">👥 Liste des employés</a>
+                <a href="{{ url_for('banking.gestion_entreprise') }}" class="btn btn-outline-primary">🏢 Informations entreprise</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+   {% if employes %}
+    <div class="card">
+        <div class="card-header">
+            <h3>Liste des employés</h3>
+        </div>
+    <!-- === LISTE DES EMPLOYÉS === -->
+        <div class="card-body">
+            <ul>
+                {% for e in employes %}
+                <li>
+                    <a href="{{ url_for('banking.detail_employe', employe_id=e.id) }}">
+                        {{ e.prenom }} {{ e.nom }}
+                    </a>
+                    {% if e.id_contrat %}
+                    <small>(contrat #{{ e.id_contrat }})</small>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</div>
 
 {% endblock %}
